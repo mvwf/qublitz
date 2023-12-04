@@ -30,6 +30,9 @@ def main():
     # Create a time vector for plotting
     tlist = np.linspace(0, t_final, n_steps)
 
+
+    st.title('Test!')
+
     # Create a Plotly figure for the simulation results
     fig_simulation = px.line(x=tlist, y=simulation_results, labels={"x": "Time", "y": "Probability"},
                              title="Quantum Simulation Results")
