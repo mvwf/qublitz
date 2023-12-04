@@ -37,7 +37,6 @@ def main():
     # Display the generated plots
     st.plotly_chart(fig_simulation)
 
-
     # Add histogram data
     x1 = np.random.randn(200) - 2
     x2 = np.random.randn(200)
