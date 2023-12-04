@@ -60,3 +60,4 @@ urllib3==2.0.2
 validators==0.20.0
 zipp==3.15.0
 ratelimit==2.2.1
+qutip==4.7.3
