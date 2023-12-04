@@ -37,7 +37,7 @@ def main():
 
     st.sidebar.image(fitzlab_logo, use_column_width=True)
 
-    st.header('This app simulates the dynamics of a driven qubit (two-level system)', divider='rainbow')
+    st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.header('Simulation Parameters')
     omega_z = 1.0
     omega_d = 1.0 
