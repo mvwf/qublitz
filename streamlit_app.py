@@ -47,8 +47,8 @@ def main():
     # t_final = st.number_input('t_final (length of trace in ns)', 0, value=200, step=1)
     t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1))
     # num_shots = st.number_input('num_shots (number of shots)', 1, value=500, step=1)
-    T1 = st.number_input(r'$T_1$ ($\mu$s)', 0.0, value= 50000.0, step=10.0)
-    T2 = st.number_input(r'$T_2$ ($\mu$s)', 0.0, value=10000.0, step=10.0)
+    T1 = st.number_input(r'$T_1$ ($\mu$s)', 0.0, value= 100.0, step=1.0)
+    T2 = st.number_input(r'$T_2$ ($\mu$s)', 0.0, value=200.0, step=1.0)
     
     num_shots = 5000 ## currently this not important.
     # st.title('Qubit sPulse Simulator')
@@ -75,7 +75,7 @@ def main():
             sigma = st.number_input('Sigma', 1, 100, 9, key='gaussian_sigma')
             center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
             if st.button('Add Gaussian Pulse', key='gaussian_button'):
-                pulse_vector = st.session_state.sigma_x_vec if target_channel == "sigma_x" else st.session_state.sigma_y_vec
+                pulse_vector = st.session_state.sigma_x_vec if target_channel == "⟨σ_x⟩" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
                 if target_channel == "⟨σ_x⟩":
                     st.session_state.sigma_x_vec = updated_pulse_vector
