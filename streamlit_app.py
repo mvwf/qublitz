@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 from quantum_simulator import run_quantum_simulation
 from bokeh.plotting import figure
 from bokeh.models import FreehandDrawTool
+import matplotlib.pyplot as plt
 
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
@@ -173,19 +174,22 @@ def main():
 
         # Creating a mesh for the unit sphere
         u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-        x = np.cos(u) * np.sin(v)
-        y = np.sin(u) * np.sin(v)
-        z = np.cos(v)
+        x_sphere = np.cos(u) * np.sin(v)
+        y_sphere = np.sin(u) * np.sin(v)
+        z_sphere = np.cos(v)
 
-        # Plotting the state vector on the Bloch sphere
+        # Color map for the time evolution
+        time_points = np.linspace(0, 1, n_steps)  # Normalized time points
+        colors = [f"rgb({r}, {g}, {b})" for r, g, b in plt.cm.inferno(time_points)[:,:3] * 255]  # Inferno color map
+
         fig_bloch = go.Figure(data=[
-            go.Surface(x=x, y=y, z=z, colorscale='Viridis', opacity=0.3),
+            go.Surface(x=x_sphere, y=y_sphere, z=z_sphere, colorscale='Inferno', opacity=0.3),
             go.Scatter3d(
-                x=exp_values[0],  # ⟨σ_x⟩ values
-                y=exp_values[1],  # ⟨σ_y⟩ values
+                x=exp_x_rotating,  # ⟨σ_x⟩ values
+                y=exp_y_rotating,  # ⟨σ_y⟩ values
                 z=exp_values[2],  # ⟨σ_z⟩ values
                 mode='markers',
-                marker=dict(size=5, color='red', opacity=0.8)
+                marker=dict(size=5, color=colors, opacity=0.8)  # Use time-based colors
             )
         ])
 
@@ -201,8 +205,6 @@ def main():
             ),
             margin=dict(l=0, r=0, b=0, t=0)
         )
-
         st.plotly_chart(fig_bloch)
-
 if __name__ == "__main__":
     main()
