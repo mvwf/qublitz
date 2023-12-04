@@ -68,7 +68,7 @@ def main():
 
     if pulse_method == "Pre-defined Pulse":
         pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square"], key='pulse_type')
-        target_channel = st.selectbox("Choose Target Channel", ["sigma_x", "sigma_y"], key='target_channel')
+        target_channel = st.selectbox("Choose Target Channel", ["⟨σ_x⟩", "⟨σ_y⟩"], key='target_channel')
 
         if pulse_type == 'Gaussian':
             amp = st.number_input('Amplitude', 0.0, 1.0, 0.4, key='gaussian_amp')
@@ -77,7 +77,7 @@ def main():
             if st.button('Add Gaussian Pulse', key='gaussian_button'):
                 pulse_vector = st.session_state.sigma_x_vec if target_channel == "sigma_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-                if target_channel == "sigma_x":
+                if target_channel == "⟨σ_x⟩":
                     st.session_state.sigma_x_vec = updated_pulse_vector
                 else:
                     st.session_state.sigma_y_vec = updated_pulse_vector
@@ -89,7 +89,7 @@ def main():
             if st.button('Add Square Pulse', key='square_button'):
                 pulse_vector = st.session_state.sigma_x_vec if target_channel == "sigma_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
-                if target_channel == "sigma_x":
+                if target_channel == "⟨σ_x⟩":
                     st.session_state.sigma_x_vec = updated_pulse_vector
                 else:
                     st.session_state.sigma_y_vec = updated_pulse_vector
@@ -161,12 +161,12 @@ def main():
 
         # Plot results in rotating frame
         fig_results_rotating = go.Figure()
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='⟨σ_x⟩ Rotating Frame'))
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='⟨σ_y⟩ Rotating Frame'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='⟨σ_x⟩'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='⟨σ_y⟩'))
         fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name='⟨σ_z⟩'))
         fig_results_rotating.update_layout(
-            xaxis_title='Time',
-            yaxis_title='Expectation Values in Rotating Frame',
+            xaxis_title='Time [ns]',
+            yaxis_title='Expectation Values',
             title='Quantum Simulation Results in Rotating Frame'
         )
         st.plotly_chart(fig_results_rotating)
