@@ -70,9 +70,10 @@ def main():
 
     if pulse_method == "Pre-defined Pulse":
         pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square", "H", "X", "Y"], key='pulse_type')
-        target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
+        
 
         if pulse_type == 'Gaussian':
+            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
             amp = st.number_input('Amplitude', -1.0, 1.0, 0.4, key='gaussian_amp')
             sigma = st.number_input('Sigma', 1, 100, 9, key='gaussian_sigma')
             center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
@@ -117,6 +118,7 @@ def main():
                 st.session_state.sigma_y_vec = updated_pulse_vector
             
         elif pulse_type == 'Square':
+            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
             amp = st.number_input('Amplitude', 0.0, 1.0, 0.5, key='square_amp')
             start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=10, step=1, key='square_start')
             stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=max(30, start), step=1, key='square_stop')
