@@ -44,19 +44,20 @@ def main():
     omega_d = 1.0 
     st.header('')
     # User inputs for simulation parameters
-    omega_rabi = st.number_input('ω_rabi (Rabi rate)', 0.0, value=0.028 * 2, step=0.001)
+    omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=0.028 * 2, step=0.001)
     # t_final = st.number_input('t_final (length of trace in ns)', 0, value=200, step=1)
     t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1))
     # num_shots = st.number_input('num_shots (number of shots)', 1, value=500, step=1)
-    T1 = st.number_input(r'$T_1$ ($\mu$s)', 0.0, value= 100.0, step=1.0)
-    T2 = st.number_input(r'$T_2$ ($\mu$s)', 0.0, value=200.0, step=1.0)
+    T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value= 100.0, step=1.0)
+    T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=200.0, step=1.0)
+    detuning = st.number_input('Detuning [MHz]', value=0.0, step=0.1, key='detuning')
     
     num_shots = 5000 ## currently this not important.
     # st.title('Qubit sPulse Simulator')
     st.header('Pulse Parameters')
     pulse_method = st.selectbox("Choose Pulse Input Method", ["Pre-defined Pulse", "Upload Pulses", "Draw Pulses"], key='pulse_input_type')
     # Input for detuning
-    detuning = st.number_input('Detuning (MHz)', value=0.0, step=0.1, key='detuning')
+    
 
     n_steps = 4 * t_final
     tlist = np.linspace(0, t_final, n_steps)
@@ -68,21 +69,53 @@ def main():
         st.session_state.sigma_y_vec = np.zeros(n_steps)
 
     if pulse_method == "Pre-defined Pulse":
-        pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square"], key='pulse_type')
-        target_channel = st.selectbox("Choose Target Channel", ["⟨σ_x⟩", "⟨σ_y⟩"], key='target_channel')
+        pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square", "H", "X", "Y"], key='pulse_type')
+        target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
 
         if pulse_type == 'Gaussian':
-            amp = st.number_input('Amplitude', 0.0, 1.0, 0.4, key='gaussian_amp')
+            amp = st.number_input('Amplitude', -1.0, 1.0, 0.4, key='gaussian_amp')
             sigma = st.number_input('Sigma', 1, 100, 9, key='gaussian_sigma')
             center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
             if st.button('Add Gaussian Pulse', key='gaussian_button'):
-                pulse_vector = st.session_state.sigma_x_vec if target_channel == "⟨σ_x⟩" else st.session_state.sigma_y_vec
+                pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-                if target_channel == "⟨σ_x⟩":
+                if target_channel == "σ_x":
                     st.session_state.sigma_x_vec = updated_pulse_vector
                 else:
                     st.session_state.sigma_y_vec = updated_pulse_vector
 
+        elif pulse_type == 'H':
+            
+            amp = 0.2
+            sigma = 9
+            
+            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+
+            if st.button('Add H Gate', key='H_button'):
+                pulse_vector = st.session_state.sigma_x_vec
+                updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
+                st.session_state.sigma_x_vec = updated_pulse_vector
+                
+        elif pulse_type == 'X':
+            
+            amp = 0.4
+            sigma = 9
+            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+            if st.button('Add X Gate', key='X_button'):
+                pulse_vector = st.session_state.sigma_x_vec
+                updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
+                st.session_state.sigma_x_vec = updated_pulse_vector
+
+        elif pulse_type == 'Y':
+            
+            amp = 0.4
+            sigma = 9
+            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+            if st.button('Add Y Gate', key='Y_button'):
+                pulse_vector = st.session_state.sigma_y_vec
+                updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
+                st.session_state.sigma_y_vec = updated_pulse_vector
+            
         elif pulse_type == 'Square':
             amp = st.number_input('Amplitude', 0.0, 1.0, 0.5, key='square_amp')
             start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=10, step=1, key='square_start')
@@ -90,7 +123,7 @@ def main():
             if st.button('Add Square Pulse', key='square_button'):
                 pulse_vector = st.session_state.sigma_x_vec if target_channel == "sigma_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
-                if target_channel == "⟨σ_x⟩":
+                if target_channel == "σ_x":
                     st.session_state.sigma_x_vec = updated_pulse_vector
                 else:
                     st.session_state.sigma_y_vec = updated_pulse_vector
@@ -157,8 +190,8 @@ def main():
         time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
 
         # Demodulate the expectation values
-        exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d + detuning) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d + detuning) * time_array)
-        exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d + detuning) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d + detuning) * time_array)
+        exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d + detuning*1e-3) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
+        exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d + detuning*1e-3) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
 
         # Plot results in rotating frame
         fig_results_rotating = go.Figure()
