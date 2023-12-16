@@ -74,7 +74,7 @@ def main():
         st.session_state.sigma_y_vec = 0*tlist
 
     if pulse_method == "Pre-defined Pulse":
-        pulse_type = st.selectbox("Choose Pulse Type", ["Square", "Gaussian", "H", "X", "Y"], key='pulse_type')
+        pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square", "H", "X", "Y"], key='pulse_type')
         
 
         if pulse_type == 'Gaussian':
