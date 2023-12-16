@@ -45,8 +45,8 @@ def main():
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.header('Simulation Parameters')
-    omega_z = 1.0
-    omega_d = 1.0 
+    omega_z = 1.0 # need to address this later
+    omega_d = 1.0 # need to address this later
     st.header('')
     # User inputs for simulation parameters
     t_final = int(st.number_input('t_final [ns]', 0, value=400, step=1, key='t_final'))
@@ -93,7 +93,7 @@ def main():
 
         elif pulse_type == 'Square':
             target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
-            amp = st.number_input('Amplitude', -1.0, 1.0, 0.6, key='square_amp')
+            amp = st.number_input('Amplitude', -1.0, 1.0, 0.5, key='square_amp')
             start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=1, step=1, key='square_start')
             stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10, step=1, key='square_stop')
             # Enforce T2 <= 2*T1 constraint
