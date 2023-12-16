@@ -41,7 +41,7 @@ def run_quantum_simulation(omega_z, omega_rabi, t_final, n_steps, omega_d, user_
 
     for state in result.states:
         # print(state)
-        prob_0 = state[0, 0].real  # Probability of being in state |0>
+        prob_0 = np.abs(state[0, 0])**2 # Probability of being in state |0>
         # prob_1 = state[1, 1].real  # Probability of being in state |1>
         probabilities.append(prob_0)
 
