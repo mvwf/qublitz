@@ -31,9 +31,24 @@ def run_quantum_simulation(omega_z, omega_rabi, t_final, n_steps, omega_d, user_
 
     # Set QuTiP Options to increase nsteps
     options = Options(nsteps=10000)
+    options.store_states = True
 
     # Mesolve with collapse operators
     result = mesolve(H, psi0, tlist, c_ops, [sigmax(), sigmay(), sigmaz()], args={'w': 2 * np.pi * omega_d}, options=options)
 
-    exp_values = result.expect
-    return exp_values
+    probabilities = []
+    sampled_probabilities = []
+
+    for state in result.states:
+        # print(state)
+        prob_0 = state[0, 0].real  # Probability of being in state |0>
+        # prob_1 = state[1, 1].real  # Probability of being in state |1>
+        probabilities.append(prob_0)
+
+        # Sample the distribution
+        samples = np.random.choice([0, 1], size=num_shots, p=[prob_0, 1 - prob_0])
+        sampled_prob_0 = np.sum(samples == 0) / num_shots
+        sampled_probabilities.append(sampled_prob_0)
+
+    # print(len(probabilities))
+    return result.expect, probabilities, sampled_probabilities
