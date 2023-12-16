@@ -45,10 +45,11 @@ def main():
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.header('Simulation Parameters')
-    omega_z = 1.0 # need to address this later
-    omega_d = 1.0 # need to address this later
-    st.header('')
     # User inputs for simulation parameters
+    omega_q = st.number_input(r'$\omega_q$ [GHz]', 0.000, value=6.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
+    omega_d = st.number_input(r'$\omega_d$ [GHz]', 0.000, value=6.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
+    detuning = st.number_input(r'Plot $\Delta$ [MHz]', 0.000, value=0.0, step=1.0, key='detuning') # need to address this later
+   
     t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1, key='t_final'))
     T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value=5.0, step=1.0, key='T1_input')
     T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=7.0, step=1.0, key='T2_input')
@@ -56,8 +57,7 @@ def main():
     while T2 > 2 * T1:
         st.warning(r"T2 $\leq$ 2*T1")
         T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
-    detuning = st.number_input('Detuning [MHz]', value=20.0, step=0.1, key='detuning')
-    num_shots = st.number_input('shots', 1, value=100, step=1)
+    num_shots = st.number_input('shots', 1, value=256, step=1)
     # st.title('Qubit sPulse Simulator')
     st.header('Pulse Parameters')
     omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi')
@@ -72,6 +72,8 @@ def main():
         st.session_state.sigma_x_vec = 0*tlist
     if 'sigma_y_vec' not in st.session_state:
         st.session_state.sigma_y_vec = 0*tlist
+
+    # check to see if you can execute both x and y drives.
 
     if pulse_method == "Pre-defined Pulse":
         pulse_type = st.selectbox("Choose Pulse Type", [ "Square", "Gaussian", "H", "X", "Y"], key='pulse_type')
@@ -193,7 +195,7 @@ def main():
 
     # Button to run simulation
     if st.button('Run Simulation'):
-        params = (omega_z, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1*1e3, T2*1e3)
+        params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1*1e3, T2*1e3)
         exp_values, probabilities, sampled_probabilities  = run_quantum_simulation(*params)
 
         # Time array for transformation
@@ -201,13 +203,13 @@ def main():
 
         # Demodulate the expectation values
         exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d + detuning*1e-3) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
-        exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d + detuning*1e-3) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
+        exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d +detuning*1e-3) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
 
         # Plot results in rotating frame
         fig_results_rotating = go.Figure()
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='$⟨σ_x⟩$'))
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='$⟨σ_y⟩$'))
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name='$⟨σ_z⟩$'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='⟨σ_x⟩'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='⟨σ_y⟩'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name='⟨σ_z⟩'))
         fig_results_rotating.update_layout(
             xaxis_title='Time [ns]',
             yaxis_title='Expectation Values',
