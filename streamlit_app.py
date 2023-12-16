@@ -49,9 +49,9 @@ def main():
     omega_d = 1.0 # need to address this later
     st.header('')
     # User inputs for simulation parameters
-    t_final = int(st.number_input('t_final [ns]', 0, value=400, step=1, key='t_final'))
+    t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1, key='t_final'))
     T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value=5.0, step=1.0, key='T1_input')
-    T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=9.0, step=1.0, key='T2_input')
+    T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=7.0, step=1.0, key='T2_input')
     # Enforce T2 <= 2*T1 constraint
     while T2 > 2 * T1:
         st.warning(r"T2 $\leq$ 2*T1")
@@ -60,7 +60,7 @@ def main():
     num_shots = st.number_input('shots', 1, value=100, step=1)
     # st.title('Qubit sPulse Simulator')
     st.header('Pulse Parameters')
-    omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=0.028 * 2, step=0.001, key='rabi')
+    omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi')
     pulse_method = st.selectbox("Choose Pulse Input Method", ["Pre-defined Pulse", "Upload Pulses", "Draw Pulses"], key='pulse_input_type')
     # Input for detuning
     
@@ -74,14 +74,14 @@ def main():
         st.session_state.sigma_y_vec = 0*tlist
 
     if pulse_method == "Pre-defined Pulse":
-        pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square", "H", "X", "Y"], key='pulse_type')
+        pulse_type = st.selectbox("Choose Pulse Type", [ "Square", "Gaussian", "H", "X", "Y"], key='pulse_type')
         
 
         if pulse_type == 'Gaussian':
             target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='gaussian_target_channel')
             amp = st.number_input('Amplitude', -1.0, 1.0, 0.4, key='gaussian_amp')
-            sigma = st.number_input('Sigma', 1, 100, 9, key='gaussian_sigma')
-            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
+            sigma = st.number_input('Sigma', 0.0, 100.0, 9.0, key='gaussian_sigma')
+            center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
             if st.button('Add Gaussian Pulse', key='gaussian_button'):
                 pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -93,8 +93,8 @@ def main():
 
         elif pulse_type == 'Square':
             target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
-            amp = st.number_input('Amplitude', -1.0, 1.0, 0.5, key='square_amp')
-            start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=1, step=1, key='square_start')
+            amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
+            start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=0, step=1, key='square_start')
             stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10, step=1, key='square_stop')
             # Enforce T2 <= 2*T1 constraint
             while stop < start:
@@ -114,7 +114,7 @@ def main():
             
             amp = 0.2
             sigma = 9
-            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
             if st.button('Add H Gate', key='H_button'):
                 pulse_vector = st.session_state.sigma_x_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -124,7 +124,7 @@ def main():
             
             amp = 0.4
             sigma = 9
-            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
             if st.button('Add X Gate', key='X_button'):
                 pulse_vector = st.session_state.sigma_x_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -134,7 +134,7 @@ def main():
             
             amp = 0.4
             sigma = 9
-            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
             if st.button('Add Y Gate', key='Y_button'):
                 pulse_vector = st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -193,7 +193,7 @@ def main():
 
     # Button to run simulation
     if st.button('Run Simulation'):
-        params = (omega_z, omega_rabi, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1*1e3, T2*1e3)
+        params = (omega_z, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1*1e3, T2*1e3)
         exp_values, probabilities, sampled_probabilities  = run_quantum_simulation(*params)
 
         # Time array for transformation
@@ -205,13 +205,13 @@ def main():
 
         # Plot results in rotating frame
         fig_results_rotating = go.Figure()
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='⟨σ_x⟩'))
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='⟨σ_y⟩'))
-        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name='⟨σ_z⟩'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name='$⟨σ_x⟩$'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name='$⟨σ_y⟩$'))
+        fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name='$⟨σ_z⟩$'))
         fig_results_rotating.update_layout(
             xaxis_title='Time [ns]',
             yaxis_title='Expectation Values',
-            title='Quantum Simulation Results in Rotating Frame'
+            title=f'Quantum Simulation Results in Rotating Frame (Δ={detuning} MHz)'
         )
         st.plotly_chart(fig_results_rotating)
 
