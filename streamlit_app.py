@@ -49,7 +49,7 @@ def main():
     omega_d = 1.0 
     st.header('')
     # User inputs for simulation parameters
-    t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1, key='t_final'))
+    t_final = int(st.number_input('t_final [ns]', 0, value=400, step=1, key='t_final'))
     T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value=5.0, step=1.0, key='T1_input')
     T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=9.0, step=1.0, key='T2_input')
     # Enforce T2 <= 2*T1 constraint
