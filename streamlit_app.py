@@ -3,7 +3,7 @@ Authors:
     M.F. Fitzpatrick
 
 Release Date: 
-    V 1.0: 12/04/2023
+    V 1.0: 12/16/2023
 
 '''
 from PIL import Image
@@ -15,6 +15,7 @@ from quantum_simulator import run_quantum_simulation
 from bokeh.plotting import figure
 from bokeh.models import FreehandDrawTool
 import matplotlib.pyplot as plt
+import plotly.express as px
 
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
@@ -25,15 +26,19 @@ def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     return np.clip(pulse_vector + gaussian, -1, 1)  # Ensuring values are within [-1, 1]
 
 def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
+    """
+    Adds a Square pulse to the pulse vector.
+    """
     tlist = np.linspace(0, t_final, n_steps)
     square_pulse = np.where((tlist >= start) & (tlist <= stop), amplitude, 0)
-    updated_pulse_vector = np.clip(pulse_vector + square_pulse, -1, 1)
-    return updated_pulse_vector
+
+    return np.clip(pulse_vector + square_pulse, -1, 1)
 
 
 def main():
 
-    st.title('Qubit Pulse Simulator: A Virtual Lab for ENGS 53')
+    # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
+    st.title('Qu-Blitz Virtual Qubit Lab')
     fitzlab_logo = Image.open("images/fitz_lab_logo.png")
 
     st.sidebar.image(fitzlab_logo, use_column_width=True)
@@ -44,39 +49,39 @@ def main():
     omega_d = 1.0 
     st.header('')
     # User inputs for simulation parameters
-    omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=0.028 * 2, step=0.001)
-    # t_final = st.number_input('t_final (length of trace in ns)', 0, value=200, step=1)
-    t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1))
-    # num_shots = st.number_input('num_shots (number of shots)', 1, value=500, step=1)
-    T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value= 100.0, step=1.0)
-    T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=200.0, step=1.0)
-    detuning = st.number_input('Detuning [MHz]', value=0.0, step=0.1, key='detuning')
-    
-    num_shots = 5000 ## currently this not important.
+    t_final = int(st.number_input('t_final [ns]', 0, value=200, step=1, key='t_final'))
+    T1 = st.number_input(r'$T_1$ [$\mu$s]', 0.0, value=5.0, step=1.0, key='T1_input')
+    T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, value=9.0, step=1.0, key='T2_input')
+    # Enforce T2 <= 2*T1 constraint
+    while T2 > 2 * T1:
+        st.warning(r"T2 $\leq$ 2*T1")
+        T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
+    detuning = st.number_input('Detuning [MHz]', value=20.0, step=0.1, key='detuning')
+    num_shots = st.number_input('shots', 1, value=100, step=1)
     # st.title('Qubit sPulse Simulator')
     st.header('Pulse Parameters')
+    omega_rabi = st.number_input('Rabi Rate $\Omega$ [MHz]', 0.0, value=0.028 * 2, step=0.001, key='rabi')
     pulse_method = st.selectbox("Choose Pulse Input Method", ["Pre-defined Pulse", "Upload Pulses", "Draw Pulses"], key='pulse_input_type')
     # Input for detuning
     
-
-    n_steps = 4 * t_final
+    n_steps = 10 * t_final
     tlist = np.linspace(0, t_final, n_steps)
 
     # Initialize or retrieve sigma_x_vec and sigma_y_vec
     if 'sigma_x_vec' not in st.session_state:
-        st.session_state.sigma_x_vec = np.zeros(n_steps)
+        st.session_state.sigma_x_vec = 0*tlist
     if 'sigma_y_vec' not in st.session_state:
-        st.session_state.sigma_y_vec = np.zeros(n_steps)
+        st.session_state.sigma_y_vec = 0*tlist
 
     if pulse_method == "Pre-defined Pulse":
-        pulse_type = st.selectbox("Choose Pulse Type", ["Gaussian", "Square", "H", "X", "Y"], key='pulse_type')
+        pulse_type = st.selectbox("Choose Pulse Type", ["Square", "Gaussian", "H", "X", "Y"], key='pulse_type')
         
 
         if pulse_type == 'Gaussian':
-            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
+            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='gaussian_target_channel')
             amp = st.number_input('Amplitude', -1.0, 1.0, 0.4, key='gaussian_amp')
             sigma = st.number_input('Sigma', 1, 100, 9, key='gaussian_sigma')
-            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
             if st.button('Add Gaussian Pulse', key='gaussian_button'):
                 pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -85,13 +90,31 @@ def main():
                 else:
                     st.session_state.sigma_y_vec = updated_pulse_vector
 
+
+        elif pulse_type == 'Square':
+            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
+            amp = st.number_input('Amplitude', -1.0, 1.0, 0.6, key='square_amp')
+            start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=1, step=1, key='square_start')
+            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10, step=1, key='square_stop')
+            # Enforce T2 <= 2*T1 constraint
+            while stop < start:
+                st.warning(r"Cannot have stop before start!")
+                stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10, step=1)
+
+            if st.button('Add Square Pulse', key='square_button'):
+                pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
+                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
+                if target_channel == "σ_x":
+                    st.session_state.sigma_x_vec = updated_pulse_vector
+                else:
+                    st.session_state.sigma_y_vec = updated_pulse_vector
+
+
         elif pulse_type == 'H':
             
             amp = 0.2
             sigma = 9
-            
-            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
-
+            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
             if st.button('Add H Gate', key='H_button'):
                 pulse_vector = st.session_state.sigma_x_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -101,7 +124,7 @@ def main():
             
             amp = 0.4
             sigma = 9
-            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
             if st.button('Add X Gate', key='X_button'):
                 pulse_vector = st.session_state.sigma_x_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
@@ -111,25 +134,11 @@ def main():
             
             amp = 0.4
             sigma = 9
-            center = st.number_input('Center Position', 0, t_final, t_final // 2, key='gaussian_center')
+            center = st.number_input('Center Position', 0, t_final, t_final // 4, key='gaussian_center')
             if st.button('Add Y Gate', key='Y_button'):
                 pulse_vector = st.session_state.sigma_y_vec
                 updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
                 st.session_state.sigma_y_vec = updated_pulse_vector
-            
-        elif pulse_type == 'Square':
-            target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='target_channel')
-            amp = st.number_input('Amplitude', 0.0, 1.0, 0.5, key='square_amp')
-            start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=10, step=1, key='square_start')
-            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=max(30, start), step=1, key='square_stop')
-            if st.button('Add Square Pulse', key='square_button'):
-                pulse_vector = st.session_state.sigma_x_vec if target_channel == "sigma_x" else st.session_state.sigma_y_vec
-                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
-                if target_channel == "σ_x":
-                    st.session_state.sigma_x_vec = updated_pulse_vector
-                else:
-                    st.session_state.sigma_y_vec = updated_pulse_vector
-
 
     elif pulse_method == "Upload Pulses":
         uploaded_file = st.file_uploader("Upload your pulse file", type=['csv', 'json'])
@@ -182,11 +191,10 @@ def main():
     st.plotly_chart(fig_sigma)
     # Button to update traces and run simulation
 
-
     # Button to run simulation
     if st.button('Run Simulation'):
         params = (omega_z, omega_rabi, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1*1e3, T2*1e3)
-        exp_values = run_quantum_simulation(*params)
+        exp_values, probabilities, sampled_probabilities  = run_quantum_simulation(*params)
 
         # Time array for transformation
         time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
@@ -207,6 +215,19 @@ def main():
         )
         st.plotly_chart(fig_results_rotating)
 
+        # Plot results in rotating frame
+        fig_sampled_results = go.Figure()
+        fig_sampled_results.add_trace(go.Scatter(x=tlist, y=sampled_probabilities, mode='lines'))
+        fig_sampled_results.update_layout(
+            xaxis_title='Time [ns]',
+            yaxis_title='Measured Probability of |0⟩',
+            title=f'Measurement Results (shots={num_shots})'
+        )
+        st.plotly_chart(fig_sampled_results)
+
+        # Create a list of time values from 0 to t_final
+        time_values = np.linspace(0, t_final, n_steps)
+
         # Creating a mesh for the unit sphere
         u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
         x_sphere = np.cos(u) * np.sin(v)
@@ -214,17 +235,22 @@ def main():
         z_sphere = np.cos(v)
 
         # Color map for the time evolution
-        time_points = np.linspace(0, 1, n_steps)  # Normalized time points
-        colors = [f"rgb({r}, {g}, {b})" for r, g, b in plt.cm.inferno(time_points)[:,:3] * 255]  # Inferno color map
+        colors = time_values
 
         fig_bloch = go.Figure(data=[
-            go.Surface(x=x_sphere, y=y_sphere, z=z_sphere, colorscale='Inferno', opacity=0.3),
+            go.Surface(x=x_sphere, y=y_sphere, z=z_sphere, opacity=0.3),
             go.Scatter3d(
                 x=exp_x_rotating,  # ⟨σ_x⟩ values
                 y=exp_y_rotating,  # ⟨σ_y⟩ values
                 z=exp_values[2],  # ⟨σ_z⟩ values
                 mode='markers',
-                marker=dict(size=5, color=colors, opacity=0.8)  # Use time-based colors
+                marker=dict(
+                    size=5,
+                    color=colors,
+                    opacity=0.8,
+                    colorscale='inferno',
+                    colorbar=dict(title='Time', tickvals=[0, t_final], ticktext=[0, t_final])
+                )  # Use time-based colors
             )
         ])
 
@@ -240,6 +266,9 @@ def main():
             ),
             margin=dict(l=0, r=0, b=0, t=0)
         )
+
         st.plotly_chart(fig_bloch)
+
+
 if __name__ == "__main__":
     main()
