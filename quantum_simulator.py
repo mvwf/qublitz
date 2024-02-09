@@ -1,28 +1,73 @@
 # quantum_simulator.py
 import numpy as np
-from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
+from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmap, Options
+def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, omega_q, omega_rabi, T1, T2, num_shots):
+    """
+    Performs a frequency sweep by running the quantum simulation across a range of drive frequencies.
 
+    Parameters:
+    - start_freq: Starting frequency of the sweep in GHz.
+    - stop_freq: Stopping frequency of the sweep in GHz.
+    - num_points: Number of points in the frequency sweep.
+    - t_final: Total time for each simulation in ns.
+    - n_steps: Number of time steps in each simulation.
+    - omega_rabi: Rabi frequency in MHz.
+    - T1: Relaxation time constant in ns.
+    - T2: Dephasing time constant in ns.
+    - num_shots: Number of measurements for each simulation.
+    - constant_I: Constant in-phase control signal amplitude for all frequencies.
+
+    Returns:
+    A dictionary containing the sweep frequencies, final probabilities of being in state |0>, and final expectation values.
+    """
+    frequencies = np.linspace(start_freq, stop_freq, num_points)
+    time_list = np.linspace(0, t_final, n_steps)
+    expectation_values = {'sigma_x': [], 'sigma_y': [], 'sigma_z': []}
+    prob_1_time_series = []  # List to store probability of being in |1> state time series for each frequency
+
+    # Constant in-phase control signal amplitude
+    user_vector_I = np.ones(n_steps)
+    user_vector_Q = np.zeros(n_steps)
+    
+    for omega_d in frequencies:
+        exp_values, probabilities, _ = run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_vector_I, user_vector_Q, num_shots, T1, T2)
+        
+        # Store full time-resolved expectation values for each sigma
+        expectation_values['sigma_x'].append(exp_values[0])
+        expectation_values['sigma_y'].append(exp_values[1])
+        expectation_values['sigma_z'].append(exp_values[2])
+        
+        # Calculate and store time-resolved probability of being in state |1>
+        prob_1 = [1 - p for p in probabilities]
+        prob_1_time_series.append(prob_1)
+
+    return {
+        'frequencies': frequencies,
+        'time_list': time_list,
+        'expectation_values': expectation_values,
+        'prob_1_time_series': prob_1_time_series,
+    }
 
 # Define your run_quantum_simulation function
-def run_quantum_simulation(omega_z, omega_rabi, t_final, n_steps, omega_d, user_vector_I, user_vector_Q, num_shots, T1, T2):
+def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_vector_I, user_vector_Q, num_shots, T1, T2):
     tlist = np.linspace(0, t_final, n_steps)
 
     # Hamiltonian and other setup as before...
-    H0 = 2 * np.pi * omega_z * sigmaz() / 2
+    H0 = 2 * np.pi * omega_q * sigmaz() / 2
     H1 = 2 * np.pi * omega_rabi * sigmax()
     H2 = 2 * np.pi * omega_rabi * sigmay()
 
     H = [H0, [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
-         [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.sin(args['w'] * t)]]
+         [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
 
     # Initial state and ME solver
-    psi0 = basis(2, 1)
+    psi0 = basis(2, 0)
 
     # Collapse operators for T1 and T2
     c_ops = []
     if T1 > 0:
         rate_1 = 1.0 / T1
-        c_ops.append(np.sqrt(rate_1) * sigmam())  # Relaxation
+        c_ops.append(np.sqrt(rate_1) * sigmap())  # Relaxation
 
     if T2 > 0:
         rate_2 = 1.0 / T2 - 1.0 / (2 * T1)  # Dephasing rate is T2* - 1/(2*T1)
@@ -30,7 +75,7 @@ def run_quantum_simulation(omega_z, omega_rabi, t_final, n_steps, omega_d, user_
 
 
     # Set QuTiP Options to increase nsteps
-    options = Options(nsteps=10000)
+    options = Options(nsteps=5000)
     options.store_states = True
 
     # Mesolve with collapse operators
@@ -41,7 +86,7 @@ def run_quantum_simulation(omega_z, omega_rabi, t_final, n_steps, omega_d, user_
 
     for state in result.states:
         # print(state)
-        prob_0 = state[0, 0].real  # Probability of being in state |0>
+        prob_0 = np.abs(state[0, 0])**2 # Probability of being in state |0>
         # prob_1 = state[1, 1].real  # Probability of being in state |1>
         probabilities.append(prob_0)
 
