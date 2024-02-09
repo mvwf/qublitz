@@ -47,7 +47,7 @@ def main():
     st.header('Simulation Parameters')
 
     # Additional UI for frequency sweep
-    sim_mode = st.selectbox("Select Simulation Mode", ["Frequency Sweep", "Single Frequency"])
+    sim_mode = st.selectbox("Select Simulation Mode", ["Single Frequency","Frequency Sweep"])
     omega_q = st.number_input(r'$\omega_q$ [GHz]', 0.00, value=5.00, step=0.01, key='qubit_freq',format="%.2f") # need to address this later
     
     if sim_mode == "Frequency Sweep":
