@@ -1,6 +1,6 @@
 # quantum_simulator.py
 import numpy as np
-from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmap, Options
+from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmap, sigmam, Options
 def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, omega_q, omega_rabi, T1, T2, num_shots):
     """
     Performs a frequency sweep by running the quantum simulation across a range of drive frequencies.
@@ -52,10 +52,12 @@ def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, ome
 def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_vector_I, user_vector_Q, num_shots, T1, T2):
     tlist = np.linspace(0, t_final, n_steps)
 
-    # Hamiltonian and other setup as before...
-    H0 = 2 * np.pi * omega_q * sigmaz() / 2
-    H1 = 2 * np.pi * omega_rabi * sigmax()
-    H2 = 2 * np.pi * omega_rabi * sigmay()
+    # Hamiltonian and other setup as before... fac
+    # setting hbar to 1
+
+    H0 =  2*np.pi*omega_q * sigmaz() / 2
+    H1 =  2*np.pi*omega_rabi * sigmax() / 2
+    H2 =  omega_rabi * sigmay()  / 2
 
     H = [H0, [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
          [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
@@ -67,7 +69,7 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
     c_ops = []
     if T1 > 0:
         rate_1 = 1.0 / T1
-        c_ops.append(np.sqrt(rate_1) * sigmap())  # Relaxation
+        c_ops.append(np.sqrt(rate_1) * sigmam())  # Relaxation
 
     if T2 > 0:
         rate_2 = 1.0 / T2 - 1.0 / (2 * T1)  # Dephasing rate is T2* - 1/(2*T1)
