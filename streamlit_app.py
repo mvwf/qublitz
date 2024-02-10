@@ -281,13 +281,14 @@ def main():
                 detuning_GHz = detuning * 1e-3
 
                 # Demodulate the expectation values
-                exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d) * time_array)
-                exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d) * time_array)
+                exp_y_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d) * time_array)
+                exp_x_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d) * time_array)
                 
                 # Plot results in rotating frame
                 fig_results_rotating = go.Figure()
-                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name=r'⟨σ_x⟩'))
-                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name=r'⟨σ_y⟩'))
+                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[0], mode='lines', name=r'⟨σ_x⟩'))
+                
+                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[1], mode='lines', name=r'⟨σ_y⟩'))
                 fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name=r'⟨σ_z⟩'))
                 fig_results_rotating.update_layout(
                     xaxis_title='Time [ns]',
