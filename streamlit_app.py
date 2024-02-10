@@ -45,14 +45,15 @@ def main():
     st.sidebar.image(logo, use_column_width=True)
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
-    st.subheader(r'$\hat{H} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
+    st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
+    st.latex(r'''\text{Where } |0\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |1\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
 
     st.header('Simulation Parameters')
     # make a subheader for the Hamiltonian
     
     # Additional UI for frequency sweep
     sim_mode = st.selectbox("Select Simulation Mode", ["Time Domain", "Frequency Domain"], key='sim_mode')
-    omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.00, value=5.00, step=0.01, key='qubit_freq',format="%.2f") # need to address this later
+    omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
     
     if sim_mode == "Frequency Domain":
         start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=4.8, step=0.1, key='start_freq_frequency_domain')
@@ -128,7 +129,7 @@ def main():
     else: # Time Domain
         # User inputs for simulation parameters
 
-        omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.00, value=5.00, step=0.01, key='drive_freq',format="%.2f") # need to address this later
+        omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
         t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=100, step=1, key='t_final_time_domain'))
         n_steps = 20*int(t_final)
@@ -148,7 +149,7 @@ def main():
 
         n_steps = 10 * t_final
         tlist = np.linspace(0, t_final, n_steps)
-
+        plot_lw = 3
         # Initialize or retrieve sigma_x_vec and sigma_y_vec
         if 'sigma_x_vec' not in st.session_state:
             st.session_state.sigma_x_vec = 0*tlist
@@ -260,8 +261,8 @@ def main():
             # Create Plotly figures for σx and σy
             # Adjust Plotly figures to show the entire trace
             fig_sigma = go.Figure()
-            fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='Ω_x(t)'))
-            fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name=rf'Ω_y(t)'))
+            fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='Ω_x(t)',line=dict(width=plot_lw)))
+            fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name=rf'Ω_y(t)',line=dict(width=plot_lw)))
             fig_sigma.update_layout(
                 xaxis_title='Time [ns]',
                 yaxis_title='Amplitude',
@@ -274,22 +275,21 @@ def main():
             # Button to run simulation
             if st.button('Run Simulation'):
                 params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
-                exp_values, probabilities, sampled_probabilities  = run_quantum_simulation(*params)
+                exp_values, __, sampled_probabilities  = run_quantum_simulation(*params)
 
                 # Time array for transformation
                 time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
-                detuning_GHz = detuning * 1e-3
+
 
                 # Demodulate the expectation values
-                exp_y_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d) * time_array)
-                exp_x_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d) * time_array)
+                exp_y_rotating = -(exp_values[0] * np.cos(2 * np.pi * omega_d * time_array) + exp_values[1] * np.sin(2 * np.pi * omega_d * time_array))
+                exp_x_rotating = exp_values[0] * np.sin(2 * np.pi * omega_d * time_array) - exp_values[1] * np.cos(2 * np.pi * omega_d * time_array)
                 
                 # Plot results in rotating frame
                 fig_results_rotating = go.Figure()
-                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[0], mode='lines', name=r'⟨σ_x⟩'))
-                
-                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[1], mode='lines', name=r'⟨σ_y⟩'))
-                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name=r'⟨σ_z⟩'))
+                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name=r'⟨σ_x⟩',line=dict(width=plot_lw)))
+                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name=r'⟨σ_y⟩',line=dict(width=plot_lw)))
+                fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name=r'⟨σ_z⟩',line=dict(width=plot_lw)))
                 fig_results_rotating.update_layout(
                     xaxis_title='Time [ns]',
                     yaxis_title='Expectation Values',
@@ -299,7 +299,7 @@ def main():
 
                 # Plot results in rotating frame
                 fig_sampled_results = go.Figure()
-                fig_sampled_results.add_trace(go.Scatter(x=tlist, y=sampled_probabilities, mode='lines'))
+                fig_sampled_results.add_trace(go.Scatter(x=tlist, y=sampled_probabilities, mode='lines',line=dict(width=plot_lw)))
                 fig_sampled_results.update_layout(
                     xaxis_title='Time [ns]',
                     yaxis_title='Measured Probability of |0⟩',
@@ -327,7 +327,7 @@ def main():
                         z=exp_values[2],  # ⟨σ_z⟩ values
                         mode='markers',
                         marker=dict(
-                            size=5,
+                            size=6,
                             color=colors,
                             opacity=0.8,
                             colorscale='inferno',
@@ -335,6 +335,7 @@ def main():
                         )  # Use time-based colors
                     )
                 ])
+
 
                 fig_bloch.update_layout(
                     title='State Vector on the Bloch Sphere',
@@ -349,7 +350,23 @@ def main():
                     margin=dict(l=0, r=0, b=0, t=0)
                 )
 
+                
+                fig_bloch.add_trace(go.Scatter3d(
+                    x=[0, 0], 
+                    y=[0, 0], 
+                    z=[1.0, -1.0], 
+                    mode='text',
+                    text=["|0⟩", "|1⟩"],
+                    textposition=["top center","bottom center"],
+                    textfont=dict(
+                        color=["white", "white"],
+                        size=20
+                    )
+                ))
+
+                # Display the plot
                 st.plotly_chart(fig_bloch)
+
 
 if __name__ == "__main__":
     main()

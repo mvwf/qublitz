@@ -57,23 +57,22 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
 
     H0 =  2*np.pi*omega_q * sigmaz() / 2
     H1 =  2*np.pi*omega_rabi * sigmax() / 2
-    H2 =  omega_rabi * sigmay()  / 2
+    H2 =  2*np.pi*omega_rabi * sigmay()  / 2
 
     H = [H0, [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
          [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
-
-    # Initial state and ME solver
+    
     psi0 = basis(2, 0)
 
     # Collapse operators for T1 and T2
     c_ops = []
     if T1 > 0:
         rate_1 = 1.0 / T1
-        c_ops.append(np.sqrt(rate_1) * sigmam())  # Relaxation
+        c_ops.append(np.sqrt(rate_1) * sigmap())  # Relaxation. Note, we are defining the |0> = [1,0] to be the ground state
 
     if T2 > 0:
         rate_2 = 1.0 / T2 - 1.0 / (2 * T1)  # Dephasing rate is T2* - 1/(2*T1)
-        c_ops.append(np.sqrt(rate_2) * sigmaz())  # Dephasing
+        c_ops.append(np.sqrt(rate_2) * -sigmaz())  # Dephasing
 
 
     # Set QuTiP Options to increase nsteps
