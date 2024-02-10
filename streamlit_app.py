@@ -45,7 +45,7 @@ def main():
     st.sidebar.image(logo, use_column_width=True)
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
-    st.subheader(r'$\hat{H} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\sin(\omega_d t)$')
+    st.subheader(r'$\hat{H} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
 
     st.header('Simulation Parameters')
     # make a subheader for the Hamiltonian
@@ -278,11 +278,12 @@ def main():
 
                 # Time array for transformation
                 time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
+                detuning_GHz = detuning * 1e-3
 
                 # Demodulate the expectation values
-                exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d + detuning*1e-3) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
-                exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d +detuning*1e-3) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d + detuning*1e-3) * time_array)
-
+                exp_x_rotating = exp_values[0] * np.cos(2 * np.pi * (omega_d) * time_array) + exp_values[1] * np.sin(2 * np.pi * (omega_d) * time_array)
+                exp_y_rotating = exp_values[1] * np.cos(2 * np.pi * (omega_d) * time_array) - exp_values[0] * np.sin(2 * np.pi * (omega_d) * time_array)
+                
                 # Plot results in rotating frame
                 fig_results_rotating = go.Figure()
                 fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name=r'⟨σ_x⟩'))
