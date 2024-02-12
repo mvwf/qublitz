@@ -1,6 +1,6 @@
 # quantum_simulator.py
 import numpy as np
-from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmap, sigmam, Options
+from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
 def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, omega_q, omega_rabi, T1, T2, num_shots):
     """
     Performs a frequency sweep by running the quantum simulation across a range of drive frequencies.
@@ -62,13 +62,13 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
     H = [H0, [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
          [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
     
-    psi0 = basis(2, 0)
+    psi0 = basis(2, 1)
 
     # Collapse operators for T1 and T2
     c_ops = []
     if T1 > 0:
         rate_1 = 1.0 / T1
-        c_ops.append(np.sqrt(rate_1) * sigmap())  # Relaxation. Note, we are defining the |0> = [1,0] to be the ground state
+        c_ops.append(np.sqrt(rate_1) * sigmam())  # Relaxation. Note, we are defining the |1> = [0,1] to be the ground state
 
     if T2 > 0:
         rate_2 = 1.0 / T2 - 1.0 / (2 * T1)  # Dephasing rate is T2* - 1/(2*T1)
@@ -88,13 +88,12 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
     for state in result.states:
         # print(state)
         prob_0 = np.abs(state[0, 0])**2 # Probability of being in state |0>
-        # prob_1 = state[1, 1].real  # Probability of being in state |1>
-        probabilities.append(prob_0)
-
+        prob_1 = 1 - prob_0
+        probabilities.append(prob_1)
         # Sample the distribution
-        samples = np.random.choice([0, 1], size=num_shots, p=[prob_0, 1 - prob_0])
-        sampled_prob_0 = np.sum(samples == 0) / num_shots
-        sampled_probabilities.append(sampled_prob_0)
+        samples = np.random.choice([0, 1], size=num_shots, p=[prob_0, prob_1])
+        sampled_prob_1 = np.sum(samples == 0) / num_shots
+        sampled_probabilities.append(sampled_prob_1)
 
     # print(len(probabilities))
     return result.expect, probabilities, sampled_probabilities

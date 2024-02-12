@@ -19,6 +19,7 @@ import plotly.express as px
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import base64
 from io import BytesIO
+from plotly.subplots import make_subplots
 
 # Function to convert data to CSV (for download)
 def to_csv(index, data):
@@ -53,7 +54,7 @@ def main():
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
-    st.latex(r'''\text{Where } |0\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |1\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
+    st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
 
     st.header('Simulation Parameters')
     # make a subheader for the Hamiltonian
@@ -88,57 +89,50 @@ def main():
             max_prob_1_over_time = np.max(prob_1_data_transposed, axis=0)
             avg_prob_1_over_time = np.mean(prob_1_data_transposed, axis=0)
 
-            # Create a figure with two subplots, sharing the x-axis
-            fig, axes = plt.subplots(3, 1, figsize=(10, 12), gridspec_kw={'height_ratios': [3, 1, 1]})
+            fig = make_subplots(rows=3, cols=1, shared_xaxes=True, 
+                    vertical_spacing=0.02, 
+                    subplot_titles=('Time-resolved Probability of State |1⟩', 'Max Probability of |1⟩', 'Avg Probability of |1⟩'),
+                    row_heights=[0.6, 0.2, 0.2])
 
-            # Heatmap
-            im = axes[0].imshow(
-                prob_1_data_transposed,
-                aspect='auto',
-                extent=[min(frequencies), max(frequencies), min(time_list), max(time_list)],
-                origin='lower',
-                cmap='viridis'
+            # Heatmap for the probability of state |1⟩
+            fig.add_trace(
+                go.Heatmap(x=frequencies, y=time_list, z=prob_1_data_transposed, coloraxis="coloraxis"),
+                row=1, col=1
             )
-            axes[0].set_ylabel('Time (ns)', fontsize=14)
-            axes[0].set_title('Time-resolved Probability of State |1⟩ vs. Drive Frequency', fontsize=16)
 
-            # Colorbar
-            divider = make_axes_locatable(axes[0])
-            cax = divider.append_axes("right", size="5%", pad=0.05)
-            cbar = fig.colorbar(im, cax=cax)
-            cbar.ax.tick_params(labelsize=12)
-            cbar.set_label('Prob of State |1⟩', size=14)
+            # Line plot for maximum probability of state |1⟩ over time
+            fig.add_trace(
+                go.Scatter(x=frequencies, y=max_prob_1_over_time, mode='lines'),
+                row=2, col=1
+            )
 
-            # Max probabilities plot
-            axes[1].plot(frequencies, max_prob_1_over_time, color='blue')
-            axes[1].set_ylabel('Max Prob of |1⟩', fontsize=14)
-            axes[1].grid(True)
+            # Line plot for average probability of state |1⟩ over time
+            fig.add_trace(
+                go.Scatter(x=frequencies, y=avg_prob_1_over_time, mode='lines'),
+                row=3, col=1
+            )
 
-            # Average probabilities plot
-            axes[2].plot(frequencies, avg_prob_1_over_time, color='green')
-            axes[2].set_ylabel('Avg Prob of |1⟩', fontsize=14)
-            axes[2].set_xlabel('Drive Frequency [GHz]', fontsize=14)
-            axes[2].grid(True)
+            # Update layout
+            fig.update_layout(height=800, width=600, title_text="Frequency Domain Simulation Results",
+                            coloraxis=dict(colorscale='Viridis'),  # Adjust colorscale as needed
+                            xaxis_title="Frequency [GHz]",
+                            yaxis_title="Time [ns]",
+                            xaxis3_title="Frequency [GHz]",
+                            yaxis2_title="Max Prob of |1⟩",
+                            yaxis3_title="Avg Prob of |1⟩")
 
-            # Ensure the x-axes are aligned
-            for ax in axes[1:]:
-                ax.set_xlim(axes[0].get_xlim())
+            # Adjust axes properties if needed
+            fig.update_xaxes(title_text="Drive Frequency [GHz]", row=3, col=1)
+            fig.update_yaxes(title_text="Time [ns]", row=1, col=1)
 
-            # Set tick parameters for all axes
-            for ax in axes:
-                ax.tick_params(labelsize=12)
-
-            # Adjust layout for tight fit and to show x-axis labels at the bottom
-            plt.tight_layout()
-
-            # Display the plots in Streamlit
-            st.pyplot(fig)
+            # Display the figure in Streamlit
+            st.plotly_chart(fig)
 
             if 'avg_prob_1_over_time' in locals():
                 # Convert simulation results to CSV
-                csv = to_csv(range(len(time_list)), data = {'frequencies [GHz]':frequencies, 
-                    'prob_1_data': avg_prob_1_over_time, 
-                    'times [ns]': time_list, 
+                csv = to_csv(range(len(frequencies)), data = {'frequencies [GHz]':frequencies, 
+                    'avg_prob_1_data': avg_prob_1_over_time, 
+                    'max_prob_1_data': max_prob_1_over_time
                 })
                 
                 # Generate download button for the CSV file
@@ -290,7 +284,7 @@ def main():
             yaxis_title='Amplitude',
             title=r'Time-Dependent Amplitudes of Ω_0 (Ω_x(t) and Ω_x(t))',
             xaxis=dict(range=[0, t_final]),  # Adjust the x-axis to show the entire trace
-            yaxis=dict(range=[-1, 1])         # Adjust the y-axis range if necessary
+            yaxis=dict(range=[-1.05, 1.05])         # Adjust the y-axis range if necessary
         )
         st.plotly_chart(fig_sigma)
 
@@ -303,7 +297,6 @@ def main():
             # Time array for transformation
             time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
 
-
             # Demodulate the expectation values
             exp_y_rotating = -(exp_values[0] * np.cos(2 * np.pi * omega_d * time_array) + exp_values[1] * np.sin(2 * np.pi * omega_d * time_array))
             exp_x_rotating = exp_values[0] * np.sin(2 * np.pi * omega_d * time_array) - exp_values[1] * np.cos(2 * np.pi * omega_d * time_array)
@@ -314,6 +307,7 @@ def main():
             fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_y_rotating, mode='lines', name=r'⟨σ_y⟩',line=dict(width=plot_lw)))
             fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_values[2], mode='lines', name=r'⟨σ_z⟩',line=dict(width=plot_lw)))
             fig_results_rotating.update_layout(
+                yaxis=dict(range=[-1.05, 1.05]),
                 xaxis_title='Time [ns]',
                 yaxis_title='Expectation Values',
                 title=f'Quantum Simulation Results in Rotating Frame of the drive frequency (ω_d={omega_d} GHz), with detuning (Δ={detuning} MHz)'
@@ -325,7 +319,8 @@ def main():
             fig_sampled_results.add_trace(go.Scatter(x=tlist, y=sampled_probabilities, mode='lines',line=dict(width=plot_lw)))
             fig_sampled_results.update_layout(
                 xaxis_title='Time [ns]',
-                yaxis_title='Measured Probability of |0⟩',
+                yaxis=dict(range=[-0.05, 1.05]),
+                yaxis_title='Measured Probability of |1⟩',
                 title=f'Measurement Results (shots={num_shots})'
             )
             st.plotly_chart(fig_sampled_results)
