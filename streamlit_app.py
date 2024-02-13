@@ -57,16 +57,16 @@ def main():
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
     st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
 
-    st.header('Simulation Mode')
+    st.header('Simulation Parameters')
     
 
     # add a dropdown to select "Free Play" or "Custom Qubit Query"
     # if "Free Play" is selected, the user can input their own parameters
     # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
-
+    
+    # TODO: add a challenge button!
     user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
     
-    st.header('Simulation Parameters')
 
     if user_selection == "Custom Qubit Query":
         # Load the user parameters from the JSON file
@@ -94,15 +94,7 @@ def main():
         stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=5.2, step=0.1, key='stop_freq_frequency_domain')
         num_points = st.number_input("Number of Frequencies", value=11, step=1, key='num_points_frequency_domain')
         t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=25, step=1, key='t_final'))
-        # initialize sessions state for t_final
-        st.session_state.t_final = t_final
-
-        n_steps = 10*int(t_final)
-
-         # initialize sessions state for pulse vectors
-        st.session_state.sigma_x_vec = np.zeros(n_steps)
-        st.session_state.sigma_y_vec = np.zeros(n_steps)
-
+        n_steps = 20*int(t_final)
 
         if user_selection == "Free Play":
             omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=100.0, step=1.0, key='rabi_frequency_domain')
@@ -186,34 +178,9 @@ def main():
 
         omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
-
-        initial_t_final = 100  # Example starting value
-        t_final = st.number_input('Duration Δt [ns]', min_value=1, value=st.session_state.get('t_final', initial_t_final), step=1, key='t_final')
-        n_steps = 10 * int(t_final)
-        if t_final != st.session_state.get('t_final', t_final):
-            # Update session state and related variables here
-            st.session_state['t_final'] = t_final
-            n_steps = 10 * int(t_final)
-            # Reset pulse vectors as needed based on the new t_final
-            st.session_state['sigma_x_vec'] = np.zeros(n_steps)
-            st.session_state['sigma_y_vec'] = np.zeros(n_steps)
-            # Inform the user of the reset, if desired
-            st.info('Pulse sequences have been reset due to a change in Δt.')
-        if 'sigma_x_vec' not in st.session_state or 'sigma_y_vec' not in st.session_state:
-            # Assume n_steps is calculated based on initial t_final value or some default
-            initial_t_final = 100  # Default or initial value for t_final
-            n_steps = 10 * initial_t_final  # Example calculation, adjust as necessary
-
-            # Initialize the vectors with zeros
-            st.session_state.sigma_x_vec = np.zeros(n_steps)
-            st.session_state.sigma_y_vec = np.zeros(n_steps)
-            # n_steps = 10 * int(t_final)
-        tlist = np.linspace(0, t_final, n_steps)
-        plot_lw = 3
+        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0.0, value=100.0, step=1.0, key='t_final_time_domain'))
+        n_steps = 20*int(t_final)
         
-        # initialize them if they don't exist
-  
-
         if user_selection == "Free Play":
             omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi_time_domain')
             T1 = st.number_input(r'$T_1$ [ns]', 0, value=100, step=10, key='T1_input_time_domain')
@@ -224,108 +191,33 @@ def main():
                 T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
         
         num_shots = st.number_input('shots', 1, value=256, step=1, key='num_shots_time_domain')
-        
-        # st.title('Qubit sPulse Simulator')
+    
         st.header('Pulse Parameters')
-        # pulse_method = st.selectbox("Choose Pulse Input Method", ["Pre-defined Pulse", "Upload Pulses", "Draw Pulses"], key='pulse_input_type')
+        n_steps = 10 * t_final
+        tlist = np.linspace(0, t_final, n_steps)
+        plot_lw = 3
+        # Initialize or retrieve sigma_x_vec and sigma_y_vec
+        if 'sigma_x_vec' not in st.session_state:
+            st.session_state.sigma_x_vec = 0*tlist
+        if 'sigma_y_vec' not in st.session_state:
+            st.session_state.sigma_y_vec = 0*tlist
 
-
-        # pulse_type = st.selectbox("Choose Pulse Type", [ "Square", "Gaussian"], key='pulse_type')
-            
-        # if pulse_type == 'Gaussian':
-        #     target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='gaussian_target_channel')
-        #     amp = st.number_input('Amplitude', -1.0, 1.0, 0.4, key='gaussian_amp')
-        #     sigma = st.number_input('Sigma', 0.0, 100.0, 9.0, key='gaussian_sigma')
-        #     center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
-        #     if st.button('Add Gaussian Pulse', key='gaussian_button'):
-        #         pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
-        #         updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-        #         if target_channel == "σ_x":
-        #             st.session_state.sigma_x_vec = updated_pulse_vector
-        #         else:
-        #             st.session_state.sigma_y_vec = updated_pulse_vector
-
-        # elif pulse_type == 'Square':
-            
         target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
         amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
-        start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=0, step=1, key='square_start')
-        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=100, step=10, key='square_stop')
-
-
+        start = st.number_input('Start Time (ns)', min_value=0.0, max_value=float(t_final), value=0.0, step=1.0, key='square_start')
+        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=100.0, step=1.0, key='square_stop')
+        
         # Enforce T2 <= 2*T1 constraint
         while stop < start:
             st.warning(r"Cannot have stop before start!")
-            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=st.session_state.t_final, value=10, step=1)
-
+            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10.0, step=1)
         if st.button('Add Square Pulse', key='square_button'):
             pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
-            updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, st.session_state.t_final)
+            updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
             if target_channel == "σ_x":
                 st.session_state.sigma_x_vec = updated_pulse_vector
             else:
                 st.session_state.sigma_y_vec = updated_pulse_vector
-
-            # elif pulse_type == 'H':
-            #     amp = 0.2
-            #     sigma = 9
-            #     center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
-            #     if st.button('Add H Gate', key='H_button'):
-            #         pulse_vector = st.session_state.sigma_x_vec
-            #         updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-            #         st.session_state.sigma_x_vec = updated_pulse_vector
-                    
-            # elif pulse_type == 'X':
-                
-            #     amp = 0.4
-            #     sigma = 9
-            #     center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
-            #     if st.button('Add X Gate', key='X_button'):
-            #         pulse_vector = st.session_state.sigma_x_vec
-            #         updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-            #         st.session_state.sigma_x_vec = updated_pulse_vector
-
-            # elif pulse_type == 'Y':
-                
-            #     amp = 0.4
-            #     sigma = 9
-            #     center = st.number_input('Center Position', 0, t_final, 50, key='gaussian_center')
-            #     if st.button('Add Y Gate', key='Y_button'):
-            #         pulse_vector = st.session_state.sigma_y_vec
-            #         updated_pulse_vector = add_gaussian(pulse_vector, amp, sigma, center, n_steps, t_final)
-            #         st.session_state.sigma_y_vec = updated_pulse_vector
-
-            # elif pulse_method == "Upload Pulses":
-            #     uploaded_file = st.file_uploader("Upload your pulse file", type=['csv', 'json'])
-                
-            # else:
-            #     # # Create two Bokeh plots for σx and σy
-            #     p_sigma_x = figure(x_range=(0, t_final), y_range=(-1, 1), width=400, height=400, title=r'σ_x')
-            #     p_sigma_y = figure(x_range=(0, t_final), y_range=(-1, 1), width=400, height=400, title=r'σ_y')
-
-            #     # Initialize the traces as flat lines
-            #     xs_x = [[0, t_final]]
-            #     ys_x = [[0, 0]]
-            #     xs_y = [[0, t_final]]
-            #     ys_y = [[0, 0]]
-
-            #     # Create FreehandDrawTool for each plot
-            #     renderer_x = p_sigma_x.multi_line(xs_x, ys_x, line_width=1, alpha=0.4, color='red')
-            #     renderer_y = p_sigma_y.multi_line(xs_y, ys_y, line_width=1, alpha=0.4, color='blue')
-
-            #     draw_tool_x = FreehandDrawTool(renderers=[renderer_x], num_objects=99999)
-            #     draw_tool_y = FreehandDrawTool(renderers=[renderer_y], num_objects=99999)
-
-            #     p_sigma_x.add_tools(draw_tool_x)
-            #     p_sigma_x.toolbar.active_drag = draw_tool_x
-
-            #     p_sigma_y.add_tools(draw_tool_y)
-            #     p_sigma_y.toolbar.active_drag = draw_tool_y
-
-            #     # Display both Bokeh plots
-            #     col1, col2 = st.columns(2)
-            #     col1.bokeh_chart(p_sigma_x)
-            #     col2.bokeh_chart(p_sigma_y)
 
         # Clear Pulses Button
         if st.button('Clear Pulses'):
@@ -349,8 +241,7 @@ def main():
         # Button to run simulation
         if st.button('Run Simulation'):
             
-            
-            params = (omega_q, omega_rabi*1e-3, st.session_state.t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
+            params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
             exp_values, __, sampled_probabilities  = run_quantum_simulation(*params)
 
             # Time array for transformation
