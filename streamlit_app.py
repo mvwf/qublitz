@@ -20,12 +20,13 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import base64
 from io import BytesIO
 from plotly.subplots import make_subplots
+import json
+import os
 
 # Function to convert data to CSV (for download)
 def to_csv(index, data):
     df = pd.DataFrame(data, index=index)
     return df.to_csv().encode('utf-8')
-
 
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
@@ -56,27 +57,63 @@ def main():
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
     st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
 
+    st.header('Simulation Mode')
+    
+
+    # add a dropdown to select "Free Play" or "Custom Qubit Query"
+    # if "Free Play" is selected, the user can input their own parameters
+    # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
+
+    user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
+    
     st.header('Simulation Parameters')
-    # make a subheader for the Hamiltonian
+
+    if user_selection == "Custom Qubit Query":
+        # Load the user parameters from the JSON file
+        if os.path.exists('user_parameters.json'):
+            with open('user_parameters.json', 'r') as json_file:
+                user_parameters = json.load(json_file)
+            # Select a user ID from the list
+            user_id = st.selectbox("Select User ID", list(user_parameters.keys()))
+            # pull the parameters from the JSON file
+            omega_q = user_parameters[user_id]["omega_q"]
+            omega_rabi = user_parameters[user_id]["Rabi_rate"]
+            T1 = user_parameters[user_id]["T1"]
+            T2 = 2*T1
+        else:
+            st.warning("No user parameters found. Please generate the user parameters first or return to Free Play.")
+            # add a template for the user parameters
+            st.stop()    
+    if user_selection == "Free Play":
+        omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
     
-    # Additional UI for frequency sweep
     sim_mode = st.selectbox("Select Simulation Mode", ["Time Domain", "Frequency Domain"], key='sim_mode')
-    omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
-    
+
     if sim_mode == "Frequency Domain":
         start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=4.8, step=0.1, key='start_freq_frequency_domain')
         stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=5.2, step=0.1, key='stop_freq_frequency_domain')
         num_points = st.number_input("Number of Frequencies", value=11, step=1, key='num_points_frequency_domain')
-        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=50, step=1, key='t_final'))
-        n_steps = 20*int(t_final)
-        omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=100.0, step=1.0, key='rabi_frequency_domain')
-        T1 = st.number_input(r'$T_1$ [ns]', 0, value=1000, step=10, key='T1_input_frequency_domain')
-        T2 = st.number_input(r'$T_2$ [ns]', 0, value=2000, step=10, key='T2_input_frequency_domain')
-        # Enforce T2 <= 2*T1 constraint
-        while T2 > 2 * T1:
-            st.warning(r"T2 $\leq$ 2*T1")
-            T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
-        num_shots = st.number_input('shots', 1, value=256, step=1, key='num_shots_frequency_domain')
+        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=25, step=1, key='t_final'))
+        # initialize sessions state for t_final
+        st.session_state.t_final = t_final
+
+        n_steps = 10*int(t_final)
+
+         # initialize sessions state for pulse vectors
+        st.session_state.sigma_x_vec = np.zeros(n_steps)
+        st.session_state.sigma_y_vec = np.zeros(n_steps)
+
+
+        if user_selection == "Free Play":
+            omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=100.0, step=1.0, key='rabi_frequency_domain')
+            T1 = st.number_input(r'$T_1$ [ns]', 0, value=1000, step=10, key='T1_input_frequency_domain')
+            T2 = st.number_input(r'$T_2$ [ns]', 0, value=2000, step=10, key='T2_input_frequency_domain')
+            # Enforce T2 <= 2*T1 constraint
+            while T2 > 2 * T1:
+                st.warning(r"T2 $\leq$ 2*T1")
+                T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
+
+        num_shots = st.number_input('shots', 1, value=128, step=1, key='num_shots_frequency_domain')
         
         if st.button('Run Frequency Sweep'):
             results = run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, omega_q, omega_rabi*1e-3, T1, T2, num_shots)
@@ -102,13 +139,14 @@ def main():
 
             # Line plot for maximum probability of state |1⟩ over time
             fig.add_trace(
-                go.Scatter(x=frequencies, y=max_prob_1_over_time, mode='lines'),
+                go.Scatter(x=frequencies, y=max_prob_1_over_time, mode='lines', showlegend=False),
                 row=2, col=1
             )
 
             # Line plot for average probability of state |1⟩ over time
+            # don't add to legend
             fig.add_trace(
-                go.Scatter(x=frequencies, y=avg_prob_1_over_time, mode='lines'),
+                go.Scatter(x=frequencies, y=avg_prob_1_over_time, mode='lines', showlegend=False),
                 row=3, col=1
             )
 
@@ -148,30 +186,49 @@ def main():
 
         omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
-        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=100, step=1, key='t_final_time_domain'))
-        n_steps = 20*int(t_final)
-                # Input for detuning
-        omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi_time_domain')
-        T1 = st.number_input(r'$T_1$ [ns]', 0, value=100, step=10, key='T1_input_time_domain')
-        T2 = st.number_input(r'$T_2$ [ns]', 0, value=200, step=10, key='T2_input_time_domain')
-        # Enforce T2 <= 2*T1 constraint
-        while T2 > 2 * T1:
-            st.warning(r"T2 $\leq$ 2*T1")
-            T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
+
+        initial_t_final = 100  # Example starting value
+        t_final = st.number_input('Duration Δt [ns]', min_value=1, value=st.session_state.get('t_final', initial_t_final), step=1, key='t_final')
+        n_steps = 10 * int(t_final)
+        if t_final != st.session_state.get('t_final', t_final):
+            # Update session state and related variables here
+            st.session_state['t_final'] = t_final
+            n_steps = 10 * int(t_final)
+            # Reset pulse vectors as needed based on the new t_final
+            st.session_state['sigma_x_vec'] = np.zeros(n_steps)
+            st.session_state['sigma_y_vec'] = np.zeros(n_steps)
+            # Inform the user of the reset, if desired
+            st.info('Pulse sequences have been reset due to a change in Δt.')
+        if 'sigma_x_vec' not in st.session_state or 'sigma_y_vec' not in st.session_state:
+            # Assume n_steps is calculated based on initial t_final value or some default
+            initial_t_final = 100  # Default or initial value for t_final
+            n_steps = 10 * initial_t_final  # Example calculation, adjust as necessary
+
+            # Initialize the vectors with zeros
+            st.session_state.sigma_x_vec = np.zeros(n_steps)
+            st.session_state.sigma_y_vec = np.zeros(n_steps)
+            # n_steps = 10 * int(t_final)
+        tlist = np.linspace(0, t_final, n_steps)
+        plot_lw = 3
+        
+        # initialize them if they don't exist
+  
+
+        if user_selection == "Free Play":
+            omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi_time_domain')
+            T1 = st.number_input(r'$T_1$ [ns]', 0, value=100, step=10, key='T1_input_time_domain')
+            T2 = st.number_input(r'$T_2$ [ns]', 0, value=200, step=10, key='T2_input_time_domain')
+            # Enforce T2 <= 2*T1 constraint
+            while T2 > 2 * T1:
+                st.warning(r"T2 $\leq$ 2*T1")
+                T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
+        
         num_shots = st.number_input('shots', 1, value=256, step=1, key='num_shots_time_domain')
         
         # st.title('Qubit sPulse Simulator')
         st.header('Pulse Parameters')
         # pulse_method = st.selectbox("Choose Pulse Input Method", ["Pre-defined Pulse", "Upload Pulses", "Draw Pulses"], key='pulse_input_type')
 
-        n_steps = 10 * t_final
-        tlist = np.linspace(0, t_final, n_steps)
-        plot_lw = 3
-        # Initialize or retrieve sigma_x_vec and sigma_y_vec
-        if 'sigma_x_vec' not in st.session_state:
-            st.session_state.sigma_x_vec = 0*tlist
-        if 'sigma_y_vec' not in st.session_state:
-            st.session_state.sigma_y_vec = 0*tlist
 
         # pulse_type = st.selectbox("Choose Pulse Type", [ "Square", "Gaussian"], key='pulse_type')
             
@@ -194,19 +251,20 @@ def main():
         amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
         start = st.number_input('Start Time (ns)', min_value=0, max_value=t_final, value=0, step=1, key='square_start')
         stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=100, step=10, key='square_stop')
+
+
         # Enforce T2 <= 2*T1 constraint
         while stop < start:
             st.warning(r"Cannot have stop before start!")
-            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10, step=1)
+            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=st.session_state.t_final, value=10, step=1)
 
         if st.button('Add Square Pulse', key='square_button'):
             pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
-            updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
+            updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, st.session_state.t_final)
             if target_channel == "σ_x":
                 st.session_state.sigma_x_vec = updated_pulse_vector
             else:
                 st.session_state.sigma_y_vec = updated_pulse_vector
-
 
             # elif pulse_type == 'H':
             #     amp = 0.2
@@ -291,7 +349,8 @@ def main():
         # Button to run simulation
         if st.button('Run Simulation'):
             
-            params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
+            
+            params = (omega_q, omega_rabi*1e-3, st.session_state.t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
             exp_values, __, sampled_probabilities  = run_quantum_simulation(*params)
 
             # Time array for transformation
