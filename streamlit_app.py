@@ -325,7 +325,7 @@ def main():
                 y=[0, 0], 
                 z=[1.0, -1.0], 
                 mode='text',
-                text=["|0⟩", "|1⟩"],
+                text=["|1⟩", "|0⟩"],
                 textposition=["top center","bottom center"],
                 textfont=dict(
                     color=["white", "white"],
