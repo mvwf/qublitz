@@ -2,3 +2,8 @@
 # ignore generate_qubits.py
 generate_qubits.py
 user_parameters.json
+venv_st/
+
+### Streamlit secrets
+*.toml
+.streamlit/secrets.toml

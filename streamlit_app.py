@@ -67,23 +67,26 @@ def main():
     # TODO: add a challenge button!
     user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
     
-
     if user_selection == "Custom Qubit Query":
-        # Load the user parameters from the JSON file
-        if os.path.exists('user_parameters.json'):
-            with open('user_parameters.json', 'r') as json_file:
-                user_parameters = json.load(json_file)
+        # Convert st.secrets to a dictionary to easily list all user IDs
+        secrets_dict = dict(st.secrets)
+        user_ids = list(secrets_dict.keys())
+
+        if user_ids:
             # Select a user ID from the list
-            user_id = st.selectbox("Select User ID", list(user_parameters.keys()))
-            # pull the parameters from the JSON file
-            omega_q = user_parameters[user_id]["omega_q"]
-            omega_rabi = user_parameters[user_id]["Rabi_rate"]
-            T1 = user_parameters[user_id]["T1"]
-            T2 = 2*T1
+            user_id = st.selectbox("Select User ID", user_ids)
+            
+            # Access the parameters directly via st.secrets since each user ID is at the top level
+            user_parameters = st.secrets[user_id]
+            omega_q = user_parameters["omega_q"]
+            omega_rabi = user_parameters["Rabi_rate"]
+            T1 = user_parameters["T1"]
+            T2 = 2 * T1
         else:
-            st.warning("No user parameters found. Please generate the user parameters first or return to Free Play.")
-            # add a template for the user parameters
-            st.stop()    
+            st.warning("No user parameters found. Please configure the user parameters first.")
+            # Instructions to configure them or stop execution
+            st.stop()
+
     if user_selection == "Free Play":
         omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
     
