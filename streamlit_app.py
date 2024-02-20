@@ -258,7 +258,11 @@ def main():
         if st.button('Run Simulation'):
             
             params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
-            exp_values, __, sampled_probabilities  = run_quantum_simulation(*params)
+
+            try:
+                exp_values, __, sampled_probabilities = run_quantum_simulation(*params)
+            except Exception as e:
+                st.warning(f"An error occurred. Please refresh the page and try again: {e}")
 
             # Time array for transformation
             time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
