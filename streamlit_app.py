@@ -22,12 +22,18 @@ from io import BytesIO
 from plotly.subplots import make_subplots
 import json
 import os
+from ratelimit import limits, sleep_and_retry
+from datetime import timedelta
 
+@sleep_and_retry
+@limits(calls=1, period=timedelta(seconds=60).total_seconds())
 # Function to convert data to CSV (for download)
 def to_csv(index, data):
     df = pd.DataFrame(data, index=index)
     return df.to_csv().encode('utf-8')
 
+@sleep_and_retry
+@limits(calls=1, period=timedelta(seconds=60).total_seconds())
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
     Adds a Gaussian pulse to the pulse vector.
@@ -36,6 +42,9 @@ def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     gaussian = amplitude * np.exp(-((tlist - center) ** 2) / (2 * sigma ** 2))
     return np.clip(pulse_vector + gaussian, -1, 1)  # Ensuring values are within [-1, 1]
 
+@sleep_and_retry
+@limits(calls=1, period=timedelta(seconds=60).total_seconds())
+@st.cache_data
 def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
     """
     Adds a Square pulse to the pulse vector.
@@ -45,7 +54,9 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
 
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
-
+@sleep_and_retry
+@limits(calls=1, period=timedelta(seconds=60).total_seconds())
+@st.cache_data
 def main():
 
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
