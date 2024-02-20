@@ -56,7 +56,7 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
 
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
-@st.cache_data
+@st.cache_data(experimental_allow_widgets=True)
 def main():
 
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
