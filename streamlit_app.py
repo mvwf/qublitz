@@ -181,7 +181,7 @@ def main():
 
         omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
-        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0.0, value=100.0, step=1.0, key='t_final_time_domain'))
+        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0.0, value=200.0, step=1.0, key='t_final_time_domain'))
         n_steps = 20*int(t_final)
         
         if user_selection == "Free Play":
@@ -208,7 +208,7 @@ def main():
         target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
         amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
         start = st.number_input('Start Time (ns)', min_value=0.0, max_value=float(t_final), value=0.0, step=1.0, key='square_start')
-        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=100.0, step=1.0, key='square_stop')
+        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=200.0, step=1.0, key='square_stop')
         
         # Enforce T2 <= 2*T1 constraint
         while stop < start:
