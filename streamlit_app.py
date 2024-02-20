@@ -99,7 +99,7 @@ def main():
         
         # t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=25, step=1, key='t_final'))
         t_final = 25
-        n_steps = 10*int(t_final)
+        n_steps = 25*int(t_final)
 
         if user_selection == "Free Play":
             omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=100.0, step=1.0, key='rabi_frequency_domain')
@@ -198,7 +198,7 @@ def main():
         num_shots = st.number_input('shots', 1, value=256, step=1, key='num_shots_time_domain')
     
         st.header('Pulse Parameters')
-        n_steps = 10 * t_final
+        n_steps = 25 * t_final
         tlist = np.linspace(0, t_final, n_steps)
         plot_lw = 3
         # Initialize or retrieve sigma_x_vec and sigma_y_vec
