@@ -51,7 +51,9 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
     """
     tlist = np.linspace(0, t_final, n_steps)
     square_pulse = np.where((tlist >= start) & (tlist <= stop), amplitude, 0)
-
+    # Extend pulse_vector to match the length of square_pulse
+    if len(pulse_vector) < len(square_pulse):
+        pulse_vector = np.pad(pulse_vector, (0, len(square_pulse) - len(pulse_vector)), 'constant')
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
 @sleep_and_retry
@@ -232,8 +234,12 @@ def main():
             updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
             if target_channel == "σ_x":
                 st.session_state.sigma_x_vec = updated_pulse_vector
+                # pad the other vector with whatever the last value was
+                st.session_state.sigma_y_vec = np.pad(st.session_state.sigma_y_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_y_vec)), 'constant', constant_values=st.session_state.sigma_y_vec[-1])
             else:
                 st.session_state.sigma_y_vec = updated_pulse_vector
+                # do the same here for the other vector
+                st.session_state.sigma_x_vec = np.pad(st.session_state.sigma_x_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_x_vec)), 'constant', constant_values=st.session_state.sigma_x_vec[-1])
 
         # Clear Pulses Button
         if st.button('Clear Pulses'):
@@ -259,10 +265,12 @@ def main():
             
             params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
 
+            exp_values, __, sampled_probabilities = run_quantum_simulation(*params)
             try:
                 exp_values, __, sampled_probabilities = run_quantum_simulation(*params)
             except Exception as e:
                 st.warning(f"An error occurred. Please refresh the page and try again: {e}")
+                print(e)
 
             # Time array for transformation
             time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
