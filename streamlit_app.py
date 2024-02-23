@@ -196,7 +196,7 @@ def main():
 
         omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
-        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0.0, value=200.0, step=1.0, key='t_final_time_domain'))
+        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0.0, value=200.0, min_value=0.0, max_value=1000.0, step=1.0, key='t_final_time_domain'))
         n_steps = 20*int(t_final)
         
         if user_selection == "Free Play":
@@ -208,7 +208,7 @@ def main():
                 st.warning(r"T2 $\leq$ 2*T1")
                 T2 = st.number_input(r'$T_2$ [$\mu$s]', 0.0, step=1.0)
         
-        num_shots = st.number_input('shots', 1, value=256, step=1, key='num_shots_time_domain')
+        num_shots = st.number_input('shots', 1, value=256,  min_value=1, max_value=4096,  step=1, key='num_shots_time_domain')
     
         st.header('Pulse Parameters')
         n_steps = 25 * t_final
