@@ -223,7 +223,7 @@ def main():
         target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
         amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
         start = st.number_input('Start Time (ns)', min_value=0.0, max_value=float(t_final), value=0.0, step=1.0, key='square_start')
-        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=200.0, step=1.0, key='square_stop')
+        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=float(t_final), step=1.0, key='square_stop')
         
         # Enforce T2 <= 2*T1 constraint
         while stop < start:
