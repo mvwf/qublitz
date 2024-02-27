@@ -1,4 +1,4 @@
-# pulse_simulator
+# QuBlitz Virtual Qubit Simulator
 
 Find the website here:
 
