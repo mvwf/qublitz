@@ -78,7 +78,7 @@ def main():
     # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
     
     # TODO: add a challenge button!
-    user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
+    user_selection = st.selectbox("Select User Mode", ["Free Play"], key='user_selection')
     
     if user_selection == "Custom Qubit Query":
         # Convert st.secrets to a dictionary to easily list all user IDs
