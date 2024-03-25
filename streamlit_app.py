@@ -108,7 +108,7 @@ def main():
     if sim_mode == "Frequency Domain":
         start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=4.8, step=0.1, key='start_freq_frequency_domain')
         stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=5.2, step=0.1, key='stop_freq_frequency_domain')
-        num_points = st.number_input("Number of Frequencies", value=11, min_value=1, max_value=51,  step=1, key='num_points_frequency_domain')
+        num_points = st.number_input("Number of Frequencies", value=11, min_value=1, max_value=81,  step=1, key='num_points_frequency_domain')
         
         # t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', 0, value=25, step=1, key='t_final'))
         t_final = 25
