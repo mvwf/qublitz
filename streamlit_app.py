@@ -101,7 +101,7 @@ def main():
             st.stop()
 
     if user_selection == "Free Play":
-        omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
+        omega_q = st.number_input(r'$\omega_q/2\pi$ [GHz]', 0.000, value=5.100, step=0.001, key='qubit_freq',format="%.3f") # need to address this later
     
     sim_mode = st.selectbox("Select Simulation Mode", ["Time Domain", "Frequency Domain"], key='sim_mode')
 
