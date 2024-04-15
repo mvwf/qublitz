@@ -25,23 +25,28 @@ import os
 from ratelimit import limits, sleep_and_retry
 from datetime import timedelta
 
-@sleep_and_retry
-@limits(calls=1, period=timedelta(seconds=60).total_seconds())
-# Function to convert data to CSV (for download)
-def to_csv(index, data):
-    df = pd.DataFrame(data, index=index)
-    return df.to_csv().encode('utf-8')
+# functions
 
-@sleep_and_retry
+# function: converts data to CSV (for download)
+@sleep_and_retry # rate limiting decorator
+@limits(calls=1, period=timedelta(seconds=60).total_seconds()) # rate limit of 1 call per minute
+
+def to_csv(index, data):
+    df = pd.DataFrame(data, index=index) # Dataframe from data
+    return df.to_csv().encode('utf-8') 
+
+# function: adds a gaussian pulse to the pulse vector
+@sleep_and_retry 
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
     Adds a Gaussian pulse to the pulse vector.
     """
-    tlist = np.linspace(0, t_final, n_steps)
+    tlist = np.linspace(0, t_final, n_steps) 
     gaussian = amplitude * np.exp(-((tlist - center) ** 2) / (2 * sigma ** 2))
     return np.clip(pulse_vector + gaussian, -1, 1)  # Ensuring values are within [-1, 1]
 
+# function: adds a square pulse to the pulse vector
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 @st.cache_data
@@ -56,19 +61,20 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
         pulse_vector = np.pad(pulse_vector, (0, len(square_pulse) - len(pulse_vector)), 'constant')
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
+# main function
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 @st.cache_data(experimental_allow_widgets=True)
 def main():
 
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
-    st.title('Qublitz Virtual Qubit Lab')
-    logo = Image.open("images/logo.png")
-    st.sidebar.image(logo, use_column_width=True)
+    st.title('Qublitz Virtual Qubit Lab') # site title
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo, use_column_width=True) # display logo on the side 
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
-    st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
-    st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
+    st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$') # Hamiltonian 
+    st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors
 
     st.header('Simulation Parameters')
     
@@ -78,7 +84,7 @@ def main():
     # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
     
     # TODO: add a challenge button!
-    user_selection = st.selectbox("Select User Mode", ["Free Play"], key='user_selection')
+    user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
     
     if user_selection == "Custom Qubit Query":
         # Convert st.secrets to a dictionary to easily list all user IDs
