@@ -83,7 +83,7 @@ def main():
     # if "Free Play" is selected, the user can input their own parameters
     # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
     
-    # TODO: add a challenge button!
+
     user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
     
     if user_selection == "Custom Qubit Query":
