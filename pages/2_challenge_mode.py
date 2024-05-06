@@ -2,7 +2,7 @@ import streamlit as st
 import numpy as np 
 import qutip as qt
 import plotly.graph_objects as go
-from quantum_simulator import run_quantum_simulation, run_frequency_sweep  
+from quantum_simulator import run_quantum_simulation
 
 
 
@@ -100,7 +100,7 @@ def main():
         target_channel = "σ_x"
         amp = 1.0
         start = 0.0
-        stop = (1 * 10**9)/(50 * 10**6) # Half the period of the Rabi oscillation
+        stop = (1 * 10**9)/(omega_rabi * 10**6) # Half the period of the Rabi oscillation
         
         pulse_vector = st.session_state.sigma_x_vec
         updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
@@ -174,7 +174,7 @@ def main():
     if st.button("Y-Gate"):
         st.session_state.sigma_x_vec = np.zeros(n_steps)
         st.session_state.sigma_y_vec = np.zeros(n_steps)
-        t_final = 200 # Half the period of the Rabi oscillation
+        t_final = 200
         n_steps = 25 * t_final
         tlist = np.linspace(0, t_final, n_steps)
         plot_lw = 3
