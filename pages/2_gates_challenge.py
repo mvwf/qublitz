@@ -20,6 +20,8 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
 def main():
     
     st.title("Challenge Mode")
+
+    # These are default parameters that do not need to be changed for challenge mode
     omega_q = 5.000 # Default qubit frequency is 5.000 GHz
     omega_d = 5.000 # Default drive frequency is 5.000 
     omega_rabi = 50.000 # Default Rabi frequency is 50.000 MHz
@@ -32,13 +34,13 @@ def main():
     # Create a list of time values from 0 to t_final
     time_values = np.linspace(0, t_final, n_steps)
 
-    # Creating a mesh for the unit sphere
+    # Bloch Sphere - Creating a meshgrid for the Bloch Sphere 
     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
     x_sphere = np.cos(u) * np.sin(v)
     y_sphere = np.sin(u) * np.sin(v)
     z_sphere = np.cos(v)
 
-    # Color map for the time evolution
+    # Bloch Sphere - Color map for the time evolution
     colors = time_values
 
     fig_bloch = go.Figure(data=[
@@ -54,6 +56,8 @@ def main():
            )  # Use time-based colors
        )
    ])
+    
+    # Bloch Sphere - this is the default layout
     fig_bloch.update_layout(
     title='State Vector on the Bloch Sphere',
     scene=dict(
@@ -66,7 +70,9 @@ def main():
         ),
     margin=dict(l=0, r=0, b=0, t=0)
    )
-           
+
+    # Bloch Sphere - this sets the starting point of the Bloch Sphere
+               
     fig_bloch.add_trace(go.Scatter3d(
         x=[0, 0], 
         y=[0, 0], 
@@ -83,7 +89,7 @@ def main():
      # Display the plot
     st.plotly_chart(fig_bloch)
 
-    # X-Gate Button
+    # Rough Draft of X-Gate Button
     if st.button("X-Gate"):
         st.session_state.sigma_x_vec = np.zeros(n_steps)
         st.session_state.sigma_y_vec = np.zeros(n_steps)
@@ -170,7 +176,7 @@ def main():
         # Display the plot
         st.plotly_chart(fig_bloch)
 
-    # Y-Gate Button
+    # Rough Draft of Y-Gate Button
     if st.button("Y-Gate"):
         st.session_state.sigma_x_vec = np.zeros(n_steps)
         st.session_state.sigma_y_vec = np.zeros(n_steps)
