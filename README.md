@@ -31,8 +31,11 @@ Qublitz will initially be hosted as a Streamlit app. The relevant libraries for 
 `plotly.subplots`
 `plotly.express`
 each page will also need to import `run_quantum_simulation` from `quantum_simulator`
+for the quantum simulator you will need to import `qutip`
 
 ## Usage
 Find the current website here:
 https://qublitz-qubit-lab.streamlit.app/
 [![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](https://unitary.fund)
+
+## Contributing 
