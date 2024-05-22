@@ -19,7 +19,7 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
 
 def main():
     
-    st.title("Challenge Mode")
+    st.title("Qubit Gates Challenge")
 
     # These are default parameters that do not need to be changed for challenge mode
     omega_q = 5.000 # Default qubit frequency is 5.000 GHz
@@ -33,6 +33,8 @@ def main():
     num_shots = 256 # set the number of shots to 256
     # Create a list of time values from 0 to t_final
     time_values = np.linspace(0, t_final, n_steps)
+
+    # Below is starter code for the Unitary Hack issue
 
     # Bloch Sphere - Creating a meshgrid for the Bloch Sphere 
     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
