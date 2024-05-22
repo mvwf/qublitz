@@ -25,23 +25,28 @@ import os
 from ratelimit import limits, sleep_and_retry
 from datetime import timedelta
 
-@sleep_and_retry
-@limits(calls=1, period=timedelta(seconds=60).total_seconds())
-# Function to convert data to CSV (for download)
-def to_csv(index, data):
-    df = pd.DataFrame(data, index=index)
-    return df.to_csv().encode('utf-8')
+# functions
 
-@sleep_and_retry
+# function: converts data to CSV (for download)
+@sleep_and_retry # rate limiting decorator
+@limits(calls=1, period=timedelta(seconds=60).total_seconds()) # rate limit of 1 call per minute
+
+def to_csv(index, data):
+    df = pd.DataFrame(data, index=index) # Dataframe from data
+    return df.to_csv().encode('utf-8') 
+
+# function: adds a gaussian pulse to the pulse vector
+@sleep_and_retry 
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
     """
     Adds a Gaussian pulse to the pulse vector.
     """
-    tlist = np.linspace(0, t_final, n_steps)
+    tlist = np.linspace(0, t_final, n_steps) 
     gaussian = amplitude * np.exp(-((tlist - center) ** 2) / (2 * sigma ** 2))
     return np.clip(pulse_vector + gaussian, -1, 1)  # Ensuring values are within [-1, 1]
 
+# function: adds a square pulse to the pulse vector
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 @st.cache_data
@@ -56,19 +61,20 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
         pulse_vector = np.pad(pulse_vector, (0, len(square_pulse) - len(pulse_vector)), 'constant')
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
+# main function
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
 @st.cache_data(experimental_allow_widgets=True)
 def main():
 
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
-    st.title('Qublitz Virtual Qubit Lab')
-    logo = Image.open("images/logo.png")
-    st.sidebar.image(logo, use_column_width=True)
+    st.title('Qublitz Virtual Qubit Lab') # site title
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo, use_column_width=True) # display logo on the side 
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
-    st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$')
-    st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''')
+    st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$') # Hamiltonian 
+    st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors
 
     st.header('Simulation Parameters')
     
@@ -77,8 +83,8 @@ def main():
     # if "Free Play" is selected, the user can input their own parameters
     # if "Custom Qubit Query" is selected, the user can select a user ID from a list of pre-defined parameters
     
-    # TODO: add a challenge button!
-    user_selection = st.selectbox("Select User Mode", ["Free Play"], key='user_selection')
+
+    user_selection = st.selectbox("Select User Mode", ["Free Play", "Custom Qubit Query"], key='user_selection')
     
     if user_selection == "Custom Qubit Query":
         # Convert st.secrets to a dictionary to easily list all user IDs
@@ -211,44 +217,40 @@ def main():
         num_shots = st.number_input('shots', value=256,  min_value=1, max_value=4096,  step=1, key='num_shots_time_domain')
     
         st.header('Pulse Parameters')
-        n_steps = 25 * t_final
-        tlist = np.linspace(0, t_final, n_steps)
-        plot_lw = 3
-        # Initialize or retrieve sigma_x_vec and sigma_y_vec
-        if 'sigma_x_vec' not in st.session_state:
-            st.session_state.sigma_x_vec = 0*tlist
-        if 'sigma_y_vec' not in st.session_state:
-            st.session_state.sigma_y_vec = 0*tlist
+        target_channel = st.selectbox('Choose Target Channel', ['σ_x', 'σ_y'], key='square_target_channel') # user selects target channel
+        n_steps = 25*int(t_final) # set the number of steps based on user inputs times 25
+        tlist = np.linspace(0, t_final, n_steps) # set time domain list
 
-        target_channel = st.selectbox("Choose Target Channel", ["σ_x", "σ_y"], key='square_target_channel')
-        amp = st.number_input('Amplitude', -1.0, 1.0, 1.0, key='square_amp')
-        start = st.number_input('Start Time (ns)', min_value=0.0, max_value=float(t_final), value=0.0, step=1.0, key='square_start')
-        stop = st.number_input('Stop Time (ns)', min_value=start, max_value=float(t_final), value=float(t_final), step=1.0, key='square_stop')
+        if 'sigma_x_vec' not in st.session_state: # if no x vector has been initialized yet
+            st.session_state.sigma_x_vec = tlist*0 # set the sigma x vector to 0 with the dimensions of the time domain
+        if 'sigma_y_vec' not in st.session_state: # if no y vector has been initialized yet
+            st.session_state.sigma_y_vec = tlist*0
         
-        # Enforce T2 <= 2*T1 constraint
-        while stop < start:
-            st.warning(r"Cannot have stop before start!")
-            stop = st.number_input('Stop Time (ns)', min_value=start, max_value=t_final, value=10.0, step=1)
+        amp = st.slider('Amplitude', -1.0, 1.0, 1.0, key='square_amp') # user selects amplitude
+        start = st.slider('Start Time (ns)', 0.0, float(t_final-1.0), step=1.0, key='square_start')
+        stop = st.slider('Stop Time (ns)', min_value=start, max_value=float(t_final), step=1.0, key='square_stop')
+
         if st.button('Add Square Pulse', key='square_button'):
-            pulse_vector = st.session_state.sigma_x_vec if target_channel == "σ_x" else st.session_state.sigma_y_vec
-            updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
-            if target_channel == "σ_x":
-                st.session_state.sigma_x_vec = updated_pulse_vector
-                # pad the other vector with whatever the last value was
-                st.session_state.sigma_y_vec = np.pad(st.session_state.sigma_y_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_y_vec)), 'constant', constant_values=st.session_state.sigma_y_vec[-1])
-            else:
+            if target_channel == 'σ_x': # if the target channel is sigma x
+                pulse_vector = st.session_state.sigma_x_vec # set the pulse vector to the sigma x vector
+                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final) # add a square pulse to the sigma x vector
+                st.session_state.sigma_x_vec = updated_pulse_vector # update the sigma x vector
+                st.session_state.sigma_y_vec = np.pad(st.session_state.sigma_y_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_y_vec)), 'constant', constant_values=st.session_state.sigma_y_vec[-1]) # pad the sigma y vector with the last value of the sigma y vector
+            else: # for target channel sigma y
+                pulse_vector = st.session_state.sigma_y_vec
+                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final) # add a square pulse to the sigma y vector
                 st.session_state.sigma_y_vec = updated_pulse_vector
-                # do the same here for the other vector
                 st.session_state.sigma_x_vec = np.pad(st.session_state.sigma_x_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_x_vec)), 'constant', constant_values=st.session_state.sigma_x_vec[-1])
 
-        # Clear Pulses Button
-        if st.button('Clear Pulses'):
-            st.session_state.sigma_x_vec = np.zeros(n_steps)
-            st.session_state.sigma_y_vec = np.zeros(n_steps)
+        # Clear pulses button
+        if st.button('Clear Pulse', key='clear_button'):
+            st.session_state.sigma_x_vec = tlist*0
+            st.session_state.sigma_y_vec = tlist*0
 
         # Create Plotly figures for σx and σy
         # Adjust Plotly figures to show the entire trace
         fig_sigma = go.Figure()
+        plot_lw = 3 # plot linewidth
         fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='Ω_x(t)',line=dict(width=plot_lw)))
         fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name=rf'Ω_y(t)',line=dict(width=plot_lw)))
         fig_sigma.update_layout(
