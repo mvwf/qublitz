@@ -246,6 +246,9 @@ def main():
         if st.button('Clear Pulse', key='clear_button'):
             st.session_state.sigma_x_vec = tlist*0
             st.session_state.sigma_y_vec = tlist*0
+            pulse_vector = None
+            updated_pulse_vector = None
+            
 
         # Create Plotly figures for σx and σy
         # Adjust Plotly figures to show the entire trace
