@@ -61,6 +61,7 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
         pulse_vector = np.pad(pulse_vector, (0, len(square_pulse) - len(pulse_vector)), 'constant')
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
+
 # main function
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
@@ -227,18 +228,22 @@ def main():
             st.session_state.sigma_y_vec = tlist*0
         
         amp = st.slider('Amplitude', -1.0, 1.0, 1.0, key='square_amp') # user selects amplitude
-        start = st.slider('Start Time (ns)', 0.0, float(t_final-1.0), step=1.0, key='square_start')
-        stop = st.slider('Stop Time (ns)', min_value=start, max_value=float(t_final), step=1.0, key='square_stop')
+        st.session_state.start = st.number_input('Start Time (ns)', 0.0, float(t_final-1.0), step=1.0, key='square_start')
+        if st.session_state.stop < st.session_state.start:
+            # the stop auto-sets the minimum value only if its less than the start
+            st.session_state.stop = st.number_input('Stop Time (ns)', min_value=st.session_state.start, max_value=float(t_final), step=1.0, key='square_stop')
+        else:
+            st.session_state.stop = st.number_input('Stop Time (ns)', max_value=float(t_final), step=1.0, key='square_stop')
 
         if st.button('Add Square Pulse', key='square_button'):
             if target_channel == 'σ_x': # if the target channel is sigma x
                 pulse_vector = st.session_state.sigma_x_vec # set the pulse vector to the sigma x vector
-                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final) # add a square pulse to the sigma x vector
+                updated_pulse_vector = add_square(pulse_vector, amp, st.session_state.start, st.session_state.stop, n_steps, t_final) # add a square pulse to the sigma x vector
                 st.session_state.sigma_x_vec = updated_pulse_vector # update the sigma x vector
                 st.session_state.sigma_y_vec = np.pad(st.session_state.sigma_y_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_y_vec)), 'constant', constant_values=st.session_state.sigma_y_vec[-1]) # pad the sigma y vector with the last value of the sigma y vector
             else: # for target channel sigma y
                 pulse_vector = st.session_state.sigma_y_vec
-                updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final) # add a square pulse to the sigma y vector
+                updated_pulse_vector = add_square(pulse_vector, amp, st.session_state.start, st.session_state.stop, n_steps, t_final) # add a square pulse to the sigma y vector
                 st.session_state.sigma_y_vec = updated_pulse_vector
                 st.session_state.sigma_x_vec = np.pad(st.session_state.sigma_x_vec, (0, len(updated_pulse_vector) - len(st.session_state.sigma_x_vec)), 'constant', constant_values=st.session_state.sigma_x_vec[-1])
 
@@ -246,16 +251,13 @@ def main():
         if st.button('Clear Pulse', key='clear_button'):
             st.session_state.sigma_x_vec = tlist*0
             st.session_state.sigma_y_vec = tlist*0
-            pulse_vector = None
-            updated_pulse_vector = None
-            
+            st.cache_data.clear()
 
         # Create Plotly figures for σx and σy
         # Adjust Plotly figures to show the entire trace
         fig_sigma = go.Figure()
         plot_lw = 3 # plot linewidth
-        fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='Ω_x(t)',line=dict(width=plot_lw)))
-        fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name=rf'Ω_y(t)',line=dict(width=plot_lw)))
+
         fig_sigma.update_layout(
             xaxis_title='Time [ns]',
             yaxis_title='Amplitude',
@@ -263,11 +265,12 @@ def main():
             xaxis=dict(range=[0, t_final]),  # Adjust the x-axis to show the entire trace
             yaxis=dict(range=[-1.05, 1.05])         # Adjust the y-axis range if necessary
         )
+        fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='Ω_x(t)',line=dict(width=plot_lw)))
+        fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name=rf'Ω_y(t)',line=dict(width=plot_lw)))
         st.plotly_chart(fig_sigma)
 
         # Button to run simulation
         if st.button('Run Simulation'):
-            
             params = (omega_q, omega_rabi*1e-3, t_final, n_steps, omega_d, st.session_state.sigma_x_vec, st.session_state.sigma_y_vec, num_shots, T1, T2)
 
             try:
