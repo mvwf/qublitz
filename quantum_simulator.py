@@ -48,9 +48,10 @@ def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps, ome
         'prob_1_time_series': prob_1_time_series,
     }
 
-# Define your run_quantum_simulation function
+# Define your run_quantum_simulation functionnp.sum(samples == 1) / num_shots
 def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_vector_I, user_vector_Q, num_shots, T1, T2):
     tlist = np.linspace(0, t_final, n_steps)
+
 
     # Hamiltonian and other setup as before... fac
     # setting hbar to 1
@@ -59,10 +60,11 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
     H1 =  2*np.pi*omega_rabi * sigmax() / 2
     H2 =  2*np.pi*omega_rabi * sigmay()  / 2
 
-    H = [H0, [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
-         [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
-    
-    psi0 = basis(2, 1)
+    H = [H0, 
+        [H1, lambda t, args: user_vector_I[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)], 
+        [H2, lambda t, args: user_vector_Q[min(int(t / t_final * n_steps), n_steps - 1)] * np.cos(args['w'] * t)]]
+
+    psi0 = basis(2, 0)  # initial state
 
     # Collapse operators for T1 and T2
     c_ops = []
@@ -72,28 +74,27 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
 
     if T2 > 0:
         rate_2 = 1.0 / T2 - 1.0 / (2 * T1)  # Dephasing rate is T2* - 1/(2*T1)
-        c_ops.append(np.sqrt(rate_2) * -sigmaz())  # Dephasing
-
+        c_ops.append(np.sqrt(rate_2) * sigmaz())  # Dephasing
+    
 
     # Set QuTiP Options to increase nsteps
     options = Options(nsteps=5000)
     options.store_states = True
 
     # Mesolve with collapse operators
+
     result = mesolve(H, psi0, tlist, c_ops, [sigmax(), sigmay(), sigmaz()], args={'w': 2 * np.pi * omega_d}, options=options)
 
     probabilities = []
     sampled_probabilities = []
 
     for state in result.states:
-        # print(state)
         prob_0 = np.abs(state[0, 0])**2 # Probability of being in state |0>
         prob_1 = 1 - prob_0
         probabilities.append(prob_1)
         # Sample the distribution
         samples = np.random.choice([0, 1], size=num_shots, p=[prob_0, prob_1])
-        sampled_prob_1 = np.sum(samples == 0) / num_shots
+        sampled_prob_1 = np.sum(samples == 1) / num_shots
         sampled_probabilities.append(sampled_prob_1)
 
-    # print(len(probabilities))
     return result.expect, probabilities, sampled_probabilities

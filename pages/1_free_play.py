@@ -226,6 +226,10 @@ def main():
             st.session_state.sigma_x_vec = tlist*0 # set the sigma x vector to 0 with the dimensions of the time domain
         if 'sigma_y_vec' not in st.session_state: # if no y vector has been initialized yet
             st.session_state.sigma_y_vec = tlist*0
+        if 'start' not in st.session_state: # if no start time has been initialized yet
+            st.session_state.start = 0.0
+        if 'stop' not in st.session_state: # if no stop time has been initialized yet
+            st.session_state.stop = 0.0
         
         amp = st.slider('Amplitude', -1.0, 1.0, 1.0, key='square_amp') # user selects amplitude
         st.session_state.start = st.number_input('Start Time (ns)', 0.0, float(t_final-1.0), step=1.0, key='square_start')
@@ -280,11 +284,11 @@ def main():
 
             # Time array for transformation
             time_array = np.linspace(0, t_final, n_steps)  # Convert time to microseconds
+            
 
             # Demodulate the expectation values
             exp_y_rotating = -(exp_values[0] * np.cos(2 * np.pi * omega_d * time_array) + exp_values[1] * np.sin(2 * np.pi * omega_d * time_array))
             exp_x_rotating = exp_values[0] * np.sin(2 * np.pi * omega_d * time_array) - exp_values[1] * np.cos(2 * np.pi * omega_d * time_array)
-            
             # Plot results in rotating frame
             fig_results_rotating = go.Figure()
             fig_results_rotating.add_trace(go.Scatter(x=tlist, y=exp_x_rotating, mode='lines', name=r'⟨σ_x⟩',line=dict(width=plot_lw)))
@@ -296,6 +300,7 @@ def main():
                 yaxis_title='Expectation Values',
                 title=f'Quantum Simulation Results in Rotating Frame of the drive frequency (ω_d={omega_d} GHz), with detuning (Δ={detuning} MHz)'
             )
+            # save the plot as image
             st.plotly_chart(fig_results_rotating)
 
             # Plot results in rotating frame
@@ -365,6 +370,9 @@ def main():
             ))
 
             # Display the plot
+            # refresh the plot
+            # clear cache
+            st.cache_data.clear()
             st.plotly_chart(fig_bloch)
     # Assuming 'exp_values', 'time_values', 'sampled_probabilities' are your data variables
     if 'exp_values' in locals():
