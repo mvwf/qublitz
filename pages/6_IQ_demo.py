@@ -98,7 +98,7 @@ def main():
 
         ## Output FFT ##
         fig_ffti = go.Figure(data=[
-        go.Scatter(x=f, y=fftIout, mode = 'lines', marker = dict(color = 'black'))
+        go.Scatter(x=f, y=fftIout, mode = 'lines', marker = dict(color = 'blue'))
         ])
 
         fig_ffti.update_xaxes(range=[0, omegal+omega+5])
@@ -114,7 +114,7 @@ def main():
         st.plotly_chart(fig_Qout)
         ##############
         fig_fftq = go.Figure(data=[
-        go.Scatter(x=f, y=fftQout, mode = 'lines', marker = dict(color = 'black'))
+        go.Scatter(x=f, y=fftQout, mode = 'lines', marker = dict(color = 'blue'))
         ])
         fig_fftq.update_xaxes(range=[0, omegal+omega+5])
         fig_fftq.update_layout(title='Output FFT Q',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
