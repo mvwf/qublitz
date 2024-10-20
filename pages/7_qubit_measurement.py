@@ -5,7 +5,7 @@ Release Date:
     V 1.0: 10/6/2024
 
 '''
-from quget import *
+import numpy as np
 from streamlit import *
 import plotly.graph_objects as go
 def main():
@@ -166,7 +166,7 @@ def main():
 
     markdown(''' 
     In the measurement of Superconducting Qubits, the oscillator is actually anharmonic (commonly referred to as Morse), which means that the potential
-    is not perfectly quadratic and the discrete energy levels are not evenly spaced. The potential is similar to a spring with some separation **x** and energy levels $T_n$:
+    is not perfectly quadratic and the discrete energy levels are not evenly spaced. The potential is similar to a damped spring with some separation **x** and energy levels $T_n$:
 ''')
     
     image("images/anharmonic.png",caption = "Jang, S. (2023). Harmonic Oscillator and Vibrational Spectroscopy. In S. J. Jang (Ed.), Quantum Mechanics for Chemistry. Springer International Publishing. https://doi.org/10.1007/978-3-031-30218-3_3")
