@@ -1,3 +1,11 @@
+'''
+Authors:
+    M. Weiner
+
+Release Date: 
+    V 1.0: 10/12/2024
+
+'''
 ######################
 ###### IQ Mixer ######
 # Author: Max Weiner #
