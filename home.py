@@ -8,6 +8,7 @@ def main():
     st.page_link("pages/3_step_pulse_challenge.py", label="Step Pulse Challenge", icon="3️⃣")
     st.page_link("pages/4_custom_qubit_query.py", label="Custom Qubit Query", icon="4️⃣")
     st.page_link("pages/5_neutral_atoms.py", label=" Neutral Atoms", icon="🔬")
-
+    st.page_link("pages/6_IQ_demo.py", label="IQ Mixing", icon="〰️")
+    st.page_link("pages/7_qubit_measurement.py", label = "Qubit Measurement", icon="📏")
 if __name__ == "__main__":
     main()
