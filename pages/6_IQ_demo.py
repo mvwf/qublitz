@@ -1,3 +1,11 @@
+'''
+Authors:
+    M. Weiner
+
+Release Date: 
+    V 1.0: 10/12/2024
+
+'''
 ######################
 ###### IQ Mixer ######
 # Author: Max Weiner #
@@ -23,13 +31,13 @@ def main():
     col1,col2 = st.columns(2)
 
     with col1:
-        A = st.slider('Input Amplitude [arb.]', 0.1, 10.0, 1.0, 0.1)
+        A = st.slider('Input Amplitude [arb.]', 0.2, 20.0, 1.0, 0.1)
         phi = st.slider('Input Phase (°)', 0.0, 180.0, 1.0, 0.1)
-        omega = st.slider('Input Frequency (GHz)', 0.1, 10.0, 1.0, 0.1)
+        omega = st.slider('Input Frequency (GHz)', 1.0, 20.0, 1.0, 0.1)
     with col2:
-        Al = st.slider('LO Amplitude [arb.]', 0.1, 10.0,1.0,0.1)
+        Al = st.slider('LO Amplitude [arb.]', 0.2, 20.0,1.0,0.1)
         phil = st.slider('LO Phase (°)', 0.0, 180.0, 1.0,0.1)
-        omegal = st.slider('LO Frequency (GHz)', 0.1, 10.0,1.0,0.1)
+        omegal = st.slider('LO Frequency (GHz)', 1.0, 20.0,1.0,0.1)
     
     nsteps = 100000
     t = np.linspace(0,20*1/min(omegal,omega),nsteps)
@@ -61,29 +69,26 @@ def main():
     # Input Frequency
     with col3:
         fig_infft = go.Figure(data=[
-            go.Scatter(x=f, y=fftinI, mode = 'lines', #name = "I",
-                       marker = dict(color = 'red'))#,
-                #go.Scatter(
-                #    x=f,  # ⟨σ_x⟩ values
-                #    y=fftinQ,
-                #    mode = 'lines',
-                    #name = "Q",  # ⟨σ_y⟩ values
-                #    marker = dict(color = 'red')
-                #)
+            go.Scatter(x=f, y=fftinI, mode = 'lines', name = "I",marker = dict(color = 'black')),
+                go.Scatter(
+                    x=f,  # ⟨σ_x⟩ values
+                    y=fftinQ,
+                    mode = 'lines',
+                    name = "Q",  # ⟨σ_y⟩ values
+                    marker = dict(color = 'red')
+                )
             ])
         fig_infft.update_xaxes(range=[0, omega+5])
-        fig_infft.update_layout(title='Input FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_infft.update_layout(title='Input FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_infft)
      
         ### LO FFT ###
         fig_locfft = go.Figure(data=[
-        go.Scatter(x=f, y=fftlocI, mode = 'lines',# name = "I",
-                    marker = dict(color = 'red'))
-        #go.Scatter(x=f, y=fftlocQ, mode = 'lines',# name = "Q",
-        #           marker = dict(color = 'red'))
+        go.Scatter(x=f, y=fftlocI, mode = 'lines', name = "I", marker = dict(color = 'black')),
+        go.Scatter(x=f, y=fftlocQ, mode = 'lines', name = "Q",marker = dict(color = 'red'))
         ])
         fig_locfft.update_xaxes(range=[0, omegal+5])
-        fig_locfft.update_layout(title='Local Oscillator FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_locfft.update_layout(title='Local Oscillator FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_locfft)
         ##############
 
@@ -92,32 +97,32 @@ def main():
         fig_Iout = go.Figure(data=[
         go.Scatter(x=t, y=Iout, mode = 'lines', marker = dict(color = 'blue'))
         ])
-        fig_Iout.update_xaxes(range=[0, 5*1/min(omegal,omega)])
-        fig_Iout.update_layout(title='Output I',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_Iout.update_xaxes(range=[0, 2])
+        fig_Iout.update_layout(title='Output I',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_Iout)
 
         ## Output FFT ##
         fig_ffti = go.Figure(data=[
-        go.Scatter(x=f, y=fftIout, mode = 'lines', marker = dict(color = 'blue'))
+        go.Scatter(x=f, y=fftIout, mode = 'lines', marker = dict(color = 'black'))
         ])
 
         fig_ffti.update_xaxes(range=[0, omegal+omega+5])
-        fig_ffti.update_layout(title='Output FFT I',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_ffti.update_layout(title='Output FFT I',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_ffti)
 
     with col5:
         fig_Qout = go.Figure(data=[
         go.Scatter(x=t, y=Qout, mode = 'lines', marker = dict(color = 'blue'))
         ])
-        fig_Qout.update_xaxes(range=[0, 5*1/min(omegal,omega)])
-        fig_Qout.update_layout(title='Output Q',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_Qout.update_xaxes(range=[0, 2])
+        fig_Qout.update_layout(title='Output Q',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_Qout)
         ##############
         fig_fftq = go.Figure(data=[
-        go.Scatter(x=f, y=fftQout, mode = 'lines', marker = dict(color = 'blue'))
+        go.Scatter(x=f, y=fftQout, mode = 'lines', marker = dict(color = 'black'))
         ])
         fig_fftq.update_xaxes(range=[0, omegal+omega+5])
-        fig_fftq.update_layout(title='Output FFT Q',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]',width=300,height = 400)
+        fig_fftq.update_layout(title='Output FFT Q',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
         st.plotly_chart(fig_fftq)
 
     ########################
