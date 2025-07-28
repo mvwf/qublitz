@@ -1,0 +1,18 @@
+{
+    "apikeyadmin123": {
+      "user": "admin",
+      "role": "write",
+      "T1": 1000,
+      "T2": 2000,
+      "omega_rabi": 0.1,
+      "omega_q": 5.0
+    },
+    "apikeyreader456": {
+      "user": "test_user",
+      "role": "read",
+      "T1": 800,
+      "T2": 1600,
+      "omega_rabi": 0.05,
+      "omega_q": 4.95
+    }
+  }
