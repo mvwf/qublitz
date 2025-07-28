@@ -11,7 +11,9 @@ Release Date:
 # Author: Max Weiner #
 ### Date: 8/5/2024 ###
 ######################
-# Draft 2
+# Modified by: Mattias Fitzpatrick
+# Date: 07/27/2025
+
 
 from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
 import numpy as np
@@ -19,113 +21,112 @@ import matplotlib.pyplot as plt
 from matplotlib import use
 from matplotlib.colors import Normalize
 from qutip import *
-from scipy.fft import fftshift,fft,ifft
-from matplotlib.widgets import Slider 
+from scipy.fft import fftshift, fft, ifft
+from matplotlib.widgets import Slider
 import plotly.graph_objects as go
+import plotly.subplots as sp
 import streamlit as st
-# Updates everytime the slider values change
 
-# initialize sliders
 def main():
     st.title("IQ Mixing Demo")
-    col1,col2 = st.columns(2)
-
+    col1, col2 = st.columns(2)
     with col1:
         A = st.slider('Input Amplitude [arb.]', 0.2, 20.0, 1.0, 0.1)
         phi = st.slider('Input Phase (°)', 0.0, 180.0, 1.0, 0.1)
         omega = st.slider('Input Frequency (GHz)', 1.0, 20.0, 1.0, 0.1)
     with col2:
-        Al = st.slider('LO Amplitude [arb.]', 0.2, 20.0,1.0,0.1)
-        phil = st.slider('LO Phase (°)', 0.0, 180.0, 1.0,0.1)
-        omegal = st.slider('LO Frequency (GHz)', 1.0, 20.0,1.0,0.1)
-    
+        Al = st.slider('LO Amplitude [arb.]', 0.2, 20.0, 1.0, 0.1)
+        phil = st.slider('LO Phase (°)', 0.0, 180.0, 1.0, 0.1)
+        omegal = st.slider('LO Frequency (GHz)', 1.0, 20.0, 1.0, 0.1)
+
     nsteps = 100000
-    t = np.linspace(0,20*1/min(omegal,omega),nsteps)
-    d = max(t)/nsteps
-    f = np.linspace(-1/(2*d),1/(2*d),nsteps)
+    t = np.linspace(0, 20 * 1 / min(omegal, omega), nsteps)
+    d = max(t) / nsteps
+    f = np.linspace(-1 / (2 * d), 1 / (2 * d), nsteps)
 
     ### Calculate Q from Mag, Phase, Frequency ###
-
-    Q = A*np.sin(2*np.pi*omega*t + phi)
-    I = A*np.cos(2*np.pi*omega*t + phi)
+    Q = A * np.sin(2 * np.pi * omega * t + np.deg2rad(phi))
+    I = A * np.cos(2 * np.pi * omega * t + np.deg2rad(phi))
     fftinQ = np.abs(fftshift(fft(Q)))
     fftinI = np.abs(fftshift(fft(I)))
 
-    Ql = Al*np.sin(2*np.pi*omegal*t + phil)
-    Il = Al*np.cos(2*np.pi*omegal*t + phil)
+    Ql = Al * np.sin(2 * np.pi * omegal * t + np.deg2rad(phil))
+    Il = Al * np.cos(2 * np.pi * omegal * t + np.deg2rad(phil))
     fftlocQ = np.abs(fftshift(fft(Ql)))
     fftlocI = np.abs(fftshift(fft(Il)))
 
     #################### Compute Input and Output of IQ Mixer ##################
+    Qout = Q * Ql
+    fftQout = np.abs(fftshift(fft(Qout)))
+    Iout = I * Il
+    fftIout = np.abs(fftshift(fft(Iout)))
 
-    Qout=Q*Ql
-    fftQout=np.abs(fftshift(fft(Qout)))
-    Iout=I*Il
-    fftIout=np.abs(fftshift(fft(Iout)))
+    ############################## Separate I and Q Plots with Titles #######################################
+    # 3 rows × 2 cols: each subplot for I or Q signal
+    fig = sp.make_subplots(
+        rows=3, cols=2,
+        subplot_titles=(
+            "Input FFT I", "Input FFT Q",
+            "LO FFT I", "LO FFT Q",
+            "Output FFT I", "Output FFT Q"
+        ),
+        horizontal_spacing=0.15,
+        vertical_spacing=0.2
+    )
 
-    ############################## Plots #######################################
+    # Input FFT I
+    fig.add_trace(go.Scatter(x=f, y=fftinI, mode='lines', line=dict(color='black')), row=1, col=1)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omega + 5], row=1, col=1)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=1, col=1)
 
-    col3, col4, col5 = st.columns(3)
-    # Input Frequency
-    with col3:
-        fig_infft = go.Figure(data=[
-            go.Scatter(x=f, y=fftinI, mode = 'lines', name = "I",marker = dict(color = 'black')),
-                go.Scatter(
-                    x=f,  # ⟨σ_x⟩ values
-                    y=fftinQ,
-                    mode = 'lines',
-                    name = "Q",  # ⟨σ_y⟩ values
-                    marker = dict(color = 'red')
-                )
-            ])
-        fig_infft.update_xaxes(range=[0, omega+5])
-        fig_infft.update_layout(title='Input FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_infft)
-     
-        ### LO FFT ###
-        fig_locfft = go.Figure(data=[
-        go.Scatter(x=f, y=fftlocI, mode = 'lines', name = "I", marker = dict(color = 'black')),
-        go.Scatter(x=f, y=fftlocQ, mode = 'lines', name = "Q",marker = dict(color = 'red'))
-        ])
-        fig_locfft.update_xaxes(range=[0, omegal+5])
-        fig_locfft.update_layout(title='Local Oscillator FFT',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_locfft)
-        ##############
+    # Input FFT Q
+    fig.add_trace(go.Scatter(x=f, y=fftinQ, mode='lines', line=dict(color='red')), row=1, col=2)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omega + 5], row=1, col=2)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=1, col=2)
 
-    ### Time-Domain Signal ###
-    with col4:
-        fig_Iout = go.Figure(data=[
-        go.Scatter(x=t, y=Iout, mode = 'lines', marker = dict(color = 'blue'))
-        ])
-        fig_Iout.update_xaxes(range=[0, 2])
-        fig_Iout.update_layout(title='Output I',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_Iout)
+    # LO FFT I
+    fig.add_trace(go.Scatter(x=f, y=fftlocI, mode='lines', line=dict(color='black')), row=2, col=1)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omegal + 5], row=2, col=1)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=2, col=1)
 
-        ## Output FFT ##
-        fig_ffti = go.Figure(data=[
-        go.Scatter(x=f, y=fftIout, mode = 'lines', marker = dict(color = 'black'))
-        ])
+    # LO FFT Q
+    fig.add_trace(go.Scatter(x=f, y=fftlocQ, mode='lines', line=dict(color='red')), row=2, col=2)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omegal + 5], row=2, col=2)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=2, col=2)
 
-        fig_ffti.update_xaxes(range=[0, omegal+omega+5])
-        fig_ffti.update_layout(title='Output FFT I',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_ffti)
+    # Output FFT I
+    fig.add_trace(go.Scatter(x=f, y=fftIout, mode='lines', line=dict(color='black')), row=3, col=1)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omegal + omega + 5], row=3, col=1)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=3, col=1)
 
-    with col5:
-        fig_Qout = go.Figure(data=[
-        go.Scatter(x=t, y=Qout, mode = 'lines', marker = dict(color = 'blue'))
-        ])
-        fig_Qout.update_xaxes(range=[0, 2])
-        fig_Qout.update_layout(title='Output Q',xaxis_title='Time [ns]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_Qout)
-        ##############
-        fig_fftq = go.Figure(data=[
-        go.Scatter(x=f, y=fftQout, mode = 'lines', marker = dict(color = 'black'))
-        ])
-        fig_fftq.update_xaxes(range=[0, omegal+omega+5])
-        fig_fftq.update_layout(title='Output FFT Q',xaxis_title='Frequency [GHz]',yaxis_title='Amplitude [arb.]')
-        st.plotly_chart(fig_fftq)
+    # Output FFT Q
+    fig.add_trace(go.Scatter(x=f, y=fftQout, mode='lines', line=dict(color='red')), row=3, col=2)
+    fig.update_xaxes(title_text='Frequency [GHz]', range=[0, omegal + omega + 5], row=3, col=2)
+    fig.update_yaxes(title_text='Amplitude [arb.]', row=3, col=2)
 
-    ########################
+    fig.update_layout(height=900, width=900, title_text="IQ Mixer Frequency Domain Signals (Separate I and Q)")
+
+    ### Time domain plots for Output I and Q signals (can be a second figure or below) ###
+    st.write("### Output Time Domain Signals - I and Q")
+
+    fig_time = sp.make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Output I(t)", "Output Q(t)"),
+        horizontal_spacing=0.2
+    )
+    fig_time.add_trace(go.Scatter(x=t, y=Iout, mode='lines', line=dict(color='blue')), row=1, col=1)
+    fig_time.add_trace(go.Scatter(x=t, y=Qout, mode='lines', line=dict(color='green')), row=1, col=2)
+
+    fig_time.update_xaxes(title_text='Time [ns]', range=[0, 2], row=1, col=1)
+    fig_time.update_yaxes(title_text='Amplitude [arb.]', row=1, col=1)
+    fig_time.update_xaxes(title_text='Time [ns]', range=[0, 2], row=1, col=2)
+    fig_time.update_yaxes(title_text='Amplitude [arb.]', row=1, col=2)
+
+    fig_time.update_layout(height=400, width=900)
+
+    # Display the plots
+    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_time, use_container_width=True)
 
 if __name__ == "__main__":
     main()

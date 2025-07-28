@@ -1,0 +1,2 @@
+Run uvicorn app:app --reload --host 127.0.0.1 --port 8000 to set up server
+Then run streamlit run streamlit_app.py
