@@ -10,5 +10,6 @@ def main():
     # st.page_link("pages/5_neutral_atoms.py", label=" Neutral Atoms", icon="🔬")
     st.page_link("pages/6_IQ_demo.py", label="IQ Mixing", icon="〰️")
     # st.page_link("pages/7_qubit_measurement.py", label = "Qubit Measurement", icon="📏")
+    st.page_link("pages/8_EP_TPD_exploration.py", label="Exceptional Point and Transmission Peak Degeneracy Exploration", icon="🎯")
 if __name__ == "__main__":
     main()
