@@ -1,5 +1,7 @@
 import streamlit as st
 def main():
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo, use_column_width=True) # display logo on the side 
     st.title ("Qublitz")
     st.write("Welcome to Qublitz! A quantum computing game where you can learn about quantum computing and quantum gates.")
     st.page_link("home.py", label="Home", icon="🏠")
