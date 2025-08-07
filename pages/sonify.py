@@ -132,14 +132,6 @@ def main():
     st.sidebar.markdown("## Image Permutations")
     if st.sidebar.button("Flip Horizontally"):
         st.session_state['img_mat'] = np.fliplr(st.session_state['img_mat'])
-    if st.sidebar.button("Flip Vertically"):
-        st.session_state['img_mat'] = np.flipud(st.session_state['img_mat'])
-    if st.sidebar.button("Transpose"):
-        st.session_state['img_mat'] = st.session_state['img_mat'].T
-    if st.sidebar.button("Rotate +90°"):
-        st.session_state['img_mat'] = np.fliplr(st.session_state['img_mat'].T)
-    if st.sidebar.button("Rotate -90°"):
-        st.session_state['img_mat'] = np.flipud(st.session_state['img_mat'].T)
     if st.sidebar.button("Reset Image"):
         st.session_state['img_mat'] = gray0.copy()
 
