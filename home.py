@@ -2,10 +2,10 @@ import streamlit as st
 from PIL import Image
 def main():
     logo = Image.open("images/logo.png") 
-    st.sidebar.image(logo, use_container_width=True) # display logo on the side 
+    st.sidebar.image(logo, use_container_width=True)
     st.title ("Qublitz")
     st.write("Welcome to Qublitz!")
-    st.page_link("app.py", label="Home", icon="🏠")
+    st.page_link("home.py", label="Home", icon="🏠")
     st.page_link("pages/sonify.py", label="Sonify Images", icon="🎵")
     st.page_link("pages/free_play.py", label="Qubit Simulator", icon="🎮")
     st.page_link("pages/custom_qubit_query.py", label="Custom Qubit Query", icon="🔬")
