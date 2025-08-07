@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image
 def main():
     logo = Image.open("images/logo.png") 
-    st.sidebar.image(logo, use_container_width=True)
+    st.sidebar.image(logo)
     st.title ("Qublitz")
     st.write("Welcome to Qublitz!")
     st.page_link("home.py", label="Home", icon="🏠")
