@@ -1,4 +1,5 @@
 import streamlit as st
+from PIL import Image
 def main():
     logo = Image.open("images/logo.png") 
     st.sidebar.image(logo, use_column_width=True) # display logo on the side 
