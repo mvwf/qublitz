@@ -51,7 +51,7 @@ st.set_page_config(layout="wide")
 def main():
     st.title("Image Sonification, Turn Images into Sound!")
     logo = Image.open("images/logo.png") 
-    st.sidebar.image(logo, use_container_width=True) # display logo on the side 
+    st.sidebar.image(logo) # display logo on the side 
 
 
     # --- Load image list for premade option (not shown in sidebar) ---
