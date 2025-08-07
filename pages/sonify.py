@@ -102,7 +102,7 @@ def main():
 
     # Display actual original image (color or grayscale)
     st.markdown("### Original Image")
-    st.image(img_original, use_container_width=True)
+    st.image(img_original)
     if img_info:
         st.caption(img_info.get('text', ''))
         if img_info.get('link'):
@@ -165,7 +165,7 @@ def main():
     fig_gray.update_xaxes(title="Column")
     fig_gray.update_yaxes(title="Row", autorange='reversed')
     fig_gray.add_hline(y=sel_row, line=dict(color="black", dash="dash"))
-    st.plotly_chart(fig_gray, use_container_width=True, key="gray_heatmap")
+    st.plotly_chart(fig_gray, key="gray_heatmap")
 
     mod_mat = generate_modulated_matrix(env, t_lowres, y_freqs)
 
@@ -179,7 +179,7 @@ def main():
         xaxis_title="Time (s)",
         yaxis_title="Amplitude"
     )
-    st.plotly_chart(fig6_1d_signal, use_container_width=True, key="oned_signal")
+    st.plotly_chart(fig6_1d_signal, key="oned_signal")
 
     st.markdown(f"### Modulated Signal for Row {sel_row}")
     sel_mod_sig = mod_mat[sel_row, :]
@@ -189,7 +189,7 @@ def main():
         xaxis_title="Time (s)",
         yaxis_title="Amplitude"
     )
-    st.plotly_chart(fig6_mod_signal, use_container_width=True, key="modulated_signal")
+    st.plotly_chart(fig6_mod_signal, key="modulated_signal")
 
     st.markdown(f"### 1D FFT of Row {sel_row}")
     fft_s = np.abs(np.fft.rfft(sel_mod_sig))
@@ -200,7 +200,7 @@ def main():
         xaxis_title="Frequency (Hz)",
         yaxis_title="Magnitude"
     )
-    st.plotly_chart(fig6_fft_1d, use_container_width=True, key="fft_1d_signal")
+    st.plotly_chart(fig6_fft_1d, key="fft_1d_signal")
 
     # 6) Audio Playback for that row
     st.markdown(f"### Audio for Row {sel_row}")
