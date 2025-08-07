@@ -49,7 +49,6 @@ def add_gaussian(pulse_vector, amplitude, sigma, center, n_steps, t_final):
 # function: adds a square pulse to the pulse vector
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
-@st.cache_data
 def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
     """
     Adds a Square pulse to the pulse vector.
@@ -62,15 +61,16 @@ def add_square(pulse_vector, amplitude, start, stop, n_steps, t_final):
     return np.clip(pulse_vector + square_pulse, -1, 1)
 
 # main function
+
 @sleep_and_retry
 @limits(calls=1, period=timedelta(seconds=60).total_seconds())
-@st.cache_data(experimental_allow_widgets=True)
-def main():
+def run_main_logic():
 
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
+
     st.title('Qublitz Virtual Qubit Lab') # site title
-    logo = Image.open("images/logo.png") 
-    st.sidebar.image(logo, use_column_width=True) # display logo on the side 
+    logo = Image.open("images/logo.png")
+    st.sidebar.image(logo, use_container_width=True) # display logo on the side 
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$') # Hamiltonian 
@@ -378,5 +378,6 @@ def main():
             mime="text/csv",
         )
 
+
 if __name__ == "__main__":
-    main()
+    run_main_logic()
