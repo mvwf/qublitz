@@ -70,7 +70,7 @@ def run_main_logic():
 
     st.title('Qublitz Virtual Qubit Lab') # site title
     logo = Image.open("images/logo.png")
-    st.sidebar.image(logo, use_container_width=True) # display logo on the side 
+    st.sidebar.image(logo) # display logo on the side 
 
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$') # Hamiltonian 
