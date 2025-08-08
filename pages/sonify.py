@@ -68,7 +68,7 @@ def main():
     # --- 1) Image selection: premade or upload ---
 
     st.markdown("### Choose an Image")
-    image_mode = st.radio("Select image source:", ["Upload your own", "Premade"], horizontal=True, index=0)
+    image_mode = st.radio("Select image source:", ["Upload your own", "Preloaded"], horizontal=True, index=0)
 
 
     img_original = None
