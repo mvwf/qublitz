@@ -38,6 +38,12 @@ def generate_audio(env, t_env, row_idx, carrier_freq, duration, sr=DEFAULT_SR):
     # carrier
     carrier = np.cos(2 * np.pi * carrier_freq * t_audio)
     audio = high_env * carrier
+    # Apply a smooth ramp at the start and end (e.g., first and last 2% of samples)
+    ramp_len = max(1, int(0.02 * len(audio)))
+    ramp = np.ones_like(audio)
+    ramp[:ramp_len] = np.linspace(0, 1, ramp_len)
+    ramp[-ramp_len:] = np.linspace(1, 0, ramp_len)
+    audio *= ramp
     audio /= (np.max(np.abs(audio)) + 1e-12)
     # write WAV
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
@@ -49,6 +55,7 @@ def generate_audio(env, t_env, row_idx, carrier_freq, duration, sr=DEFAULT_SR):
 st.set_page_config(layout="wide")
 
 def main():
+    min_x = 0.0
     st.title("Image Sonification, Turn Images into Sound!")
     qublitz_logo = Image.open("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
@@ -71,12 +78,20 @@ def main():
     image_mode = st.radio("Select image source:", ["Upload your own", "Preloaded"], horizontal=True, index=0)
 
 
+    import random
     img_original = None
     img_info = None
     reset_image = False
     if image_mode == "Preloaded":
         premade_names = [entry['filename'] for entry in image_list]
-        selected_name = st.selectbox("Select a premade image:", premade_names, key="premade_select")
+        # Pick a random image only once per session
+        if 'default_img_idx' not in st.session_state:
+            if premade_names:
+                st.session_state['default_img_idx'] = random.randint(0, len(premade_names) - 1)
+            else:
+                st.session_state['default_img_idx'] = 0
+        default_idx = st.session_state['default_img_idx']
+        selected_name = st.selectbox("Select a premade image:", premade_names, index=default_idx, key="premade_select")
         selected_entry = next((e for e in image_list if e['filename'] == selected_name), None)
         if selected_entry:
             img_path = os.path.join("sonify_images", selected_entry['filename'])
@@ -117,24 +132,35 @@ def main():
     if 'img_mat' not in st.session_state:
         st.session_state['img_mat'] = gray0.copy()
 
-    # --- 2) Sidebar: axis controls ---
-    st.sidebar.markdown("## Axis Controls")
-    min_x = 0.0
-    max_x = st.sidebar.number_input("Time Duration [s]", value=4.0, step=0.1, min_value=0.1)
+    # --- 2) Axis controls on main page ---
+    st.markdown("## Axis Controls")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        max_x = st.number_input("Time Duration [s]", value=4.0, step=0.1, min_value=0.1)
+    with col_b:
+        mod_freq = st.number_input("Modulation Frequency [Hz]", value=65.41, step=1.0, min_value=0.0)
+    with col_c:
+        # Pick a random row only once per session, and ensure it's in bounds
+        max_row = gray0.shape[0] - 1
+        if 'default_row_idx' not in st.session_state or st.session_state['default_row_idx'] > max_row:
+            if max_row > 0:
+                st.session_state['default_row_idx'] = random.randint(0, max_row)
+            else:
+                st.session_state['default_row_idx'] = 0
+        default_row = st.session_state['default_row_idx']
+        sel_row = st.number_input("Select Row", min_value=0,
+                                 max_value=max_row,
+                                 value=default_row, step=1)
 
-    # Single modulation frequency for all rows
-    mod_freq = st.sidebar.number_input("Modulation Frequency [Hz]", value=50.0, step=1.0, min_value=0.0)
-
-    sel_row = st.sidebar.number_input("Select Row", min_value=0,
-                                      max_value=gray0.shape[0] - 1,
-                                      value=gray0.shape[0] // 2, step=1)
-
-    # --- 3) Sidebar: image permutations ---
-    st.sidebar.markdown("## Image Permutations")
-    if st.sidebar.button("Flip Horizontally"):
-        st.session_state['img_mat'] = np.fliplr(st.session_state['img_mat'])
-    if st.sidebar.button("Reset Image"):
-        st.session_state['img_mat'] = gray0.copy()
+    # --- 3) Image permutations on main page ---
+    st.markdown("## Image Permutations")
+    perm_col1, perm_col2 = st.columns(2)
+    with perm_col1:
+        if st.button("Flip Horizontally"):
+            st.session_state['img_mat'] = np.fliplr(st.session_state['img_mat'])
+    with perm_col2:
+        if st.button("Reset Image"):
+            st.session_state['img_mat'] = gray0.copy()
 
     # --- 4) Derive everything from the current image matrix ---
     env = st.session_state['img_mat']
