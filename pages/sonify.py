@@ -74,7 +74,7 @@ def main():
     img_original = None
     img_info = None
     reset_image = False
-    if image_mode == "Premade":
+    if image_mode == "Preloaded":
         premade_names = [entry['filename'] for entry in image_list]
         selected_name = st.selectbox("Select a premade image:", premade_names, key="premade_select")
         selected_entry = next((e for e in image_list if e['filename'] == selected_name), None)
