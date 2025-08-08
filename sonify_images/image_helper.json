@@ -33,5 +33,10 @@
     "filename": "qublitz.png",
     "text": "Logo of the Qublitz",
     "link": "https://qublitz-qubit-lab.streamlit.app/"
+  },
+  {
+    "filename": "Mona_Lisa.png",
+    "text": "Mona Lisa by Leonardo da Vinci",
+    "link": "https://en.wikipedia.org/wiki/Mona_Lisa"
   }
 ]
