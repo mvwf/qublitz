@@ -7,10 +7,19 @@ Release Date:
 '''
 import numpy as np
 from streamlit import *
+import streamlit as st
+from streamlit.components.v1 import html
+from PIL import Image
 import plotly.graph_objects as go
+
 def main():
     title('Quantum Measurement Tutorial')
-
+    qublitz_logo = Image.open("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo) # display logo on the side 
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
+    
     markdown('''A qubit (short for quantum bit) is the basic unit of quantum information similar to a classical bit in traditional computing but with quantum mechanical properties. Unlike a classical bit, which can be in one of two states, 0 or 1, a qubit can exist in a superposition of both states simultaneously. This means it can be in a state represented as:''')
 
     latex(r'''\ket{\psi} = \alpha\ket{0} + \beta\ket{1} = \alpha\begin{bmatrix}

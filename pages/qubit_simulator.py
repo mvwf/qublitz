@@ -24,7 +24,7 @@ import json
 import os
 from ratelimit import limits, sleep_and_retry
 from datetime import timedelta
-
+from PIL import Image
 # functions
 
 # function: converts data to CSV (for download)
@@ -69,9 +69,12 @@ def run_main_logic():
     # if running locally, run source fitzlab/cassini-fitzlab/venv_st/bin/activate
 
     st.title('Qublitz Virtual Qubit Lab') # site title
-    logo = Image.open("images/logo.png")
+    qublitz_logo = Image.open("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
+    logo = Image.open("images/logo.png") 
     st.sidebar.image(logo) # display logo on the side 
-
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
+    
     st.header('This app simulates the dynamics of a driven qubit (two-level system)')
     st.subheader(r'$\hat{H/\hbar} = \frac{\omega_q}{2}\hat{\sigma}_z + \frac{\Omega(t)}{2}\hat{\sigma}_x\cos(\omega_d t) + \frac{\Omega(t)}{2}\hat{\sigma}_y\cos(\omega_d t)$') # Hamiltonian 
     st.latex(r'''\text{Where } |1\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |0\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors

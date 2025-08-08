@@ -50,10 +50,11 @@ st.set_page_config(layout="wide")
 
 def main():
     st.title("Image Sonification, Turn Images into Sound!")
+    qublitz_logo = Image.open("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
     logo = Image.open("images/logo.png") 
     st.sidebar.image(logo) # display logo on the side 
-
-
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
     # --- Load image list for premade option (not shown in sidebar) ---
     helper_path = os.path.join("sonify_images", "image_helper.json")
     image_list = []

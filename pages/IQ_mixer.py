@@ -26,9 +26,17 @@ from matplotlib.widgets import Slider
 import plotly.graph_objects as go
 import plotly.subplots as sp
 import streamlit as st
+from PIL import Image
 
 def main():
     st.title("IQ Mixing Demo")
+    qublitz_logo = Image.open("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo) # display logo on the side 
+    
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
+    st.write("This app simulates the output of an IQ mixer given input and local oscillator signals. Adjust the sliders to see how the output changes.")
     col1, col2 = st.columns(2)
     with col1:
         A = st.slider('Input Amplitude [arb.]', 0.2, 20.0, 1.0, 0.1)

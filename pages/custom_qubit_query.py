@@ -31,15 +31,13 @@ def main_app():
     st.title("Qublitz Virtual Qubit Lab")
 
     # Load logo safely
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    logo_path = os.path.join(current_dir, "images", "logo.png")
-    try:
-        logo = Image.open(logo_path)
-        st.sidebar.image(logo, use_column_width=True)
-    except Exception:
-        st.sidebar.write("Logo not found")
+    qublitz_logo = Image.open("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
+    logo = Image.open("images/logo.png") 
+    st.sidebar.image(logo) # display logo on the side 
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
 
-    st.header('This app simulates the dynamics of a driven qubit (two-level system)')
+    st.header('This app simulates the dynamics of a driven qubit (two-level system) but is specifically designed to allow users to query custom qubit parameters designed for course assignments.')
     
     omega_q = user_data.get('omega_q')
     omega_rabi = user_data.get('omega_rabi')
