@@ -6,7 +6,7 @@ def main():
     logo_img = Image.open("images/logo.png")
     col1, col2 = st.columns([1,1])
     with col1:
-        st.image(main_img, width=346)
+        st.image(main_img, width=345)
     with col2:
         st.image(logo_img, width=263)
     st.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
