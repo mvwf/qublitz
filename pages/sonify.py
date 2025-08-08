@@ -154,13 +154,19 @@ def main():
 
     # --- 3) Image permutations on main page ---
     st.markdown("## Image Permutations")
-    perm_col1, perm_col2 = st.columns(2)
+    perm_col1, perm_col2, perm_col3 = st.columns(3)
     with perm_col1:
         if st.button("Flip Horizontally"):
             st.session_state['img_mat'] = np.fliplr(st.session_state['img_mat'])
     with perm_col2:
         if st.button("Reset Image"):
             st.session_state['img_mat'] = gray0.copy()
+    with perm_col3:
+        if st.button("Select Random Row"):
+            if gray0.shape[0] > 1:
+                st.session_state['default_row_idx'] = random.randint(0, gray0.shape[0] - 1)
+            else:
+                st.session_state['default_row_idx'] = 0
 
     # --- 4) Derive everything from the current image matrix ---
     env = st.session_state['img_mat']
