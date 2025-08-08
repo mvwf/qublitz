@@ -28,5 +28,10 @@
     "filename": "logo.png",
     "text": "Logo of the FitzLab",
     "link": "https://sites.google.com/view/fitzlab/home"
+  },
+  {
+    "filename": "qublitz.png",
+    "text": "Logo of the Qublitz",
+    "link": "https://qublitz-qubit-lab.streamlit.app/"
   }
 ]
