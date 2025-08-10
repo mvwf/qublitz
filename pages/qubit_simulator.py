@@ -205,11 +205,12 @@ def run_main_logic():
 
         omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', 0.000, value=5.000, step=0.001, key='drive_freq',format="%.3f") # need to address this later
         detuning = (omega_d - omega_q)*1e3
-        t_final = int(st.number_input(r'Duration $\Delta t$ [ns]', value=200.0, min_value=0.0, max_value=1000.0, step=1.0, key='t_final_time_domain'))
-        n_steps = 20*int(t_final)
+        t_final = float(st.number_input(r'Duration $\Delta t$ [ns]', value=100.0, min_value=0.0, max_value=1000.0, step=1.0, key='t_final_time_domain'))
+        n_steps = 25*int(t_final)
+        tlist = np.linspace(0, t_final, n_steps) # set time domain list
         
         if user_selection == "Free Play":
-            omega_rabi = st.number_input('Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi_time_domain')
+            omega_rabi = st.number_input(r'Rabi Rate $\Omega_0/2\pi$ [MHz]', 0.0, value=50.0, step=1.0, key='rabi_time_domain')
             T1 = st.number_input(r'$T_1$ [ns]', 0, value=100, step=10, key='T1_input_time_domain')
             T2 = st.number_input(r'$T_2$ [ns]', 0, value=200, step=10, key='T2_input_time_domain')
             # Enforce T2 <= 2*T1 constraint
@@ -380,6 +381,27 @@ def run_main_logic():
             file_name="simulation_data.csv",
             mime="text/csv",
         )
+
+
+# Start button and auto-advance logic
+if 'fq_running' not in st.session_state:
+    st.session_state.fq_running = False
+start_col, stop_col = st.columns([1,1])
+with start_col:
+    if st.button('Start Game'):
+        st.session_state.fq_running = True
+        st.session_state.last_step_time = time.time() - 1.0  # So first auto-advance is in 1 sec
+with stop_col:
+    if st.button('Pause'):
+        st.session_state.fq_running = False
+# Only auto-advance if running
+auto_advance = False
+if st.session_state.fq_running:
+    if 'last_step_time' not in st.session_state:
+        st.session_state.last_step_time = time.time() - 1.0
+    if time.time() - st.session_state.last_step_time > 1.0:
+        auto_advance = True
+        st.session_state.last_step_time = time.time()
 
 
 if __name__ == "__main__":
