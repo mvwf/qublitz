@@ -3,7 +3,8 @@
 generate_qubits.py
 user_parameters.json
 venv_st/
-
+utils/__pycache__/*
+__pycache__/*
 ### Streamlit secrets
 *.toml
 .streamlit/secrets.toml
