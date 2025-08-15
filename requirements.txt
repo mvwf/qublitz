@@ -58,3 +58,4 @@ urllib3==2.5.0
 watchdog==4.0.0
 Werkzeug==3.0.6
 xyzservices==2024.4.0
+soundfile
