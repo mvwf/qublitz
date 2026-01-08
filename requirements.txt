@@ -54,8 +54,9 @@ toolz==0.12.1
 tornado==6.5
 typing_extensions==4.11.0
 tzdata==2024.1
-urllib3==2.5.0
+# urllib3==2.5.0
 watchdog==4.0.0
 Werkzeug==3.0.6
 xyzservices==2024.4.0
 soundfile
+urllib3>=2.6.3
