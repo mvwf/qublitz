@@ -8,3 +8,10 @@ __pycache__/*
 ### Streamlit secrets
 *.toml
 .streamlit/secrets.toml
+
+# Never commit roster / secrets / local server
+assignment_server/
+net_IDs.csv
+*.csv
+.env
+.secrets.toml
