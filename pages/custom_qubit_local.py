@@ -34,7 +34,7 @@ TEST_STUDENT = {
 # For student laptops on VPN:
 # - Default points to your workstation server.
 # - Students can override by setting env var QUBLITZ_API_BASE_URL if needed.
-API_BASE_URL = os.environ.get("QUBLITZ_API_BASE_URL", "http://10.135.171.141:8001").strip().rstrip("/")
+API_BASE_URL = os.environ.get("QUBLITZ_API_BASE_URL", "http://10.28.54.127:8001").strip().rstrip("/")
 
 
 # ----------------------------
