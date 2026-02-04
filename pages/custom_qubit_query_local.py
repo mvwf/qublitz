@@ -1,0 +1,452 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+from typing import Dict, Any, Optional
+
+import numpy as np
+import pandas as pd
+import streamlit as st
+import requests
+from PIL import Image
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+from quantum_simulator import run_quantum_simulation, run_frequency_sweep
+
+
+# ----------------------------
+# Debug student (optional)
+# ----------------------------
+INSTRUCTOR_DEBUG = os.environ.get("QUBLITZ_INSTRUCTOR_DEBUG", "0").strip().lower() in ("1", "true", "yes")
+
+TEST_STUDENT_API_KEY = "b8e60fc199646f8e712948304a65d52cd43b9bc3"
+TEST_STUDENT = {
+    "user": "debug_test_student",
+    "omega_q": 4.671431666715805,            # GHz
+    "omega_rabi": 0.20214882218103472,       # GHz
+    "T1": 77.88719688437668,                 # ns
+}
+
+# ----------------------------
+# Assignment resolution config
+# ----------------------------
+# For student laptops on VPN:
+# - Default points to your workstation server.
+# - Students can override by setting env var QUBLITZ_API_BASE_URL if needed.
+API_BASE_URL = os.environ.get("QUBLITZ_API_BASE_URL", "http://10.135.171.141:8001").strip().rstrip("/")
+
+
+# ----------------------------
+# Helpers
+# ----------------------------
+def to_csv_bytes(df: pd.DataFrame) -> bytes:
+    return df.to_csv(index=False).encode("utf-8")
+
+
+def _time_grid(t_final_ns: float, pts_per_ns: int = 25):
+    n_steps = max(2, int(float(pts_per_ns) * float(t_final_ns)))
+    tlist = np.linspace(0.0, float(t_final_ns), n_steps)
+    return tlist, n_steps
+
+
+def _interp_to_grid(vec: np.ndarray, t_old: float, t_new: float, n_new: int):
+    if vec is None:
+        return np.zeros(n_new, dtype=float)
+    vec = np.asarray(vec, dtype=float)
+    if len(vec) == n_new and float(t_old) == float(t_new):
+        return vec
+    x_old = np.linspace(0.0, float(t_old), len(vec))
+    x_new = np.linspace(0.0, float(t_new), n_new)
+    return np.interp(x_new, x_old, vec).astype(float)
+
+
+def _clip_env(env: np.ndarray) -> np.ndarray:
+    # Keep unless you change simulator normalization
+    return np.clip(env, -1.0, 1.0)
+
+
+def _init_state():
+    st.session_state.setdefault("api_key", None)
+    st.session_state.setdefault("user_data", None)
+
+    st.session_state.setdefault("td_tfinal_last", None)
+    st.session_state.setdefault("td_sigma_x_vec", None)
+    st.session_state.setdefault("td_sigma_y_vec", None)
+
+    st.session_state.setdefault("freq_out", None)
+    st.session_state.setdefault("td_out", None)
+
+
+def _try_backend_login(api_key: str) -> Dict[str, Any]:
+    """
+    Robust login:
+    1) Try header-based: GET /me with X-API-Key
+    2) Fallback to path-based: GET /me/{api_key}
+    """
+    if not API_BASE_URL:
+        raise RuntimeError("QUBLITZ_API_BASE_URL is empty.")
+
+    # 1) Header route
+    try:
+        r = requests.get(
+            f"{API_BASE_URL}/me",
+            headers={"X-API-Key": api_key},
+            timeout=8,
+        )
+        if r.status_code == 200:
+            return r.json()
+        # If server returns 401/403, raise informative error
+        if r.status_code in (401, 403):
+            raise RuntimeError(f"Login rejected ({r.status_code}): {r.text}")
+    except Exception:
+        # fall through to path route
+        pass
+
+    # 2) Path route fallback
+    r = requests.get(f"{API_BASE_URL}/me/{api_key}", timeout=8)
+    if r.status_code != 200:
+        raise RuntimeError(f"Login rejected ({r.status_code}): {r.text}")
+    return r.json()
+
+
+def _vpn_check_hint():
+    st.info(
+        "If login fails:\n"
+        "- Make sure you are connected to the Dartmouth VPN.\n"
+        "- Check that the assignment server is reachable at "
+        f"`{API_BASE_URL}`.\n"
+        "- If needed, set `QUBLITZ_API_BASE_URL` to the correct URL."
+    )
+
+
+# ----------------------------
+# Login UI
+# ----------------------------
+def login_ui():
+    st.title("Qublitz Virtual Qubit Lab (Local)")
+    st.caption("Enter your API key (typically your NetID).")
+
+    with st.expander("Server settings", expanded=False):
+        st.code(f"QUBLITZ_API_BASE_URL = {API_BASE_URL}", language="text")
+
+    default_val = TEST_STUDENT_API_KEY if INSTRUCTOR_DEBUG else ""
+    api_key = st.text_input("API Key", type="password", value=default_val, key="login_api_key")
+
+    if st.button("Login", key="login_btn"):
+        try:
+            key = (api_key or "").strip().lower()
+            if not key:
+                raise ValueError("Empty API key.")
+
+            if INSTRUCTOR_DEBUG and key == TEST_STUDENT_API_KEY:
+                user_data = dict(TEST_STUDENT)
+            else:
+                user_data = _try_backend_login(key)
+
+            st.session_state["api_key"] = key
+            st.session_state["user_data"] = user_data
+            st.success(f"Welcome {user_data.get('user', 'student')}!")
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Login failed: {e}")
+            _vpn_check_hint()
+
+
+# ----------------------------
+# Pulse UI
+# ----------------------------
+def pulse_ui(t_final_ns: float):
+    tlist, n_steps = _time_grid(t_final_ns, pts_per_ns=25)
+
+    if st.session_state["td_tfinal_last"] is None:
+        st.session_state["td_tfinal_last"] = float(t_final_ns)
+
+    if st.session_state["td_sigma_x_vec"] is None:
+        st.session_state["td_sigma_x_vec"] = np.zeros(n_steps, dtype=float)
+    if st.session_state["td_sigma_y_vec"] is None:
+        st.session_state["td_sigma_y_vec"] = np.zeros(n_steps, dtype=float)
+
+    t_old = float(st.session_state["td_tfinal_last"])
+    if float(t_old) != float(t_final_ns) or len(st.session_state["td_sigma_x_vec"]) != n_steps:
+        st.session_state["td_sigma_x_vec"] = _interp_to_grid(
+            st.session_state["td_sigma_x_vec"], t_old, float(t_final_ns), n_steps
+        )
+        st.session_state["td_sigma_y_vec"] = _interp_to_grid(
+            st.session_state["td_sigma_y_vec"], t_old, float(t_final_ns), n_steps
+        )
+        st.session_state["td_tfinal_last"] = float(t_final_ns)
+
+    st.markdown("### Pulse parameters")
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        target = st.selectbox("Target channel", ["σ_x", "σ_y"], key="td_target")
+        ptype = st.selectbox("Pulse type", ["Square", "Gaussian"], key="td_ptype")
+        amp = st.slider("Amplitude", -1.0, 1.0, 1.0, step=0.05, key="td_amp")
+
+        if ptype == "Square":
+            start = st.slider("Start [ns]", 0.0, float(max(0.0, t_final_ns - 1.0)), 5.0, step=1.0, key="td_sq_start")
+            stop = st.slider("Stop [ns]", float(start), float(t_final_ns), float(min(t_final_ns, start + 20.0)), step=1.0, key="td_sq_stop")
+        else:
+            center = st.slider("Center [ns]", 0.0, float(t_final_ns), float(min(t_final_ns * 0.5, 50.0)), step=1.0, key="td_g_center")
+            sigma = st.slider("Sigma [ns]", 1.0, float(max(2.0, t_final_ns / 2.0)), float(max(2.0, min(10.0, t_final_ns / 10.0))), step=1.0, key="td_g_sigma")
+
+        add_btn = st.button("Add pulse", key="td_add")
+        clear_btn = st.button("Clear schedule", key="td_clear")
+
+    with col2:
+        st.caption("You can stack pulses.")
+
+    if clear_btn:
+        st.session_state["td_sigma_x_vec"] = np.zeros(n_steps, dtype=float)
+        st.session_state["td_sigma_y_vec"] = np.zeros(n_steps, dtype=float)
+
+    if add_btn:
+        env = np.zeros(n_steps, dtype=float)
+        if ptype == "Square":
+            env[(tlist >= float(start)) & (tlist <= float(stop))] = float(amp)
+        else:
+            sig = max(1e-9, float(sigma))
+            env = float(amp) * np.exp(-0.5 * ((tlist - float(center)) / sig) ** 2)
+
+        if target == "σ_x":
+            st.session_state["td_sigma_x_vec"] = np.asarray(st.session_state["td_sigma_x_vec"], dtype=float) + env
+        else:
+            st.session_state["td_sigma_y_vec"] = np.asarray(st.session_state["td_sigma_y_vec"], dtype=float) + env
+
+    sx = np.asarray(st.session_state["td_sigma_x_vec"], dtype=float)
+    sy = np.asarray(st.session_state["td_sigma_y_vec"], dtype=float)
+
+    fig_sigma = go.Figure()
+    fig_sigma.add_trace(go.Scatter(x=tlist, y=sx, mode="lines", name="Ω_x(t)", line=dict(width=3)))
+    fig_sigma.add_trace(go.Scatter(x=tlist, y=sy, mode="lines", name="Ω_y(t)", line=dict(width=3)))
+    fig_sigma.update_layout(
+        xaxis_title="Time [ns]",
+        yaxis_title="Amplitude",
+        title="Time-dependent envelopes",
+        xaxis=dict(range=[0, float(t_final_ns)]),
+        yaxis=dict(range=[-1.05, 1.05]),
+        height=320,
+    )
+    st.plotly_chart(fig_sigma, use_container_width=True)
+    return tlist, sx, sy
+
+
+def run_time_domain(omega_q_GHz, omega_rabi_GHz, T1_ns, omega_d_GHz, t_final_ns, sx_sched, sy_sched, shots):
+    T2_internal = 2.0 * float(T1_ns)
+
+    tlist, n_steps = _time_grid(t_final_ns, pts_per_ns=25)
+    sx_in = _clip_env(np.asarray(sx_sched, dtype=float))
+    sy_in = _clip_env(np.asarray(sy_sched, dtype=float))
+
+    exp_values, _, sampled_prob = run_quantum_simulation(
+        float(omega_q_GHz),
+        float(omega_rabi_GHz),
+        float(t_final_ns),
+        int(n_steps),
+        float(omega_d_GHz),
+        sx_in,
+        sy_in,
+        int(shots),
+        float(T1_ns),
+        float(T2_internal),
+    )
+
+    time_array = np.linspace(0.0, float(t_final_ns), n_steps)
+    exp_y_rot = -(
+        exp_values[0] * np.cos(2 * np.pi * omega_d_GHz * time_array)
+        + exp_values[1] * np.sin(2 * np.pi * omega_d_GHz * time_array)
+    )
+    exp_x_rot = (
+        exp_values[0] * np.sin(2 * np.pi * omega_d_GHz * time_array)
+        - exp_values[1] * np.cos(2 * np.pi * omega_d_GHz * time_array)
+    )
+
+    return {
+        "tlist": tlist,
+        "exp_x_rot": np.asarray(exp_x_rot, dtype=float),
+        "exp_y_rot": np.asarray(exp_y_rot, dtype=float),
+        "exp_z": np.asarray(exp_values[2], dtype=float),
+        "p1_meas": np.asarray(sampled_prob, dtype=float),
+    }
+
+
+def page():
+    _init_state()
+
+    if st.session_state.get("user_data") is None:
+        login_ui()
+        return
+
+    user_data = st.session_state["user_data"]
+
+    # Sidebar images
+    try:
+        st.sidebar.image(Image.open("images/qublitz.png"))
+    except Exception:
+        pass
+    try:
+        st.sidebar.image(Image.open("images/logo.png"))
+    except Exception:
+        pass
+
+    st.sidebar.write(f"Logged in as: **{user_data.get('user', 'student')}**")
+    if st.sidebar.button("Logout", key="logout_btn"):
+        for k in list(st.session_state.keys()):
+            st.session_state.pop(k, None)
+        st.rerun()
+
+    omega_q = float(user_data["omega_q"])
+    omega_rabi = float(user_data["omega_rabi"])
+    T1 = float(user_data["T1"])
+
+    shots = st.sidebar.number_input("Shots", min_value=32, max_value=4096, value=256, step=32, key="shots")
+
+    is_debug_user = (st.session_state.get("api_key", "") == TEST_STUDENT_API_KEY)
+
+    st.header("Custom Qubit Query")
+    tab_freq, tab_time = st.tabs(["Frequency Domain", "Time Domain"])
+
+    # ---- Frequency domain
+    with tab_freq:
+        if is_debug_user:
+            fd_start_default, fd_stop_default = float(omega_q - 0.25), float(omega_q + 0.25)
+        else:
+            fd_start_default, fd_stop_default = 4.8, 5.2
+
+        start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=fd_start_default, step=0.01, format="%.6f", key="fd_start")
+        stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=fd_stop_default, step=0.01, format="%.6f", key="fd_stop")
+        num_points = st.number_input("Number of frequencies", value=41, min_value=5, max_value=201, step=2, key="fd_n")
+
+        spec_tfinal = st.number_input("Pulse duration [ns]", value=25.0, min_value=1.0, max_value=500.0, step=1.0, key="fd_tfinal")
+        n_steps = int(25 * float(spec_tfinal))
+
+        if st.button("Run Frequency Sweep", key="fd_run"):
+            try:
+                results = run_frequency_sweep(
+                    float(start_freq),
+                    float(stop_freq),
+                    int(num_points),
+                    float(spec_tfinal),
+                    int(n_steps),
+                    float(omega_q),
+                    float(omega_rabi),
+                    float(T1),
+                    float(2.0 * T1),
+                    int(shots),
+                )
+
+                prob_1_data = np.array(results["prob_1_time_series"], dtype=float)
+                frequencies = np.array(results["frequencies"], dtype=float)
+                time_list = np.array(results["time_list"], dtype=float)
+
+                if prob_1_data.shape == (len(frequencies), len(time_list)):
+                    Z = prob_1_data.T
+                elif prob_1_data.shape == (len(time_list), len(frequencies)):
+                    Z = prob_1_data
+                else:
+                    Z = prob_1_data
+
+                st.session_state["freq_out"] = {
+                    "frequencies": frequencies,
+                    "time_list": time_list,
+                    "Z": Z,
+                    "max_prob": np.max(Z, axis=0),
+                    "avg_prob": np.mean(Z, axis=0),
+                }
+            except Exception as e:
+                st.error(f"Frequency sweep failed: {e}")
+                st.exception(e)
+
+        out = st.session_state.get("freq_out")
+        if out is not None:
+            fig = make_subplots(
+                rows=3, cols=1, shared_xaxes=True,
+                vertical_spacing=0.02,
+                subplot_titles=("Time-resolved P(|1⟩)", "Max P(|1⟩) over time", "Avg P(|1⟩) over time"),
+                row_heights=[0.6, 0.2, 0.2],
+            )
+            fig.add_trace(go.Heatmap(x=out["frequencies"], y=out["time_list"], z=out["Z"], coloraxis="coloraxis"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=out["frequencies"], y=out["max_prob"], mode="lines", showlegend=False), row=2, col=1)
+            fig.add_trace(go.Scatter(x=out["frequencies"], y=out["avg_prob"], mode="lines", showlegend=False), row=3, col=1)
+
+            fig.update_layout(
+                height=900,
+                title_text="Frequency Domain Simulation Results",
+                coloraxis=dict(colorscale="Viridis"),
+                xaxis3_title="Drive frequency [GHz]",
+                yaxis1_title="Time [ns]",
+                yaxis2_title="Max P(|1⟩)",
+                yaxis3_title="Avg P(|1⟩)",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            idx = int(np.argmax(out["max_prob"]))
+            st.success(f"Peak response near ωd ≈ {out['frequencies'][idx]:.6f} GHz.")
+
+            df = pd.DataFrame({"omega_d_GHz": out["frequencies"], "max_prob_1": out["max_prob"], "avg_prob_1": out["avg_prob"]})
+            st.download_button("Download sweep summary CSV", to_csv_bytes(df), "frequency_sweep_summary.csv", "text/csv", key="fd_dl")
+
+    # ---- Time domain
+    with tab_time:
+        omega_d_default = float(omega_q) if is_debug_user else 5.0
+        omega_d = st.number_input(r'$\omega_d/2\pi$ [GHz]', value=omega_d_default, step=1e-6, format="%.9f", key="td_wd")
+
+        t_final = st.number_input(r"Duration $\Delta t$ [ns]", value=200.0, min_value=1.0, max_value=2000.0, step=10.0, key="td_tfinal")
+        tlist, sx_sched, sy_sched = pulse_ui(float(t_final))
+
+        if st.button("Run Simulation", key="td_run"):
+            try:
+                st.session_state["td_out"] = run_time_domain(
+                    omega_q_GHz=omega_q,
+                    omega_rabi_GHz=omega_rabi,
+                    T1_ns=T1,
+                    omega_d_GHz=float(omega_d),
+                    t_final_ns=float(t_final),
+                    sx_sched=sx_sched,
+                    sy_sched=sy_sched,
+                    shots=int(shots),
+                )
+            except Exception as e:
+                st.error(f"Simulation failed: {e}")
+                st.exception(e)
+
+        out_td = st.session_state.get("td_out")
+        if out_td is not None:
+            fig_results = go.Figure()
+            fig_results.add_trace(go.Scatter(x=out_td["tlist"], y=out_td["exp_x_rot"], mode="lines", name="⟨σx⟩", line=dict(width=3)))
+            fig_results.add_trace(go.Scatter(x=out_td["tlist"], y=out_td["exp_y_rot"], mode="lines", name="⟨σy⟩", line=dict(width=3)))
+            fig_results.add_trace(go.Scatter(x=out_td["tlist"], y=out_td["exp_z"], mode="lines", name="⟨σz⟩", line=dict(width=3)))
+            fig_results.update_layout(
+                yaxis=dict(range=[-1.05, 1.05]),
+                xaxis_title="Time [ns]",
+                yaxis_title="Expectation values",
+                title=f"Rotating-frame dynamics (ωd={float(omega_d):.9f} GHz)",
+                height=420,
+            )
+            st.plotly_chart(fig_results, use_container_width=True)
+
+            fig_p = go.Figure()
+            fig_p.add_trace(go.Scatter(x=out_td["tlist"], y=out_td["p1_meas"], mode="lines", line=dict(width=3)))
+            fig_p.update_layout(
+                xaxis_title="Time [ns]",
+                yaxis=dict(range=[-0.05, 1.05]),
+                yaxis_title="Measured P(|1⟩)",
+                title=f"Measurement record (shots={int(shots)})",
+                height=320,
+            )
+            st.plotly_chart(fig_p, use_container_width=True)
+
+            df = pd.DataFrame({
+                "time_ns": out_td["tlist"],
+                "exp_x_rot": out_td["exp_x_rot"],
+                "exp_y_rot": out_td["exp_y_rot"],
+                "exp_z": out_td["exp_z"],
+                "p1_meas": out_td["p1_meas"],
+            })
+            st.download_button("Download time-domain CSV", to_csv_bytes(df), "time_domain_sim.csv", "text/csv", key="td_dl")
+
+
+page()
