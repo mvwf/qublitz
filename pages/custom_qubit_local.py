@@ -65,6 +65,13 @@ def _clip_env(env: np.ndarray) -> np.ndarray:
     # Keep unless you change simulator normalization
     return np.clip(env, -1.0, 1.0)
 
+def _clear_results_and_pulses():
+    st.session_state["freq_out"] = None
+    st.session_state["td_out"] = None
+    st.session_state["td_tfinal_last"] = None
+    st.session_state["td_sigma_x_vec"] = None
+    st.session_state["td_sigma_y_vec"] = None
+
 
 def _init_state():
     st.session_state.setdefault("api_key", None)
@@ -146,6 +153,7 @@ def login_ui():
 
             st.session_state["api_key"] = key
             st.session_state["user_data"] = user_data
+            _clear_results_and_pulses()
             st.success(f"Welcome {user_data.get('user', 'student')}!")
             st.rerun()
 
@@ -300,7 +308,7 @@ def page():
 
     omega_q = float(user_data["omega_q"])
     omega_rabi = float(user_data["omega_rabi"])
-    T1 = float(user_data["T1"])
+    T1_ns = float(user_data["T1"])          # API/JSON in microseconds
 
     shots = st.sidebar.number_input("Shots", min_value=32, max_value=4096, value=256, step=32, key="shots")
 
@@ -333,10 +341,11 @@ def page():
                     int(n_steps),
                     float(omega_q),
                     float(omega_rabi),
-                    float(T1),
-                    float(2.0 * T1),
+                    float(T1_ns),
+                    float(2.0 * T1_ns),
                     int(shots),
                 )
+
 
                 prob_1_data = np.array(results["prob_1_time_series"], dtype=float)
                 frequencies = np.array(results["frequencies"], dtype=float)
@@ -402,13 +411,14 @@ def page():
                 st.session_state["td_out"] = run_time_domain(
                     omega_q_GHz=omega_q,
                     omega_rabi_GHz=omega_rabi,
-                    T1_ns=T1,
+                    T1_ns=T1_ns,
                     omega_d_GHz=float(omega_d),
                     t_final_ns=float(t_final),
                     sx_sched=sx_sched,
                     sy_sched=sy_sched,
                     shots=int(shots),
                 )
+
             except Exception as e:
                 st.error(f"Simulation failed: {e}")
                 st.exception(e)
