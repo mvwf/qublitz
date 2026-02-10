@@ -10,7 +10,7 @@ Streamlit Cloud (secrets-based) version of the Qublitz app.
 
 Secrets must contain:
   st.secrets["ASSIGNMENTS_JSON"]  -> a JSON object (dict) mapping api_key -> {omega_q, omega_rabi, T1}
-
+"""
 
 import os
 import json
