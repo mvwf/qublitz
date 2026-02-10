@@ -212,7 +212,7 @@ def bloch_sphere_pretty(
                 size=4,
                 color=colors,
                 opacity=0.9,
-                colorscale="Inferno",
+                colorscale="Cividis",
                 colorbar=dict(
                     title="Time [ns]",
                     len=0.85,
