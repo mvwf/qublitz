@@ -186,10 +186,13 @@ def bloch_sphere_pretty(
     exp_z = np.asarray(exp_z, dtype=float)
     tlist = np.asarray(tlist, dtype=float)
 
+    # ---- Flip Bloch sphere so |0> is at the top ----
+    exp_z = -exp_z  # flip dynamics
+
     u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi:20j]
     x_sphere = np.cos(u) * np.sin(v)
     y_sphere = np.sin(u) * np.sin(v)
-    z_sphere = np.cos(v)
+    z_sphere = -np.cos(v)  # flip sphere itself
 
     colors = tlist
 
@@ -239,12 +242,13 @@ def bloch_sphere_pretty(
         showlegend=False,
     )
 
+    # ---- Correctly labeled poles after flip ----
     fig_bloch.add_trace(go.Scatter3d(
         x=[0, 0],
         y=[0, 0],
         z=[1.0, -1.0],
         mode="text",
-        text=["|1⟩", "|0⟩"],
+        text=["|0⟩", "|1⟩"],
         textposition=["top center", "bottom center"],
         textfont=dict(color=["white", "white"], size=18),
         showlegend=False,
