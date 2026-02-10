@@ -12,13 +12,6 @@ Secrets must contain:
   st.secrets["ASSIGNMENTS_JSON"]  -> a JSON object (dict) mapping api_key -> {omega_q, omega_rabi, T1}
 
 Example (Streamlit Cloud -> App -> Settings -> Secrets):
-ASSIGNMENTS_JSON = """
-{
-  "nan": {"omega_q": 5.873, "omega_rabi": 0.215, "T1": 171.0},
-  "f0082rd": {"omega_q": 5.462, "omega_rabi": 0.084, "T1": 103.0},
-  "b8e60fc199646f8e712948304a65d52cd43b9bc3": {"omega_q": 5.767, "omega_rabi": 0.198, "T1": 154.0}
-}
-"""
 """
 
 import os
