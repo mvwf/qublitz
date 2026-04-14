@@ -224,7 +224,7 @@ def bloch_sphere_pretty(exp_x, exp_y, exp_z, tlist, t_final):
                 size=4, color=tlist, opacity=0.9,
                 colorscale="Cividis",
                 colorbar=dict(
-                    title="Time [ns]", len=0.85, y=0.5, thickness=14,
+                    title="Time [ns]", len=0.85, y=0.5, thickness=25,
                     tickvals=[float(tlist[0]), float(t_final)],
                     ticktext=[f"{tlist[0]:.0f}", f"{t_final:.0f}"],
                 ),
@@ -883,22 +883,40 @@ def page():
         out = st.session_state.get("freq_out")
         if out is not None:
             fig = make_subplots(
-                rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.09,
-                subplot_titles=("Time-resolved P(|1⟩)", "Max P(|1⟩) over time", "Avg P(|1⟩) over time"),
-                row_heights=[0.62, 0.20, 0.18],
+                rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.09,
+                subplot_titles=("Time-resolved P(|1⟩)", "Max P(|1⟩) over time"),
+                row_heights=[0.75, 0.25],
             )
-            fig.add_trace(go.Heatmap(
-                x=out["frequencies"], y=out["time_list"], z=out["Z"],
-                colorscale="Viridis",
-                colorbar=dict(title="P(|1⟩)", len=0.62, y=0.79, thickness=16),
-                hovertemplate="ωd=%{x:.6f} GHz<br>t=%{y:.2f} ns<br>P1=%{z:.3f}<extra></extra>",
-            ), row=1, col=1)
-            fig.add_trace(go.Scatter(x=out["frequencies"], y=out["max_prob"], mode="lines", showlegend=False), row=2, col=1)
-            fig.add_trace(go.Scatter(x=out["frequencies"], y=out["avg_prob"], mode="lines", showlegend=False), row=3, col=1)
+
+            fig.add_trace(
+                go.Heatmap(
+                    x=out["frequencies"],
+                    y=out["time_list"],
+                    z=out["Z"],
+                    colorscale="Viridis",
+                    colorbar=dict(title="P(|1⟩)", len=0.75, y=0.78, thickness=25),
+                    hovertemplate="ωd=%{x:.6f} GHz<br>t=%{y:.2f} ns<br>P1=%{z:.3f}<extra></extra>",
+                ),
+                row=1, col=1
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=out["frequencies"],
+                    y=out["max_prob"],
+                    mode="lines",
+                    showlegend=False,
+                    line=dict(width=3),
+                ),
+                row=2, col=1
+            )
+
             fig.update_layout(
-                height=980, title_text="Frequency Domain Simulation Results",
-                xaxis3_title="Drive frequency [GHz]",
-                yaxis1_title="Time [ns]", yaxis2_title="Max P(|1⟩)", yaxis3_title="Avg P(|1⟩)",
+                height=820,
+                title_text="Frequency Domain Simulation Results",
+                xaxis2_title="Drive frequency [GHz]",
+                yaxis1_title="Time [ns]",
+                yaxis2_title="Max P(|1⟩)",
                 margin=dict(t=70, b=50, l=70, r=50),
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -917,7 +935,7 @@ def page():
             if freq_rabi_fit is not None:
                 fig_cut.add_trace(go.Scatter(
                     x=cut["time_list"], y=freq_rabi_fit["fit_curve"], mode="lines",
-                    name="Rabi fit", line=dict(width=2, dash="dash")
+                    name="Rabi fit", line=dict(width=3, dash="dash")
                 ))
             fig_cut.update_layout(
                 height=420,
@@ -1000,7 +1018,7 @@ def page():
                     y=t1_fit["fit_curve"],
                     mode="lines",
                     name="T₁ fit",
-                    line=dict(width=2, dash="dot"),
+                    line=dict(width=3, dash="dot"),
                 ))
 
             fig_p.update_layout(
@@ -1041,31 +1059,27 @@ def page():
 
     with tab_ramsey:
         st.markdown("## Ramsey sequence")
-        st.markdown("This tab generates a Ramsey chevron directly in terms of measured $P(|1\rangle)$.")
-
-        st.latex(r"\frac{\Delta}{2\pi} = \frac{\omega_d - \omega_q}{2\pi}")
+        st.markdown(r"Use a $\pi/2 - \tau - \pi/2$ sequence to generate a Ramsey chevron in measured $P(|1\rangle)$.")
         st.latex(r"\pi/2_x \;\rightarrow\; \tau \;\rightarrow\; \pi/2_x \;\rightarrow\; \mathrm{measure}")
         st.latex(r"t_\pi = \frac{1}{2\,\Omega_R/2\pi}, \qquad t_{\pi/2} = \frac{1}{4\,\Omega_R/2\pi}")
 
-        st.markdown(
-            "The pulse duration is set by the Rabi rate. It does **not** depend on $T_1$ and it does not depend on the qubit frequency itself. "
-            "The qubit frequency tells you where to drive. The Rabi rate tells you how long to drive to make a π or π/2 rotation."
+        st.caption(
+            "The colormap is built by sweeping the idle time τ and the relative detuning Δ. "
+            "For each point, the code applies an ideal π/2 rotation, propagates the idle segment with T₁ and T₂, applies a second π/2 rotation, and records the final P(|1⟩)."
         )
 
-        st.markdown("### How the chevron is generated")
-        st.markdown(
-            "For the Ramsey tab, the π/2 pulses are treated as ideal rotations, and the idle segment is propagated analytically with relaxation and dephasing. "
-            "That keeps the chevron fast and very transparent for students. The plotted quantity is the final measured population $P(|1\rangle)$ after the second π/2 pulse."
-        )
-        st.latex(r"\mathbf r_1 = R_x(\pi/2)\,\mathbf r_0")
-        st.latex(r"\mathbf r_2 = M(\Delta,\tau;T_1,T_2)\,\mathbf r_1 + \mathbf b")
-        st.latex(r"\mathbf r_3 = R_x(\pi/2)\,\mathbf r_2, \qquad P(|1\rangle)=\frac{1+r_{3,z}}{2}")
-        st.latex(r"T_2 = 2T_1 \quad \text{(hardcoded teaching model)}")
-
-        st.markdown(
-            "The true $T_2$ in this simulator is fixed once $T_1$ is fixed. It should **not** depend on the detuning you choose or on the idle-time values you sweep. "
-            "If a fitted value changes a bit from one cut to another, that is a consequence of finite sweep range, shot noise, and how well the chosen cut resolves the Ramsey oscillations."
-        )
+        q1, q2 = st.columns([1, 1])
+        with q1:
+            ramsey_qubit_freq = st.number_input(
+                r"Reference qubit frequency $\omega_q/2\pi$ [GHz]",
+                value=float(omega_q),
+                step=1e-6,
+                format="%.9f",
+                key="ramsey_qubit_freq_ref",
+                help="This sets the reference frequency used to convert detuning into drive frequency.",
+            )
+        with q2:
+            st.metric("Reference ωq / 2π", f"{float(ramsey_qubit_freq):.9f} GHz")
 
         source_options = ["Manual entry"]
         fitted_rabi = st.session_state.get("freq_rabi_fit")
@@ -1086,7 +1100,7 @@ def page():
             fitted_rabi_GHz = 1e-3 * float(fitted_rabi["f_MHz"])
             t_pi_ns, pi2_ns = _pi_times_from_rabi(fitted_rabi_GHz)
             st.metric("Rabi rate used for Ramsey", _format_pm(fitted_rabi.get("f_MHz"), fitted_rabi.get("f_MHz_err"), "MHz"))
-            st.caption("This value comes from the P(|1⟩) time trace at the peak-response frequency in the Frequency Domain tab.")
+            st.caption("Taken from the peak-frequency time trace in the Frequency Domain tab.")
             st.metric("Computed π/2 duration", f"{pi2_ns:.3f} ns")
         elif duration_source == "Use assigned Rabi rate (debug)":
             t_pi_ns, pi2_ns = _pi_times_from_rabi(omega_rabi)
@@ -1100,12 +1114,11 @@ def page():
                 step=0.01,
                 format="%.3f",
                 key="ramsey_pi2_manual",
-                help="Students can compute this from the fitted Rabi rate using the equation above.",
             )
             t_pi_ns = 2.0 * float(pi2_ns)
             st.caption(f"Corresponding π duration: {t_pi_ns:.3f} ns")
 
-        st.markdown("### Chevron sweep ranges")
+        st.markdown("### Chevron sweep")
         r1, r2, r3 = st.columns(3)
         with r1:
             detuning_min = st.number_input("Detuning min [MHz]", value=-2.0, step=0.1, format="%.3f", key="ramsey_detuning_min")
@@ -1128,6 +1141,7 @@ def page():
         if st.button("Run Ramsey Chevron", key="ramsey_chevron_run_simple"):
             detuning_list = np.linspace(float(detuning_min), float(detuning_max), int(n_detuning))
             delay_list = np.linspace(float(delay_min), float(delay_max), int(n_delay))
+            drive_freq_list = float(ramsey_qubit_freq) + 1e-3 * detuning_list
 
             prog = st.progress(0, text="Running Ramsey chevron...")
             Z = _ramsey_chevron(
@@ -1141,6 +1155,8 @@ def page():
 
             st.session_state["ramsey_chevron_out"] = {
                 "detuning_list_MHz": detuning_list,
+                "drive_freq_list_GHz": drive_freq_list,
+                "qubit_freq_GHz": float(ramsey_qubit_freq),
                 "delay_list_ns": delay_list,
                 "Z": Z,
                 "pi2_ns": float(pi2_ns),
@@ -1157,17 +1173,24 @@ def page():
                 colorscale="Inferno",
                 zmin=0.0,
                 zmax=1.0,
-                colorbar=dict(title="P(|1⟩)", thickness=16),
-                hovertemplate="Δ=%{x:.3f} MHz<br>τ=%{y:.1f} ns<br>P1=%{z:.3f}<extra></extra>",
+                colorbar=dict(title="P(|1⟩)", thickness=25),
+                customdata=np.tile(np.asarray(chev["drive_freq_list_GHz"])[None, :], (len(chev["delay_list_ns"]), 1)),
+                hovertemplate="Δ=%{x:.3f} MHz<br>ωd/2π=%{customdata:.9f} GHz<br>τ=%{y:.1f} ns<br>P1=%{z:.3f}<extra></extra>",
             ))
             fig_chev.update_layout(
                 height=650,
                 title=f"Ramsey chevron, π/2 = {chev['pi2_ns']:.3f} ns",
-                xaxis_title="Detuning Δ/2π [MHz]",
+                xaxis_title="Relative detuning Δ/2π [MHz]",
                 yaxis_title="Idle time τ [ns]",
                 margin=dict(t=70, b=60, l=70, r=40),
             )
             st.plotly_chart(fig_chev, use_container_width=True)
+
+            m1, m2 = st.columns(2)
+            with m1:
+                st.metric("Reference ωq / 2π", f"{float(chev['qubit_freq_GHz']):.9f} GHz")
+            with m2:
+                st.caption("Drive frequency is computed as ωd/2π = ωq/2π + Δ/2π.")
 
             st.markdown("### Fit a vertical cut")
             chosen_detuning = st.number_input(
@@ -1176,12 +1199,18 @@ def page():
                 step=0.1,
                 format="%.3f",
                 key="ramsey_cut_detuning",
-                help="A small nonzero detuning usually makes the Ramsey oscillation easiest to fit.",
             )
             nearest_idx = int(np.argmin(np.abs(chev["detuning_list_MHz"] - float(chosen_detuning))))
             nearest_det = float(chev["detuning_list_MHz"][nearest_idx])
+            nearest_drive = float(chev["drive_freq_list_GHz"][nearest_idx])
             p1_cut = np.asarray(chev["Z"][:, nearest_idx], dtype=float)
             fit_cut = _fit_ramsey_trace(np.asarray(chev["delay_list_ns"]), p1_cut, freq_guess_MHz=abs(nearest_det))
+
+            info1, info2 = st.columns(2)
+            with info1:
+                st.metric("Selected detuning", f"{nearest_det:+.3f} MHz")
+            with info2:
+                st.metric("Corresponding ωd / 2π", f"{nearest_drive:.9f} GHz")
 
             fig_cut = go.Figure()
             fig_cut.add_trace(go.Scatter(
@@ -1198,11 +1227,11 @@ def page():
                     y=fit_cut["fit_curve"],
                     mode="lines",
                     name="Ramsey fit",
-                    line=dict(width=2, dash="dash"),
+                    line=dict(width=3, dash="dash"),
                 ))
             fig_cut.add_vline(
                 x=float(T2_ns),
-                line_width=2,
+                line_width=3,
                 line_dash="dot",
                 line_color="white",
                 annotation_text=f"T₂ model = {T2_ns:.1f} ns",
@@ -1228,23 +1257,12 @@ def page():
             else:
                 st.info("Ramsey fit unavailable for this vertical cut.")
 
-            st.markdown("### What students control in this tab")
-            st.markdown(
-                "Students choose the π/2 duration, the detuning sweep range, the idle-time sweep range, and the number of shots. "
-                "They then download the CSV and extract the qubit parameters from the data themselves."
-            )
-
-            st.markdown("### Practical interpretation")
-            st.markdown(
-                "At zero detuning the Ramsey trace is mostly a decaying envelope, so fitting an oscillatory cosine can be less stable. "
-                "A small nonzero detuning usually gives a cleaner estimate because the oscillation frequency is well resolved. "
-                "The fitted $T_2$ should still be close to the same underlying value across reasonable cuts."
-            )
-
             rows = []
             for i, tau in enumerate(chev["delay_list_ns"]):
                 for j, det in enumerate(chev["detuning_list_MHz"]):
                     rows.append({
+                        "qubit_freq_GHz": float(chev["qubit_freq_GHz"]),
+                        "drive_freq_GHz": float(chev["drive_freq_list_GHz"][j]),
                         "detuning_MHz": float(det),
                         "delay_ns": float(tau),
                         "p1": float(chev["Z"][i, j]),

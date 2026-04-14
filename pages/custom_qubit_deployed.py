@@ -1762,12 +1762,12 @@ For this simulator T₂ = 2T₁ (no pure dephasing).
 
             st.markdown(
                 """
-**Interpreting the Chevron:**
-- The **vertex** (brightest/widest fringe) marks the qubit frequency ω_q.
-- Horizontal cuts at fixed ω_d show Ramsey fringes whose period is 1/Δ.
-- The fringe envelope decays with T₂* (Ramsey) or T₂ (echo).
-- Vertical cuts at ω_d = ω_q give the on-resonance decay.
-"""
+                **Interpreting the Chevron:**
+                - The **vertex** (brightest/widest fringe) marks the qubit frequency ω_q.
+                - Horizontal cuts at fixed ω_d show Ramsey fringes whose period is 1/Δ.
+                - The fringe envelope decays with T₂* (Ramsey) or T₂ (echo).
+                - Vertical cuts at ω_d = ω_q give the on-resonance decay.
+                """
             )
 
 

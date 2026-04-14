@@ -15,7 +15,7 @@ def main():
     st.page_link("pages/sonify.py", label="Sonify Images", icon="🎵")
     st.page_link("pages/qubit_simulator.py", label="Qubit Simulator", icon="🎮")
     st.page_link("pages/custom_qubit_local.py", label="Custom Qubit (Local/VPN)", icon="🧪")
-    st.page_link("pages/custom_qubit_deployed.py", label="Custom Qubit (Deployed)", icon="☁️")
+    # st.page_link("pages/custom_qubit_deployed.py", label="Custom Qubit (Deployed)", icon="☁️")
     st.page_link("pages/IQ_mixer.py", label="IQ Mixing", icon="〰️")
     st.page_link("pages/EP_TPD_exploration.py", label="Exceptional Point and Transmission Peak Degeneracy Exploration", icon="🎯")
 if __name__ == "__main__":
