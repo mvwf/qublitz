@@ -76,9 +76,10 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d, user_
 
 
     # Set QuTiP Options to increase nsteps
-    options = Options(nsteps=5000)
-    options.store_states = True
-
+    # options = Options(nsteps=5000)
+    # options.store_states = True
+    # options = {'store_states':True, 'n_steps':5000}
+    options = {"store_states": True, "nsteps": 10000}
     # Mesolve with collapse operators
     result = mesolve(H, psi0, tlist, c_ops, [sigmax(), sigmay(), sigmaz()], args={'w': 2 * np.pi * omega_d}, options=options)
 
