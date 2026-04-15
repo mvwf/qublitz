@@ -12,11 +12,13 @@ def main():
     st.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
     st.write("Welcome to Qublitz!")
     st.page_link("home.py", label="Home", icon="🏠")
-    st.page_link("pages/sonify.py", label="Sonify Images", icon="🎵")
-    st.page_link("pages/qubit_simulator.py", label="Qubit Simulator", icon="🎮")
-    st.page_link("pages/custom_qubit_local.py", label="Custom Qubit (Local/VPN)", icon="🧪")
-    st.page_link("pages/custom_qubit_deployed.py", label="Custom Qubit (Deployed)", icon="☁️")
+    st.page_link("pages/Sonify.py", label="Sonify Images", icon="🎵")
+    st.page_link("pages/Qubit_Simulator.py", label="Qubit Simulator", icon="🎮")
+    st.page_link("pages/Custom_Qubit_Query.py", label="Custom Qubit Query (Local/VPN)", icon="🧪")
     st.page_link("pages/IQ_mixer.py", label="IQ Mixing", icon="〰️")
     st.page_link("pages/EP_TPD_exploration.py", label="Exceptional Point and Transmission Peak Degeneracy Exploration", icon="🎯")
+    st.page_link("pages/Laser_Heating_Calculator.py", label="Laser Heating Calculator", icon="⚡")
+    st.page_link("pages/Dilution_Refrigerator_Noise_Explorer.py", label="Dilution Refrigerator Noise Explorer", icon="❄️")
+
 if __name__ == "__main__":
     main()
