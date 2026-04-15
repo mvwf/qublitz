@@ -1229,14 +1229,14 @@ def page():
                     name="Ramsey fit",
                     line=dict(width=3, dash="dash"),
                 ))
-            fig_cut.add_vline(
-                x=float(T2_ns),
-                line_width=3,
-                line_dash="dot",
-                line_color="white",
-                annotation_text=f"T₂ model = {T2_ns:.1f} ns",
-                annotation_position="top right",
-            )
+            # fig_cut.add_vline(
+            #     x=float(T2_ns),
+            #     line_width=3,
+            #     line_dash="dot",
+            #     line_color="white",
+            #     annotation_text=f"T₂ model = {T2_ns:.1f} ns",
+            #     annotation_position="top right",
+            # )
             fig_cut.update_layout(
                 height=450,
                 title="Ramsey trace from a vertical cut of the chevron",

@@ -11,7 +11,6 @@ The simulator uses the assigned physical parameters directly:
 ================================================================================
 """
 
-import os
 from typing import Dict, Any, Optional
 
 import numpy as np
@@ -83,7 +82,6 @@ def _extract_Z(prob_1_data, freqs, tlist):
 
 def _clear_results_and_pulses():
     for key in (
-        "user_data",
         "freq_out", "freq_peak_cut", "td_out",
         "td_tfinal_last", "td_sigma_x_vec", "td_sigma_y_vec",
         "ramsey_chevron_out", "td_rabi_fit", "td_t1_fit", "freq_rabi_fit",
@@ -102,10 +100,20 @@ def _init_state():
 
 
 def _load_params_from_secrets() -> Dict[str, Any]:
-    # Accept either:
-    # 1) [params] omega_q=..., omega_rabi=..., T1=...
-    # 2) flat top-level secrets omega_q=..., omega_rabi=..., T1=...
+    """
+    Accept either of these Streamlit secrets formats:
 
+    [params]
+    omega_q = 4.027
+    omega_rabi = 0.35
+    T1 = 194.0
+
+    or
+
+    omega_q = 4.027
+    omega_rabi = 0.35
+    T1 = 194.0
+    """
     if "params" in st.secrets:
         params = st.secrets["params"]
     else:
@@ -707,9 +715,9 @@ def _fit_ramsey_trace(delay_list_ns, p1_trace, freq_guess_MHz=None):
             "A": float(popt[0]),
             "A_err": float(perr[0]) if np.isfinite(perr[0]) else None,
             "T2_ns": float(popt[1]),
-            "T2_ns_err": (float(perr[1]) if (np.isfinite(perr[1]) and perr[1] <= 10.0*max(abs(popt[1]),1e-12)) else None),
+            "T2_ns_err": (float(perr[1]) if (np.isfinite(perr[1]) and perr[1] <= 10.0 * max(abs(popt[1]), 1e-12)) else None),
             "freq_MHz": float(popt[2]),
-            "freq_MHz_err": (float(perr[2]) if (np.isfinite(perr[2]) and perr[2] <= 10.0*max(abs(popt[2]),1e-12)) else None),
+            "freq_MHz_err": (float(perr[2]) if (np.isfinite(perr[2]) and perr[2] <= 10.0 * max(abs(popt[2]), 1e-12)) else None),
             "phi": float(popt[3]),
             "C": float(popt[4]),
             "fit_curve": _ramsey_fit_model(delay_list_ns, *popt),
@@ -767,7 +775,6 @@ def page():
     T2_ns = 2.0 * T1_ns
 
     shots = st.sidebar.number_input("Shots", min_value=32, max_value=4096, value=256, step=32, key="shots")
-    is_debug_user = False
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Hidden qubit parameters")
@@ -1162,14 +1169,14 @@ def page():
                     name="Ramsey fit",
                     line=dict(width=3, dash="dash"),
                 ))
-            fig_cut.add_vline(
-                x=float(T2_ns),
-                line_width=3,
-                line_dash="dot",
-                line_color="white",
-                annotation_text=f"T₂ model = {T2_ns:.1f} ns",
-                annotation_position="top right",
-            )
+            # fig_cut.add_vline(
+            #     x=float(T2_ns),
+            #     line_width=3,
+            #     line_dash="dot",
+            #     line_color="white",
+            #     annotation_text=f"T₂ model = {T2_ns:.1f} ns",
+            #     annotation_position="top right",
+            # )
             fig_cut.update_layout(
                 height=450,
                 title="Ramsey trace from a vertical cut of the chevron",
@@ -1208,5 +1215,21 @@ def page():
                 key="ramsey_chevron_download_simple",
             )
 
+            st.markdown("---")
+            st.markdown("## Reveal Parameters")
 
+            reveal = st.toggle("Show hidden simulator parameters", value=False, key="ramsey_reveal_params")
+
+            if reveal:
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric(r"Qubit frequency:  $\omega_q / 2\pi$", f"{omega_q:.6f} GHz")
+                with c2:
+                    st.metric(r"Rabi rate:  $\Omega_R / 2\pi$", f"{omega_rabi * 1e3:.3f} MHz")
+                with c3:
+                    st.metric(r"$T_1 $", f"{T1_ns:.2f} ns")
+                with c4:
+                    st.metric(r"$T_2 = 2 T_1 $", f"{T2_ns:.2f} ns")
+            else:
+                st.caption("Toggle to reveal the hidden simulator parameters.")
 page()

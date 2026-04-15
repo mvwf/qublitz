@@ -14,8 +14,8 @@ def main():
 
     st.page_link("home.py", label="Home", icon="🏠")
     st.page_link("pages/Sonify.py", label="Sonify Images", icon="🎵")
-    st.page_link("pages/Qubit_Simulator.py", label="Qubit Simulator", icon="🎮")
-    st.page_link("pages/Qubit_Measurement.py", label="Qubit Measurement Tutorial", icon="🎮")
+    st.page_link("pages/Qubit_Simulator.py", label="Qubit Simulator", icon="⚛")
+    st.page_link("pages/Quantum_Measurement_Tutorial.py", label="Quantum Measurement Tutorial", icon="🎮")
     st.page_link("pages/Custom_Qubit_Query.py", label="Custom Qubit Query (Local/VPN)", icon="🧪")
     st.page_link("pages/IQ_mixer.py", label="IQ Mixing", icon="〰️")
     st.page_link("pages/EP_TPD_exploration.py", label="Exceptional Point and Transmission Peak Degeneracy Exploration", icon="🎯")
