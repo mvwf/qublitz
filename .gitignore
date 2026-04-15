@@ -3,6 +3,7 @@
 generate_qubits.py
 user_parameters.json
 venv_st/
+venv_qublitz/
 utils/__pycache__/*
 __pycache__/*
 ### Streamlit secrets
@@ -16,3 +17,4 @@ net_IDs.csv
 .env
 .secrets.toml
 to_recycle/
+.DS_Store
