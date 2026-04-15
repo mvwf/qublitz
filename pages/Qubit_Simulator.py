@@ -1216,13 +1216,13 @@ def page():
             if reveal:
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
-                    st.metric(r"Qubit frequency:  $\omega_q / 2\pi$", f"{omega_q:.6f} GHz")
+                    st.metric(r"Qubit frequency:  $\omega_q / 2\pi$", f"{omega_q:.3f} GHz")
                 with c2:
-                    st.metric(r"Rabi rate:  $\Omega_R / 2\pi$", f"{omega_rabi * 1e3:.3f} MHz")
+                    st.metric(r"Rabi rate:  $\Omega_R / 2\pi$", f"{omega_rabi * 1e3:.2f} MHz")
                 with c3:
-                    st.metric(r"$T_1 $", f"{T1_ns:.2f} ns")
+                    st.metric(r"$T_1 $", f"{T1_ns:.1f} ns")
                 with c4:
-                    st.metric(r"$T_2 = 2 T_1 $", f"{T2_ns:.2f} ns")
+                    st.metric(r"$T_2 = 2 T_1 $", f"{T2_ns:.1f} ns")
             else:
                 st.caption("Toggle to reveal the hidden simulator parameters.")
 page()
