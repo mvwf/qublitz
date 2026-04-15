@@ -102,12 +102,15 @@ def _init_state():
 
 
 def _load_params_from_secrets() -> Dict[str, Any]:
-    if "params" not in st.secrets:
-        raise RuntimeError(
-            "Missing 'params' in Streamlit secrets. Expected keys: omega_q, omega_rabi, T1."
-        )
+    # Accept either:
+    # 1) [params] omega_q=..., omega_rabi=..., T1=...
+    # 2) flat top-level secrets omega_q=..., omega_rabi=..., T1=...
 
-    params = st.secrets["params"]
+    if "params" in st.secrets:
+        params = st.secrets["params"]
+    else:
+        params = st.secrets
+
     required = ("omega_q", "omega_rabi", "T1")
     missing = [k for k in required if k not in params]
     if missing:
