@@ -15,3 +15,4 @@ net_IDs.csv
 *.csv
 .env
 .secrets.toml
+to_recycle/
