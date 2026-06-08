@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    # Keep routine version bumps quiet while grouping real security fixes.
+    open-pull-requests-limit: 0
+    groups:
+      python-security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
