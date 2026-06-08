@@ -67,4 +67,4 @@ For the Step Pulse Challenge, you should take the existing `3_gates_challenge.py
 For help or advice email: 
 neo.y.cai.25@dartmouth.edu 
 mattias.w.fitzpatrick@dartmouth.edu
-
+juan.sebastian.salcedo-gallo.th@dartmouth.edu
