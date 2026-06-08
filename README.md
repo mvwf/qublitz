@@ -32,6 +32,14 @@ This app provides interactive tools to explore exceptional points and transmissi
 
 ## Installation 
 
+Use Python 3.10 or newer. The current PyArrow security release no longer supports Python 3.9.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
 ### Libraries
 Qublitz is hosted as a Streamlit app. The relevant libraries for installation are as follows:
 - `streamlit`
