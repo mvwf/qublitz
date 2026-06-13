@@ -13,6 +13,7 @@ def main():
     st.write("Welcome to Qublitz!")
 
     st.page_link("home.py", label="Home", icon="🏠")
+    st.page_link("pages/QuBlitz_Arena.py", label="QuBlitz Arena", icon="⚔️")
     st.page_link("pages/Sonify.py", label="Sonify Images", icon="🎵")
     st.page_link("pages/Qubit_Simulator.py", label="Qubit Simulator", icon="⚛")
     st.page_link("pages/Quantum_Measurement_Tutorial.py", label="Quantum Measurement Tutorial", icon="🎮")
