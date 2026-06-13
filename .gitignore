@@ -4,6 +4,7 @@ generate_qubits.py
 user_parameters.json
 venv_st/
 venv_qublitz/
+.venv/
 utils/__pycache__/*
 __pycache__/*
 ### Streamlit secrets
