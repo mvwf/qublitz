@@ -350,7 +350,7 @@ def main():
     plot_trace(fig2, [instability_val, instability_val], [ymin, ymax], 'Instability', None, (instability_val != None), dict(width=4, color='chartreuse'))
 
     fig2.update_layout(
-        title=f"Primary EP and TPD Peak Splitting",
+        title="Primary EP and TPD Peak Splitting",
         title_font = dict(size=25),
         xaxis_title = x2_label,
         yaxis_title = "Frequency [arb.]",

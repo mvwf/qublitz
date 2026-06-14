@@ -28,7 +28,6 @@ def compute_fft_map(mat, sample_spacing):
     return mag, freqs
 
 def generate_audio(env, t_env, row_idx, carrier_freq, duration, sr=DEFAULT_SR):
-    cols = env.shape[1]
     # audio time axis
     N = int(np.ceil(duration * sr))
     t_audio = np.linspace(0, duration, N, endpoint=False)
@@ -175,7 +174,6 @@ def main():
 
     # Set same modulation frequency for all rows
     y_freqs = np.full(rows, mod_freq)
-    y_axis = np.arange(rows)  # For plotting
 
     sample_spacing = (max_x - min_x) / cols
 

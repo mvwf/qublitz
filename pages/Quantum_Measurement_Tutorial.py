@@ -6,9 +6,8 @@ Release Date:
 
 '''
 import numpy as np
-from streamlit import *
+from streamlit import columns, header, image, latex, markdown, plotly_chart, slider, title
 import streamlit as st
-from streamlit.components.v1 import html
 from PIL import Image
 import plotly.graph_objects as go
 
