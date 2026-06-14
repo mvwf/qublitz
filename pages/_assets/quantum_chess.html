@@ -692,7 +692,11 @@ body::before {
           <div id="sage-bar-text">Greetings, controller. Charge a qubit, close in, and strike.</div>
           <div id="sage-bar-footer">
             <span id="sage-bar-hotkey">[?] · A=ATK H/X/Y/Z=CHARGE M=MEASURE C=CNOT SPC=END</span>
-            <span id="sage-bar-more">▼ MORE</span>
+            <span id="sage-bar-controls" style="display:flex;gap:10px;align-items:center">
+              <span id="sage-bar-explain" onclick="event.stopPropagation(); explainSelected();" title="Explain the selected qubit's state (E)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">✦ EXPLAIN</span>
+              <span id="sage-bar-coach" onclick="event.stopPropagation(); toggleCoach();" title="Toggle teaching depth (verbose ↔ terse)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">🎓 TEACH</span>
+              <span id="sage-bar-more">▼ MORE</span>
+            </span>
           </div>
         </div>
       </div>
@@ -2944,6 +2948,8 @@ document.addEventListener('keydown', e => {
 
   // ? toggles Sage advisor
   if (e.key==='?') { toggleAdvisor(); return; }
+  // E asks the Sage to explain the selected qubit's state
+  if (key==='e' && GAME.phase!=='gameover') { explainSelected(); return; }
   // V toggles Crowd Vote mode without opening the Settings menu
   if (e.key.toLowerCase()==='v' && GAME.phase!=='gameover') {
     GAME.voteMode = !GAME.voteMode;
@@ -3532,13 +3538,13 @@ function analyzePosition() {
 
     if (adj.length && c >= 0.6) {
       const tgt = adj.slice().sort((a,b)=>a.hp-b.hp)[0];
-      tips.push({p:24,type:'danger',text:`${here} sits at ${cp}% charge beside ${coord(tgt.row,tgt.col)} — ATTACK now: by the Born rule your hit probability equals the charge, and a foe caught in |1⟩ takes a CRITICAL (2 dmg).`});
+      tips.push({p:24,type:'danger',short:`${here} → ATTACK ${coord(tgt.row,tgt.col)} (${cp}% charge).`,text:`${here} sits at ${cp}% charge beside ${coord(tgt.row,tgt.col)} — ATTACK now: by the Born rule your hit probability equals the charge, and a foe caught in |1⟩ takes a CRITICAL (2 dmg).`});
     } else if (adj.length && c < 0.35) {
-      tips.push({p:23,type:'warn',text:`${here} is in range but only ${cp}% charged — apply X (→|1⟩, 100%) or H (→|+⟩, 50%) first; attacking now fires with just ${cp}% probability and then discharges to |0⟩.`});
+      tips.push({p:23,type:'warn',short:`${here} → charge first (X/H), only ${cp}%.`,text:`${here} is in range but only ${cp}% charged — apply X (→|1⟩, 100%) or H (→|+⟩, 50%) first; attacking now fires with just ${cp}% probability and then discharges to |0⟩.`});
     } else if (!adj.length && c >= 0.6) {
-      tips.push({p:22,type:'quantum',text:`${here} is charged ${cp}% but no enemy is adjacent — close in this turn: idle charge relaxes as e^(−t/T₁), so a stored hit bleeds away while you wait.`});
+      tips.push({p:22,type:'quantum',short:`${here} → close in (${cp}% charge bleeding).`,text:`${here} is charged ${cp}% but no enemy is adjacent — close in this turn: idle charge relaxes as e^(−t/T₁), so a stored hit bleeds away while you wait.`});
     } else if (!adj.length && c < 0.35) {
-      tips.push({p:18,type:'gate',text:`${here} is at ${cp}% — use the quiet turn to load it (X or H) and advance, so it arrives at an enemy already charged.`});
+      tips.push({p:18,type:'gate',short:`${here} → load it (X/H) and advance.`,text:`${here} is at ${cp}% — use the quiet turn to load it (X or H) and advance, so it arrives at an enemy already charged.`});
     }
 
     const partner = sel.entangledWith && GAME.pieces.find(p=>p.id===sel.entangledWith);
@@ -3599,8 +3605,9 @@ function renderSage() {
   if (bar) bar.classList.toggle('urgent', urgent);
   if (btn) btn.classList.toggle('urgent', urgent);
 
-  // Primary tip → typewriter into the dialogue bar
-  if (tips[0]) startTypewriter(tips[0].text);
+  // Primary tip → typewriter into the dialogue bar. In TERSE coaching mode show
+  // the short form (just the move); in TEACH mode the full concept-linked line.
+  if (tips[0]) startTypewriter(_coachTerse ? (tips[0].short || tips[0].text) : tips[0].text);
 
   // Expanded panel (if open)
   const panel = document.getElementById('sage-tips');
@@ -3620,6 +3627,46 @@ function toggleAdvisor() {
   const moreBtn = document.getElementById('sage-bar-more');
   if (moreBtn) moreBtn.textContent = _advisorOpen ? '▲ LESS' : '▼ MORE';
   renderSage();
+}
+
+// Coaching depth: TEACH (verbose, concept-linked) ↔ TERSE (just the move).
+// Persisted so a learner's preference survives reloads.
+let _coachTerse = false;
+try { _coachTerse = localStorage.getItem('qb_coach') === 'terse'; } catch (e) {}
+function _updateCoachLabel() {
+  const el = document.getElementById('sage-bar-coach');
+  if (el) el.textContent = _coachTerse ? '🎓 TERSE' : '🎓 TEACH';
+}
+function toggleCoach() {
+  _coachTerse = !_coachTerse;
+  try { localStorage.setItem('qb_coach', _coachTerse ? 'terse' : 'teach'); } catch (e) {}
+  _updateCoachLabel();
+  beep(_coachTerse ? 392 : 523, 'triangle', 0.06, 0.1);
+  renderSage();
+}
+
+// "Explain this" — read the selected qubit's quantum state in plain language.
+function explainSelected() {
+  _advisorOpen = false;
+  const u = GAME.selected;
+  if (!u || u.owner !== GAME.turn) {
+    startTypewriter('Select one of your units, then press E — I will read its quantum state for you.');
+    return;
+  }
+  const b  = u.bloch || QPhysics.blochFromPure(u.state);
+  const ch = Math.round(charge(u) * 100);
+  const gc = Math.round(QPhysics.guardCritProb(u.state) * 100);
+  const here = coord(u.row, u.col);
+  let basis;
+  if (ch >= 95)      basis = '|1⟩ (excited — fully charged)';
+  else if (ch <= 5)  basis = '|0⟩ (ground — discharged)';
+  else if (b.x >  0.85) basis = '|+⟩ (equal superposition along +X)';
+  else if (b.x < -0.85) basis = '|−⟩ (equal superposition along −X)';
+  else               basis = 'a superposition of |0⟩ and |1⟩';
+  const advice = ch < 50
+    ? 'Apply X to drive it toward |1⟩, or H for a |+⟩ guard.'
+    : 'Well charged — close in and strike before T₁ relaxation bleeds it away.';
+  startTypewriter(`${here} is in ${basis}: charge P(|1⟩)=${ch}% (your hit chance), Bloch x=${b.x.toFixed(2)} so a GUARD here would sit at ${gc}% crit. ${advice}`);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3703,6 +3750,7 @@ function finishBoot() {
   resetGame('vsBot');
   loop();
   _updateClaudeBadge();
+  _updateCoachLabel();
   setTimeout(openMenu, 200);
 }
 
