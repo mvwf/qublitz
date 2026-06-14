@@ -1,10 +1,10 @@
 """Smoke tests: every Streamlit page must load without raising.
 
-Most pages are rendered headless with ``streamlit.testing.v1.AppTest`` and
-asserted to raise no exception. Two pages cannot run headless in CI — they
-either talk to a lab backend or auto-run a full ``mesolve`` on load — so they
-are syntax/compile-checked instead. After C02-T12 removes the auto-simulation,
-``Qubit_Simulator.py`` can graduate to the rendered list.
+Every page is rendered headless with ``streamlit.testing.v1.AppTest`` and
+asserted to raise no exception. Since C02-T12 gated the time-domain ``mesolve``
+behind a Run button, the two simulator pages no longer auto-solve on load and
+render headless too (the lab-API page short-circuits at its login prompt).
+``quantum_simulator.py`` is a library, not a page, so it is compile-checked.
 """
 import os
 import py_compile
@@ -14,7 +14,7 @@ from streamlit.testing.v1 import AppTest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Pages safe to fully render headless (no external backend, no minutes-long solve).
+# Pages safe to fully render headless (no external backend call, no auto-solve).
 RENDER_PAGES = [
     "home.py",
     "pages/QuBlitz_Arena.py",
@@ -24,13 +24,13 @@ RENDER_PAGES = [
     "pages/Dilution_Refrigerator_Noise_Explorer.py",
     "pages/EP_TPD_exploration.py",
     "pages/Sonify.py",
+    "pages/Qubit_Simulator.py",
+    "pages/Custom_Qubit_Query.py",
 ]
 
-# Pages that hit a lab API or auto-run a full mesolve on load: compile-check only.
+# Library modules (not Streamlit pages): syntax/compile-check only.
 COMPILE_ONLY = [
     "quantum_simulator.py",
-    "pages/Custom_Qubit_Query.py",
-    "pages/Qubit_Simulator.py",
 ]
 
 
