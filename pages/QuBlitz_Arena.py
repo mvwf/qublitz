@@ -95,6 +95,44 @@ def _render_academic_framing():
         )
 
 
+def _render_quickstart():
+    st.markdown("#### How to play in 30 seconds")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**1 · Charge** ⚡")
+        st.caption("Apply **X** (→ |1⟩, 100%) or **H** (→ |+⟩, 50%). A unit's charge *is* its P(|1⟩).")
+    with c2:
+        st.markdown("**2 · Close in** 🏃")
+        st.caption("Move adjacent to a foe — but hurry: idle charge relaxes as e^(−t/T₁) every turn.")
+    with c3:
+        st.markdown("**3 · Collapse** 💥")
+        st.caption("**Attack** fires with probability = charge; a target caught in |1⟩ takes a CRITICAL.")
+    st.caption(
+        "Controls: click the board, then **A**=attack · **H/X/Y/Z**=charge · **M**=measure · "
+        "**C**=CNOT · **G**=guard · **Space**=end turn. Press **?** for the Sage."
+    )
+
+
+def _render_related_links():
+    st.markdown("**Keep exploring the platform**")
+    col1, col2 = st.columns(2)
+    # st.page_link resolves relative to the app entrypoint (home.py). Guard it so
+    # the page still renders if loaded in isolation (e.g. under AppTest, where the
+    # sibling pages aren't on the entrypoint's page list).
+    try:
+        with col1:
+            st.page_link("pages/Quantum_Measurement_Tutorial.py",
+                         label="🆕 New to qubits? Start with the Measurement Tutorial", icon="🎮")
+        with col2:
+            st.page_link("pages/Qubit_Simulator.py",
+                         label="⚛ See the real physics in the Qubit Simulator", icon="🔬")
+    except Exception:
+        with col1:
+            st.markdown("🆕 **New to qubits?** Open the *Quantum Measurement Tutorial* page.")
+        with col2:
+            st.markdown("⚛ **Want the real physics?** Open the *Qubit Simulator* page.")
+
+
 def main():
     st.set_page_config(page_title="QuBlitz Arena", layout="wide")
 
@@ -107,23 +145,29 @@ def main():
     )
 
     st.title("⚔️ QuBlitz Arena")
+    st.markdown("*Learn quantum mechanics by playing it — every unit is a qubit, every move is a gate.*")
+
     _render_academic_framing()
+    _render_quickstart()
 
-    st.markdown("### ▶ Play")
-    st.caption("Click the board, then: A=attack · H/X/Y/Z=charge · M=measure · C=CNOT · Space=end turn. Press ? for the Sage.")
-
+    st.divider()
     proxy = _sage_proxy_url()
     inject = f"<script>window.QB_SAGE_PROXY={json.dumps(proxy)};</script>" if proxy else ""
-    # Height covers the title bar + 800px board + side panels + event log.
-    st.components.v1.html(inject + _load_game_html(), height=1100, scrolling=True)
+    # Fixed iframe height covers the title bar + 800px board + side panels + event log;
+    # the game itself is responsive (CSS grid) and scrolls within this frame on small screens.
+    st.components.v1.html(inject + _load_game_html(), height=1180, scrolling=True)
 
     if proxy:
-        st.caption("✦ Live Claude Sage connected via a server-side proxy (the API key stays on the proxy).")
+        st.success("✦ Live Claude Sage connected via a server-side proxy — the API key stays on the proxy, never in this page.", icon="✅")
     else:
-        st.caption(
-            "The offline heuristic Sage is active — it gives concept-linked, per-unit advice with no "
-            "API key. To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets."
+        st.info(
+            "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key. "
+            "To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets.",
+            icon="🔮",
         )
+
+    st.divider()
+    _render_related_links()
 
 
 if __name__ == "__main__":
