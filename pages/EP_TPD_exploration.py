@@ -21,6 +21,39 @@ color_marker_dict = {
     "ROGUE_TPD": ("gray", "diamond-open")
 }
 
+
+@st.cache_data(show_spinner=False)
+def _compute_ep_tpd_fields(phi, kappa_tilde_c):
+    """Cached 500x500 Petermann-factor field computation.
+
+    A pure function of (phi, kappa_tilde_c) — the only slider-driven inputs — so
+    moving an unrelated widget no longer rebuilds the 250k-element complex grids
+    on every rerun. Returns (K_color, K_gray, instability, min_petermann, disc, tilde_q).
+    """
+    x1 = np.linspace(-4, 4, 500)
+    y1 = np.linspace(-4, 4, 500)
+    X, Y = np.meshgrid(x1, y1)
+
+    Delta_tilde_lambda = np.sqrt(-Y ** 2 + 2j * Y * X + X ** 2 - 4 * np.exp(1j * phi))
+    Delta_tilde_lambda_mod_squared = abs(Delta_tilde_lambda) ** 2
+    K_2_tilde = (Y ** 2 + X ** 2 + Delta_tilde_lambda_mod_squared + 4) / (2 * Delta_tilde_lambda_mod_squared)
+
+    tilde_q = ((kappa_tilde_c - X) * (Delta_tilde_lambda ** 2).imag) / 8
+    tilde_p = (((kappa_tilde_c - X) ** 2) + (Delta_tilde_lambda ** 2).real) / 4
+    disc = -4 * (tilde_p ** 3) - 27 * (tilde_q ** 2)
+    instability = (Delta_tilde_lambda.real) - (kappa_tilde_c - X)
+    if phi == 0 or phi == 2 * np.pi:
+        min_petermann = X
+    elif phi == np.pi:
+        min_petermann = Y
+    else:
+        min_petermann = (-1 / np.tan(phi / 2)) * X - Y
+
+    K_color = np.where(instability <= 0, K_2_tilde, np.nan)  # plasma region
+    K_gray = np.where(instability > 0, K_2_tilde, np.nan)    # grayscale region
+    return K_color, K_gray, instability, min_petermann, disc, tilde_q
+
+
 # function: plots contours
 def plot_contours(fig, contour, x, y, color, linestyle, linewidth, label):
     fig.add_trace(go.Contour(
@@ -137,37 +170,17 @@ def main():
     phi = phi_labels[phi_label]
     # phi = st.sidebar.slider("Φ - Coupling Phase (rad)", 0.0, (2 * np.pi), 0.0, step=0.01) # Option for if we want a continuous slider
 
-    # define x and y axis for the plot (x is Delta_tilde_kappa and y is Delta_tilde_f)
+    # x/y axes for the plots (x is Delta_tilde_kappa, y is Delta_tilde_f); the
+    # heavy 500x500 field math is cached on (phi, kappa_tilde_c) — see _compute_ep_tpd_fields.
     x1 = np.linspace(-4, 4, 500)
     y1 = np.linspace(-4, 4, 500)
-    X, Y = np.meshgrid(x1, y1)
-
-    # define modulus squared of Delta_tilde_lambda in terms of X and Y
-    Delta_tilde_lambda = np.sqrt(-Y ** 2 + 2j * Y * X + X ** 2 - 4 * np.exp(1j * phi))
-    Delta_tilde_lambda_mod_squared = abs(Delta_tilde_lambda) ** 2
-
-    # petermann Factor
-    K_2_tilde = (Y ** 2 + X ** 2 + Delta_tilde_lambda_mod_squared + 4) / (2 * Delta_tilde_lambda_mod_squared)
-
-    # contour values
-    tilde_q = ((kappa_tilde_c - X) * (Delta_tilde_lambda ** 2).imag) / 8
-    tilde_p = (((kappa_tilde_c - X) ** 2) + (Delta_tilde_lambda ** 2).real) / 4
-    disc = -4 * (tilde_p ** 3) - 27 * (tilde_q ** 2)
-    instability = (Delta_tilde_lambda.real) - (kappa_tilde_c - X)
-    if phi == 0 or phi == 2 * np.pi:
-        min_petermann = X
-    elif phi == np.pi:
-            min_petermann = Y
-    else:
-            min_petermann = (-1 / np.tan(phi / 2)) * X - Y
+    K_color, K_gray, instability, min_petermann, disc, tilde_q = _compute_ep_tpd_fields(
+        float(phi), float(kappa_tilde_c)
+    )
 
     # compute degeneracy locations
     eps = ep_location(phi)
     tpds = tpd_location(phi, kappa_tilde_c)
-
-    # mask the petermann factor into two regions
-    K_color = np.where(instability <= 0, K_2_tilde, np.nan)  # plasma region
-    K_gray = np.where(instability > 0, K_2_tilde, np.nan)   # grayscale region
 
     # plot petermann factor color map
     fig1 = go.Figure()
