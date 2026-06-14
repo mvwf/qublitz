@@ -196,10 +196,13 @@ canvas { display: block; cursor: pointer; }
   image-rendering: crisp-edges;
   /* QB-4 — display-scale to the viewport without touching the internal 800px
      resolution (kept crisp). The click handler scales via getBoundingClientRect,
-     so input math still lands on the right cells at any size. */
-  width: 100%;
+     so input math still lands on the right cells at any size.
+     Cap by viewport HEIGHT too (not just width) so the whole board + sage bar +
+     title + log fit on one screen: ~210px reserves the title bar, sage-bar
+     padding and the event log. */
+  width: min(800px, calc(100vh - 250px));
   height: auto;
-  max-width: 800px;
+  max-width: 100%;
   aspect-ratio: 1 / 1;
 }
 
@@ -668,7 +671,7 @@ body::before {
           <div>M: <span id="cnt-MEASURE">0</span></div>
         </div>
       </div>
-      <button class="btn" onclick="openTutorial()">📜 TOME</button>
+      <button class="btn" onclick="openTutorial()">▸ TOME</button>
       <button class="btn" onclick="openMenu()">⚙ MENU</button>
     </div>
 
@@ -694,7 +697,7 @@ body::before {
             <span id="sage-bar-hotkey">[?] · A=ATK H/X/Y/Z=CHARGE M=MEASURE C=CNOT SPC=END</span>
             <span id="sage-bar-controls" style="display:flex;gap:10px;align-items:center">
               <span id="sage-bar-explain" onclick="event.stopPropagation(); explainSelected();" title="Explain the selected qubit's state (E)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">✦ EXPLAIN</span>
-              <span id="sage-bar-coach" onclick="event.stopPropagation(); toggleCoach();" title="Toggle teaching depth (verbose ↔ terse)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">🎓 TEACH</span>
+              <span id="sage-bar-coach" onclick="event.stopPropagation(); toggleCoach();" title="Toggle teaching depth (verbose ↔ terse)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">◆ TEACH</span>
               <span id="sage-bar-more">▼ MORE</span>
             </span>
           </div>
@@ -3195,11 +3198,11 @@ function checkLeaderboard() {
 function leaderboardHTML() {
   const lb = loadLeaderboard();
   if (!lb.fastestWin && !lb.mostCrits && !lb.mostEntangl) return '';
-  return `<h3>🏆 HALL OF FAME</h3>
+  return `<h3>◈ HALL OF FAME</h3>
 <div class="lb-wrap">
-  ${lb.fastestWin  ? `<div class="lb-row"><span class="lb-icon">⚡</span>Fastest win<span class="lb-val">${lb.fastestWin} turns</span></div>` : ''}
-  ${lb.mostCrits   ? `<div class="lb-row"><span class="lb-icon">💥</span>Most criticals<span class="lb-val">${lb.mostCrits}</span></div>`    : ''}
-  ${lb.mostEntangl ? `<div class="lb-row"><span class="lb-icon">🔗</span>Most entanglements<span class="lb-val">${lb.mostEntangl}</span></div>` : ''}
+  ${lb.fastestWin  ? `<div class="lb-row"><span class="lb-icon">▸</span>Fastest win<span class="lb-val">${lb.fastestWin} turns</span></div>` : ''}
+  ${lb.mostCrits   ? `<div class="lb-row"><span class="lb-icon">▸</span>Most criticals<span class="lb-val">${lb.mostCrits}</span></div>`    : ''}
+  ${lb.mostEntangl ? `<div class="lb-row"><span class="lb-icon">▸</span>Most entanglements<span class="lb-val">${lb.mostEntangl}</span></div>` : ''}
 </div>`;
 }
 
@@ -3643,7 +3646,7 @@ let _coachTerse = false;
 try { _coachTerse = localStorage.getItem('qb_coach') === 'terse'; } catch (e) {}
 function _updateCoachLabel() {
   const el = document.getElementById('sage-bar-coach');
-  if (el) el.textContent = _coachTerse ? '🎓 TERSE' : '🎓 TEACH';
+  if (el) el.textContent = _coachTerse ? '◆ TERSE' : '◆ TEACH';
 }
 function toggleCoach() {
   _coachTerse = !_coachTerse;
@@ -3836,7 +3839,7 @@ function openPhysicsLab() {
 </p>`;
   }
   document.getElementById('modal-content').innerHTML = `
-<h2>🔬 PHYSICS LAB</h2>
+<h2>✦ PHYSICS LAB</h2>
 <p style="text-align:center;color:var(--dim);font-size:11px;margin:-8px 0 12px">Open-quantum-system engine · Lindblad master equation · unit-tested</p>
 
 <h3>THE MODEL</h3>
@@ -3900,7 +3903,7 @@ function openMenu() {
 <p style="text-align:center;color:var(--dim);margin:-10px 0 10px;font-size:11px;">Qubit Battle Arena — charge, close in, collapse the enemy</p>
 
 <div style="background:linear-gradient(135deg,rgba(47,224,208,0.10),rgba(139,125,255,0.08));border:1px solid var(--border);border-radius:6px;padding:9px 11px;margin:0 0 14px">
-  <p style="color:var(--gold);font-family:var(--pixel);font-size:11px;margin:0 0 6px">⚡ PLAY IN 30 SECONDS</p>
+  <p style="color:var(--gold);font-family:var(--pixel);font-size:11px;margin:0 0 6px">▸ PLAY IN 30 SECONDS</p>
   <p style="color:var(--ink-2);font-size:11px;line-height:1.7;margin:0">
     <b style="color:var(--teal)">1. CHARGE</b> — tap a unit, fire a gate (X = 100% charge, H = 50%).<br>
     <b style="color:var(--teal)">2. STRIKE</b> — move beside a foe and ATTACK; hit chance = your charge (Born rule).<br>
@@ -3912,9 +3915,9 @@ function openMenu() {
   onclick="closeModal();resetGame('vsBot');GAME.difficulty=parseInt(document.getElementById('diff-sel')?document.getElementById('diff-sel').value:1)||1">▶ PLAY vs BOT (1P)</button>
 <button class="btn" onclick="closeModal();resetGame('vs2P')">▶ LOCAL vs FRIEND (2P)</button>
 <hr style="border-color:var(--border);margin:12px 0">
-<button class="btn" onclick="openCampaign()">🎓 TRAINING PROGRAMS (3 missions)</button>
-<button class="btn" onclick="closeModal();openTutorial()">📜 BATTLE MANUAL</button>
-<button class="btn" style="border-color:var(--gold);color:var(--gold)" onclick="openPhysicsLab()">🔬 PHYSICS LAB — inspect the real engine</button>
+<button class="btn" onclick="openCampaign()">◈ TRAINING PROGRAMS (3 missions)</button>
+<button class="btn" onclick="closeModal();openTutorial()">▸ BATTLE MANUAL</button>
+<button class="btn" style="border-color:var(--gold);color:var(--gold)" onclick="openPhysicsLab()">✦ PHYSICS LAB — inspect the real engine</button>
 <hr style="border-color:var(--border);margin:12px 0">
 
 <h3>SETTINGS</h3>
@@ -3977,13 +3980,13 @@ function openTutorial() {
   document.getElementById('modal-content').innerHTML=`
 <h2>◈ QUBLITZ — QUBIT BATTLE ARENA ◈</h2>
 
-<h3>🎯 OBJECTIVE</h3>
+<h3>▸ OBJECTIVE</h3>
 <p>Two armies face off on a grid: <b style="color:#2fe0d0">Elite Knights</b> deploy at the bottom, <b style="color:#ff4d9d">Elite Mages</b> at the top. Each unit is a two-level system |ψ⟩ = α|0⟩ + β|1⟩ with <b>HP</b> and a quantum <b>charge</b>. <b>Eliminate the enemy army</b> to win (or hold the most units, then HP, at the turn limit).</p>
 
-<h3>🎮 HOW A TURN WORKS</h3>
+<h3>▸ HOW A TURN WORKS</h3>
 <p>Click one of <b>your</b> units. Green dots show where it can <b>move</b> (range ${MOVE_RANGE}, blocked by other units). Click a tile to move, or click the unit to stay put — then an <b>action menu</b> opens: Attack, a charge pulse, Entangle, Measure, or End turn. A red ring marks enemies in strike range; click one to attack directly. One unit acts per turn. Keys: [A] attack, [H/X/Y/Z/S/T] charge, [R]/[Shift+R] Ry/Rx, [M] measure, [C] entangle, [Space] end, [ESC] cancel.</p>
 
-<h3>⚔ COMBAT — CHARGE &amp; MEASURE</h3>
+<h3>▸ COMBAT — CHARGE &amp; MEASURE</h3>
 <p>A unit's <b>charge</b> is its |1⟩ amplitude, P(|1⟩). To attack you must be <b>adjacent</b> to an enemy. The strike is a <b>measurement</b> of your unit (Born rule):</p>
 <table>
   <tr><th>Your charge</th><th>Result of attacking</th></tr>
@@ -3993,7 +3996,7 @@ function openTutorial() {
 </table>
 <p>When a strike fires, the <b>target is measured too</b>: if it's caught in |1⟩ it takes a <b>CRITICAL (2 dmg)</b>, otherwise 1. Either way your attacker collapses to |0⟩. <b>Defense:</b> keep idle units near |0⟩ so they're not caught charged.</p>
 
-<h3>🔋 CHARGING (control pulses)</h3>
+<h3>▸ CHARGING (control pulses)</h3>
 <table>
   <tr><th>Pulse</th><th>Effect</th></tr>
   <tr><td>X</td><td>|0⟩→|1⟩ — full charge, guaranteed next strike.</td></tr>
@@ -4003,11 +4006,11 @@ function openTutorial() {
 </table>
 <p style="opacity:.85"><b>GUARD (guardians):</b> braces in the <b>X-basis</b> instead of collapsing to |0⟩. An incoming strike measures the unit as |±⟩, so the relative phase you set with H/S/T/Z decides the crit: a |+⟩ guard is crit-immune, a |0⟩ guard is a coin flip, a |−⟩ guard is fully exposed. Phase finally pays off.</p>
 
-<h3>⚛ DECOHERENCE (Lindblad T1 / T2)</h3>
+<h3>▸ DECOHERENCE (Lindblad T1 / T2)</h3>
 <p>Real qubits don't bleed charge linearly — they decay <b>exponentially</b>. QuBlitz evolves every unit with the exact solution of the <b>Lindblad master equation</b>: excited charge relaxes toward |0⟩ as <b>e<sup>−t/T₁</sup></b> (amplitude damping) while superposition coherence fades as <b>e<sup>−t/T₂</sup></b> (dephasing, with T₂ ≤ 2T₁). On the Bloch sphere the state vector <b>contracts inward</b> as it mixes. So load up and strike <b>soon</b> — charge halves every couple of turns; don't charge a unit that can't reach a target. A fully decohered unit collapses to |0⟩.</p>
 <p style="opacity:.72;font-size:.92em">Verify it yourself: open the browser console and run <code>runDecoherenceDiagnostic()</code> — it fits charge-vs-turns to an exponential and a line and prints R² for each (exponential ≈ 1.000 ≫ linear), recovering the input T₁. <code>QPhysics.selfTest()</code> checks the gate &amp; decoherence math against analytic values.</p>
 
-<h3>🔗 ENTANGLEMENT &amp; 🔍 MEASURE</h3>
+<h3>▸ ENTANGLEMENT &amp; MEASURE</h3>
 <p><b>Entangle (CNOT)</b> links two <b>adjacent</b> units (friend or foe) into a Bell link — a hit on one bleeds <b>1 damage onto the other</b>. Entangle two enemies for splash value. <b>Measure</b> collapses your unit to an eigenstate and restores coherence (+12) — discharge a dangerously-exposed unit, or stabilize one.</p>
 
 <h3>🎨 READING THE BOARD</h3>

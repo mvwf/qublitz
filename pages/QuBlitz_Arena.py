@@ -20,6 +20,10 @@ import streamlit as st
 from utils.branding import load_logo
 
 _GAME_HTML = Path(__file__).parent / "_assets" / "quantum_chess.html"
+# Frame height tuned so the board + side panels + event log sit on one screen
+# without inner scroll on a typical laptop; the game caps the board by viewport
+# height (CSS min(...,100vh-…)) so it scales to fit this frame.
+_EMBED_HEIGHT = 860
 
 
 @st.cache_data(show_spinner=False)
@@ -27,20 +31,62 @@ def _load_game_html() -> str:
     return _GAME_HTML.read_text(encoding="utf-8")
 
 
+def _has_secrets_file() -> bool:
+    """True only if a Streamlit secrets.toml actually exists.
+
+    Accessing ``st.secrets`` with no secrets file makes Streamlit render a red
+    'No secrets found' error in the app, so we check first and skip it when none
+    is configured (the heuristic Sage is the no-secret default).
+    """
+    candidates = [
+        Path.cwd() / ".streamlit" / "secrets.toml",
+        Path.home() / ".streamlit" / "secrets.toml",
+    ]
+    return any(c.exists() for c in candidates)
+
+
 def _sage_proxy_url() -> str:
     """Server-side Sage proxy URL, or '' for the offline heuristic Sage.
 
-    Read from the QB_SAGE_PROXY_URL env var, falling back to st.secrets. The
-    Anthropic key is never read here — only the proxy URL — so no key can leak
-    into the client HTML.
+    Read from the QB_SAGE_PROXY_URL env var, falling back to st.secrets only when
+    a secrets file exists. The Anthropic key is never read here — only the proxy
+    URL — so no key can leak into the client HTML.
     """
     url = os.environ.get("QB_SAGE_PROXY_URL", "")
-    if not url:
+    if not url and _has_secrets_file():
         try:
             url = st.secrets.get("QB_SAGE_PROXY_URL", "")  # type: ignore[attr-defined]
         except Exception:
             url = ""
     return str(url or "")
+
+
+def _render_sidebar():
+    st.sidebar.image(load_logo("images/qublitz.png"))
+    st.sidebar.image(load_logo("images/logo.png"))
+    st.sidebar.markdown(
+        '<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" '
+        'target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _render_embed():
+    proxy = _sage_proxy_url()
+    inject = f"<script>window.QB_SAGE_PROXY={json.dumps(proxy)};</script>" if proxy else ""
+    st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
+    if proxy:
+        st.success(
+            "Live Claude Sage connected via a server-side proxy — the API key stays on the "
+            "proxy, never in this page.",
+            icon=":material/verified:",
+        )
+    else:
+        st.info(
+            "The offline heuristic Sage is active — concept-linked, per-unit advice with no API "
+            "key. To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets.",
+            icon=":material/auto_awesome:",
+        )
 
 
 def _render_academic_framing():
@@ -51,7 +97,7 @@ def _render_academic_framing():
         "other pages drive the game's decoherence — so playing builds intuition for the math."
     )
 
-    with st.expander("🎯 Learning objectives — what you'll reason about", expanded=True):
+    with st.expander(":material/track_changes: Learning objectives — what you'll reason about", expanded=True):
         st.markdown(
             "- **Superposition & state preparation** — drive a qubit between |0⟩, |1⟩, and |+⟩.\n"
             "- **The Born rule** — measurement outcomes are probabilistic in the qubit's amplitudes.\n"
@@ -61,20 +107,21 @@ def _render_academic_framing():
             "- **Entanglement & the no-communication theorem** — Bell pairs that collapse together."
         )
 
-    with st.expander("🧭 Concept map — every action maps to real quantum mechanics"):
+    with st.expander(":material/schema: Concept map — every action maps to real quantum mechanics"):
+        # Kets contain '|', the markdown table delimiter, so each is escaped as \| .
         st.markdown(
             "| In-game action | Quantum concept | In-engine rule |\n"
             "|---|---|---|\n"
-            "| Charge with **X** / **H** | State preparation, superposition | X → |1⟩ (100%); H → |+⟩ (P(1)=50%) |\n"
-            "| **Attack** | Born rule | P(hit) = charge = P(|1⟩); a target in |1⟩ takes a CRITICAL |\n"
+            "| Charge with **X** / **H** | State preparation, superposition | X → \\|1⟩ (100%); H → \\|+⟩ (≈50%) |\n"
+            "| **Attack** | Born rule | P(hit) = charge = P(\\|1⟩); a target in \\|1⟩ takes a CRITICAL |\n"
             "| **Idle** a turn | T₁/T₂ relaxation (Lindblad) | charge ∝ e^(−t/T₁), coherence ∝ e^(−t/T₂) |\n"
-            "| **GUARD** | X-basis measurement, relative phase | crit risk = (1−x)/2; |+⟩ safe, |−⟩ exposed |\n"
+            "| **GUARD** | X-basis measurement, relative phase | crit risk = (1−x)/2; \\|+⟩ safe, \\|−⟩ exposed |\n"
             "| **Z / S / T** | relative-phase rotation | invisible to charge — matters only via the GUARD's X-basis |\n"
-            "| **CNOT** | entanglement (Bell pair) | |Φ⁺⟩; measuring one collapses both; no faster-than-light signalling |\n"
-            "| **MEASURE** | projective collapse | |ψ⟩ → |0⟩ or |1⟩, then stabilizes the unit |\n"
+            "| **CNOT** | entanglement (Bell pair) | \\|Φ⁺⟩; measuring one collapses both; no signalling |\n"
+            "| **MEASURE** | projective collapse | \\|ψ⟩ → \\|0⟩ or \\|1⟩, then stabilizes the unit |\n"
         )
 
-    with st.expander("🔬 The physics is real — and unit-tested"):
+    with st.expander(":material/science: The physics is real — and unit-tested"):
         st.markdown(
             "QuBlitz is not hand-waving flavor. Each unit evolves under the **exact Lindblad "
             "master-equation solution** for amplitude damping (T₁) plus dephasing (T₂), the same "
@@ -85,7 +132,7 @@ def _render_academic_framing():
             "- a local gate on one half **never** changes the partner's marginal (no-communication)."
         )
 
-    with st.expander("🎓 Research context"):
+    with st.expander(":material/school: Research context"):
         st.markdown(
             "Built by **David Mukuruva** within the **Fitzpatrick Lab, Dartmouth College** "
             "(PI: Prof. Mattias Fitzpatrick), as the game companion to the lab's qubit simulator. "
@@ -99,18 +146,14 @@ def _render_quickstart():
     st.markdown("#### How to play in 30 seconds")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("**1 · Charge** ⚡")
+        st.markdown("**1 · Charge**")
         st.caption("Apply **X** (→ |1⟩, 100%) or **H** (→ |+⟩, 50%). A unit's charge *is* its P(|1⟩).")
     with c2:
-        st.markdown("**2 · Close in** 🏃")
+        st.markdown("**2 · Close in**")
         st.caption("Move adjacent to a foe — but hurry: idle charge relaxes as e^(−t/T₁) every turn.")
     with c3:
-        st.markdown("**3 · Collapse** 💥")
+        st.markdown("**3 · Collapse**")
         st.caption("**Attack** fires with probability = charge; a target caught in |1⟩ takes a CRITICAL.")
-    st.caption(
-        "Controls: click the board, then **A**=attack · **H/X/Y/Z**=charge · **M**=measure · "
-        "**C**=CNOT · **G**=guard · **Space**=end turn. Press **?** for the Sage."
-    )
 
 
 def _render_related_links():
@@ -122,50 +165,36 @@ def _render_related_links():
     try:
         with col1:
             st.page_link("pages/Quantum_Measurement_Tutorial.py",
-                         label="🆕 New to qubits? Start with the Measurement Tutorial", icon="🎮")
+                         label="New to qubits? Start with the Measurement Tutorial",
+                         icon=":material/school:")
         with col2:
             st.page_link("pages/Qubit_Simulator.py",
-                         label="⚛ See the real physics in the Qubit Simulator", icon="🔬")
+                         label="See the real physics in the Qubit Simulator",
+                         icon=":material/science:")
     except Exception:
         with col1:
-            st.markdown("🆕 **New to qubits?** Open the *Quantum Measurement Tutorial* page.")
+            st.markdown("**New to qubits?** Open the *Quantum Measurement Tutorial* page.")
         with col2:
-            st.markdown("⚛ **Want the real physics?** Open the *Qubit Simulator* page.")
+            st.markdown("**Want the real physics?** Open the *Qubit Simulator* page.")
 
 
 def main():
     st.set_page_config(page_title="QuBlitz Arena", layout="wide")
+    _render_sidebar()
 
-    st.sidebar.image(load_logo("images/qublitz.png"))
-    st.sidebar.image(load_logo("images/logo.png"))
-    st.sidebar.markdown(
-        '<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" '
-        'target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>',
-        unsafe_allow_html=True,
+    st.title("QuBlitz Arena")
+    st.caption(
+        "Learn quantum mechanics by playing it — every unit is a qubit, every move is a gate.  "
+        "Click the board, then **A** attack · **H/X/Y/Z** charge · **M** measure · **C** entangle · "
+        "**G** guard · **E** explain · **?** Sage."
     )
 
-    st.title("⚔️ QuBlitz Arena")
-    st.markdown("*Learn quantum mechanics by playing it — every unit is a qubit, every move is a gate.*")
-
-    _render_academic_framing()
-    _render_quickstart()
+    # Game first, so it sits within the screen; the academic depth follows below.
+    _render_embed()
 
     st.divider()
-    proxy = _sage_proxy_url()
-    inject = f"<script>window.QB_SAGE_PROXY={json.dumps(proxy)};</script>" if proxy else ""
-    # Fixed iframe height covers the title bar + 800px board + side panels + event log;
-    # the game itself is responsive (CSS grid) and scrolls within this frame on small screens.
-    st.components.v1.html(inject + _load_game_html(), height=1180, scrolling=True)
-
-    if proxy:
-        st.success("✦ Live Claude Sage connected via a server-side proxy — the API key stays on the proxy, never in this page.", icon="✅")
-    else:
-        st.info(
-            "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key. "
-            "To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets.",
-            icon="🔮",
-        )
-
+    _render_academic_framing()
+    _render_quickstart()
     st.divider()
     _render_related_links()
 
