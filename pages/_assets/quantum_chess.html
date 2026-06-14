@@ -720,6 +720,7 @@ body::before {
         <div class="srow">HP <span class="val" id="sel-theta">—</span></div>
         <div class="srow">Charge <span class="val" id="sel-phi">—</span></div>
         <div class="srow">Coherence <span class="val" id="sel-coh">—</span></div>
+        <div class="srow" title="Bloch x sets a GUARD's crit risk = (1−x)/2">X-basis <span class="val" id="sel-xbasis">—</span></div>
         <canvas id="bloch-canvas" width="100" height="100"
           style="display:block;margin:7px auto;border:1px solid rgba(90,80,204,0.40);border-radius:50%;background:radial-gradient(circle at 40% 35%, #1c2440, #0a0f22);box-shadow:0 4px 16px rgba(0,0,0,0.50);"></canvas>
         <div id="sel-hint"></div>
@@ -2672,6 +2673,9 @@ function drawBloch() {
 
   bx.fillStyle='rgba(207,214,238,0.85)'; bx.font="7px 'Press Start 2P',monospace";
   bx.fillText('|0⟩',cx+3,cy-R+10); bx.fillText('|1⟩',cx+3,cy+R-2);
+  // X-basis poles (|+⟩ / |−⟩) — the basis a GUARD is measured in, where phase decides the crit.
+  bx.fillStyle='rgba(123,213,196,0.9)';
+  bx.fillText('|+⟩',cx+R*0.5,cy+10); bx.fillText('|−⟩',cx-R*0.5-18,cy+10);
   // |1⟩ pole glows red — that's full charge (strongest strike).
   bx.fillStyle='#ff5a72'; bx.shadowColor='#ff5a72'; bx.shadowBlur=7;
   bx.beginPath(); bx.arc(cx,cy+R,3,0,2*π); bx.fill(); bx.shadowBlur=0;
@@ -2732,6 +2736,7 @@ function updateSelInfo(unit) {
     document.getElementById('sel-theta').textContent='—';
     document.getElementById('sel-phi').textContent='—';
     document.getElementById('sel-coh').textContent='—';
+    document.getElementById('sel-xbasis').textContent='—';
     document.getElementById('sel-hint').textContent='';
     drawBloch(); return;
   }
@@ -2741,6 +2746,9 @@ function updateSelInfo(unit) {
   document.getElementById('sel-theta').textContent=`${unit.hp}/${unit.maxHp}`;
   document.getElementById('sel-phi').textContent=`${(ch*100)|0}%`;
   document.getElementById('sel-coh').textContent=unit.coherence.toFixed(0)+'%';
+  const _b=unit.bloch || QPhysics.blochFromPure(unit.state);
+  const _gc=Math.round(QPhysics.guardCritProb(unit.state)*100);
+  document.getElementById('sel-xbasis').textContent=`x=${_b.x.toFixed(2)} · GUARD ${_gc}%`;
   document.getElementById('sel-hint').textContent=
     `Charge = strike chance (P(|1⟩)). Use X to charge toward |1⟩, H for a 50% gamble, MEASURE to discharge & stabilize. After attacking, the unit drops to |0⟩.`;
   // QB-8 — announce the selection and, on the very first selection, show a
