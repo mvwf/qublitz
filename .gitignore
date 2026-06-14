@@ -10,6 +10,7 @@ __pycache__/*
 __pycache__/
 ### Streamlit secrets
 *.toml
+!ruff.toml
 .streamlit/secrets.toml
 
 # Never commit roster / secrets / local server

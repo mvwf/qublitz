@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # qutip 4.7.6 has no cp312 wheel, so it builds from source and needs a
+      # BLAS/LAPACK development library available on the runner.
+      - name: Install BLAS for the qutip source build
+        run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Smoke tests (pytest)
+        run: pytest -q
+
+      # The embedded game (C02-T4) vendors quantum_chess.html + its physics
+      # regression test under pages/_assets/. Run it when present.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Game physics regression test
+        if: ${{ hashFiles('pages/_assets/tests/qphysics.test.js') != '' }}
+        run: node pages/_assets/tests/qphysics.test.js pages/_assets/quantum_chess.html

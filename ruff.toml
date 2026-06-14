@@ -1,0 +1,14 @@
+# Correctness-focused lint config. We gate on pyflakes (real bugs: undefined
+# names, unused/duplicate imports, wildcard imports) plus syntax errors, and
+# deliberately do NOT enforce whole-repo style (E501 line length, etc.) so the
+# gate stays meaningful without churning the lab's existing pages.
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E9", "F"]
+
+# Streamlit pages are executed top-to-bottom by the framework with __name__ set
+# to "__main__"; module-level "unused" names are sometimes the rendered output.
+[lint.per-file-ignores]
+"tests/*" = ["F401"]
