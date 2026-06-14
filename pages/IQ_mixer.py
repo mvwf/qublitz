@@ -15,14 +15,8 @@ Release Date:
 # Date: 07/27/2025
 
 
-from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import use
-from matplotlib.colors import Normalize
-from qutip import *
-from scipy.fft import fftshift, fft, ifft
-from matplotlib.widgets import Slider
+from scipy.fft import fftshift, fft
 import plotly.graph_objects as go
 import plotly.subplots as sp
 import streamlit as st
