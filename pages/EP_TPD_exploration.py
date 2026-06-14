@@ -7,11 +7,11 @@ Release Date:
 """
 
 import streamlit as st
+from utils.branding import load_logo
 import numpy as np
 import plotly.graph_objects as go
 from utils.tpd_locations_nd import ep_location, tpd_location
 from utils.pt_peaks_MODEL import peak_location, eigenvalues
-from PIL import Image
 # map degeneracy type to color and marker
 color_marker_dict = {
     "PRIMARY_EP": ("red", "x-thin"),
@@ -83,9 +83,9 @@ def main():
     # create a title for the page
     st.title("Exceptional Point and Transmission Peak Degeneracy Locations")
 
-    qublitz_logo = Image.open("images/qublitz.png")
+    qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
-    logo = Image.open("images/logo.png") 
+    logo = load_logo("images/logo.png") 
     st.sidebar.image(logo) # display logo on the side 
     st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
     

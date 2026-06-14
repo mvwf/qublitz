@@ -1,9 +1,8 @@
 import streamlit as st
+from utils.branding import load_logo
 import numpy as np
 from PIL import Image
 import plotly.graph_objects as go
-import soundfile as sf
-import tempfile
 import json
 import os
 
@@ -44,10 +43,10 @@ def generate_audio(env, t_env, row_idx, carrier_freq, duration, sr=DEFAULT_SR):
     ramp[-ramp_len:] = np.linspace(1, 0, ramp_len)
     audio *= ramp
     audio /= (np.max(np.abs(audio)) + 1e-12)
-    # write WAV
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        sf.write(tmp.name, audio.astype(np.float32), sr)
-        return tmp.name, audio
+    # Return the waveform + sample rate; st.audio plays a numpy array directly,
+    # so we no longer write a NamedTemporaryFile(delete=False) on every rerun
+    # (that leaked an unbounded pile of .wav files on the server).
+    return audio.astype(np.float32), sr
 
 # ——— Streamlit app ——————————————————————————————————
 
@@ -56,9 +55,9 @@ st.set_page_config(layout="wide")
 def main():
     min_x = 0.0
     st.title("Image Sonification, Turn Images into Sound!")
-    qublitz_logo = Image.open("images/qublitz.png")
+    qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
-    logo = Image.open("images/logo.png") 
+    logo = load_logo("images/logo.png") 
     st.sidebar.image(logo) # display logo on the side 
     st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
     # --- Load image list for premade option (not shown in sidebar) ---
@@ -227,11 +226,11 @@ def main():
 
     # 6) Audio Playback for that row
     st.markdown(f"### Audio for Row {sel_row}")
-    wav_path, _ = generate_audio(env, t_lowres, sel_row,
-                                 mod_freq,
-                                 duration=max_x - min_x,
-                                 sr=DEFAULT_SR)
-    st.audio(wav_path, format="audio/wav")
+    audio_wave, audio_sr = generate_audio(env, t_lowres, sel_row,
+                                           mod_freq,
+                                           duration=max_x - min_x,
+                                           sr=DEFAULT_SR)
+    st.audio(audio_wave, sample_rate=audio_sr)
 
 if __name__ == "__main__":
     main()

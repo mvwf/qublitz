@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
 import streamlit as st
-from PIL import Image
+from utils.branding import load_logo
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -755,11 +755,11 @@ def page():
     user_data = st.session_state["user_data"]
 
     try:
-        st.sidebar.image(Image.open("images/qublitz.png"))
+        st.sidebar.image(load_logo("images/qublitz.png"))
     except Exception:
         pass
     try:
-        st.sidebar.image(Image.open("images/logo.png"))
+        st.sidebar.image(load_logo("images/logo.png"))
     except Exception:
         pass
 

@@ -1,9 +1,9 @@
 import streamlit as st
-from PIL import Image
+from utils.branding import load_logo
 def main():
     # Display main image and logo side by side
-    main_img = Image.open("images/qublitz.png")
-    logo_img = Image.open("images/logo.png")
+    main_img = load_logo("images/qublitz.png")
+    logo_img = load_logo("images/logo.png")
     col1, col2 = st.columns([1,1])
     with col1:
         st.image(main_img, width=345)
