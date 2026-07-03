@@ -23,7 +23,16 @@ _GAME_HTML = Path(__file__).parent / "_assets" / "quantum_chess.html"
 # Frame height tuned so the board + side panels + event log sit on one screen
 # without inner scroll on a typical laptop; the game caps the board by viewport
 # height (CSS min(...,100vh-…)) so it scales to fit this frame.
-_EMBED_HEIGHT = 860
+#
+# Was 860 — an LLM-council review found the Sage panel/event log clipped at the
+# bottom at that height. The game side responded by trimming vertical chrome
+# and adding a Sage-panel collapse toggle, which should reduce (not eliminate)
+# the pressure on this fixed frame. Bumped to 920 as a modest, judgment-call
+# increase: a slightly taller default with a collapse option to fall back on
+# beats a cramped fixed height with no give. This wasn't visually verified
+# against the trimmed layout (no Streamlit run in this pass) — re-check on a
+# typical laptop viewport and adjust if it still clips or now over-scrolls.
+_EMBED_HEIGHT = 920
 
 
 @st.cache_data(show_spinner=False)
