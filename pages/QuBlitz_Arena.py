@@ -1,9 +1,13 @@
 """QuBlitz Arena — David Mukuruva's contribution to the Fitzpatrick Lab platform.
 
 Embeds the QuBlitz battle game (a self-contained quantum_chess.html) and frames
-it as an academic learning tool: every game action maps to a real quantum
+it as an academic learning companion: every game action maps to a real quantum
 concept, and the in-engine physics is the same unit-tested open-quantum-system
-model the simulator pages use.
+model the simulator pages use. The game ties decoherence and relative phase to
+real tactical stakes and motivates engagement with the concepts; the formal
+teaching happens on the Physics Lab screen and the concept map/cross-links
+below. Whether play transfers to durable understanding is a design goal this
+project intends to measure later, not a claim this page asserts as proven.
 
 Sage AI: the embedded game's Sage runs on a smart offline heuristic out of the
 box (no key, nothing to configure). If a server-side proxy URL is provided via
@@ -103,7 +107,9 @@ def _render_academic_framing():
         "**QuBlitz** is a quantum tactics game where every unit on the board is a **qubit**, "
         "every action is a **quantum gate**, and combat resolves via the **Born rule**. It is "
         "the interactive companion to this simulator: the same T₁/T₂ physics you explore on the "
-        "other pages drive the game's decoherence — so playing builds intuition for the math."
+        "other pages drive the game's decoherence — so decoherence and relative phase carry real "
+        "tactical stakes here, not just flavor text. Building intuition for the math is the goal; "
+        "the Physics Lab and concept map below do the formal teaching."
     )
 
     with st.expander(":material/track_changes: Learning objectives — what you'll reason about", expanded=True):
@@ -193,7 +199,7 @@ def main():
 
     st.title("QuBlitz Arena")
     st.caption(
-        "Learn quantum mechanics by playing it — every unit is a qubit, every move is a gate.  "
+        "Quantum mechanics with real stakes — every unit is a qubit, every move is a gate.  "
         "Click the board, then **A** attack · **H/X/Y/Z** charge · **M** measure · **C** entangle · "
         "**G** guard · **E** explain · **?** Sage."
     )
