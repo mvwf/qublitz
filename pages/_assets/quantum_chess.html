@@ -129,8 +129,8 @@ html, body {
 /* ── Title bar ─────────────────────────────────────── */
 #title-bar {
   width: 100%; max-width: 1350px;
-  margin-top: 8px;
-  padding: 10px 18px;
+  margin-top: 4px; /* UX-5 — trim vertical chrome so more fits in a fixed-height iframe */
+  padding: 7px 18px;
   display: flex; align-items: center; justify-content: space-between;
   border-radius: 4px;
   border: 2px solid rgba(90,80,204,0.55);
@@ -180,6 +180,17 @@ canvas { display: block; cursor: pointer; }
   #canvas-wrap { flex-shrink: 1; min-width: 0; width: 100%; max-width: 800px; }
   .panel { max-width: 800px; width: 100%; order: 2; }
   #canvas-wrap { order: 1; }
+}
+/* UX-3 — tablet breakpoint. Nothing previously fired between 1100px and
+   560px, so the sage-bar footer row (hotkey legend + EXPLAIN + TEACH + MORE)
+   had no rule forcing it to wrap or shrink at ~768px and its flex children
+   overlapped into garbled text (e.g. "EXPLAIN JEACH"). Wrap the row onto
+   multiple lines and drop the long hotkey legend (least essential — the
+   actions are still reachable via click) so the action controls stay legible. */
+@media (max-width: 900px) {
+  #sage-bar-footer { flex-wrap: wrap; row-gap: 4px; }
+  #sage-bar-hotkey { display: none; }
+  #sage-bar-controls { flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap; row-gap: 4px; }
 }
 @media (max-width: 560px) {
   #ui { padding: 6px 6px 0; gap: 8px; }
@@ -244,6 +255,22 @@ body.biome-snow {
   font-family: var(--body); font-weight: 600;
 }
 .srow .val { font-family: var(--pixel); font-size:11px; color: var(--green); }
+.srow span, .srow > * { min-width: 0; }
+.srow-label {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex-shrink: 0; margin-right: 8px;
+}
+/* UX-1 — X-basis row: label + two value fields (x= and GUARD%) that must
+   never visually collide. Wraps to a second line at narrow widths instead
+   of overlapping; each field keeps its own nowrap run so digits never split. */
+.srow-xbasis {
+  flex-wrap: wrap; row-gap: 2px; column-gap: 8px;
+}
+.srow-xbasis .val {
+  display: flex; flex-wrap: wrap; justify-content: flex-end;
+  gap: 2px 10px; flex: 1 1 auto; min-width: 0;
+}
+.srow-xbasis .val span { white-space: nowrap; }
 
 /* Coherence bar */
 .cbar {
@@ -295,7 +322,7 @@ body.biome-snow {
 
 #sel-eq {
   font-size:11px; color: var(--teal);
-  word-break: break-all; min-height: 16px; margin-bottom: 4px;
+  overflow-wrap: break-word; word-break: normal; min-height: 16px; margin-bottom: 4px;
   font-family: var(--pixel); line-height: 1.7;
 }
 #sel-hint {
@@ -365,6 +392,28 @@ body.biome-snow {
 }
 #sage-bar-more.show { display: block; }
 
+/* UX-5 — Sage panel collapse toggle. Shrinks the message area (name + text)
+   while keeping the footer controls (EXPLAIN / TEACH / MORE / this toggle)
+   visible and reachable, so a fixed-height embed (e.g. an 860px iframe) can
+   reclaim vertical space without losing access to the Sage controls. */
+#sage-bar-collapse {
+  font-family: var(--pixel); font-size:11px;
+  color: rgba(139,125,255,0.85); cursor: pointer;
+}
+#sage-bar.collapsed {
+  min-height: 34px; max-height: 34px;
+}
+#sage-bar.collapsed #sage-portrait { height: 34px; }
+#sage-bar.collapsed #sage-bar-name,
+#sage-bar.collapsed #sage-bar-text { display: none; }
+#sage-bar.collapsed #sage-bar-body { padding: 6px 14px; justify-content: center; }
+/* Canvas-wrap reserves 90px of padding for the 82px sage bar + 5px timer bar
+   (see #canvas-wrap comment); when collapsed the bar only needs ~34px. */
+#canvas-wrap.sage-collapsed { padding-bottom: 42px; }
+#canvas-wrap.sage-collapsed #sage-tips { bottom: 34px; }
+#canvas-wrap.sage-collapsed #timer-bar { bottom: 37px; }
+#canvas-wrap.sage-collapsed #timer-chip { bottom: 38px; }
+
 /* Expanded tips panel — sits directly above the sage bar in the padding zone.
    max-height keeps it from ever reaching the canvas area. */
 #sage-tips {
@@ -404,13 +453,13 @@ body.biome-snow {
 /* ── Log ───────────────────────────────────────────── */
 #log {
   width: 100%; max-width: 1350px;
-  margin-top: 6px;
+  margin-top: 4px; /* UX-5 — trim vertical chrome so more fits in a fixed-height iframe */
   background: rgba(4,6,20,0.95);
   border: 1px solid rgba(90,80,204,0.40);
   border-radius: 4px;
-  padding: 7px 14px;
+  padding: 5px 14px;
   font-size: 11px; color: var(--ink-2);
-  height: 62px; overflow-y: auto;
+  height: 54px; overflow-y: auto;
   font-family: var(--body); font-weight: 500; line-height: 1.75;
 }
 #log span { display: block; animation: logIn .35s var(--ease); }
@@ -698,6 +747,7 @@ body::before {
             <span id="sage-bar-controls" style="display:flex;gap:10px;align-items:center">
               <span id="sage-bar-explain" onclick="event.stopPropagation(); explainSelected();" title="Explain the selected qubit's state (E)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">✦ EXPLAIN</span>
               <span id="sage-bar-coach" onclick="event.stopPropagation(); toggleCoach();" title="Toggle teaching depth (verbose ↔ terse)" style="cursor:pointer;font-family:var(--pixel);font-size:11px;color:rgba(139,125,255,0.85)">◆ TEACH</span>
+              <span id="sage-bar-collapse" onclick="event.stopPropagation(); toggleSagePanel();" title="Collapse/expand the Sage panel to reclaim vertical space">▾ HIDE</span>
               <span id="sage-bar-more">▼ MORE</span>
             </span>
           </div>
@@ -723,7 +773,10 @@ body::before {
         <div class="srow">HP <span class="val" id="sel-theta">—</span></div>
         <div class="srow">Charge <span class="val" id="sel-phi">—</span></div>
         <div class="srow">Coherence <span class="val" id="sel-coh">—</span></div>
-        <div class="srow" title="Bloch x sets a GUARD's crit risk = (1−x)/2">X-basis <span class="val" id="sel-xbasis">—</span></div>
+        <div class="srow srow-xbasis" title="Bloch x sets a GUARD's crit risk = (1−x)/2">
+          <span class="srow-label">X-basis</span>
+          <span class="val" id="sel-xbasis">—</span>
+        </div>
         <canvas id="bloch-canvas" width="100" height="100"
           style="display:block;margin:7px auto;border:1px solid rgba(90,80,204,0.40);border-radius:50%;background:radial-gradient(circle at 40% 35%, #1c2440, #0a0f22);box-shadow:0 4px 16px rgba(0,0,0,0.50);"></canvas>
         <div id="sel-hint"></div>
@@ -994,7 +1047,7 @@ const GATES = {
 
 const GATE_INFO = {
   H: {label:'Hadamard',short:'|0⟩↔|+⟩ superposition',ctrl:'π rotation around (X+Z)/√2. Creates maximum superposition — equal |0⟩/|1⟩ amplitude. Drives qubit to Bloch equator.'},
-  X: {label:'Pauli-X',short:'|0⟩↔|1⟩ bit-flip NOT',ctrl:'π rotation around X-axis. Full population inversion. The quantum NOT gate — foundational to error correction.'},
+  X: {label:'Pauli-X',short:'|0⟩↔|1⟩ bit-flip NOT',ctrl:'π rotation around X-axis. Full population inversion. The quantum NOT gate — foundational to error correction. In-game this is "full charge," but |1⟩ is the excited state — in a real lab it\'s fragile, which is exactly why it decays.'},
   Y: {label:'Pauli-Y',short:'bit-flip + phase flip',ctrl:'π rotation around Y-axis. Applies both bit-flip and phase-flip: α↦−iβ, β↦iα.'},
   Z: {label:'Pauli-Z',short:'phase flip |+⟩↔|−⟩',ctrl:'π rotation around Z-axis. Flips the sign of the |1⟩ amplitude (φ→φ+π), which swaps |+⟩↔|−⟩. Phase is invisible to charge and a Z-basis strike, but flips a safe X-basis GUARD into an exposed one.'},
   S: {label:'S Phase',short:'+π/2 relative phase',ctrl:'90° Z-axis rotation. Multiplies |1⟩ by i (φ→φ+π/2). Chain two S gates to get Z. Sets up the relative phase that decides a GUARD\'s X-basis crit odds.'},
@@ -1002,7 +1055,7 @@ const GATE_INFO = {
   Rx:{label:'Rx(π/4)',short:'π/4 X-axis tilt',ctrl:'π/4 X-axis rotation, modelling Larmor spin precession. Tilts the qubit toward the equator, adjusting both charge and the X-basis phase.'},
   Ry:{label:'Ry(π/4)',short:'π/4 Y-axis tilt',ctrl:'π/4 Y-axis rotation, modelling Rabi oscillation — the cleanest coherent qubit drive. Nudges charge without adding a complex phase.'},
   CNOT:   {label:'CNOT',short:'entangle two qubits',ctrl:'Conditional X: flips target if control |1⟩. Forms a correlated Bell pair — a strike on one bleeds onto the other (no faster-than-light control; only the correlation is shared).'},
-  MEASURE:{label:'Measure',short:'collapse to eigenstate',ctrl:'Projective Z-basis measurement. Collapses |ψ⟩ to |0⟩ or |1⟩ and stabilizes the unit (coherence +12).'},
+  MEASURE:{label:'Measure',short:'collapse to eigenstate',ctrl:'Projective Z-basis measurement. Collapses |ψ⟩ to |0⟩ or |1⟩ and stabilizes the unit (coherence +12). "Discharging" to |0⟩ is a game-mechanic reward, not a physical one — |0⟩ is simply the low-energy ground state a real qubit relaxes to anyway; |1⟩ is high-energy and short-lived by nature.'},
 };
 
 // ═══════════════════════════════════════════════════════
@@ -1231,6 +1284,163 @@ if (typeof window !== 'undefined') {
   window.runDecoherenceDiagnostic = o => QPhysics.diagnose(o);
   try { QPhysics.selfTest(); } catch (e) { console.error('QPhysics self-test threw', e); }
 }
+
+// ═══════════════════════════════════════════════════════
+// BotAI — pure, DOM-free bot decision + combat-resolution engine (GD-1).
+// Mirrors doBotMove()'s move/action-selection logic and attack()'s combat
+// math exactly, but takes plain data in and returns a plain decision/result
+// out — no document.*, no canvas, no GAME global, no animation/sfx calls.
+// The in-browser doBotMove()/attack() call into this module so there is a
+// single source of truth for "what does the bot do" and "who gets crit".
+// This is what tests/bot_guard_harness.test.js extracts and drives headlessly.
+// ═══════════════════════════════════════════════════════
+const BotAI = (() => {
+  // A unit only needs: {row,col,owner,role,hp,state,bloch,guarding,
+  // inSuperpos,entangledWith,coherence,maxCoh,id} — the same shape createUnit()
+  // produces. charge()/QPhysics work off .state/.bloch, so this module doesn't
+  // need its own copy of qubit math.
+  const charge = u => QPhysics.charge(u.bloch || QPhysics.blochFromPure(u.state));
+
+  // ── Move-target scoring (mirrors the mine.forEach(u=>{...}) block in
+  // doBotMove): for one unit, score each reachable tile by proximity to the
+  // nearest foe and, if a foe would be adjacent from there, by charge/kill
+  // potential. Pure function of (unit, spots, foes, rndSpread, rng). ──
+  function scoreMoveSpots(unit, spots, foes, rndSpread, rng = Math.random) {
+    const pAtt = charge(unit);
+    let best = null, bestScore = -Infinity;
+    spots.forEach(s => {
+      let nearest = 99, adj = null;
+      foes.forEach(f => {
+        const d = Math.abs(f.row - s.row) + Math.abs(f.col - s.col);
+        if (d < nearest) nearest = d;
+        if (d === 1 && (!adj || f.hp < adj.hp)) adj = f;
+      });
+      let score = -nearest;
+      if (adj) {
+        score += 6 + pAtt * 9;
+        if (adj.hp <= 1 && pAtt > 0.5) score += 6;
+        if (pAtt < 0.2) score -= 3;
+      }
+      score += rng() * rndSpread;
+      if (score > bestScore) { bestScore = score; best = { spot: s, score }; }
+    });
+    return best;
+  }
+
+  // ── Target selection among adjacent enemies (GD-1). doBotMove() used to
+  // sort purely by lowest HP. A non-guarding target's crit chance on a hit
+  // is exactly its own charge (Z-basis measurement), so an X-only opponent —
+  // who is at high charge every time it's adjacent, about to take its own
+  // shot — is a free crit if struck first. On medium/hard, prefer a
+  // low-HP-and-highly-charged-and-not-guarding kill/crit over a merely
+  // low-HP one; this is what actually punishes "press X, walk over, attack"
+  // instead of relying solely on the 1-in-army guardian's GUARD. Falls back
+  // to plain lowest-HP on easy (diff 0) or when no target is more exposed. ──
+  function pickTarget(adjFoes, diff) {
+    if (!adjFoes.length) return undefined;
+    const byHp = adjFoes.slice().sort((a, b) => a.hp - b.hp);
+    if (diff < 1) return byHp[0];
+    const exposed = adjFoes.filter(f => !f.guarding && charge(f) > 0.6);
+    if (exposed.length) return exposed.slice().sort((a, b) => a.hp - b.hp)[0];
+    return byHp[0];
+  }
+
+  // ── Action-selection decision tree — mirrors doBotMove()'s numbered
+  // 1)-6) cascade exactly, PLUS the GD-1 policy addition: on medium/hard,
+  // a guardian facing a threat that is already phase-favorable (or for whom
+  // GUARD is simply the best available move) prefers GUARD over passively
+  // charging or taking a weak/no action. Returns a decision descriptor;
+  // never mutates its inputs. `advanced` = chance to reach for a smart play,
+  // same [0, 0.45, 0.8][diff] table as doBotMove(). `rng` is injectable for
+  // deterministic tests.
+  function chooseAction({ unit, target, threat, diff, rng = Math.random }) {
+    const myChg = charge(unit);
+    const advanced = [0, 0.45, 0.8][diff];
+    const gcrit = QPhysics.guardCritProb(unit.bloch || QPhysics.blochFromPure(unit.state));
+
+    // GD-1 — guard-preference gate: on medium/hard, a guardian under threat
+    // that is NOT about to land a strong hit itself, and whose current phase
+    // already makes GUARD cheap (crit risk <= 50%, i.e. at worst a coin flip
+    // — X-only opponents sit at exactly 50%, phase-managed ones sit near 0%),
+    // takes GUARD in preference to passively charging (step 5) or a no-op.
+    // This is inserted between the existing steps 4 and 5 so a genuine kill
+    // shot (step 1), an already-scheduled guard (step 2), a defensive MEASURE
+    // (step 3) and CNOT setup (step 4) all still take priority — GD-1 only
+    // fires when the bot would otherwise have fallen through to "charge up".
+    // `nearFoe` is broader than `threat`: any adjacent enemy can reach full
+    // charge and strike next turn (an X-only opponent goes from 0% to 100%
+    // in one gate), so a guardian standing next to ANY enemy — not only one
+    // already above 50% charge — has a live reason to brace rather than
+    // wait for the threat to fully materialize first.
+    const nearFoe = !!target;
+    const guardIsCheap = gcrit <= 0.5;
+    const preferGuard = unit.role === 'guardian' && (threat || nearFoe) && diff >= 1 &&
+      !unit.guarding && !(target && myChg > 0.6) && guardIsCheap;
+
+    if (target && myChg > 0.6) {
+      return { action: 'ATTACK', target, reason: 'strong-shot' };
+    } else if (unit.role === 'guardian' && (threat || nearFoe) && diff >= 1 && rng() < advanced) {
+      return { action: 'GUARD', reason: 'scheduled-guard' };
+    } else if (unit.role === 'guardian' && diff >= 1 && threat && myChg > 0.4 && myChg <= 0.6 && rng() < advanced) {
+      // GD-1 — bugfix + scope-narrow of the original "defensive MEASURE" step:
+      // (a) it was gated on `!target`, but `threat` already implies an
+      // adjacent enemy, which means `target` is (almost) always truthy too —
+      // so the branch was structurally near-dead. Gating on `myChg <= 0.6`
+      // instead (i.e. "not already taking the strong-shot at step 1") makes
+      // it reachable. (b) scoped to guardians: a warrior has no GUARD to
+      // fall back on, so discharging away its own charge purely because it's
+      // threatened is a pure tempo loss for it (the same trap a "camp in
+      // |+⟩ forever" policy falls into) — only a guardian, who can follow up
+      // with a cheap GUARD, comes out ahead by playing defensively here.
+      return { action: 'MEASURE', reason: 'defensive-measure' };
+    } else if (diff >= 2 && !unit.entangledWith && target && myChg < 0.6 && !threat && rng() < 0.4) {
+      return { action: 'CNOT', target, reason: 'setup-splash' };
+    } else if (preferGuard) {
+      return { action: 'GUARD', reason: 'guard-preferred (GD-1: cheap crit risk, no better play)' };
+    } else if (myChg < 0.6) {
+      // GD-1 — phase play (H) only pays for itself on a guardian, since
+      // GUARD is the only thing that turns phase into a defensive benefit;
+      // for a warrior, a coin-flip charge is a strictly worse choice than
+      // going straight for a guaranteed X charge, so restrict the "fast
+      // gamble" branch to guardians and always charge-up with X otherwise.
+      // For guardians specifically this is no longer a random "maybe" — a
+      // guardian with no adjacent target has nothing to lose by prepping
+      // |+⟩ now (deterministic on medium/hard), since it's directly setting
+      // up the GUARD counter-play rather than gambling on a faster strike.
+      const gate = unit.role === 'guardian'
+        ? ((diff >= 1 && !target) ? 'H' : 'X')
+        : 'X';
+      return { action: 'GATE', gate, reason: gate === 'H' ? 'fast-gamble' : 'charge-up' };
+    } else if (target) {
+      return { action: 'ATTACK', target, reason: 'take-the-shot' };
+    }
+    return { action: 'GATE', gate: 'X', reason: 'build-charge' };
+  }
+
+  // ── Combat resolution — pure port of attack()'s math (Born-rule fire roll,
+  // GUARD X-basis measurement, crit, damage, entangled-partner splash). Takes
+  // plain state, mutates nothing; returns a result descriptor the caller
+  // applies to its own unit objects (browser: real GAME.pieces; harness: a
+  // headless sim state). `rng()` drives the fire roll; `measureRng()` drives
+  // the target's collapse (both injectable for deterministic tests). ──
+  function resolveAttack(attacker, target, rng = Math.random) {
+    const pAtt = charge(attacker);
+    const fired = rng() < pAtt;
+    if (!fired) return { fired: false, pAtt };
+
+    // GUARD reads the target in the X-basis (apply H, then a Z-basis
+    // projective measurement) — exactly QB-5's defensive-interference rule.
+    const src = target.guarding ? GATES.H(target.state) : target.state;
+    const p1 = C.norm2(src.beta);
+    const collapsed = rng() < p1 ? 1 : 0;
+    const crit = collapsed === 1;
+    const dmg = crit ? 2 : 1;
+    return { fired: true, pAtt, crit, dmg, collapsed };
+  }
+
+  return { charge, scoreMoveSpots, pickTarget, chooseAction, resolveAttack };
+})();
+if (typeof window !== 'undefined') { window.BotAI = BotAI; }
 
 // ═══════════════════════════════════════════════════════
 // PIXEL ART SPRITES  (7 cols × 9 rows bitmaps)
@@ -1801,8 +2011,13 @@ function damageUnit(u, dmg) {
 // If it fired, the target is measured too — an excited target is caught exposed
 // and takes a critical hit. Entangled targets bleed 1 onto their Bell partner.
 function attack(attacker, target) {
-  const pAtt  = charge(attacker);
-  const fired = Math.random() < pAtt;
+  // Fire roll + GUARD-aware target collapse are delegated to
+  // BotAI.resolveAttack (GD-1) — the same pure combat-resolution function
+  // tests/bot_guard_harness.test.js drives headlessly, so the in-browser
+  // game and the harness can never disagree about who gets crit.
+  const res  = BotAI.resolveAttack(attacker, target);
+  const pAtt = res.pAtt;
+  const fired = res.fired;
   // Face the target and swing/cast (the attack animation plays regardless).
   const fdx = target.col - attacker.col;
   if (fdx) attacker.facing = fdx<0 ? -1 : 1;
@@ -1824,9 +2039,10 @@ function attack(attacker, target) {
   // QB-5 — a GUARDing unit is measured in the X-basis (apply H, then a Z-basis
   // measurement): whether it is caught excited (a CRITICAL) depends on the
   // relative phase φ it set up. |+⟩ is crit-immune, |−⟩ is fully exposed.
-  // Non-guarding units take the ordinary Z-basis measurement.
-  const tm = target.guarding ? measureState(GATES.H(target.state))
-                             : measureState(target.state);
+  // Non-guarding units take the ordinary Z-basis measurement. The collapse
+  // outcome itself already happened inside BotAI.resolveAttack (res.collapsed)
+  // — apply the resulting eigenstate to the real target object here.
+  const tm = { collapsed: res.collapsed, state: _EIGEN(res.collapsed) };
   target.state = tm.state; refreshSuperpos(target);
   const crit = tm.collapsed===1;
   // QB-6 — measuring an entangled target collapses its partner with a
@@ -1849,7 +2065,7 @@ function attack(attacker, target) {
     GAME.shake = Math.max(GAME.shake, 8);
   }
   logEv(`STRIKE: ${coord(attacker.row,attacker.col)} → ${coord(target.row,target.col)} for ${dmg}`+
-    `${crit?' (CRITICAL — target caught in |1⟩!)':''}.`,'capture');
+    `${crit?' (CRITICAL — target caught in |1⟩, the fragile excited state!)':''}.`,'capture');
   spawn(attacker.px, attacker.py, FACTION[attacker.owner].col, 8);
   const partner = target.entangledWith && GAME.pieces.find(p=>p.id===target.entangledWith);
   // Flash the entanglement beam when a hit propagates.
@@ -1948,25 +2164,13 @@ async function doBotMove() {
   const rnd = [6, 3, 1][GAME.difficulty];
   let best=null, bestScore=-Infinity;
 
+  // Move-target scoring is delegated to BotAI.scoreMoveSpots (GD-1) — a pure
+  // function of (unit, spots, foes, rndSpread) so it can run headlessly in
+  // tests/bot_guard_harness.test.js with no duplicated logic.
   mine.forEach(u=>{
     const spots = [{row:u.row,col:u.col}, ...reachableTiles(u)];
-    const pAtt  = charge(u);
-    spots.forEach(s=>{
-      let nearest=99, adj=null;
-      foes.forEach(f=>{
-        const d=Math.abs(f.row-s.row)+Math.abs(f.col-s.col);
-        if (d<nearest) nearest=d;
-        if (d===1 && (!adj || f.hp<adj.hp)) adj=f;
-      });
-      let score = -nearest;
-      if (adj) {
-        score += 6 + pAtt*9;
-        if (adj.hp<=1 && pAtt>0.5) score += 6;
-        if (pAtt < 0.2) score -= 3;
-      }
-      score += Math.random()*rnd;
-      if (score>bestScore) { bestScore=score; best={u, s}; }
-    });
+    const picked = BotAI.scoreMoveSpots(u, spots, foes, rnd);
+    if (picked && picked.score>bestScore) { bestScore=picked.score; best={u, s:picked.spot}; }
   });
 
   if (!best) { endTurn(); return; }
@@ -1985,56 +2189,52 @@ async function doBotMove() {
   updateSelInfo(u);
 
   // ── Action selection — uses the full action set, scaled by difficulty so
-  //    players see (and get punished by) MEASURE, CNOT, GUARD and phase. ──
+  //    players see (and get punished by) MEASURE, CNOT, GUARD and phase.
+  //    The decision itself is delegated to BotAI.chooseAction (GD-1) — a
+  //    pure function of (unit, target, threat, diff) — so the exact same
+  //    policy runs headlessly in tests/bot_guard_harness.test.js. ──
   const diff   = GAME.difficulty;                 // 0 easy · 1 medium · 2 hard
   const myChg  = charge(u);
   const adjFoes = adjacentEnemies(u);
-  const target = adjFoes.sort((a,b)=>a.hp-b.hp)[0];
+  // GD-1 — BotAI.pickTarget prefers a low-HP, highly-charged, non-guarding
+  // foe (a free crit) over plain lowest-HP on medium/hard, so a bot that
+  // gets the chance to strike first actually punishes X-spam.
+  const target = BotAI.pickTarget(adjFoes, diff);
   // An adjacent enemy that is itself charged can crit u next turn.
   const threat = adjFoes.some(f => charge(f) > 0.5);
-  const advanced = [0, 0.45, 0.8][diff];          // chance to reach for a smart play
 
-  // 1) Take a strong shot if we have one.
-  if (target && myChg > 0.6) {
-    GAME.botLastReason = `Bot strikes ${coord(target.row,target.col)} — charge ${(myChg*100)|0}%, Born rule: P(hit) = |β|².`;
-    attack(u, target);
+  const decision = BotAI.chooseAction({ unit: u, target, threat, diff });
 
-  // 2) Guardian under threat → brace in the X-basis. Hard bots set up |+⟩ with H
-  //    first (next turn) but a bare guard already halves the crit risk.
-  } else if (u.role==='guardian' && threat && diff>=1 && Math.random()<advanced) {
+  if (decision.action === 'ATTACK') {
+    GAME.botLastReason = decision.reason === 'strong-shot'
+      ? `Bot strikes ${coord(target.row,target.col)} — charge ${(myChg*100)|0}%, Born rule: P(hit) = |β|².`
+      : `Bot strikes ${coord(target.row,target.col)} — measuring the enemy at ${(myChg*100)|0}% charge.`;
+    attack(u, decision.target);
+
+  } else if (decision.action === 'GUARD') {
     u.guarding = true; refreshSuperpos(u);
     u.coherence = Math.min(u.maxCoh, u.coherence+8);
-    GAME.botLastReason = `Bot GUARDS ${coord(u.row,u.col)} — bracing in the X-basis (${(QPhysics.guardCritProb(u.state)*100)|0}% crit risk) against the adjacent threat.`;
+    GAME.botLastReason = decision.reason.startsWith('guard-preferred')
+      ? `Bot GUARDS ${coord(u.row,u.col)} — its phase already keeps X-basis crit risk low (${(QPhysics.guardCritProb(u.state)*100)|0}%), so bracing beats a passive charge.`
+      : `Bot GUARDS ${coord(u.row,u.col)} — bracing in the X-basis (${(QPhysics.guardCritProb(u.state)*100)|0}% crit risk) against the adjacent threat.`;
     sfxGate('Z');
 
-  // 3) MEASURE-discharge a dangerously exposed unit: in superposition, charged,
-  //    and threatened — collapse now to (maybe) drop to a safe |0⟩.
-  } else if (diff>=1 && threat && u.inSuperpos && myChg>0.4 && !target && Math.random()<advanced) {
-    GAME.botLastReason = `Bot MEASURES ${coord(u.row,u.col)} — discharging a unit about to be crit (collapse to an eigenstate).`;
+  } else if (decision.action === 'MEASURE') {
+    GAME.botLastReason = `Bot MEASURES ${coord(u.row,u.col)} — discharging out of the fragile |1⟩ excited state before it gets crit (collapse to an eigenstate).`;
     applyMeasure(u);
 
-  // 4) CNOT-link an adjacent enemy into a Bell pair so the bot's next strike
-  //    splashes — hard bots only, and only when not about to be self-splashed.
-  } else if (diff>=2 && !u.entangledWith && target && myChg < 0.6 && !threat && Math.random()<0.4) {
-    GAME.botLastReason = `Bot uses CNOT on ${coord(target.row,target.col)} — forming a Bell pair so a later strike bleeds onto its partner.`;
-    applyCNOT(u, target);
+  } else if (decision.action === 'CNOT') {
+    GAME.botLastReason = `Bot uses CNOT on ${coord(decision.target.row,decision.target.col)} — forming a Bell pair so a later strike bleeds onto its partner.`;
+    applyCNOT(u, decision.target);
 
-  // 5) Can't finish a kill — charge up. X for a sure |1⟩, or gamble on H
-  //    (superposition) when the bot wants to act fast.
-  } else if (myChg < 0.6) {
-    const gate = (diff>=1 && !target && Math.random()<advanced) ? 'H' : 'X';
-    GAME.botLastReason = gate==='H'
-      ? `Bot applies H to ${coord(u.row,u.col)} — entering |+⟩ superposition (~50% charge). A fast gamble.`
-      : `Bot charges ${coord(u.row,u.col)} with X — flipping to |1⟩ for a guaranteed strike next turn.`;
-    applyGate(u, gate);
+  } else if (decision.action === 'GATE' && decision.gate === 'H') {
+    GAME.botLastReason = `Bot applies H to ${coord(u.row,u.col)} — entering |+⟩ superposition (~50% charge). A fast gamble.`;
+    applyGate(u, 'H');
 
-  // 6) Charged and adjacent — take the shot.
-  } else if (target) {
-    GAME.botLastReason = `Bot strikes ${coord(target.row,target.col)} — measuring the enemy at ${(myChg*100)|0}% charge.`;
-    attack(u, target);
-
-  } else {
-    GAME.botLastReason = `Bot charges ${coord(u.row,u.col)} with X — no enemy in reach yet, building toward |1⟩.`;
+  } else { // decision.action === 'GATE', gate 'X' (charge-up or build-charge)
+    GAME.botLastReason = target
+      ? `Bot charges ${coord(u.row,u.col)} with X — flipping to |1⟩ for a guaranteed strike next turn (it won't stay there long — |1⟩ decays fast).`
+      : `Bot charges ${coord(u.row,u.col)} with X — no enemy in reach yet, building toward |1⟩.`;
     applyGate(u, 'X');
   }
 
@@ -2586,18 +2786,33 @@ function roundRect(x,y,w,h,r){
 function drawTurnBanner() {
   const isW=GAME.turn==='white';
   const col=isW?'47,224,208':'255,77,157';
-  const g=ctx.createLinearGradient(0,0,BOARD,0);
+  const text=`${FACTION[GAME.turn].name} TO MOVE  |  KNIGHTS ${aliveCount('white')} – ${aliveCount('black')} MAGES  |  TURN ${GAME.turnCount+1}/${GAME.turnCap}`;
+  ctx.font="bold 6px 'Press Start 2P',monospace";
+
+  // UX-4 — the banner sits in the row-0 strip and previously only had a
+  // low-alpha (0.18) gradient wash behind it, so it visibly overprinted
+  // row-0 unit sprites instead of occluding them. Measure the text and draw
+  // an opaque backing plate sized to it (not the full board width) before
+  // the text, so it reads cleanly without blanking out the whole top row.
+  const textW = ctx.measureText(text).width;
+  const padX = 14, bandH = 18;
+  const bandW = Math.min(BOARD, textW + padX*2);
+  const bandX = (BOARD - bandW) / 2;
+  ctx.fillStyle = 'rgba(4,6,20,0.86)';
+  ctx.fillRect(bandX, 0, bandW, bandH);
+
+  // Subtle faction-colored wash + hairline, kept inside the opaque plate.
+  const g=ctx.createLinearGradient(bandX,0,bandX+bandW,0);
   g.addColorStop(0,'transparent');
-  g.addColorStop(0.5,`rgba(${col},0.18)`);
+  g.addColorStop(0.5,`rgba(${col},0.28)`);
   g.addColorStop(1,'transparent');
-  ctx.fillStyle=g; ctx.fillRect(0,0,BOARD,18);
+  ctx.fillStyle=g; ctx.fillRect(bandX,0,bandW,bandH);
+  ctx.strokeStyle=`rgba(${col},0.35)`; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(bandX,bandH-0.5); ctx.lineTo(bandX+bandW,bandH-0.5); ctx.stroke();
+
   ctx.textAlign='center';
   ctx.fillStyle=`rgb(${col})`;
-  ctx.font="bold 6px 'Press Start 2P',monospace";
-    ctx.fillText(
-    `${FACTION[GAME.turn].name} TO MOVE  |  KNIGHTS ${aliveCount('white')} – ${aliveCount('black')} MAGES  |  TURN ${GAME.turnCount+1}/${GAME.turnCap}`,
-    BOARD/2,12
-  );
+  ctx.fillText(text, BOARD/2, 12);
   ctx.textAlign='left';
 }
 
@@ -2740,20 +2955,27 @@ function updateSelInfo(unit) {
     document.getElementById('sel-phi').textContent='—';
     document.getElementById('sel-coh').textContent='—';
     document.getElementById('sel-xbasis').textContent='—';
+    document.getElementById('sel-eq').removeAttribute('title');
     document.getElementById('sel-hint').textContent='';
     drawBloch(); return;
   }
   const ch=charge(unit);
   document.getElementById('sel-name').textContent=`${coord(unit.row,unit.col)} · ${FACTION[unit.owner].name}`;
-  document.getElementById('sel-eq').textContent=fmtState(unit.state);
+  const _eqText=fmtState(unit.state);
+  const _eqEl=document.getElementById('sel-eq');
+  _eqEl.textContent=_eqText;
+  _eqEl.title=_eqText; // UX-1 — full ψ readable via tooltip if it ever needs to truncate at narrow widths
   document.getElementById('sel-theta').textContent=`${unit.hp}/${unit.maxHp}`;
   document.getElementById('sel-phi').textContent=`${(ch*100)|0}%`;
   document.getElementById('sel-coh').textContent=unit.coherence.toFixed(0)+'%';
   const _b=unit.bloch || QPhysics.blochFromPure(unit.state);
   const _gc=Math.round(QPhysics.guardCritProb(unit.state)*100);
-  document.getElementById('sel-xbasis').textContent=`x=${_b.x.toFixed(2)} · GUARD ${_gc}%`;
+  // UX-1 — x= and GUARD% are separate nowrap spans (not one crammed string) so
+  // they can wrap onto their own line at narrow widths instead of colliding.
+  document.getElementById('sel-xbasis').innerHTML=
+    `<span>x=${_b.x.toFixed(2)}</span><span>GUARD ${_gc}%</span>`;
   document.getElementById('sel-hint').textContent=
-    `Charge = strike chance (P(|1⟩)). Use X to charge toward |1⟩, H for a 50% gamble, MEASURE to discharge & stabilize. After attacking, the unit drops to |0⟩.`;
+    `Charge = strike chance (P(|1⟩)). Use X to charge toward |1⟩, H for a 50% gamble, MEASURE to discharge & stabilize. Note: |1⟩ is the excited state — being IN it is what makes a unit fragile (it decays and can crit), not a state you'd want to sit in. After attacking, the unit drops to |0⟩, the ground state.`;
   // QB-8 — announce the selection and, on the very first selection, show a
   // one-time "click again for actions" onboarding hint.
   const st = document.getElementById('a11y-status');
@@ -3549,7 +3771,7 @@ function analyzePosition() {
 
     if (adj.length && c >= 0.6) {
       const tgt = adj.slice().sort((a,b)=>a.hp-b.hp)[0];
-      tips.push({p:24,type:'danger',short:`${here} → ATTACK ${coord(tgt.row,tgt.col)} (${cp}% charge).`,text:`${here} sits at ${cp}% charge beside ${coord(tgt.row,tgt.col)} — ATTACK now: by the Born rule your hit probability equals the charge, and a foe caught in |1⟩ takes a CRITICAL (2 dmg).`});
+      tips.push({p:24,type:'danger',short:`${here} → ATTACK ${coord(tgt.row,tgt.col)} (${cp}% charge).`,text:`${here} sits at ${cp}% charge beside ${coord(tgt.row,tgt.col)} — ATTACK now: by the Born rule your hit probability equals the charge, and a foe caught in |1⟩ — the fragile excited state — takes a CRITICAL (2 dmg).`});
     } else if (adj.length && c < 0.35) {
       tips.push({p:23,type:'warn',short:`${here} → charge first (X/H), only ${cp}%.`,text:`${here} is in range but only ${cp}% charged — apply X (→|1⟩, 100%) or H (→|+⟩, 50%) first; attacking now fires with just ${cp}% probability and then discharges to |0⟩.`});
     } else if (!adj.length && c >= 0.6) {
@@ -3578,11 +3800,11 @@ function analyzePosition() {
   }
   // Adjacent but uncharged → charge first.
   const weakAdj = mine.find(u=>charge(u)<0.3 && adjacentEnemies(u).length);
-  if (weakAdj) tips.push({p:8,text:`${coord(weakAdj.row,weakAdj.col)} is in range but uncharged — apply X to load it toward |1⟩ before you strike.`,type:'warn'});
+  if (weakAdj) tips.push({p:8,text:`${coord(weakAdj.row,weakAdj.col)} is in range but uncharged — apply X to load it toward |1⟩ (the excited state) before you strike; it won't stay charged long once there.`,type:'warn'});
 
   // My charged unit sitting next to a live enemy → exposed to a critical.
   const exposed = mine.find(u=>charge(u)>0.6 && adjacentEnemies(u).some(e=>charge(e)>0.4));
-  if (exposed) tips.push({p:7,text:`${coord(exposed.row,exposed.col)} is charged beside a live enemy — a unit caught in |1⟩ takes a CRITICAL. Strike, retreat, or MEASURE to discharge.`,type:'warn'});
+  if (exposed) tips.push({p:7,text:`${coord(exposed.row,exposed.col)} is charged beside a live enemy — a unit caught in |1⟩ (the fragile excited state) takes a CRITICAL. Strike, retreat, or MEASURE to discharge.`,type:'warn'});
 
   // Finish a low-HP enemy.
   const low = foes.filter(f=>f.hp<=1).sort((a,b)=>a.hp-b.hp)[0];
@@ -3593,21 +3815,40 @@ function analyzePosition() {
   foes.forEach(a=>foes.forEach(b=>{ if(a!==b && !combo && adjacent(a,b)) combo=[a,b]; }));
   if (combo) tips.push({p:4,text:`Enemies at ${coord(combo[0].row,combo[0].col)} & ${coord(combo[1].row,combo[1].col)} stand adjacent — entangle them so one strike bleeds onto both.`,type:'quantum'});
 
-  tips.push({p:2,text:`Charge bleeds away each turn (T1 relaxation) — load up and strike soon. Keep idle units in |0⟩ so they're not caught exposed.`,type:'info'});
+  tips.push({p:2,text:`Charge bleeds away each turn (T1 relaxation) — that's |1⟩ being the fragile excited state, not a bug. Load up and strike soon. Keep idle units in |0⟩ (the stable ground state) so they're not caught exposed.`,type:'info'});
 
   return tips.sort((a,b)=>b.p-a.p).slice(0,3);
+}
+
+// UX-2 — speaker label for the Sage dialogue bar. Bot commentary gets its own
+// "BOT (difficulty)" speaker, distinct from the player-facing SAGE label, so
+// it never reads as the redundant/wrong "BOT: Bot ...".
+const SAGE_SPEAKER_DEFAULT = '⬟ THE SAGE · QUANTUM ADVISOR';
+const DIFF_LABEL = ['EASY','MEDIUM','HARD'];
+function setSageSpeaker(label) {
+  const nameEl = document.getElementById('sage-bar-name');
+  if (!nameEl) return;
+  // Preserve the Claude badge child element (appended inside sage-bar-name).
+  const badge = document.getElementById('claude-badge');
+  nameEl.textContent = label;
+  if (badge) nameEl.appendChild(badge);
 }
 
 // Update the Sage dialogue bar (always visible) and the optional expanded tips panel.
 function renderSage() {
   // If the bot just explained a move, show that first (fades after one call).
   if (GAME.botLastReason) {
-    startTypewriter('BOT: ' + GAME.botLastReason);
+    const diffLabel = DIFF_LABEL[GAME.difficulty] || DIFF_LABEL[1];
+    setSageSpeaker(`◆ BOT (${diffLabel})`);
+    // Reason text already reads naturally on its own (e.g. "Bot strikes E4…");
+    // the speaker label above now carries "BOT", so don't prefix it again.
+    startTypewriter(GAME.botLastReason);
     GAME.botLastReason = '';
     const bar = document.getElementById('sage-bar');
     if (bar) bar.classList.remove('urgent');
     return;
   }
+  setSageSpeaker(SAGE_SPEAKER_DEFAULT);
   const tips = analyzePosition();
   const bar  = document.getElementById('sage-bar');
   const btn  = document.querySelector('.btn-sage');
@@ -3656,6 +3897,27 @@ function toggleCoach() {
   renderSage();
 }
 
+// UX-5 — Sage panel collapse toggle. Shrinks the message area (name + text)
+// so more of a fixed-height embed (e.g. an 860px iframe) fits on screen,
+// while the footer controls (EXPLAIN / TEACH / MORE / this toggle) stay
+// visible and reachable. Persisted like the coaching-depth preference.
+let _sageCollapsed = false;
+try { _sageCollapsed = localStorage.getItem('qb_sage_collapsed') === '1'; } catch (e) {}
+function _applySageCollapsed() {
+  const bar = document.getElementById('sage-bar');
+  const wrap = document.getElementById('canvas-wrap');
+  const btn = document.getElementById('sage-bar-collapse');
+  if (bar) bar.classList.toggle('collapsed', _sageCollapsed);
+  if (wrap) wrap.classList.toggle('sage-collapsed', _sageCollapsed);
+  if (btn) btn.textContent = _sageCollapsed ? '▸ SHOW' : '▾ HIDE';
+}
+function toggleSagePanel() {
+  _sageCollapsed = !_sageCollapsed;
+  try { localStorage.setItem('qb_sage_collapsed', _sageCollapsed ? '1' : '0'); } catch (e) {}
+  _applySageCollapsed();
+  beep(_sageCollapsed ? 392 : 523, 'triangle', 0.06, 0.1);
+}
+
 // "Explain this" — read the selected qubit's quantum state in plain language.
 function explainSelected() {
   _advisorOpen = false;
@@ -3669,14 +3931,14 @@ function explainSelected() {
   const gc = Math.round(QPhysics.guardCritProb(u.state) * 100);
   const here = coord(u.row, u.col);
   let basis;
-  if (ch >= 95)      basis = '|1⟩ (excited — fully charged)';
-  else if (ch <= 5)  basis = '|0⟩ (ground — discharged)';
+  if (ch >= 95)      basis = '|1⟩ (excited — fully charged, but fragile: it decays and can be caught in a critical)';
+  else if (ch <= 5)  basis = '|0⟩ (ground — discharged and stable)';
   else if (b.x >  0.85) basis = '|+⟩ (equal superposition along +X)';
   else if (b.x < -0.85) basis = '|−⟩ (equal superposition along −X)';
   else               basis = 'a superposition of |0⟩ and |1⟩';
   const advice = ch < 50
-    ? 'Apply X to drive it toward |1⟩, or H for a |+⟩ guard.'
-    : 'Well charged — close in and strike before T₁ relaxation bleeds it away.';
+    ? 'Apply X to drive it toward |1⟩ for a guaranteed strike (remember: |1⟩ is high-energy and short-lived), or H for a |+⟩ guard.'
+    : 'Well charged — close in and strike before T₁ relaxation bleeds it away; the excited state doesn\'t last.';
   startTypewriter(`${here} is in ${basis}: charge P(|1⟩)=${ch}% (your hit chance), Bloch x=${b.x.toFixed(2)} so a GUARD here would sit at ${gc}% crit. ${advice}`);
 }
 
@@ -3762,6 +4024,7 @@ function finishBoot() {
   loop();
   _updateClaudeBadge();
   _updateCoachLabel();
+  _applySageCollapsed();
   setTimeout(openMenu, 200);
 }
 
@@ -3847,8 +4110,9 @@ function openPhysicsLab() {
 <pre style="color:var(--gold);font-size:11px;line-height:1.6;text-align:center;background:#0a0f22;border:1px solid var(--border);border-radius:4px;padding:10px;margin:6px 0">dρ/dt = −(i/ℏ)[H,ρ] + Σ γₖ( Lₖ ρ Lₖ† − ½{Lₖ†Lₖ, ρ} )</pre>
 <p style="color:var(--dim);font-size:11px;line-height:1.7">Each turn we apply its <b>exact</b> solution toward |0⟩: charge relaxes as <b style="color:var(--red)">e<sup>−t/T₁</sup></b>, transverse coherence as <b style="color:var(--teal)">e<sup>−t/T₂</sup></b> (with T₂ ≤ 2T₁). At the current rate (${GAME.decoRate}/turn): <b style="color:var(--gold)">T₁ = ${T1.toFixed(1)}</b>, <b style="color:var(--gold)">T₂ = ${T2.toFixed(1)}</b> turns.</p>
 
-<h3>FALSIFIABILITY TEST</h3>
-<p style="color:var(--dim);font-size:11px;line-height:1.6">A unit prepared in |1⟩, left to decohere. Physical decay is exponential, <i>not</i> linear — the test fits both and reports R².</p>
+<h3>ENGINE SELF-TEST: DECAY IS EXPONENTIAL, NOT LINEAR</h3>
+<p style="color:var(--dim);font-size:11px;line-height:1.6">A unit prepared in |1⟩, left to decohere. The engine's own generated data is fit against an exponential model and a linear model to confirm the <i>implementation</i> matches the exponential decay the Lindblad equation prescribes.</p>
+<p style="color:var(--wood);font-size:10px;line-height:1.6;margin:2px 0 6px">This validates the implementation against the model; the model itself is standard open-quantum-systems physics (the Lindblad master equation) — it is not an empirical measurement against a real physical qubit.</p>
 <canvas id="diag-canvas" width="360" height="190" style="width:100%;max-width:360px;display:block;margin:8px auto;background:#0a0f22;border:1px solid var(--border);border-radius:4px"></canvas>
 <p id="diag-readout" style="text-align:center;color:var(--dim);font-size:11px;margin:4px 0"></p>
 
@@ -3907,7 +4171,7 @@ function openMenu() {
   <p style="color:var(--ink-2);font-size:11px;line-height:1.7;margin:0">
     <b style="color:var(--teal)">1. CHARGE</b> — tap a unit, fire a gate (X = 100% charge, H = 50%).<br>
     <b style="color:var(--teal)">2. STRIKE</b> — move beside a foe and ATTACK; hit chance = your charge (Born rule).<br>
-    <b style="color:var(--teal)">3. BEAT THE CLOCK</b> — charge decays exponentially each turn. Strike before it bleeds away. Last army standing wins.
+    <b style="color:var(--teal)">3. BEAT THE CLOCK</b> — charge decays exponentially each turn, because |1⟩ is the fragile, high-energy excited state — that's why it decays, not a game penalty. Strike before it bleeds away. Last army standing wins.
   </p>
 </div>
 
@@ -3987,19 +4251,19 @@ function openTutorial() {
 <p>Click one of <b>your</b> units. Green dots show where it can <b>move</b> (range ${MOVE_RANGE}, blocked by other units). Click a tile to move, or click the unit to stay put — then an <b>action menu</b> opens: Attack, a charge pulse, Entangle, Measure, or End turn. A red ring marks enemies in strike range; click one to attack directly. One unit acts per turn. Keys: [A] attack, [H/X/Y/Z/S/T] charge, [R]/[Shift+R] Ry/Rx, [M] measure, [C] entangle, [Space] end, [ESC] cancel.</p>
 
 <h3>▸ COMBAT — CHARGE &amp; MEASURE</h3>
-<p>A unit's <b>charge</b> is its |1⟩ amplitude, P(|1⟩). To attack you must be <b>adjacent</b> to an enemy. The strike is a <b>measurement</b> of your unit (Born rule):</p>
+<p>A unit's <b>charge</b> is its |1⟩ amplitude, P(|1⟩). To attack you must be <b>adjacent</b> to an enemy. The strike is a <b>measurement</b> of your unit (Born rule). Note on the physics: |1⟩ is the <i>excited</i> state — in a real lab it's fragile, which is exactly why it decays (that's the in-game "charge bleeds away" clock); |0⟩ is simply the ground state a real qubit relaxes to. "Charge" is a game-mechanic reward for being excited, not a claim that the excited state is physically special or safe.</p>
 <table>
   <tr><th>Your charge</th><th>Result of attacking</th></tr>
   <tr><td>|1⟩ (100%)</td><td>Always fires — a guaranteed hit. But you discharge to |0⟩ and are left exposed.</td></tr>
   <tr><td>|+⟩ (≈50%)</td><td>A coin-flip gamble — fire or misfire.</td></tr>
   <tr><td>|0⟩ (0%)</td><td>Cannot strike — charge up first.</td></tr>
 </table>
-<p>When a strike fires, the <b>target is measured too</b>: if it's caught in |1⟩ it takes a <b>CRITICAL (2 dmg)</b>, otherwise 1. Either way your attacker collapses to |0⟩. <b>Defense:</b> keep idle units near |0⟩ so they're not caught charged.</p>
+<p>When a strike fires, the <b>target is measured too</b>: if it's caught in |1⟩ — the fragile excited state — it takes a <b>CRITICAL (2 dmg)</b>, otherwise 1. Either way your attacker collapses to |0⟩. <b>Defense:</b> keep idle units near |0⟩ so they're not caught charged and exposed — sitting in |1⟩ is inherently risky, not a state to camp in.</p>
 
 <h3>▸ CHARGING (control pulses)</h3>
 <table>
   <tr><th>Pulse</th><th>Effect</th></tr>
-  <tr><td>X</td><td>|0⟩→|1⟩ — full charge, guaranteed next strike.</td></tr>
+  <tr><td>X</td><td>|0⟩→|1⟩ — full charge, guaranteed next strike. |1⟩ is the excited state: high-energy and short-lived, which is why it decays fast.</td></tr>
   <tr><td>H</td><td>|0⟩→|+⟩ — ~50% charge, a flexible gamble.</td></tr>
   <tr><td>S / T / Z</td><td>Relative-phase rotations (+π/2 · +π/4 · +π). Don't change charge or a normal strike — but a phase-loaded GUARD interferes in the X-basis: reach |+⟩ to be crit-immune, |−⟩ to be exposed.</td></tr>
   <tr><td>Rx / Ry</td><td>±45° rotations — partial charge in one step.</td></tr>
@@ -4014,7 +4278,7 @@ function openTutorial() {
 <p><b>Entangle (CNOT)</b> links two <b>adjacent</b> units (friend or foe) into a Bell link — a hit on one bleeds <b>1 damage onto the other</b>. Entangle two enemies for splash value. <b>Measure</b> collapses your unit to an eigenstate and restores coherence (+12) — discharge a dangerously-exposed unit, or stabilize one.</p>
 
 <h3>🎨 READING THE BOARD</h3>
-<p>Units glow in their faction color — <b style="color:#2fe0d0">cyan</b> vs <b style="color:#ff4d9d">magenta</b>; the glow turns <b style="color:#ff5a72">hot red</b> as a unit charges toward |1⟩. <b>Green pips</b> above = HP; the bottom bar = charge. The state dot reads green |0⟩ (safe) · cyan superposition · red |1⟩ (charged). The Sage NPC beside the board calls out the best play each turn.</p>
+<p>Units glow in their faction color — <b style="color:#2fe0d0">cyan</b> vs <b style="color:#ff4d9d">magenta</b>; the glow turns <b style="color:#ff5a72">hot red</b> as a unit charges toward |1⟩ — physically, the fragile excited state, not a "power level." <b>Green pips</b> above = HP; the bottom bar = charge. The state dot reads green |0⟩ (safe, ground state) · cyan superposition · red |1⟩ (charged, but short-lived). The Sage NPC beside the board calls out the best play each turn.</p>
 `;
   document.getElementById('modal-overlay').classList.add('show');
 }
