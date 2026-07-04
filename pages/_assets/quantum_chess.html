@@ -181,17 +181,20 @@ canvas { display: block; cursor: pointer; }
   .panel { max-width: 800px; width: 100%; order: 2; }
   #canvas-wrap { order: 1; }
 }
-/* UX-3 — tablet breakpoint. Nothing previously fired between 1100px and
-   560px, so the sage-bar footer row (hotkey legend + EXPLAIN + TEACH + MORE)
-   had no rule forcing it to wrap or shrink at ~768px and its flex children
-   overlapped into garbled text (e.g. "EXPLAIN JEACH"). Wrap the row onto
-   multiple lines and drop the long hotkey legend (least essential — the
-   actions are still reachable via click) so the action controls stay legible. */
-@media (max-width: 900px) {
-  #sage-bar-footer { flex-wrap: wrap; row-gap: 4px; }
-  #sage-bar-hotkey { display: none; }
-  #sage-bar-controls { flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap; row-gap: 4px; }
-}
+/* UX-3 — sage-bar footer row (hotkey legend + EXPLAIN + TEACH + MORE) could
+   overlap into garbled text (e.g. "EXPLAIN JEACH"). A viewport max-width media
+   query is the wrong tool here: #game-canvas is sized by
+   `width: min(800px, calc(100vh - 250px))` (see #game-canvas above), so the
+   sage-bar's actual width is driven by viewport HEIGHT, not width — on any
+   normal-height laptop screen the canvas (and this footer) is already well
+   under 900px wide even at a 1440px-wide viewport, so a width-gated rule never
+   fires when it needs to. Made unconditional instead: flex-wrap only engages
+   when content doesn't fit, so this is a no-op at any width wide enough for a
+   single line, and safely wraps otherwise, regardless of what's constraining
+   the width. */
+#sage-bar-footer { flex-wrap: wrap; row-gap: 4px; }
+#sage-bar-hotkey { display: none; }
+#sage-bar-controls { flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap; row-gap: 4px; }
 @media (max-width: 560px) {
   #ui { padding: 6px 6px 0; gap: 8px; }
   #canvas-wrap { padding-bottom: 72px; }
