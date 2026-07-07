@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
 import streamlit as st
-from PIL import Image
+from utils.branding import load_logo
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -755,11 +755,11 @@ def page():
     user_data = st.session_state["user_data"]
 
     try:
-        st.sidebar.image(Image.open("images/qublitz.png"))
+        st.sidebar.image(load_logo("images/qublitz.png"))
     except Exception:
         pass
     try:
-        st.sidebar.image(Image.open("images/logo.png"))
+        st.sidebar.image(load_logo("images/logo.png"))
     except Exception:
         pass
 
@@ -910,16 +910,11 @@ def page():
         st.markdown("### Time-domain results")
         st.caption("Use this tab mainly to extract T₁ from the post-pulse decay. The Rabi-rate fit is now taken from the peak-frequency time trace in the Frequency Domain tab.")
 
-        if st.session_state.get("td_out") is None:
-            try:
-                st.session_state["td_out"] = run_time_domain(
-                    omega_q, omega_rabi, T1_ns, float(omega_d),
-                    float(t_final), sx_sched, sy_sched, int(shots),
-                )
-            except Exception:
-                st.session_state["td_out"] = None
-
-        if st.button("Re-run simulation with current settings", key="td_run"):
+        # Gate the (expensive) mesolve behind an explicit button instead of
+        # auto-solving on every fresh page load / refresh (C02-T12).
+        _td_has_result = st.session_state.get("td_out") is not None
+        _td_run_label = "Re-run simulation with current settings" if _td_has_result else "Run simulation"
+        if st.button(_td_run_label, key="td_run"):
             try:
                 st.session_state["td_out"] = run_time_domain(
                     omega_q, omega_rabi, T1_ns, float(omega_d),
@@ -930,6 +925,9 @@ def page():
                 st.exception(e)
 
         out_td = st.session_state.get("td_out")
+
+        if out_td is None:
+            st.info("Set your parameters above and click **Run simulation** to solve the time-domain dynamics.")
 
         if out_td is not None:
             fit_summary = _analyze_time_domain_fits(out_td["tlist"], out_td["p1_meas"], sx_sched, sy_sched)

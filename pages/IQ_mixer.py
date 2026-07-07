@@ -15,24 +15,18 @@ Release Date:
 # Date: 07/27/2025
 
 
-from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import use
-from matplotlib.colors import Normalize
-from qutip import *
-from scipy.fft import fftshift, fft, ifft
-from matplotlib.widgets import Slider
+from scipy.fft import fftshift, fft
 import plotly.graph_objects as go
 import plotly.subplots as sp
 import streamlit as st
-from PIL import Image
+from utils.branding import load_logo
 
 def main():
     st.title("IQ Mixing Demo")
-    qublitz_logo = Image.open("images/qublitz.png")
+    qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
-    logo = Image.open("images/logo.png") 
+    logo = load_logo("images/logo.png") 
     st.sidebar.image(logo) # display logo on the side 
     
     st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)

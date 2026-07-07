@@ -1,4 +1,5 @@
 import numpy as np
+import streamlit as st
 from qutip import basis, sigmaz, sigmax, sigmay, mesolve, sigmam, Options
 
 
@@ -44,13 +45,22 @@ def run_frequency_sweep(start_freq, stop_freq, num_points, t_final, n_steps,
     }
 
 
-def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d,
-                           user_vector_I, user_vector_Q, num_shots, T1, T2):
-    tlist = np.linspace(0.0, t_final, n_steps)
+@st.cache_data(show_spinner=False)
+def _solve_mesolve(omega_q, omega_rabi, t_final, n_steps, omega_d,
+                   user_vector_I, user_vector_Q, T1, T2):
+    """Deterministic, expensive part: the Lindblad ODE solve.
 
+    Cached so that an identical re-run (the common case on every Streamlit
+    rerun where only an unrelated widget moved) returns instantly instead of
+    re-integrating ``mesolve``. Returns ``(expect, probabilities)`` where
+    ``expect`` is [<sigma_x>, <sigma_y>, <sigma_z>] over time and
+    ``probabilities`` is P(|1>) per time step. The stochastic shot sampling is
+    kept OUT of the cache (see ``run_quantum_simulation``) so it stays random.
+    """
     H0 = 2.0 * np.pi * omega_q * sigmaz() / 2.0
     H1 = 2.0 * np.pi * omega_rabi * sigmax()
     H2 = 2.0 * np.pi * omega_rabi * sigmay()
+    tlist = np.linspace(0.0, t_final, n_steps)
 
     def _coeff(env):
         return lambda t, args: float(env[min(int(t / t_final * n_steps), n_steps - 1)]) * np.cos(args['w'] * t)
@@ -85,15 +95,27 @@ def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d,
         args={'w': 2.0 * np.pi * omega_d}, options=options
     )
 
-    probabilities = []
-    sampled_probabilities = []
+    probabilities = [
+        float(np.clip(_state_excited_population(state), 0.0, 1.0))
+        for state in result.states
+    ]
+    return result.expect, probabilities
 
-    for state in result.states:
-        prob_1 = np.clip(_state_excited_population(state), 0.0, 1.0)
-        prob_0 = 1.0 - prob_1
-        probabilities.append(prob_1)
 
-        samples = np.random.choice([0, 1], size=num_shots, p=[prob_0, prob_1])
-        sampled_probabilities.append(float(np.mean(samples == 1)))
+def run_quantum_simulation(omega_q, omega_rabi, t_final, n_steps, omega_d,
+                           user_vector_I, user_vector_Q, num_shots, T1, T2):
+    expect, probabilities = _solve_mesolve(
+        omega_q, omega_rabi, t_final, n_steps, omega_d,
+        user_vector_I, user_vector_Q, T1, T2
+    )
 
-    return result.expect, probabilities, sampled_probabilities
+    # Vectorized shot sampling: one np.random.binomial over all time steps at
+    # once (was a per-time-step np.random.choice loop drawing num_shots samples
+    # each). Statistically identical: the sampled |1> fraction per step.
+    probs = np.asarray(probabilities, dtype=float)
+    if num_shots and num_shots > 0:
+        sampled_probabilities = (np.random.binomial(num_shots, probs) / num_shots).tolist()
+    else:
+        sampled_probabilities = probs.tolist()
+
+    return expect, probabilities, sampled_probabilities

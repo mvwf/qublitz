@@ -4,10 +4,13 @@ generate_qubits.py
 user_parameters.json
 venv_st/
 venv_qublitz/
+.venv/
 utils/__pycache__/*
 __pycache__/*
+__pycache__/
 ### Streamlit secrets
 *.toml
+!ruff.toml
 .streamlit/secrets.toml
 
 # Never commit roster / secrets / local server
@@ -18,3 +21,4 @@ net_IDs.csv
 .secrets.toml
 to_recycle/
 .DS_Store
+.pytest_cache/

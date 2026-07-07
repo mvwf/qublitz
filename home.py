@@ -1,9 +1,9 @@
 import streamlit as st
-from PIL import Image
+from utils.branding import load_logo
 def main():
     # Display main image and logo side by side
-    main_img = Image.open("images/qublitz.png")
-    logo_img = Image.open("images/logo.png")
+    main_img = load_logo("images/qublitz.png")
+    logo_img = load_logo("images/logo.png")
     col1, col2 = st.columns([1,1])
     with col1:
         st.image(main_img, width=345)
@@ -13,6 +13,7 @@ def main():
     st.write("Welcome to Qublitz!")
 
     st.page_link("home.py", label="Home", icon="🏠")
+    st.page_link("pages/QuBlitz_Arena.py", label="QuBlitz Arena", icon="⚔️")
     st.page_link("pages/Sonify.py", label="Sonify Images", icon="🎵")
     st.page_link("pages/Qubit_Simulator.py", label="Qubit Simulator", icon="⚛")
     st.page_link("pages/Quantum_Measurement_Tutorial.py", label="Quantum Measurement Tutorial", icon="🎮")
