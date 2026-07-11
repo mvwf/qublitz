@@ -144,7 +144,6 @@ def main():
 
     # create sidebar with the Parameters
     st.markdown('<p style="font-size:18px;">System Parameters:</p>', unsafe_allow_html=True)
-    kappa_tilde_c = st.slider(r"$\tilde{\kappa}_c$", 0.0, 2.5, 0.68, step=0.01)
 
     phi_labels = {
         "0": 0,
@@ -166,7 +165,17 @@ def main():
         "2π": 0
     }
 
-    phi_label = st.select_slider("Φ - Coupling Phase", options=list(phi_labels.keys()), value="0")
+    # UP-3(d) — run-button gate on top of the existing meshgrid cache.
+    # _compute_ep_tpd_fields() was already @st.cache_data, but that only
+    # skips the recompute once the SAME (phi, kappa_tilde_c) pair repeats —
+    # every slider drag before that still triggered a full script rerun on
+    # every intermediate value. st.form defers both widgets' reruns until
+    # "Update model" is submitted, so dragging either slider costs nothing
+    # until you're actually done adjusting it.
+    with st.form("ep_tpd_params"):
+        kappa_tilde_c = st.slider(r"$\tilde{\kappa}_c$", 0.0, 2.5, 0.68, step=0.01)
+        phi_label = st.select_slider("Φ - Coupling Phase", options=list(phi_labels.keys()), value="0")
+        st.form_submit_button("Update model")
     phi = phi_labels[phi_label]
     # phi = st.sidebar.slider("Φ - Coupling Phase (rad)", 0.0, (2 * np.pi), 0.0, step=0.01) # Option for if we want a continuous slider
 

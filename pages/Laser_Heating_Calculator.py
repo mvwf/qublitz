@@ -83,6 +83,7 @@ def ns_max_rep_rate_mhz(optical_pulse_ns):
     return 0.0
 
 
+@st.cache_data(show_spinner=False)
 def temperature_trace(t_values, bath_temp_K, deltaT_ss_K, tau_th_s):
     out = []
     for t in t_values:

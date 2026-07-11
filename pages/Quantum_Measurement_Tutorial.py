@@ -11,56 +11,17 @@ import streamlit as st
 from utils.branding import load_logo
 import plotly.graph_objects as go
 
-def main():
-    title('Quantum Measurement Tutorial')
-    qublitz_logo = load_logo("images/qublitz.png")
-    st.sidebar.image(qublitz_logo)
-    logo = load_logo("images/logo.png") 
-    st.sidebar.image(logo) # display logo on the side 
-    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
-    
-    markdown('''A qubit (short for quantum bit) is the basic unit of quantum information similar to a classical bit in traditional computing but with quantum mechanical properties. Unlike a classical bit, which can be in one of two states, 0 or 1, a qubit can exist in a superposition of both states simultaneously. This means it can be in a state represented as:''')
 
-    latex(r'''\ket{\psi} = \alpha\ket{0} + \beta\ket{1} = \alpha\begin{bmatrix}
-    1\\
-    0
-    \end{bmatrix}
-
-    +\beta\begin{bmatrix}
-    0\\
-    1
-    \end{bmatrix} = \begin{bmatrix}
-    \alpha\\
-    \beta
-    \end{bmatrix}''')
-    latex(r'''\text{Where } |0\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |1\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors
-
-    markdown('''where $\\alpha$ and $\\beta$ are complex numbers that describe the probability amplitudes of the qubit being in the ground or excited state. The sum of the squares of these amplitudes must equal 1:''')
-
-    latex(r'|\alpha|^2 + |\beta|^2 = 1')
-
-    markdown('''
-    There are certain tools that we can use to understand the state of a qubit. In particular, we use the concept 
-    of the expectation value of a qubit to view it's excitation, as well as it's phase. We do this with the
-    pauli operators:
-    ''')
-
-    latex(r'\sigma_x = \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}, \sigma_y = \begin{bmatrix} 0 & -i \\ i & 0 \end{bmatrix}, \sigma_z = \begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}')
-
-    markdown('''
-    The concept of an expectation value applied to these operators will tell us where the state is on the bloch sphere:
-    ''')
-
-    latex(r'\braket{\sigma_x} = \bra{\psi}\sigma_x\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \beta^*\alpha+\alpha^*\beta')
-    latex(r'\braket{\sigma_y} = \bra{\psi}\sigma_y\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 0 & -i \\ i & 0 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = i\beta^*\alpha-i\alpha^*\beta')
-    latex(r'\braket{\sigma_z} = \bra{\psi}\sigma_z\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \alpha^*\alpha-\beta^*\beta')
-
-    markdown('''
-    Using a phase $\phi = \\arctan{\\frac{\\braket{\sigma_y}}{\\braket{\sigma_x}}}$ and $\\braket{\sigma_z}$, we can visualize any qubit state on the bloch sphere:)
-    ''')
-
-
-    header('Visualizing a State on the Bloch Sphere')
+# UP-3(c) — this page used to be one big top-to-bottom script: dragging
+# EITHER of this section's 2 sliders, or either of the Resonator Drive Sweep
+# section's 4 sliders further down, reran the WHOLE page — including the
+# other section's own math and both Plotly figures, none of which changed.
+# st.fragment scopes a rerun to just the function it decorates, so moving a
+# slider here no longer touches the resonator section (measured cost of
+# that section: 0.90s per rerun, moving a slider anywhere on the page,
+# before this change — see docs/PERF_METHODOLOGY.md).
+@st.fragment
+def _bloch_sphere_section():
     exp = slider('$<\sigma_z>$', -1.0 ,1.0 , 1.0, 0.01)
     phi = slider('$\phi$ (rad)', 0.0,2*np.pi, 0.0, 0.01)
     rho = (exp-1)*np.pi/2
@@ -111,11 +72,11 @@ def main():
         ),
         margin=dict(l=0, r=0, b=0, t=0)
     )
-    
+
     fig_bloch.add_trace(go.Scatter3d(
-        x=[0, 0], 
-        y=[0, 0], 
-        z=[1.0, -1.0], 
+        x=[0, 0],
+        y=[0, 0],
+        z=[1.0, -1.0],
         mode='text',
         text=["|0⟩", "|1⟩"],
         textposition=["middle center","middle center"],
@@ -127,12 +88,139 @@ def main():
 
     #fig_bloch.update_layout(scene=dict(zaxis=dict(autorange="reversed")))
     plotly_chart(fig_bloch)
+
+
+# UP-3(c) — same story as _bloch_sphere_section() above: this section's 4
+# sliders used to rerun the whole page (including the Bloch-sphere section
+# above it) on every drag. Scoped to just this section now.
+@st.fragment
+def _resonator_drive_sweep_section():
+    col1,col2 = columns(2)
+    with col1:
+        g = slider('$g (MHz)$', 10.0 ,100.0 , 50.0, 0.1)
+        kappa = slider('$\kappa_r (MHz)$', 3.0 ,8.0 , 3.8, 0.01)
+    with col2:
+        wr = slider('$\\frac{\omega_r}{2\pi} (GHz)$', 6.1 ,8.0 ,7.0, 0.01)
+        wq = slider('$\\frac{\omega_q}{2\pi} (GHz)$', 2.5 ,6.0 , 4.0, 0.01)
+
+    g = g*10**-3
+    kappa=kappa*10**-3
+    wd = np.linspace(-0.02,0.02,1000)
+    chi = (g**2)/(wr-wq)
+    dispp = 0.5*kappa/((wd-chi)**2 + (0.5*kappa)**2)
+    dispm = 0.5*kappa/((wd+chi)**2 + (0.5*kappa)**2)
+
+    fig_disp = go.Figure(data=[
+    go.Scatter(x=wd, y=dispp, mode = 'lines', name = '|g>', marker = dict(color = 'blue')),
+    go.Scatter(x=wd, y=dispm, mode = 'lines', name = '|e>', marker = dict(color = 'red'))])
+
+    fig_disp.add_scatter(x=[0],
+                y=[dispp[int(len(dispp)/2)]],
+                marker=dict(
+                    color='black',
+                    size=10
+                ),
+               mode = 'markers',
+               name='Output at ωd=ωr')
+    fig_disp.update_xaxes(range=[-0.02, 0.02])
+    fig_disp.add_vline(x=0, line_width=3, line_dash="dash", line_color="green")
+    # add annotation
+    fig_disp.update_layout(title='Transmission Through Resonator',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='Amplitude [arb.]',
+    legend=dict(
+    orientation="h",
+    yanchor="bottom",
+    y=1.02,
+    xanchor="right",
+    x=1
+))
+
+    phig = np.arctan((5/kappa)*((wd-chi)))
+    phie = np.arctan((5/kappa)*((wd+chi)))
+    fig_phase = go.Figure(data=[
+    go.Scatter(x=wd, y=phig, mode = 'lines', name = '|g>', marker = dict(color = 'blue')),
+    go.Scatter(x=wd, y=phie, mode = 'lines', name = '|e>', marker = dict(color = 'red'))])
+
+    fig_phase.update_xaxes(range=[-0.02, 0.02])
+    fig_phase.add_vline(x=0, line_width=3, line_dash="dash", line_color="green")
+    fig_phase.add_scatter(x=[0,0],
+                y=[phig[int(len(phig)/2)],phie[int(len(phie)/2)]],
+                marker=dict(
+                    color='black',
+                    size=10
+                ),
+                mode = 'markers',
+               name='Phase at ωd=ωr')
+    # add annotation
+    fig_phase.update_layout(title='Phase of Resonator Output',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='Φ/π (rad)',
+                            legend=dict(
+    orientation="h",
+    yanchor="bottom",
+    y=1.02,
+    xanchor="right",
+    x=1
+))
+    with col1:
+        plotly_chart(fig_disp)
+    with col2:
+        plotly_chart(fig_phase)
+
+
+def main():
+    title('Quantum Measurement Tutorial')
+    qublitz_logo = load_logo("images/qublitz.png")
+    st.sidebar.image(qublitz_logo)
+    logo = load_logo("images/logo.png") 
+    st.sidebar.image(logo) # display logo on the side 
+    st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
+    
+    markdown('''A qubit (short for quantum bit) is the basic unit of quantum information similar to a classical bit in traditional computing but with quantum mechanical properties. Unlike a classical bit, which can be in one of two states, 0 or 1, a qubit can exist in a superposition of both states simultaneously. This means it can be in a state represented as:''')
+
+    latex(r'''\ket{\psi} = \alpha\ket{0} + \beta\ket{1} = \alpha\begin{bmatrix}
+    1\\
+    0
+    \end{bmatrix}
+
+    +\beta\begin{bmatrix}
+    0\\
+    1
+    \end{bmatrix} = \begin{bmatrix}
+    \alpha\\
+    \beta
+    \end{bmatrix}''')
+    latex(r'''\text{Where } |0\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |1\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors
+
+    markdown('''where $\\alpha$ and $\\beta$ are complex numbers that describe the probability amplitudes of the qubit being in the ground or excited state. The sum of the squares of these amplitudes must equal 1:''')
+
+    latex(r'|\alpha|^2 + |\beta|^2 = 1')
+
+    markdown('''
+    There are certain tools that we can use to understand the state of a qubit. In particular, we use the concept 
+    of the expectation value of a qubit to view it's excitation, as well as it's phase. We do this with the
+    pauli operators:
+    ''')
+
+    latex(r'\sigma_x = \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}, \sigma_y = \begin{bmatrix} 0 & -i \\ i & 0 \end{bmatrix}, \sigma_z = \begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}')
+
+    markdown('''
+    The concept of an expectation value applied to these operators will tell us where the state is on the bloch sphere:
+    ''')
+
+    latex(r'\braket{\sigma_x} = \bra{\psi}\sigma_x\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \beta^*\alpha+\alpha^*\beta')
+    latex(r'\braket{\sigma_y} = \bra{\psi}\sigma_y\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 0 & -i \\ i & 0 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = i\beta^*\alpha-i\alpha^*\beta')
+    latex(r'\braket{\sigma_z} = \bra{\psi}\sigma_z\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \alpha^*\alpha-\beta^*\beta')
+
+    markdown('''
+    Using a phase $\phi = \\arctan{\\frac{\\braket{\sigma_y}}{\\braket{\sigma_x}}}$ and $\\braket{\sigma_z}$, we can visualize any qubit state on the bloch sphere:)
+    ''')
+
+
+    header('Visualizing a State on the Bloch Sphere')
+    _bloch_sphere_section()
     markdown('''
         While this interactive excersize shows that you can represent a qubit's state on a bloch sphere at
         one moment, the coefficients $\\alpha$ and $\\beta$ are almost always changing over time. In fact,
         quantum physicists use Schrödinger's equation to find these coefficients as a function of time:
-        '''
-    )
+        ''')
 
     latex(r'\hat{H}\ket{\psi} = i\hbar\frac{d}{dt}\ket{\psi}')
 
@@ -332,80 +420,13 @@ def main():
              ''')
     
     header('Resonator Drive Sweep Simulation')
-    
+
     markdown('''
             The following is a simulation where you can alter the parameters in the Hamiltonian and see what the output signal of the
             resonator will look like:
              ''')
 
-    col1,col2 = columns(2)
-    with col1:
-        g = slider('$g (MHz)$', 10.0 ,100.0 , 50.0, 0.1)
-        kappa = slider('$\kappa_r (MHz)$', 3.0 ,8.0 , 3.8, 0.01)
-    with col2:
-        wr = slider('$\\frac{\omega_r}{2\pi} (GHz)$', 6.1 ,8.0 ,7.0, 0.01)
-        wq = slider('$\\frac{\omega_q}{2\pi} (GHz)$', 2.5 ,6.0 , 4.0, 0.01)
-
-    g = g*10**-3
-    kappa=kappa*10**-3
-    wd = np.linspace(-0.02,0.02,1000)
-    chi = (g**2)/(wr-wq)
-    dispp = 0.5*kappa/((wd-chi)**2 + (0.5*kappa)**2)
-    dispm = 0.5*kappa/((wd+chi)**2 + (0.5*kappa)**2)
-
-    fig_disp = go.Figure(data=[
-    go.Scatter(x=wd, y=dispp, mode = 'lines', name = '|g>', marker = dict(color = 'blue')),
-    go.Scatter(x=wd, y=dispm, mode = 'lines', name = '|e>', marker = dict(color = 'red'))])
-
-    fig_disp.add_scatter(x=[0],
-                y=[dispp[int(len(dispp)/2)]],
-                marker=dict(
-                    color='black',
-                    size=10
-                ),
-               mode = 'markers',
-               name='Output at ωd=ωr')
-    fig_disp.update_xaxes(range=[-0.02, 0.02])
-    fig_disp.add_vline(x=0, line_width=3, line_dash="dash", line_color="green")
-    # add annotation
-    fig_disp.update_layout(title='Transmission Through Resonator',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='Amplitude [arb.]',
-    legend=dict(
-    orientation="h",
-    yanchor="bottom",
-    y=1.02,
-    xanchor="right",
-    x=1
-))
-
-    phig = np.arctan((5/kappa)*((wd-chi)))
-    phie = np.arctan((5/kappa)*((wd+chi)))
-    fig_phase = go.Figure(data=[
-    go.Scatter(x=wd, y=phig, mode = 'lines', name = '|g>', marker = dict(color = 'blue')),
-    go.Scatter(x=wd, y=phie, mode = 'lines', name = '|e>', marker = dict(color = 'red'))])
-    
-    fig_phase.update_xaxes(range=[-0.02, 0.02])
-    fig_phase.add_vline(x=0, line_width=3, line_dash="dash", line_color="green")
-    fig_phase.add_scatter(x=[0,0],
-                y=[phig[int(len(phig)/2)],phie[int(len(phie)/2)]],
-                marker=dict(
-                    color='black',
-                    size=10
-                ),
-                mode = 'markers',
-               name='Phase at ωd=ωr')
-    # add annotation
-    fig_phase.update_layout(title='Phase of Resonator Output',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='Φ/π (rad)',
-                            legend=dict(
-    orientation="h",
-    yanchor="bottom",
-    y=1.02,
-    xanchor="right",
-    x=1
-))
-    with col1:
-        plotly_chart(fig_disp)
-    with col2:
-        plotly_chart(fig_phase)
+    _resonator_drive_sweep_section()
 
     markdown('''
         As we can see, the resonator's output takes the shape of a lorenzian around $\omega_r+\chi$ if the qubit is in the ground

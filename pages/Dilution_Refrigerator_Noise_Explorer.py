@@ -37,6 +37,7 @@ def n_to_Teff(n, f_GHz):
     return T
 
 
+@st.cache_data(show_spinner=False)
 def propagate_chain(freqs_GHz, stage_temps, stage_atten_dB):
     """
     Propagate thermal noise through attenuation chain.
@@ -226,84 +227,94 @@ default_stage_temps = [300.0, 50.0, 4.0, 0.7, 0.01]  # Kelvin
 
 st.sidebar.header("Fridge Configuration")
 
-# Temperatures (K for warm stages, mK for Still/MXC)
-stage_temps = []
-for name, T_default in zip(default_stage_names, default_stage_temps):
+# UP-3(a) — every one of these ~14 inputs used to trigger a full rerun (and,
+# pre-caching below, a full propagate_chain() recompute) on every single
+# drag/keystroke. st.sidebar.form defers all of them until "Update model" is
+# submitted — dragging any slider or nudging any number_input here costs
+# nothing until you're actually done adjusting it.
+with st.sidebar.form("dilution_params"):
+    # Temperatures (K for warm stages, mK for Still/MXC)
+    stage_temps = []
+    for name, T_default in zip(default_stage_names, default_stage_temps):
 
-    if "Still" in name or "MXC" in name:
-        T_default_mK = T_default * 1e3
-        T_val_mK = st.sidebar.number_input(
-            f"Stage temperature: {name} [mK]",
+        if "Still" in name or "MXC" in name:
+            T_default_mK = T_default * 1e3
+            T_val_mK = st.number_input(
+                f"Stage temperature: {name} [mK]",
+                min_value=0.0,
+                value=float(T_default_mK),
+                step=1.0,
+                format="%.3f"
+            )
+            stage_temps.append(T_val_mK / 1e3)
+        else:
+            T_val = st.number_input(
+                f"Stage temperature: {name} [K]",
+                min_value=0.0,
+                value=float(T_default),
+                step=0.01,
+                format="%.4f"
+            )
+            stage_temps.append(T_val)
+
+    st.markdown("---")
+
+    # Attenuation as number_inputs (with arrows)
+    st.subheader("Attenuation at each stage [dB]")
+    atten_vals = []
+    for name in default_stage_names:
+        default_A = 20.0 if ("300 K" not in name and "50 K" not in name) else 0.0
+        A = st.number_input(
+            f"{name} atten. [dB]",
             min_value=0.0,
-            value=float(T_default_mK),
+            max_value=60.0,
+            value=default_A,
             step=1.0,
-            format="%.3f"
+            format="%.1f"
         )
-        stage_temps.append(T_val_mK / 1e3)
-    else:
-        T_val = st.sidebar.number_input(
-            f"Stage temperature: {name} [K]",
-            min_value=0.0,
-            value=float(T_default),
-            step=0.01,
-            format="%.4f"
-        )
-        stage_temps.append(T_val)
+        atten_vals.append(A)
 
-st.sidebar.markdown("---")
+    st.markdown("---")
 
-# Attenuation as number_inputs (with arrows)
-st.sidebar.subheader("Attenuation at each stage [dB]")
-atten_vals = []
-for name in default_stage_names:
-    default_A = 20.0 if ("300 K" not in name and "50 K" not in name) else 0.0
-    A = st.sidebar.number_input(
-        f"{name} atten. [dB]",
+    # Drive configuration: input power and cable insertion loss
+    st.subheader("Drive configuration")
+    P_in_dBm = st.number_input(
+        "Signal generator power at 300 K [dBm]",
+        min_value=-200.0,
+        max_value=30.0,
+        value=-60.0,
+        step=1.0,
+        format="%.1f",
+    )
+    cable_loss_dB = st.number_input(
+        "Cable insertion loss to MXC [dB]",
         min_value=0.0,
         max_value=60.0,
-        value=default_A,
-        step=1.0,
-        format="%.1f"
+        value=15.0,
+        step=0.5,
+        format="%.1f",
     )
-    atten_vals.append(A)
+
+    st.markdown("---")
+
+    # Frequency band
+    st.subheader("Frequency band [GHz]")
+    f_min = st.number_input("f_min [GHz]", 1.0, 20.0, 3.0, 0.1)
+    f_max = st.number_input("f_max [GHz]", 1.0, 20.0, 6.0, 0.1)
+    if f_max <= f_min:
+        st.warning("f_max must be > f_min. Adjusting f_max.")
+        f_max = f_min + 0.1
+    n_points = st.slider("Number of frequency points", 50, 500, 200, 10)
+    f_ref = st.slider("Reference frequency [GHz]", f_min, f_max, 5.0, 0.1)
+
+    st.form_submit_button("Update model")
 
 st.sidebar.markdown("---")
 
-# Drive configuration: input power and cable insertion loss
-st.sidebar.subheader("Drive configuration")
-P_in_dBm = st.sidebar.number_input(
-    "Signal generator power at 300 K [dBm]",
-    min_value=-200.0,
-    max_value=30.0,
-    value=-60.0,
-    step=1.0,
-    format="%.1f",
-)
-cable_loss_dB = st.sidebar.number_input(
-    "Cable insertion loss to MXC [dB]",
-    min_value=0.0,
-    max_value=60.0,
-    value=15.0,
-    step=0.5,
-    format="%.1f",
-)
-
-st.sidebar.markdown("---")
-
-# Toggle for showing n_eff in summary
+# Display-only toggle, deliberately OUTSIDE the form: doesn't feed
+# propagate_chain() at all, so it should stay instantly responsive rather
+# than wait on a submit that has nothing to do with it.
 show_n_eff = st.sidebar.checkbox("Show n_eff in per-stage summary", value=False)
-
-st.sidebar.markdown("---")
-
-# Frequency band
-st.sidebar.subheader("Frequency band [GHz]")
-f_min = st.sidebar.number_input("f_min [GHz]", 1.0, 20.0, 3.0, 0.1)
-f_max = st.sidebar.number_input("f_max [GHz]", 1.0, 20.0, 6.0, 0.1)
-if f_max <= f_min:
-    st.sidebar.warning("f_max must be > f_min. Adjusting f_max.")
-    f_max = f_min + 0.1
-n_points = st.sidebar.slider("Number of frequency points", 50, 500, 200, 10)
-f_ref = st.sidebar.slider("Reference frequency [GHz]", f_min, f_max, 5.0, 0.1)
 
 freqs = np.linspace(f_min, f_max, n_points)
 
