@@ -73,7 +73,11 @@ def main():
     # --- 1) Image selection: premade or upload ---
 
     st.markdown("### Choose an Image")
-    image_mode = st.radio("Select image source:", ["Upload your own", "Preloaded"], horizontal=True, index=0)
+    image_mode = st.radio(
+        "Select image source:",
+        ["Upload your own", "Preloaded", "Convert a sound file"],
+        horizontal=True, index=0,
+    )
 
 
     import random
@@ -96,6 +100,27 @@ def main():
             img_original = Image.open(img_path)
             img_info = selected_entry
             reset_image = True
+    elif image_mode == "Convert a sound file":
+        st.caption("Runs the sound the other way through this same tool: a waveform becomes "
+                   "a striped grayscale image, which you can then re-sonify below.")
+        uploaded_audio = st.file_uploader("Upload WAV or MP3", type=["wav", "mp3"], key="audio_uploader")
+        if uploaded_audio:
+            try:
+                # Imported lazily, only on this path: librosa/soundfile are real
+                # dependencies (requirements.txt) but nothing else on this page
+                # needs them, so the other two modes stay free of their load cost.
+                from utils.sound_to_image import audio_to_image_array
+                if uploaded_audio.name.lower().endswith(".wav"):
+                    import soundfile as sf
+                    raw_audio, _sr = sf.read(uploaded_audio)
+                else:
+                    import librosa
+                    raw_audio, _sr = librosa.load(uploaded_audio, sr=None, mono=False)
+                img_array = audio_to_image_array(raw_audio)
+                img_original = Image.fromarray((img_array * 255).astype(np.uint8))
+                reset_image = True
+            except Exception as exc:
+                st.error(f"Couldn't read that audio file: {exc}")
     else:
         uploaded = st.file_uploader("Upload PNG or JPG", type=["png", "jpg"], key="uploader")
         if uploaded:
