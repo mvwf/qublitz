@@ -51,7 +51,7 @@ missing feature, just a different advice source.
 ## 2. The 10 anchor points
 
 All line numbers below are from the canonical file at
-`/Users/davidmukuruva/Desktop/Academics/Projects/QuBlitz Project/quantum_chess.html`.
+`/Users/davidmukuruva/Developer/QuBlitz Project/quantum_chess.html`.
 
 ### 2.1 The physics engine object — `QPhysics`
 **`const QPhysics = (() => {...})();`, opens at line 1081, closes ~1282 (returns
@@ -174,7 +174,7 @@ heuristic Sage — no key prompt, no broken feature, no exfiltration risk. The a
 Anthropic API key lives server-side in `sage_proxy.py`, which holds the key and
 issues the real Claude calls behind a rate limiter. That file is **not** part of this
 fork — it lives in the canonical game repo at
-`/Users/davidmukuruva/Desktop/Academics/Projects/QuBlitz Project/sage_proxy.py` — so
+`/Users/davidmukuruva/Developer/QuBlitz Project/sage_proxy.py` — so
 if a PR touches Sage behavior, the proxy-side code that actually needs a security
 review isn't in this diff at all; go read it there. **Check on change:** does any
 new code path in this file read, log, or forward anything that looks like a
@@ -282,7 +282,7 @@ lines), it runs three checks in sequence and prints a single PASS/FAIL:
 ## 5. The screenshot set
 
 Visual regression reference lives outside both repos, at
-`/Users/davidmukuruva/Desktop/Academics/Projects/_arena_screenshots/`. As of this
+`/Users/davidmukuruva/Developer/QuBlitz Project/_arena_screenshots/`. As of this
 writing it contains: `00_arena_streamlit_full.png`, `01_menu.png`, `02_board_play.png`,
 `03_selected_plus.png`, `04_guard_minus.png`, `05_bell_pair.png`,
 `06_sage_expanded.png`, `07_physics_lab.png`, plus a second pass (`v2_10_arena_top.png`,
