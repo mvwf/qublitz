@@ -22,6 +22,7 @@ from pathlib import Path
 import streamlit as st
 
 from utils.branding import load_logo
+from utils.ui import page_header
 
 _GAME_HTML = Path(__file__).parent / "_assets" / "quantum_chess.html"
 # Frame height tuned so the board + side panels + event log sit on one screen
@@ -191,10 +192,14 @@ def _render_related_links():
 
 
 def main():
-    st.set_page_config(page_title="QuBlitz Arena", layout="wide")
+    page_header(
+        "QuBlitz Arena", "⚔️",
+        "Command qubit armies in real time — charge, strike, and collapse with the same "
+        "Lindblad physics engine the simulator pages use.",
+        "Play",
+    )
     _render_sidebar()
 
-    st.title("QuBlitz Arena")
     st.caption(
         "Quantum mechanics with real stakes — every unit is a qubit, every move is a gate.  "
         "Click the board, then **A** attack · **H/X/Y/Z** charge · **M** measure · **C** entangle · "

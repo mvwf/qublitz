@@ -1,5 +1,6 @@
 import streamlit as st
 from utils.branding import load_logo
+from utils.ui import page_header
 import numpy as np
 from PIL import Image
 import plotly.graph_objects as go
@@ -50,11 +51,13 @@ def generate_audio(env, t_env, row_idx, carrier_freq, duration, sr=DEFAULT_SR):
 
 # ——— Streamlit app ——————————————————————————————————
 
-st.set_page_config(layout="wide")
-
 def main():
+    page_header(
+        "Sonify Images", "🎵",
+        "Turn an image's pixel rows into an audible signal — quantum data sonification, playfully.",
+        "Play",
+    )
     min_x = 0.0
-    st.title("Image Sonification, Turn Images into Sound!")
     qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
     logo = load_logo("images/logo.png") 

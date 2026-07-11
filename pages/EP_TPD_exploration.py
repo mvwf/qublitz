@@ -8,6 +8,7 @@ Release Date:
 
 import streamlit as st
 from utils.branding import load_logo
+from utils.ui import page_header
 import numpy as np
 import plotly.graph_objects as go
 from utils.tpd_locations_nd import ep_location, tpd_location
@@ -113,8 +114,12 @@ def plot_trace(fig, x, y, name, legendgroup, showlegend, line):
 # main function
 def main():
 
-    # create a title for the page
-    st.title("Exceptional Point and Transmission Peak Degeneracy Locations")
+    page_header(
+        "Exceptional Point & Transmission Peak Degeneracy", "🎯",
+        "Explore where exceptional points and transmission-peak degeneracies coincide "
+        "in a tunable magnon-photon dimer.",
+        "Research tools",
+    )
 
     qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)

@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from utils.ui import page_header
+
 # -------------------------
 # Physical constants
 # -------------------------
@@ -111,12 +113,12 @@ def W_to_dBm(P_W):
 # -------------------------
 # Streamlit app
 # -------------------------
-st.set_page_config(
-    page_title="Dilution Fridge Noise Explorer",
-    layout="wide"
+page_header(
+    "Dilution Refrigerator Noise Explorer", "❄️",
+    "Model how line noise couples into a dilution fridge's coldest stage across "
+    "frequency and bath temperature.",
+    "Research tools",
 )
-
-# st.sidebar.image("logo.png")
 
 # CSS: color T_eff metrics wrapped in .teff-metric in red (we'll use this only for MXC)
 st.markdown(
@@ -130,8 +132,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-st.title("Dilution Refrigerator Line Noise Explorer")
 
 st.markdown(
     """

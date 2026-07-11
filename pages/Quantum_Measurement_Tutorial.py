@@ -6,9 +6,10 @@ Release Date:
 
 '''
 import numpy as np
-from streamlit import columns, header, image, latex, markdown, plotly_chart, slider, title
+from streamlit import columns, header, image, latex, markdown, plotly_chart, slider
 import streamlit as st
 from utils.branding import load_logo
+from utils.ui import page_header
 import plotly.graph_objects as go
 
 
@@ -166,7 +167,12 @@ def _resonator_drive_sweep_section():
 
 
 def main():
-    title('Quantum Measurement Tutorial')
+    page_header(
+        "Quantum Measurement Tutorial", "🎮",
+        "Step through projective measurement and the Born rule, one interactive "
+        "section at a time.",
+        "Learn",
+    )
     qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
     logo = load_logo("images/logo.png") 
