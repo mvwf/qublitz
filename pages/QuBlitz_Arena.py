@@ -9,14 +9,14 @@ teaching happens on the Physics Lab screen and the concept map/cross-links
 below. Whether play transfers to durable understanding is a design goal this
 project intends to measure later, not a claim this page asserts as proven.
 
-Sage AI: the embedded game's Sage runs on a smart offline heuristic out of the
-box (no key, nothing to configure). If a server-side proxy URL is provided via
-``st.secrets["QB_SAGE_PROXY_URL"]`` (or the env var of the same name), the live
-Claude Sage is enabled by injecting it as ``window.QB_SAGE_PROXY`` — the API key
-itself lives only on that proxy, never in this page or the client HTML.
+Sage AI: the embedded game's Sage is a smart offline heuristic, permanently — no
+key, no server-side proxy, nothing to configure. The live-LLM Sage path (a
+server-side Anthropic proxy this docstring used to describe injecting via
+``window.QB_SAGE_PROXY``) was removed from the game repo on 2026-07-08; this file
+is the fork-side cleanup of that same removal (the JS side stopped reading that
+global the same day — see the game repo's CLAUDE.md/HANDOFF.md for the full
+rationale).
 """
-import json
-import os
 from pathlib import Path
 
 import streamlit as st
@@ -44,36 +44,6 @@ def _load_game_html() -> str:
     return _GAME_HTML.read_text(encoding="utf-8")
 
 
-def _has_secrets_file() -> bool:
-    """True only if a Streamlit secrets.toml actually exists.
-
-    Accessing ``st.secrets`` with no secrets file makes Streamlit render a red
-    'No secrets found' error in the app, so we check first and skip it when none
-    is configured (the heuristic Sage is the no-secret default).
-    """
-    candidates = [
-        Path.cwd() / ".streamlit" / "secrets.toml",
-        Path.home() / ".streamlit" / "secrets.toml",
-    ]
-    return any(c.exists() for c in candidates)
-
-
-def _sage_proxy_url() -> str:
-    """Server-side Sage proxy URL, or '' for the offline heuristic Sage.
-
-    Read from the QB_SAGE_PROXY_URL env var, falling back to st.secrets only when
-    a secrets file exists. The Anthropic key is never read here — only the proxy
-    URL — so no key can leak into the client HTML.
-    """
-    url = os.environ.get("QB_SAGE_PROXY_URL", "")
-    if not url and _has_secrets_file():
-        try:
-            url = st.secrets.get("QB_SAGE_PROXY_URL", "")  # type: ignore[attr-defined]
-        except Exception:
-            url = ""
-    return str(url or "")
-
-
 def _render_sidebar():
     st.sidebar.image(load_logo("images/qublitz.png"))
     st.sidebar.image(load_logo("images/logo.png"))
@@ -85,21 +55,12 @@ def _render_sidebar():
 
 
 def _render_embed():
-    proxy = _sage_proxy_url()
-    inject = f"<script>window.QB_SAGE_PROXY={json.dumps(proxy)};</script>" if proxy else ""
-    st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
-    if proxy:
-        st.success(
-            "Live Claude Sage connected via a server-side proxy — the API key stays on the "
-            "proxy, never in this page.",
-            icon=":material/verified:",
-        )
-    else:
-        st.info(
-            "The offline heuristic Sage is active — concept-linked, per-unit advice with no API "
-            "key. To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets.",
-            icon=":material/auto_awesome:",
-        )
+    st.components.v1.html(_load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
+    st.info(
+        "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key "
+        "and no third-party service anywhere in this project.",
+        icon=":material/auto_awesome:",
+    )
 
 
 def _render_academic_framing():
