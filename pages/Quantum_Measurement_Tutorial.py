@@ -143,16 +143,25 @@ def main():
     ''')
     header('Quantum Mechanics in Practice: Experimental Setup')
     markdown('''
-    In quantum mechanics, measurement typically collapses the qubit's state. 
+    In quantum mechanics, measurement typically collapses the qubit's state.
     To minimize this disturbance, a **quantum non-demolition** approach is preferred.
-    A resonator helps perform a QND measurement by coupling indirectly to the qubit, 
-    allowing the qubit state to influence the properties of the resonator without 
+    A resonator helps perform a QND measurement by coupling indirectly to the qubit,
+    allowing the qubit state to influence the properties of the resonator without
     directly collapsing the qubit state immediately.
-    
+
 
     We can use a cavity with an infinite, discrete number of photons (energy levels) like the one shown below
     as a resonator:
     ''')
+    # BR-2 — this is the exact concept QuBlitz's MEASURE action dramatizes:
+    # collapsing a superposed unit to a definite outcome. Cross-link while
+    # the idea is fresh, not buried at the end of the page.
+    st.markdown(
+        '<a href="QuBlitz_Arena" target="_self" style="text-decoration:none;">'
+        '⚔️ Try this in the game → QuBlitz Arena\'s MEASURE action collapses a unit '
+        'exactly this way</a>',
+        unsafe_allow_html=True,
+    )
 
     image("images/Zurich_Cavity.png",caption = "Quantum Technology & Computing. IBM Research - Zurich, Quantum technology & computing. (2023). https://www.zurich.ibm.com/st/quantum/index.html" )
 

@@ -1241,6 +1241,25 @@ def page():
                     st.metric(r"$T_1 $", f"{T1_ns:.1f} ns")
                 with c4:
                     st.metric(r"$T_2 = 2 T_1 $", f"{T2_ns:.1f} ns")
+                # BR-1 — deep-link this exact T1 into the Arena game, which
+                # reads it via ?t1= (relayed into the embedded game by
+                # QuBlitz_Arena.py's own script injection -- see its
+                # _render_embed()) and rescales it into its own turn economy
+                # (see quantum_chess.html's importSimulatorParams() for the
+                # exact, documented rescaling — not a literal ns-as-turns
+                # passthrough). Only offered once the value is actually
+                # revealed, matching this page's own "hidden by default"
+                # design intent -- the link doesn't leak what the toggle hides.
+                # st.page_link's `page` param must be a clean file path or an
+                # http(s) URL, not a path+querystring (confirmed against the
+                # installed Streamlit's own page_link source) -- a raw anchor
+                # is the only way to carry a query param to a sibling page.
+                st.markdown(
+                    f'<a href="QuBlitz_Arena?t1={T1_ns:.1f}" target="_self" '
+                    f'style="text-decoration:none;">⚔️ Battle with this qubit → '
+                    f'(T₁ = {T1_ns:.1f}ns, imported live)</a>',
+                    unsafe_allow_html=True,
+                )
             else:
                 st.caption("Toggle to reveal the hidden simulator parameters.")
 page()

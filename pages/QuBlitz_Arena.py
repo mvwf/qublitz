@@ -55,7 +55,21 @@ def _render_sidebar():
 
 
 def _render_embed():
-    st.components.v1.html(_load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
+    # BR-1 — the game is injected via srcdoc, not a src= URL, so its own
+    # location.search is never this page's query string; ?t1= has to be
+    # relayed as an injected global, or quantum_chess.html's
+    # importSimulatorParams() never sees it. st.query_params values are
+    # always strings; validated numeric before injecting so a malformed URL
+    # can't inject anything but a number into the page.
+    inject = ""
+    t1_param = st.query_params.get("t1")
+    if t1_param is not None:
+        try:
+            t1_ns = float(t1_param)
+            inject += f"<script>window.QB_INITIAL_T1_NS={t1_ns};</script>"
+        except (TypeError, ValueError):
+            pass
+    st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
     st.info(
         "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key "
         "and no third-party service anywhere in this project.",
@@ -133,8 +147,12 @@ def _render_quickstart():
 
 
 def _render_related_links():
+    # BR-4 — one link per learning objective that actually has a formalizing
+    # page (relative phase and entanglement don't yet; not forcing a link that
+    # isn't true). Mirrors the game's own in-engine TOME cross-links so the
+    # bridge is the same both directions, not just Streamlit-side prose.
     st.markdown("**Keep exploring the platform**")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     # st.page_link resolves relative to the app entrypoint (home.py). Guard it so
     # the page still renders if loaded in isolation (e.g. under AppTest, where the
     # sibling pages aren't on the entrypoint's page list).
@@ -147,11 +165,18 @@ def _render_related_links():
             st.page_link("pages/Qubit_Simulator.py",
                          label="See the real physics in the Qubit Simulator",
                          icon=":material/science:")
+        with col3:
+            st.page_link("pages/Dilution_Refrigerator_Noise_Explorer.py",
+                         label="Where T₁/T₂ decoherence actually comes from",
+                         icon=":material/ac_unit:")
     except Exception:
         with col1:
             st.markdown("**New to qubits?** Open the *Quantum Measurement Tutorial* page.")
         with col2:
             st.markdown("**Want the real physics?** Open the *Qubit Simulator* page.")
+        with col3:
+            st.markdown("**Where does T₁/T₂ come from?** Open the *Dilution Refrigerator "
+                         "Noise Explorer* page.")
 
 
 def main():
