@@ -131,6 +131,17 @@ def _render_academic_framing():
             "characterizing non-Markovian (HEOM) memory effects — to an interactive learning tool."
         )
 
+    with st.expander(":material/privacy_tip: Data & consent posture (GOV-2)"):
+        st.markdown(
+            "The short version: **no automatic network calls, ever.** Nothing is collected "
+            "unless a student explicitly clicks the in-game **EXPORT MY GATE LOG** button, and "
+            "even then the result is a local file download the student controls -- QuBlitz never "
+            "transmits it anywhere itself. Full posture, exact export schema, and a FERPA note "
+            "for classroom use: "
+            "[`docs/DATA_AND_CONSENT.md`](https://github.com/dmukuruva-creator/Qublitz_Draft/blob/main/docs/DATA_AND_CONSENT.md) "
+            "in the canonical game repo."
+        )
+
 
 def _render_quickstart():
     st.markdown("#### How to play in 30 seconds")
