@@ -783,12 +783,21 @@ def page():
     with st.sidebar.expander("Simulation convention"):
         st.caption("This app uses the hidden physical parameters directly: ΩR/2π is passed unchanged to the engine, T₁ is passed unchanged, and the engine enforces T₂ = 2T₁.")
 
-    st.title("Custom Qubit Query")
+    st.title("Qubit Simulator (Free Play)")
     tab_freq, tab_time, tab_ramsey = st.tabs(["Frequency Domain", "Time Domain", "Ramsey Sequence"])
 
     with tab_freq:
-        fd_start_default, fd_stop_default = 4.8, 5.2
+        # Default window must contain the deployed qubit's hidden omega_q.
+        # The old 4.8-5.2 GHz window sat above the assigned band (~4.0-4.7 GHz),
+        # so a first sweep returned a flat spectrum -- looking like a broken /
+        # untunable qubit. Widened to span the assigned band.
+        fd_start_default, fd_stop_default = 3.5, 5.5
 
+        st.caption(
+            r"You cannot dial the qubit frequency $\omega_q$ directly -- it is a fixed, hidden "
+            r"property of this qubit. Sweep the **drive** frequency $\omega_d$ below and read "
+            r"$\omega_q$ off the resonance: P(|1\rangle) peaks where $\omega_d = \omega_q$."
+        )
         start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=fd_start_default, step=0.01, format="%.6f", key="fd_start")
         stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=fd_stop_default, step=0.01, format="%.6f", key="fd_stop")
         num_points = st.number_input("Number of frequencies", value=41, min_value=5, max_value=201, step=2, key="fd_n")
@@ -823,6 +832,17 @@ def page():
                     "time_list": time_list, "p1_cut": p1_cut, "peak_freq": peak_freq,
                 }
                 st.session_state["freq_rabi_fit"] = _fit_rabi_trace(time_list, p1_cut)
+
+                # No-peak guard: a flat spectrum means the resonance is outside
+                # this window. Tell the user instead of showing a silent flat plot.
+                if float(np.max(max_prob) - np.median(max_prob)) < 0.1:
+                    st.info(
+                        "No resonance found in this window -- P(|1⟩) stayed flat across "
+                        f"{float(start_freq):.3f}-{float(stop_freq):.3f} GHz. The qubit's "
+                        "ω_q is outside the swept range: widen the range or lower the start "
+                        "frequency and run again.",
+                        icon=":material/search_off:",
+                    )
             except Exception as e:
                 st.error(f"Frequency sweep failed: {e}")
                 st.exception(e)
