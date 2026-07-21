@@ -840,8 +840,18 @@ def page():
             fd_start_default = float(omega_q - 0.25)
             fd_stop_default = float(omega_q + 0.25)
         else:
-            fd_start_default, fd_stop_default = 4.8, 5.2
+            # Default window must actually contain the assigned qubit frequency.
+            # The old 4.8-5.2 GHz window sat ABOVE every qubit this app assigns
+            # (~4.0-4.7 GHz), so a first sweep returned a flat spectrum with no
+            # resonance -- indistinguishable from "the qubit can't be tuned".
+            # Widened to span the assigned band so the peak is on-screen.
+            fd_start_default, fd_stop_default = 3.5, 5.5
 
+        st.caption(
+            r"You cannot dial the qubit frequency $\omega_q$ directly -- it is a fixed, hidden "
+            r"property of your assigned qubit. Sweep the **drive** frequency $\omega_d$ below and "
+            r"read $\omega_q$ off the resonance: P(|1\rangle) peaks where $\omega_d = \omega_q$."
+        )
         start_freq = st.number_input(r"Start $\omega_d/2\pi$ [GHz]", value=fd_start_default, step=0.01, format="%.6f", key="fd_start")
         stop_freq = st.number_input(r"Stop $\omega_d/2\pi$ [GHz]", value=fd_stop_default, step=0.01, format="%.6f", key="fd_stop")
         num_points = st.number_input("Number of frequencies", value=41, min_value=5, max_value=201, step=2, key="fd_n")
@@ -876,6 +886,18 @@ def page():
                     "time_list": time_list, "p1_cut": p1_cut, "peak_freq": peak_freq,
                 }
                 st.session_state["freq_rabi_fit"] = _fit_rabi_trace(time_list, p1_cut)
+
+                # No-peak guard: if P(|1>) never rises meaningfully above the
+                # sweep baseline, the resonance is outside this window. Say so
+                # explicitly instead of showing a silently flat spectrum.
+                if float(np.max(max_prob) - np.median(max_prob)) < 0.1:
+                    st.info(
+                        "No resonance found in this window -- P(|1⟩) stayed flat across "
+                        f"{float(start_freq):.3f}-{float(stop_freq):.3f} GHz. Your qubit's "
+                        "ω_q is outside the swept range: widen the range or lower the start "
+                        "frequency and run again.",
+                        icon=":material/search_off:",
+                    )
             except Exception as e:
                 st.error(f"Frequency sweep failed: {e}")
                 st.exception(e)
