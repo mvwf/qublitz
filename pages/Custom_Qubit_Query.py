@@ -22,7 +22,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from utils.branding import load_logo
-from utils.ui import page_header
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -767,21 +766,10 @@ def _pi_times_from_rabi(omega_rabi_GHz: float):
 # Page
 # ----------------------------
 def page():
-    page_header(
-        "Custom Qubit Query (Local/VPN)", "🧪",
-        "Run the simulator against a real lab qubit's assigned parameters over the lab "
-        "network — VPN required.",
-        "Research tools",
-    )
-    # UP-1 — this used to warn only reactively, inside the login-failure
-    # except block (_vpn_check_hint(), still called there for the detailed
-    # troubleshooting steps once a failure is confirmed) — a student on the
-    # public internet got no warning until AFTER trying and failing to log
-    # in. Proactive now: fires on every load, before the login attempt.
-    st.warning("Lab-network/VPN only — this page cannot reach its instrument from the public internet.")
     _init_state()
 
     if st.session_state.get("user_data") is None:
+        st.title("Qublitz Virtual Qubit Lab (Local)")
         st.caption("Enter your API key (NetID).")
 
         default_val = TEST_STUDENT_API_KEY if INSTRUCTOR_DEBUG else ""
@@ -844,6 +832,7 @@ def page():
     with st.sidebar.expander("Simulation convention"):
         st.caption("This app uses the physical assigned parameters directly: ΩR/2π is passed unchanged to the engine, T₁ is passed unchanged, and the engine enforces T₂ = 2T₁.")
 
+    st.title("Custom Qubit Query")
     tab_freq, tab_time, tab_ramsey = st.tabs(["Frequency Domain", "Time Domain", "Ramsey Sequence"])
 
     with tab_freq:

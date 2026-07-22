@@ -21,15 +21,9 @@ import plotly.graph_objects as go
 import plotly.subplots as sp
 import streamlit as st
 from utils.branding import load_logo
-from utils.ui import page_header
 
 def main():
-    page_header(
-        "IQ Mixing", "〰️",
-        "See how in-phase/quadrature mixing up-converts a baseband signal onto a "
-        "microwave carrier.",
-        "Learn",
-    )
+    st.title("IQ Mixing Demo")
     qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
     logo = load_logo("images/logo.png") 

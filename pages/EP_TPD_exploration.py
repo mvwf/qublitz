@@ -8,7 +8,6 @@ Release Date:
 
 import streamlit as st
 from utils.branding import load_logo
-from utils.ui import page_header
 import numpy as np
 import plotly.graph_objects as go
 from utils.tpd_locations_nd import ep_location, tpd_location
@@ -114,12 +113,8 @@ def plot_trace(fig, x, y, name, legendgroup, showlegend, line):
 # main function
 def main():
 
-    page_header(
-        "Exceptional Point & Transmission Peak Degeneracy", "🎯",
-        "Explore where exceptional points and transmission-peak degeneracies coincide "
-        "in a tunable magnon-photon dimer.",
-        "Research tools",
-    )
+    # create a title for the page
+    st.title("Exceptional Point and Transmission Peak Degeneracy Locations")
 
     qublitz_logo = load_logo("images/qublitz.png")
     st.sidebar.image(qublitz_logo)
@@ -149,6 +144,7 @@ def main():
 
     # create sidebar with the Parameters
     st.markdown('<p style="font-size:18px;">System Parameters:</p>', unsafe_allow_html=True)
+    kappa_tilde_c = st.slider(r"$\tilde{\kappa}_c$", 0.0, 2.5, 0.68, step=0.01)
 
     phi_labels = {
         "0": 0,
@@ -170,17 +166,7 @@ def main():
         "2π": 0
     }
 
-    # UP-3(d) — run-button gate on top of the existing meshgrid cache.
-    # _compute_ep_tpd_fields() was already @st.cache_data, but that only
-    # skips the recompute once the SAME (phi, kappa_tilde_c) pair repeats —
-    # every slider drag before that still triggered a full script rerun on
-    # every intermediate value. st.form defers both widgets' reruns until
-    # "Update model" is submitted, so dragging either slider costs nothing
-    # until you're actually done adjusting it.
-    with st.form("ep_tpd_params"):
-        kappa_tilde_c = st.slider(r"$\tilde{\kappa}_c$", 0.0, 2.5, 0.68, step=0.01)
-        phi_label = st.select_slider("Φ - Coupling Phase", options=list(phi_labels.keys()), value="0")
-        st.form_submit_button("Update model")
+    phi_label = st.select_slider("Φ - Coupling Phase", options=list(phi_labels.keys()), value="0")
     phi = phi_labels[phi_label]
     # phi = st.sidebar.slider("Φ - Coupling Phase (rad)", 0.0, (2 * np.pi), 0.0, step=0.01) # Option for if we want a continuous slider
 

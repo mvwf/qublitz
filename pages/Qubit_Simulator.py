@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from utils.branding import load_logo
-from utils.ui import page_header
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -741,23 +740,6 @@ def _pi_times_from_rabi(omega_rabi_GHz: float):
 # Page
 # ----------------------------
 def page():
-    # UP-1 — this line used to be a copy-paste artifact from
-    # Custom_Qubit_Query.py, which this file's page() was originally
-    # duplicated from: its OWN main title (below, success path) said
-    # "Custom Qubit Query," not "Qubit Simulator" — never updated after the
-    # copy. page_header() replaces both the fallback title here and that one.
-    #
-    # Title kept verbatim as "Qubit Simulator (Free Play)" — the de-dup that
-    # shipped in PR #29 (BR-freq). UP-1 was authored before that PR and said
-    # just "Qubit Simulator"; "(Free Play)" is the qualifier that makes a
-    # shared /Qubit_Simulator link self-describing against the login-gated
-    # Custom Qubit Query page, so it is preserved rather than reverted here.
-    page_header(
-        "Qubit Simulator (Free Play)", "⚛",
-        "Sweep a qubit's drive frequency and watch the Rabi chevron emerge "
-        "from the Lindblad master equation.",
-        "Learn",
-    )
     _init_state()
 
     if st.session_state.get("user_data") is None:
@@ -766,6 +748,7 @@ def page():
             _clear_results_and_pulses()
             st.rerun()
         except Exception as e:
+            st.title("Qublitz Virtual Qubit Lab")
             st.error(f"Could not load qubit parameters from Streamlit secrets: {e}")
             st.stop()
 
@@ -800,6 +783,7 @@ def page():
     with st.sidebar.expander("Simulation convention"):
         st.caption("This app uses the hidden physical parameters directly: ΩR/2π is passed unchanged to the engine, T₁ is passed unchanged, and the engine enforces T₂ = 2T₁.")
 
+    st.title("Qubit Simulator (Free Play)")
     tab_freq, tab_time, tab_ramsey = st.tabs(["Frequency Domain", "Time Domain", "Ramsey Sequence"])
 
     with tab_freq:
@@ -1257,25 +1241,6 @@ def page():
                     st.metric(r"$T_1 $", f"{T1_ns:.1f} ns")
                 with c4:
                     st.metric(r"$T_2 = 2 T_1 $", f"{T2_ns:.1f} ns")
-                # BR-1 — deep-link this exact T1 into the Arena game, which
-                # reads it via ?t1= (relayed into the embedded game by
-                # QuBlitz_Arena.py's own script injection -- see its
-                # _render_embed()) and rescales it into its own turn economy
-                # (see quantum_chess.html's importSimulatorParams() for the
-                # exact, documented rescaling — not a literal ns-as-turns
-                # passthrough). Only offered once the value is actually
-                # revealed, matching this page's own "hidden by default"
-                # design intent -- the link doesn't leak what the toggle hides.
-                # st.page_link's `page` param must be a clean file path or an
-                # http(s) URL, not a path+querystring (confirmed against the
-                # installed Streamlit's own page_link source) -- a raw anchor
-                # is the only way to carry a query param to a sibling page.
-                st.markdown(
-                    f'<a href="QuBlitz_Arena?t1={T1_ns:.1f}" target="_self" '
-                    f'style="text-decoration:none;">⚔️ Battle with this qubit → '
-                    f'(T₁ = {T1_ns:.1f}ns, imported live)</a>',
-                    unsafe_allow_html=True,
-                )
             else:
                 st.caption("Toggle to reveal the hidden simulator parameters.")
 page()
