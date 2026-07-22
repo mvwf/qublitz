@@ -2,7 +2,14 @@ import math
 import streamlit as st
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Cryogenic Laser Heating Calculator", layout="wide")
+from utils.ui import page_header
+
+page_header(
+    "Laser Heating Calculator", "⚡",
+    "Estimate a target's temperature rise under a fiber-delivered laser, from its heat "
+    "capacity and thermal conductance to the bath.",
+    "Research tools",
+)
 
 # ============================================================
 # Helpers
@@ -83,6 +90,7 @@ def ns_max_rep_rate_mhz(optical_pulse_ns):
     return 0.0
 
 
+@st.cache_data(show_spinner=False)
 def temperature_trace(t_values, bath_temp_K, deltaT_ss_K, tau_th_s):
     out = []
     for t in t_values:
@@ -394,8 +402,6 @@ T_values = temperature_trace(t_values, bath_temp_K, deltaT_ss_K, tau_th_s)
 # ============================================================
 # Main page
 # ============================================================
-
-st.title("Cryogenic Laser Heating Calculator")
 
 st.write(
     "This app estimates the local temperature rise of a target illuminated by a fiber-delivered 450 nm laser. "

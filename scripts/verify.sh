@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Local debugging gate for the Qublitz fork. Runs the same checks as CI:
-# ruff lint + pytest smoke tests + (when vendored) the game physics test.
-# Prints a single PASS/FAIL and exits non-zero if anything fails.
+# ruff lint + pytest smoke tests + (when vendored) the game physics test +
+# the vendor-hash check (BE-7). Prints a single PASS/FAIL and exits non-zero
+# if anything fails.
 #
 #   bash scripts/verify.sh
 #
@@ -39,6 +40,10 @@ if [ -f "$GAME_TEST" ]; then
     echo "── node (game physics) ── SKIPPED: node not installed"; echo
   fi
 fi
+
+# BE-7 — the vendored copy has no enforcement beyond a "golden rule"
+# comment; this catches drift before it's committed, not just in CI.
+run "vendor hash (BE-7)" bash scripts/check_vendor.sh
 
 echo "════════════════════════════════════════════════════════"
 if [ "$fail" -eq 0 ]; then

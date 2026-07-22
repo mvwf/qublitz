@@ -40,3 +40,10 @@ jobs:
       - name: Game physics regression test
         if: ${{ hashFiles('pages/_assets/tests/qphysics.test.js') != '' }}
         run: node pages/_assets/tests/qphysics.test.js pages/_assets/quantum_chess.html
+
+      # BE-7 — pages/_assets/quantum_chess.html is a hand-synced copy of the
+      # game repo's canonical file; nothing enforced that until now. Fails
+      # the build if it drifts from the committed pages/_assets/VENDOR_SHA
+      # (written by the game repo's scripts/sync_vendor.sh).
+      - name: Vendor hash check
+        run: bash scripts/check_vendor.sh

@@ -9,19 +9,20 @@ teaching happens on the Physics Lab screen and the concept map/cross-links
 below. Whether play transfers to durable understanding is a design goal this
 project intends to measure later, not a claim this page asserts as proven.
 
-Sage AI: the embedded game's Sage runs on a smart offline heuristic out of the
-box (no key, nothing to configure). If a server-side proxy URL is provided via
-``st.secrets["QB_SAGE_PROXY_URL"]`` (or the env var of the same name), the live
-Claude Sage is enabled by injecting it as ``window.QB_SAGE_PROXY`` — the API key
-itself lives only on that proxy, never in this page or the client HTML.
+Sage AI: the embedded game's Sage is a smart offline heuristic, permanently — no
+key, no server-side proxy, nothing to configure. The live-LLM Sage path (a
+server-side Anthropic proxy this docstring used to describe injecting via
+``window.QB_SAGE_PROXY``) was removed from the game repo on 2026-07-08; this file
+is the fork-side cleanup of that same removal (the JS side stopped reading that
+global the same day — see the game repo's CLAUDE.md/HANDOFF.md for the full
+rationale).
 """
-import json
-import os
 from pathlib import Path
 
 import streamlit as st
 
 from utils.branding import load_logo
+from utils.ui import page_header
 
 _GAME_HTML = Path(__file__).parent / "_assets" / "quantum_chess.html"
 # Frame height tuned so the board + side panels + event log sit on one screen
@@ -44,36 +45,6 @@ def _load_game_html() -> str:
     return _GAME_HTML.read_text(encoding="utf-8")
 
 
-def _has_secrets_file() -> bool:
-    """True only if a Streamlit secrets.toml actually exists.
-
-    Accessing ``st.secrets`` with no secrets file makes Streamlit render a red
-    'No secrets found' error in the app, so we check first and skip it when none
-    is configured (the heuristic Sage is the no-secret default).
-    """
-    candidates = [
-        Path.cwd() / ".streamlit" / "secrets.toml",
-        Path.home() / ".streamlit" / "secrets.toml",
-    ]
-    return any(c.exists() for c in candidates)
-
-
-def _sage_proxy_url() -> str:
-    """Server-side Sage proxy URL, or '' for the offline heuristic Sage.
-
-    Read from the QB_SAGE_PROXY_URL env var, falling back to st.secrets only when
-    a secrets file exists. The Anthropic key is never read here — only the proxy
-    URL — so no key can leak into the client HTML.
-    """
-    url = os.environ.get("QB_SAGE_PROXY_URL", "")
-    if not url and _has_secrets_file():
-        try:
-            url = st.secrets.get("QB_SAGE_PROXY_URL", "")  # type: ignore[attr-defined]
-        except Exception:
-            url = ""
-    return str(url or "")
-
-
 def _render_sidebar():
     st.sidebar.image(load_logo("images/qublitz.png"))
     st.sidebar.image(load_logo("images/logo.png"))
@@ -85,21 +56,26 @@ def _render_sidebar():
 
 
 def _render_embed():
-    proxy = _sage_proxy_url()
-    inject = f"<script>window.QB_SAGE_PROXY={json.dumps(proxy)};</script>" if proxy else ""
+    # BR-1 — the game is injected via srcdoc, not a src= URL, so its own
+    # location.search is never this page's query string; ?t1= has to be
+    # relayed as an injected global, or quantum_chess.html's
+    # importSimulatorParams() never sees it. st.query_params values are
+    # always strings; validated numeric before injecting so a malformed URL
+    # can't inject anything but a number into the page.
+    inject = ""
+    t1_param = st.query_params.get("t1")
+    if t1_param is not None:
+        try:
+            t1_ns = float(t1_param)
+            inject += f"<script>window.QB_INITIAL_T1_NS={t1_ns};</script>"
+        except (TypeError, ValueError):
+            pass
     st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
-    if proxy:
-        st.success(
-            "Live Claude Sage connected via a server-side proxy — the API key stays on the "
-            "proxy, never in this page.",
-            icon=":material/verified:",
-        )
-    else:
-        st.info(
-            "The offline heuristic Sage is active — concept-linked, per-unit advice with no API "
-            "key. To enable the live Claude Sage, set `QB_SAGE_PROXY_URL` in the app secrets.",
-            icon=":material/auto_awesome:",
-        )
+    st.info(
+        "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key "
+        "and no third-party service anywhere in this project.",
+        icon=":material/auto_awesome:",
+    )
 
 
 def _render_academic_framing():
@@ -156,6 +132,17 @@ def _render_academic_framing():
             "characterizing non-Markovian (HEOM) memory effects — to an interactive learning tool."
         )
 
+    with st.expander(":material/privacy_tip: Data & consent posture (GOV-2)"):
+        st.markdown(
+            "The short version: **no automatic network calls, ever.** Nothing is collected "
+            "unless a student explicitly clicks the in-game **EXPORT MY GATE LOG** button, and "
+            "even then the result is a local file download the student controls -- QuBlitz never "
+            "transmits it anywhere itself. Full posture, exact export schema, and a FERPA note "
+            "for classroom use: "
+            "[`docs/DATA_AND_CONSENT.md`](https://github.com/dmukuruva-creator/Qublitz_Draft/blob/main/docs/DATA_AND_CONSENT.md) "
+            "in the canonical game repo."
+        )
+
 
 def _render_quickstart():
     st.markdown("#### How to play in 30 seconds")
@@ -172,8 +159,12 @@ def _render_quickstart():
 
 
 def _render_related_links():
+    # BR-4 — one link per learning objective that actually has a formalizing
+    # page (relative phase and entanglement don't yet; not forcing a link that
+    # isn't true). Mirrors the game's own in-engine TOME cross-links so the
+    # bridge is the same both directions, not just Streamlit-side prose.
     st.markdown("**Keep exploring the platform**")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     # st.page_link resolves relative to the app entrypoint (home.py). Guard it so
     # the page still renders if loaded in isolation (e.g. under AppTest, where the
     # sibling pages aren't on the entrypoint's page list).
@@ -186,18 +177,29 @@ def _render_related_links():
             st.page_link("pages/Qubit_Simulator.py",
                          label="See the real physics in the Qubit Simulator",
                          icon=":material/science:")
+        with col3:
+            st.page_link("pages/Dilution_Refrigerator_Noise_Explorer.py",
+                         label="Where T₁/T₂ decoherence actually comes from",
+                         icon=":material/ac_unit:")
     except Exception:
         with col1:
             st.markdown("**New to qubits?** Open the *Quantum Measurement Tutorial* page.")
         with col2:
             st.markdown("**Want the real physics?** Open the *Qubit Simulator* page.")
+        with col3:
+            st.markdown("**Where does T₁/T₂ come from?** Open the *Dilution Refrigerator "
+                         "Noise Explorer* page.")
 
 
 def main():
-    st.set_page_config(page_title="QuBlitz Arena", layout="wide")
+    page_header(
+        "QuBlitz Arena", "⚔️",
+        "Command qubit armies in real time — charge, strike, and collapse with the same "
+        "Lindblad physics engine the simulator pages use.",
+        "Play",
+    )
     _render_sidebar()
 
-    st.title("QuBlitz Arena")
     st.caption(
         "Quantum mechanics with real stakes — every unit is a qubit, every move is a gate.  "
         "Click the board, then **A** attack · **H/X/Y/Z** charge · **M** measure · **C** entangle · "
