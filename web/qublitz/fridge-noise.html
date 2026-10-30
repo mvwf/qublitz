@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fridge Noise Explorer — Qublitz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<script src="fridge-engine.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1180px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:8px 0}
+  .field{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .field label,.lbl{font-size:12.5px;color:var(--muted)}
+  input[type=number],select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    padding:6px 9px;background:#fff;color:var(--ink);width:120px;max-width:100%}
+  input:focus,select:focus{outline:2px solid rgba(0,105,62,.22);border-color:var(--green2)}
+  input[type=range]{accent-color:var(--green);width:100%}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
+  .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+  @media(max-width:960px){.layout{grid-template-columns:1fr}}
+  .presets{display:flex;flex-wrap:wrap;gap:6px}
+  .presets button{font-size:12.5px;padding:5px 10px}
+
+  /* fridge: one row per plate, the drive line runs down the middle column */
+  .fridge{display:grid;grid-template-columns:minmax(150px,1.1fr) 120px minmax(0,2.2fr);column-gap:0}
+  .plate,.wire,.out{padding:10px 12px;border-top:1px solid var(--line)}
+  .fridge>.hdr{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:0 12px 6px;border:none}
+  .plate{border-left:5px solid var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 9%,#fff),#fff)}
+  .plate b{display:block;font-size:14.5px}
+  .plate .field{margin-top:5px}
+  .plate input{width:110px}
+  .wire{position:relative;display:flex;align-items:center;justify-content:center}
+  .wire::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:3px;margin-left:-1.5px;background:#b9c6bf}
+  .att{position:relative;z-index:1;background:#fff;border:2px solid var(--c);border-radius:8px;padding:4px 6px;text-align:center}
+  .att input{width:64px;text-align:center;padding:4px 4px}
+  .att span{display:block;font-size:10.5px;color:var(--muted)}
+  .att.none{border-style:dashed;opacity:.8}
+  .out{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 12px;align-items:center}
+  .out div span{display:block;font-size:11px;color:var(--muted)}
+  .out div b{font-size:15.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .out .bar{grid-column:1/-1;height:7px;border-radius:4px;background:var(--panel);overflow:hidden;border:1px solid var(--line)}
+  .out .bar i{display:block;height:100%;background:var(--c);transition:width .15s}
+  .mxc .out .teff b{color:var(--accent)}
+  @media(max-width:640px){
+    .fridge{grid-template-columns:1fr 92px}
+    .fridge>.hdr.o{display:none}
+    .out{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));border-top:none;padding-top:0}
+  }
+  .plots .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 8px;flex-wrap:wrap}
+  .tab{border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:none;padding:7px 12px;
+    font-size:13.5px;color:var(--muted);margin-bottom:-1px}
+  .tab[aria-selected="true"]{border-color:var(--line);background:#fff;color:var(--green);font-weight:600}
+  .plot{width:100%;height:400px}
+  .val{font-variant-numeric:tabular-nums;font-size:12.5px}
+  details summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
+  .math p{font-size:13.5px;margin:8px 0}
+  table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
+  th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:12px}
+  .tablewrap{overflow-x:auto}
+  label.chk{font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<div class="page">
+<a class="back" href="../index.html#research">&larr; All demos</a>
+<h1>❄️ Dilution Refrigerator Noise Explorer</h1>
+<p class="sub">A drive line carries room-temperature thermal noise down into the fridge. Each attenuator absorbs part of
+  the noise coming in and adds back its own thermal noise at that stage's temperature. Change the stage temperatures and
+  attenuations below to see how much thermal noise reaches the mixing chamber (MXC), where the qubit sits.</p>
+
+<div class="layout">
+<div>
+  <div class="card">
+    <h2>Drive line, top to bottom <span style="text-transform:none;letter-spacing:0;font-weight:400">· values at <span class="val" id="frefLbl"></span></span></h2>
+    <div class="row" style="margin-top:0"><span class="lbl">Try:</span>
+      <div class="presets" id="presets"></div></div>
+    <div class="fridge" id="fridge">
+      <div class="hdr">Stage</div><div class="hdr" style="text-align:center">Attenuator</div><div class="hdr o">Noise leaving the stage</div>
+    </div>
+    <p class="hint">The bar shows the photon number on a log scale, from room temperature (full) down to 10⁻⁶. Set an
+      attenuator to 0 dB if that stage has none.</p>
+  </div>
+
+  <div class="card plots">
+    <div class="tabs" role="tablist" id="plotTabs"></div>
+    <div class="row" style="margin:0 0 4px"><label class="chk"><input type="checkbox" id="logY"> Log scale</label>
+      <span style="flex:1"></span><button id="dlCsv">Download curves CSV</button></div>
+    <div id="plot" class="plot"></div>
+  </div>
+
+  <div class="card">
+    <h2>Per-stage summary at the reference frequency</h2>
+    <div class="tablewrap"><table id="table"></table></div>
+  </div>
+
+  <details class="card math"><summary>Math used in this page</summary>
+    <p>For a mode at frequency \(f\) and temperature \(T\), the mean thermal photon number is</p>
+    \[\bar n(T,f)=\frac{1}{\exp\!\left(\frac{hf}{k_{\mathrm B}T}\right)-1}.\]
+    <p>Each stage has a physical temperature \(T_i\) and an attenuation \(A_i\) in dB, which is linear attenuation
+      \(L_i=10^{A_i/10}\). The attenuator is a thermal beam splitter at \(T_i\): it passes \(1/L_i\) of the incoming noise
+      \(\bar n_{\text{in}}\) and adds its own thermal noise for the rest,</p>
+    \[\bar n_{\text{out}}=\frac{\bar n_{\text{in}}}{L_i}+\left(1-\frac{1}{L_i}\right)\bar n(T_i,f).\]
+    <p>The output of stage \(i\) is the input to stage \(i+1\), and the line starts with thermal noise at the top stage's
+      temperature. The <b>effective temperature</b> \(T_{\text{eff}}\) is the temperature whose thermal occupation equals
+      \(\bar n_{\text{eff}}\):</p>
+    \[\bar n_{\text{eff}}(f)=\frac{1}{\exp\!\left(\frac{hf}{k_{\mathrm B}T_{\text{eff}}}\right)-1},\]
+    <p>and the <b>noise reduction versus room temperature</b> is
+      \(10\log_{10}\big(\bar n_{\text{room}}(f)/\bar n_{\text{eff}}(f)\big)\).</p>
+    <p>The drive power at each stage is the generator power minus the attenuation so far, and the cable insertion loss is
+      taken off at the MXC. The cable loss only affects the drive, not the noise, and attenuation does not depend on
+      frequency. The drive photon flux is \(P/hf\).</p>
+  </details>
+</div>
+
+<aside>
+  <div class="card">
+    <h2>Frequency band</h2>
+    <div class="row">
+      <div class="field"><label for="fMin">f<sub>min</sub> [GHz]</label><input id="fMin" type="number" min="1" max="20" step="0.1" value="3" style="width:100px"></div>
+      <div class="field"><label for="fMax">f<sub>max</sub> [GHz]</label><input id="fMax" type="number" min="1" max="20" step="0.1" value="6" style="width:100px"></div>
+    </div>
+    <div id="bandWarn"></div>
+    <div class="field" style="margin-top:6px"><label for="fRef">Reference frequency: <span class="val" id="fRefVal"></span></label>
+      <input id="fRef" type="range" min="3" max="6" step="0.01" value="5"></div>
+    <div class="field" style="margin-top:6px"><label for="nPts">Frequency points: <span class="val" id="nPtsVal"></span></label>
+      <input id="nPts" type="range" min="50" max="500" step="10" value="200"></div>
+  </div>
+  <div class="card">
+    <h2>Drive</h2>
+    <div class="field"><label for="pIn">Signal generator power at 300 K [dBm]</label><input id="pIn" type="number" min="-200" max="30" step="1" value="-60"></div>
+    <div class="field" style="margin-top:8px"><label for="cable">Cable insertion loss to MXC [dB]</label><input id="cable" type="number" min="0" max="60" step="0.5" value="15"></div>
+    <div id="driveOut" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>Share</h2>
+    <p class="hint" style="margin-top:0">The link keeps every setting on this page.</p>
+    <div class="row" style="margin-bottom:0"><button id="copyLink">Copy link</button><button id="reset">Reset</button></div>
+  </div>
+  <p class="hint">This model was mainly developed by <a href="https://www.linkedin.com/in/jussalcedoga/" target="_blank" rel="noopener">Juan S. Salcedo-Gallo</a>.
+    It is also available as part of <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Qublitz</a>, and contributions are welcome.</p>
+</aside>
+</div>
+</div>
+
+<script>
+'use strict';
+const F = window.FridgeEngine;
+const $ = s => document.querySelector(s);
+
+const STAGES = [
+  { name:'300 K (Room)', short:'300 K', T:300,  A:0,  mK:false, c:'#c84b31' },
+  { name:'50 K',         short:'50 K',  T:50,   A:0,  mK:false, c:'#d9822b' },
+  { name:'4 K',          short:'4 K',   T:4,    A:20, mK:false, c:'#c9a227' },
+  { name:'Still',        short:'Still', T:0.7,  A:20, mK:true,  c:'#2d6fb3' },
+  { name:'MXC',          short:'MXC',   T:0.01, A:20, mK:true,  c:'#00693e' },
+];
+const DEFAULTS = { T:STAGES.map(s=>s.T), A:STAGES.map(s=>s.A), fMin:3, fMax:6, fRef:5, nPts:200, pIn:-60, cable:15 };
+
+const PRESETS = [
+  { label:'Typical line (20/20/20 dB)', A:[0,0,20,20,20] },
+  { label:'No attenuators', A:[0,0,0,0,0] },
+  { label:'All 60 dB at 4 K', A:[0,0,60,0,0] },
+  { label:'All 60 dB at the MXC', A:[0,0,0,0,60] },
+  { label:'Warm MXC (100 mK)', A:[0,0,20,20,20], T:{4:0.1} },
+];
+
+/* ---------- build the fridge rows ---------- */
+const fridge = $('#fridge');
+STAGES.forEach((s,i)=>{
+  const unit = s.mK ? 'mK' : 'K';
+  fridge.insertAdjacentHTML('beforeend', `
+    <div class="plate${i===4?' mxc':''}" style="--c:${s.c}">
+      <b>${s.name}</b>
+      <div class="field"><label for="T${i}">Temperature [${unit}]</label>
+        <input id="T${i}" type="number" min="0" step="${s.mK?1:0.1}"></div>
+    </div>
+    <div class="wire" style="--c:${s.c}">
+      <div class="att" id="attBox${i}"><input id="A${i}" type="number" min="0" max="60" step="1" aria-label="${s.name} attenuation [dB]"><span>dB</span></div>
+    </div>
+    <div class="out${i===4?' mxc':''}" style="--c:${s.c}">
+      <div class="teff"><span>T<sub>eff</sub></span><b id="oT${i}"></b></div>
+      <div><span>n<sub>eff</sub></span><b id="oN${i}"></b></div>
+      <div><span>Below room</span><b id="oR${i}"></b></div>
+      <div><span>Drive</span><b id="oP${i}"></b></div>
+      <div class="bar"><i id="oB${i}"></i></div>
+    </div>`);
+});
+$('#presets').innerHTML = PRESETS.map((p,k)=>`<button data-k="${k}">${p.label}</button>`).join('');
+
+/* ---------- state <-> inputs <-> URL ---------- */
+const num = (id, lo, hi, dflt) => {
+  const v = parseFloat($(id).value);
+  return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt;
+};
+function readState(){
+  const T = STAGES.map((s,i)=>{ const v = num('#T'+i, 0, 1e4, DEFAULTS.T[i] * (s.mK?1e3:1)); return s.mK ? v/1e3 : v; });
+  const A = STAGES.map((s,i)=>num('#A'+i, 0, 60, DEFAULTS.A[i]));
+  const fMin = num('#fMin', 1, 20, 3);
+  let fMax = num('#fMax', 1, 20, 6), warn = '';
+  if (fMax <= fMin) { fMax = fMin + 0.1; warn = 'f_max must be greater than f_min, so it is set to f_min + 0.1 GHz.'; }
+  return { T, A, fMin, fMax, warn, fRef:+$('#fRef').value, nPts:+$('#nPts').value,
+           pIn:num('#pIn', -200, 30, -60), cable:num('#cable', 0, 60, 15) };
+}
+function writeState(st){
+  STAGES.forEach((s,i)=>{
+    $('#T'+i).value = s.mK ? +(st.T[i]*1e3).toPrecision(6) : st.T[i];
+    $('#A'+i).value = st.A[i];
+  });
+  $('#fMin').value = st.fMin; $('#fMax').value = st.fMax; $('#nPts').value = st.nPts;
+  $('#pIn').value = st.pIn; $('#cable').value = st.cable;
+  syncRef(st.fRef);
+}
+function syncRef(want){
+  const lo = num('#fMin', 1, 20, 3); let hi = num('#fMax', 1, 20, 6); if (hi <= lo) hi = lo + 0.1;
+  const r = $('#fRef'); r.min = lo; r.max = hi;
+  r.value = Math.min(hi, Math.max(lo, want ?? +r.value));
+}
+function toQuery(st){
+  const q = new URLSearchParams({ T:st.T.join(','), A:st.A.join(','), f:`${st.fMin},${st.fMax},${st.fRef}`,
+    n:st.nPts, p:st.pIn, c:st.cable });
+  return '?' + q.toString();
+}
+function fromQuery(){
+  const q = new URLSearchParams(location.search), st = structuredClone(DEFAULTS);
+  const list = (k, n) => { const v = (q.get(k)||'').split(',').map(Number); return v.length===n && v.every(Number.isFinite) ? v : null; };
+  const T = list('T',5), A = list('A',5), f = list('f',3);
+  if (T) st.T = T; if (A) st.A = A; if (f) [st.fMin, st.fMax, st.fRef] = f;
+  for (const [k,key] of [['n','nPts'],['p','pIn'],['c','cable']]) { const v = parseFloat(q.get(k)); if (Number.isFinite(v)) st[key] = v; }
+  return st;
+}
+
+/* ---------- formatting ---------- */
+const sci = x => !Number.isFinite(x) ? '—' : x === 0 ? '0' : (Math.abs(x) >= 0.01 && Math.abs(x) < 1e4) ? (+x.toPrecision(3)).toString() : x.toExponential(2).replace('e', '×10^').replace(/\^\+?(-?\d+)/, (_,e)=>supNum(e));
+const supNum = e => [...String(+e)].map(ch=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(ch)] ?? (ch==='-'?'⁻':ch)).join('');
+const dB = x => Number.isFinite(x) ? `${x.toFixed(1)} dB` : '—';
+const tempStr = T => Number.isFinite(T) ? F.formatTemp(T) : '—';
+
+/* ---------- plots ---------- */
+const PLOTS = [
+  { id:'n',    tab:'Photon number',      y:'Thermal photon number n_eff', log:true },
+  { id:'T',    tab:'Effective temperature', y:'Effective temperature T_eff [K]', log:true },
+  { id:'dB',   tab:'Noise vs room',      y:'Noise reduction vs room [dB]', log:false },
+  { id:'P',    tab:'Drive power',        y:'Drive power [dBm]', log:false },
+  { id:'flux', tab:'Drive photon flux',  y:'Drive photon flux [photons/s]', log:true },
+];
+let plotId = 'n';
+const logPref = Object.fromEntries(PLOTS.map(p=>[p.id,p.log]));
+$('#plotTabs').innerHTML = PLOTS.map(p=>`<button class="tab" role="tab" data-p="${p.id}" aria-selected="${p.id===plotId}">${p.tab}</button>`).join('');
+
+let model = null;
+function compute(st){
+  const freqs = F.linspace(st.fMin, st.fMax, st.nPts);
+  const { nEff, TEff } = F.propagateChain(freqs, st.T, st.A);
+  const nRoom = freqs.map(f=>F.thermalN(st.T[0], f));
+  const red = nEff.map(row=>row.map((n,k)=>F.noiseReductionDB(nRoom[k], n)));
+  const P = F.drivePowers(st.pIn, st.A, st.cable);
+  const flux = P.map(p=>freqs.map(f=>F.photonFlux(p, f)));
+  // reference-frequency values, computed at f_ref itself rather than the nearest grid point
+  const ref = F.propagateChain([st.fRef], st.T, st.A);
+  const nRoomRef = F.thermalN(st.T[0], st.fRef);
+  const at = STAGES.map((_,i)=>({ n:ref.nEff[i][0], T:ref.TEff[i][0], red:F.noiseReductionDB(nRoomRef, ref.nEff[i][0]),
+    P:P[i], perUs:F.photonFlux(P[i], st.fRef)*1e-6 }));
+  return { st, freqs, nEff, TEff, red, P, flux, at, nRoomRef };
+}
+
+function drawPlot(){
+  const m = model, p = PLOTS.find(q=>q.id===plotId), x = Array.from(m.freqs);
+  const ys = { n:m.nEff, T:m.TEff, dB:m.red, P:m.P.map(v=>x.map(()=>v)), flux:m.flux }[plotId];
+  const traces = STAGES.map((s,i)=>({ x, y:Array.from(ys[i]), mode:'lines', name:s.name, line:{color:s.c, width:i===4?3:2},
+    hovertemplate:`${s.short}: %{y:.4g}<extra>%{x:.3f} GHz</extra>` }));
+  $('#logY').checked = logPref[plotId];
+  Plotly.react('plot', traces, {
+    margin:{l:70,r:16,t:16,b:48}, font:{family:'Helvetica, Arial, sans-serif', size:12, color:'#1b2a24'},
+    xaxis:{title:{text:'Frequency [GHz]'}, gridcolor:'#e8eee9', zeroline:false},
+    yaxis:{title:{text:p.y}, type:logPref[plotId]?'log':'linear', gridcolor:'#e8eee9', zeroline:false, exponentformat:'power'},
+    legend:{orientation:'h', y:1.1, x:0}, paper_bgcolor:'#fff', plot_bgcolor:'#fff', hovermode:'x unified',
+    shapes:[{type:'line', xref:'x', yref:'paper', x0:m.st.fRef, x1:m.st.fRef, y0:0, y1:1, line:{color:'#5a6b63', dash:'dot', width:1}}],
+  }, {responsive:true, displaylogo:false});
+}
+
+function render(){
+  const st = readState();
+  $('#bandWarn').innerHTML = st.warn ? `<div class="note warn">${st.warn}</div>` : '';
+  model = compute(st);
+  $('#fRefVal').textContent = `${st.fRef.toFixed(2)} GHz`;
+  $('#frefLbl').textContent = `${st.fRef.toFixed(2)} GHz`;
+  $('#nPtsVal').textContent = st.nPts;
+
+  const top = Math.log10(Math.max(model.nRoomRef, 1e-6)), bottom = -6;
+  model.at.forEach((a,i)=>{
+    $('#oT'+i).textContent = tempStr(a.T);
+    $('#oN'+i).textContent = sci(a.n);
+    $('#oR'+i).textContent = dB(a.red);
+    $('#oP'+i).textContent = `${a.P.toFixed(1)} dBm`;
+    const frac = top > bottom ? (Math.log10(Math.max(a.n, 1e-12)) - bottom) / (top - bottom) : 0;
+    $('#oB'+i).style.width = `${Math.max(0, Math.min(1, frac))*100}%`;
+    $('#attBox'+i).classList.toggle('none', st.A[i] === 0);
+  });
+
+  const mx = model.at[4];
+  $('#driveOut').innerHTML = `<p class="hint" style="margin:0">At the MXC: <b>${mx.P.toFixed(1)} dBm</b>,
+    about <b>${sci(mx.perUs)}</b> drive photons per µs at ${st.fRef.toFixed(2)} GHz, against
+    n<sub>eff</sub> = <b>${sci(mx.n)}</b> thermal photons in the line.</p>`;
+
+  $('#table').innerHTML = `<thead><tr><th>Stage</th><th>T<sub>stage</sub></th><th>Atten [dB]</th><th>n<sub>eff</sub></th>
+    <th>T<sub>eff</sub></th><th>Below room [dB]</th><th>Drive [dBm]</th><th>Drive photons/µs</th></tr></thead><tbody>` +
+    model.at.map((a,i)=>`<tr><td>${STAGES[i].name}</td><td>${F.formatTemp(st.T[i])}</td><td>${st.A[i].toFixed(1)}</td>
+      <td>${sci(a.n)}</td><td>${tempStr(a.T)}</td><td>${Number.isFinite(a.red)?a.red.toFixed(1):'—'}</td>
+      <td>${a.P.toFixed(1)}</td><td>${sci(a.perUs)}</td></tr>`).join('') + '</tbody>';
+
+  drawPlot();
+  history.replaceState(null, '', toQuery(st) + location.hash);
+}
+
+/* ---------- events ---------- */
+let pending = 0;
+const schedule = () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(render); };
+document.querySelectorAll('input[type=number]').forEach(el=>el.addEventListener('input', ()=>{
+  if (el.id === 'fMin' || el.id === 'fMax') syncRef();
+  schedule();
+}));
+['#fRef','#nPts'].forEach(id=>$(id).addEventListener('input', schedule));
+$('#presets').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if (!b) return;
+  const p = PRESETS[+b.dataset.k], st = readState();
+  st.A = p.A.slice(); st.T = DEFAULTS.T.slice();
+  if (p.T) for (const [i,v] of Object.entries(p.T)) st.T[i] = v;
+  writeState(st); render();
+});
+$('#plotTabs').addEventListener('click', e=>{
+  const b = e.target.closest('.tab'); if (!b) return;
+  plotId = b.dataset.p;
+  document.querySelectorAll('#plotTabs .tab').forEach(t=>t.setAttribute('aria-selected', t===b));
+  drawPlot();
+});
+$('#logY').addEventListener('change', e=>{ logPref[plotId] = e.target.checked; drawPlot(); });
+$('#reset').addEventListener('click', ()=>{ writeState(structuredClone(DEFAULTS)); render(); });
+$('#copyLink').addEventListener('click', async e=>{
+  const b = e.target, url = location.href;
+  try { await navigator.clipboard.writeText(url); b.textContent = 'Copied'; }
+  catch { prompt('Copy this link:', url); }
+  setTimeout(()=>{ b.textContent = 'Copy link'; }, 1400);
+});
+$('#dlCsv').addEventListener('click', ()=>{
+  const m = model, head = ['f_GHz'];
+  STAGES.forEach(s=>head.push(`n_eff ${s.short}`, `T_eff_K ${s.short}`, `reduction_dB ${s.short}`, `drive_dBm ${s.short}`, `photon_flux_per_s ${s.short}`));
+  const rows = [head.join(',')];
+  m.freqs.forEach((f,k)=>{
+    const r = [f];
+    STAGES.forEach((_,i)=>r.push(m.nEff[i][k], m.TEff[i][k], m.red[i][k], m.P[i], m.flux[i][k]));
+    rows.push(r.join(','));
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
+  a.download = 'fridge_noise_curves.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+
+writeState(fromQuery());
+render();
+</script>
+</body>
+</html>
