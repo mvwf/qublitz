@@ -165,12 +165,17 @@
   <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
   <div class="card">
     <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
-      <span class="pill">position at the coil</span></div>
+      <span class="pill" style="display:inline-flex;gap:6px;align-items:center">coil senses
+        <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12px;border:1px solid #d8e2dc;border-radius:6px;padding:1px 4px">
+          <option value="vel" selected>velocity (magnetic coil)</option><option value="pos">position</option></select></span></div>
     <p class="cap">Each string's contribution (its colour) and the clipped output <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>) you hear (dark), in volts. Raise the <b>Amp gain</b> (dB) to drive it into the ±4.5 V rail.</p>
     <div id="scopePlot" style="width:100%;height:220px"></div>
     <canvas id="scope" height="200" style="display:none"></canvas>
-    <p class="legend">The coil reads the string's position near the bridge; the gain knob drives that sum through a soft
-      clipper (tanh). The dark <b>sum</b> trace is exactly the sound. Click a name in the legend to hide that string.</p>
+    <p class="legend">A magnetic pickup's voltage is the induced EMF, −dΦ/dt, so it follows the string's <b>velocity</b> at the coil,
+      not its position. Differentiating in time multiplies mode <span class="mvar">n</span> by its frequency, so higher harmonics
+      come out <span class="mvar">n</span> times stronger than in the position picture: that is why an electric guitar sounds bright.
+      Switch to <i>position</i> to compare. The gain knob drives the sum through a soft clipper (tanh); the dark <b>sum</b> trace is
+      exactly the sound. Click a name in the legend to hide that string.</p>
   </div>
 
   <div class="card">
@@ -195,7 +200,8 @@
     <li>Keep that single mode and slowly raise the <b>Amp gain</b> (dB). The round sine in the scope grows flat tops as it
       hits the ±4.5 V rail. In the FFT, new peaks appear at 3f₁, 5f₁, 7f₁ … Listen: the pure tone turns into a buzzy overdrive.
       Where did those frequencies come from if the string only has one mode?</li>
-    <li>At 0 dB the FFT peaks track the mode bars (except modes with a node at the coil). Now crank the gain — the FFT
+    <li>At 0 dB the FFT peaks track the mode bars (except modes with a node at the coil), multiplied by <span class="mvar">n</span>
+      for the velocity-sensing coil; switch the coil to <i>position</i> and they match the bars directly. Now crank the gain — the FFT
       sprouts harmonics the string never had. Clipping is a <i>nonlinear</i> operation; it manufactures frequencies,
       which is exactly how a guitar amp makes distortion.</li>
     <li>Read it off quantitatively: the labelled peaks are at integer multiples of f₁ (in Hz). Odd multiples dominate
@@ -396,9 +402,16 @@ if (window.QUBLITZ_STANDALONE) {
   // The pickup reads the string's POSITION at its location: y(x_pickup,t), summed over played strings.
   // The pickup sits a fixed distance from the bridge, so each string is sampled at 1 - d/L_i.
   function pickupU(i){ return Math.max(0,Math.min(1, 1 - pickupPos/lenFrac(i))); }
-  function pickupSignal(i,t){ const f1i=f1of(i), u=pickupU(i); let s=0;
+  // Mode shape at position u: sin for a fixed left end (DD, DN), cos for a free one (NN, ND), as in buildBasis().
+  const shapeAt=(k,u)=>{ const t=bcL+bcR; return (t==='NN'||t==='ND') ? Math.cos(modes[k].kL*u) : Math.sin(modes[k].kL*u); };
+  // Velocity coil: d/dt of each mode, normalized by 2π·VEL_NORM·f1, so mode k scales by ratio/VEL_NORM. The coil's
+  // sensitivity is a free constant; VEL_NORM = 5 keeps a normal pluck near the same ~0.8 V as the position picture.
+  const VEL_NORM=5;
+  const senseVel=()=>{ const el=document.getElementById('sense'); return !el || el.value==='vel'; };
+  function pickupSignal(i,t){ const f1i=f1of(i), u=pickupU(i), vel=senseVel(); let s=0;
     for(let k=0;k<modes.length;k++){ const a=coeffs[k]; if(!a) continue;
-      s += a*Math.cos(2*Math.PI*f1i*modes[k].ratio*t)*Math.sin(modes[k].kL*u); }  // position at the coil
+      const ph=2*Math.PI*f1i*modes[k].ratio*t, shape=shapeAt(k,u);
+      s += vel ? -a*modes[k].ratio/VEL_NORM*Math.sin(ph)*shape : a*Math.cos(ph)*shape; }
     return s; }
   function pickupSum(t){ let s=0; const pl=playedList(); for(const i of pl) s+=pickupSignal(i,t); return s; }
   // Pickup output voltage, soft-clipped at the amp rail: V_out = VCLIP·tanh(g·VREF·Σ y_i / VCLIP).
@@ -600,7 +613,7 @@ if (window.QUBLITZ_STANDALONE) {
       for(let k=0;k<modes.length;k++){ const a=coeffs[k]; if(Math.abs(a)<1e-4) continue;
         const r=modes[k].ratio, fk=f1i*r;
         if(!isFinite(fk)||fk<20||fk>Math.min(18000,nyq)) continue;
-        const amp=a*Math.sin(modes[k].kL*u);                  // pickup reads position at the coil
+        const amp=a*shapeAt(k,u)*(senseVel()?r/VEL_NORM:1);  // coil output: velocity (∝ ratio) or position
         if(Math.abs(amp)<1e-4) continue;
         comps.push({f:fk, amp, tau:Math.max(0.35,3.0/(1+0.10*(r-1))), t0}); } });
     if(!comps.length){ console.warn('nothing audible for this shape'); return; }
@@ -666,6 +679,7 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('reset').addEventListener('click',()=>{ clock=0; pause(); drawStrings(); updateTimePill(); });
   document.getElementById('sound').addEventListener('click',listen);
   document.getElementById('speed').addEventListener('input',e=>{ speed=+e.target.value; });
+  document.getElementById('sense').addEventListener('change',()=>drawAll());
   document.getElementById('gain').addEventListener('input',e=>{ gainDb=+e.target.value;
     document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; drawScope(); drawSpectrum(); });
   const L0=0.648;              // guitar scale length (25.5 in)
