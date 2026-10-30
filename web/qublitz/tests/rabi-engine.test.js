@@ -151,6 +151,35 @@ const close = (a, b, tol) => Math.abs(a - b) <= tol;
   check('no quantum jumps under a Purcell filter', u.jumps === 0);
 }
 
+// ---- hits relax to |0⟩; measurement gates follow the Born rule ----
+{
+  const w = new E.World({ seed: 'hit', decay: false }); w.spawn = () => {};
+  w.r = fromAngles(2.0, 0.4); w.objects = [{ type: 'cloud', th: 2.0, ph: 0.4, v: w.r.slice(), rad: 0.2 }];
+  const ev = w.step({ hold: false }, 1 / 120).map(e => e.type);
+  check('a hit costs a heart and relaxes the qubit to |0⟩', ev.includes('hit') && w.hearts === E.P.HEARTS - 1 && w.angles.th < 0.05);
+  for (const th of [Math.PI / 3, Math.PI / 2, 2.5]) {
+    let ones = 0; const N = 4000;
+    for (let k = 0; k < N; k++) {
+      const v = new E.World({ seed: 'meas' + k, decay: false }); v.spawn = () => {};
+      v.r = fromAngles(th, 0.3); const ev = []; v.measure({ want: 1 }, ev);
+      if (ev[0].one) ones++;
+      if (Math.abs(Math.abs(v.r[2]) - 1) > 1e-6) ones = NaN;   // must land on a pole
+    }
+    const want = Math.sin(th / 2) ** 2, sd = Math.sqrt(want * (1 - want) / N);
+    check(`measurement at θ = ${(th / D2R).toFixed(0)}° gives |1⟩ with P = sin²(θ/2)`, Math.abs(ones / N - want) < 4 * sd, `${(ones / N).toFixed(3)} vs ${want.toFixed(3)}`);
+  }
+}
+
+// ---- gate tokens: X reflects through the equator, √X turns a quarter turn; φ is kept ----
+{
+  const w = new E.World({ seed: 'gate', decay: false }); w.spawn = () => {};
+  w.r = fromAngles(0.5, 1.1); const ev = []; w.collect({ kind: 'X' }, ev);
+  check('the X token sends θ to π − θ and keeps φ', close(w.angles.th, Math.PI - 0.5, 1e-9) && close(w.angles.ph, 1.1, 1e-9));
+  w.r = fromAngles(2.6, -0.4); w.collect({ kind: 'sx' }, ev);
+  check('the √X token turns the state 90° toward the far pole', close(w.angles.th, 2.6 - Math.PI / 2, 1e-9) && close(w.angles.ph, -0.4, 1e-9));
+  check('X is a rotation by π: the state moved through angle π − 2θ in the meridian', close(E.gateTheta('X', 0.3), Math.PI - 0.3, 1e-12));
+}
+
 // ---- missions: each can be cleared with every ring, by a bot that chases the next target ----
 {
   const drive = w => {

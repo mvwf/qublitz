@@ -18,6 +18,10 @@
  * probability γ·P₁·dt per step, which resets the state to |0⟩ (a quantum jump). Averaged over many
  * runs this reproduces ordinary T₁ decay with γ = 1/T₁.
  *
+ * Hitting noise (a cloud or a pillar) costs a heart and relaxes the qubit to |0⟩. Measurement gates
+ * are projective measurements of σz: crossing one sends the state to |1⟩ with probability
+ * P₁ = sin²(θ/2) and to |0⟩ otherwise (the Born rule).
+ *
  * Angles inside the engine are radians; the course is laid out in φ measured from the camera.
  */
 (function (root) {
@@ -81,7 +85,8 @@
     SPAWN: 165 * D2R,    // objects appear this far ahead of the camera
     DESPAWN: -118 * D2R, // and leave this far behind
     HEARTS: 3,
-    GRACE: 1.2,          // s of invulnerability after a hit or a jump
+    GRACE: 1.2,          // s of invulnerability after a jump
+    HIT_GRACE: 1.6,      // and after a hit, which also resets the qubit to |0⟩
     RING0: 13 * D2R, RING_MIN: 8 * D2R,
     POWER_RAD: 9 * D2R,  // pickup radius of a power-up
     SLOW: 6,             // s of recalibration, which lowers Δ to SLOW_FACTOR of its value
@@ -126,6 +131,7 @@
    *   ['r', a, θ]                ring                 ['c', a, θ, radius]          noise cloud
    *   ['p', a, θ0, θ1, width]    pillar               ['u', a, θ, kind]            power-up
    *   ['q', a, k]                quiz gate QUIZ[k]    ['n', a, name, life]         named ring
+   *   ['m', a, want]             measurement gate that pays for outcome `want` (0 or 1)
    * A named ring on the equator moves to the first arrival ≥ a where φ matches the state; |1⟩ is a band
    * along the bottom that appears at a and lasts `life` seconds. Stars: 3 for every ring with no hits
    * (or a `three` share of the rings, where luck is involved), 2 for 70 % of the rings, 1 for finishing. */
@@ -149,6 +155,11 @@
       learn: 'P(|1⟩) = sin²(θ/2) and ⟨σz⟩ = cos θ, so probability is not proportional to height on the sphere: P(|1⟩) = ¼ sits at θ = 60°, not 45°.',
       items: [['r', 40, 90], ['q', 100, 0], ['r', 170, 90], ['q', 230, 2], ['r', 300, 90], ['q', 360, 3], ['r', 430, 90], ['q', 490, 1],
         ['r', 560, 90], ['q', 620, 0]] },
+    { id: 'collapse', title: 'Collapse', mode: 'auto', delta: 0.42, start: 90,
+      brief: 'A measurement gate (the blue curtain) projects your qubit onto |0⟩ or |1⟩ at random, with P(|1⟩) = sin²(θ/2). Each gate names the outcome it pays for: fly close to that pole first to load the dice.',
+      learn: 'Measurement is not a rotation. It picks |0⟩ or |1⟩ at random with the Born-rule odds and leaves the qubit in that state. Near a pole the result is almost certain; on the equator it is a coin flip. Measure again right away and you get the same answer.',
+      items: [['r', 40, 60], ['m', 90, 0], ['r', 140, 90], ['m', 200, 1], ['r', 250, 100], ['m', 300, 1], ['r', 350, 80], ['m', 400, 0],
+        ['r', 450, 120], ['m', 500, 1], ['r', 550, 90]] },
     { id: 'axes', title: 'Pick an axis', mode: 'pilot', delta: 0.38, start: 90,
       brief: 'Pilot mode: you choose the drive axis. +X lifts the state on the +y side of the sphere and pushes it down on the −y side. Watch the arrows on the drive pad as φ turns.',
       learn: 'dθ/dt = −Ω sin(φ − α): the same pulse does different things to states with different phases. That is why gates are defined against a reference phase, and why phase errors matter.',
@@ -166,6 +177,11 @@
       items: [['u', 50, 90, 'echo'], ['c', 110, 35, 17], ['c', 110, 75, 17], ['c', 110, 115, 17], ['r', 150, 150], ['u', 200, 100, 'calib'],
         ['r', 235, 50], ['r', 260, 130], ['r', 285, 50], ['r', 310, 130], ['u', 360, 120, 'purcell'], ['r', 400, 150], ['r', 440, 155],
         ['r', 480, 150], ['r', 520, 145]] },
+    { id: 'gates', title: 'Gate shortcuts', mode: 'auto', delta: 0.6, start: 45, ring: 9,
+      brief: 'Gate tokens apply a single-qubit gate at once. X reflects you through the equator (|0⟩ ↔ |1⟩); √X turns you a quarter turn toward the other pole. Some rings come almost too fast to fly to: grab the gate first.',
+      learn: 'A gate is just a fast, calibrated pulse: X is a π rotation and √X a π/2 rotation. Gates are how a quantum computer moves a qubit: precise jumps instead of steering. Here the axis follows your longitude, so only θ changes.',
+      items: [['r', 40, 45], ['u', 52, 45, 'X'], ['r', 64, 135], ['r', 110, 135], ['u', 122, 135, 'sx'], ['r', 134, 45], ['r', 180, 45], ['u', 192, 45, 'X'],
+        ['r', 204, 135], ['r', 250, 135], ['u', 262, 135, 'sx'], ['r', 274, 45], ['r', 320, 60], ['u', 332, 60, 'X'], ['r', 344, 120], ['r', 390, 90]] },
     { id: 'jumps', title: 'Quantum jumps', mode: 'auto', delta: 0.5, start: 90, decay: true, gamma: 1 / 6, three: 0.8,
       brief: 'T₁ decay is on, and strong. The closer you fly to |1⟩, the more often a photon escapes and the qubit jumps to |0⟩. Jumps cost no hearts, but they throw you to the top.',
       learn: 'The jump rate is γ·P(|1⟩). Between jumps the state still drifts toward |0⟩, because not seeing a photon is information too. Averaged over many flights this is plain exponential decay, e^(−t/T₁).',
@@ -173,11 +189,15 @@
         ['r', 450, 150], ['r', 500, 140]] },
     { id: 'exam', title: 'Final exam', mode: 'pilot', delta: 0.42, start: 90,
       brief: 'Everything at once, in Pilot mode: named states, quiz gates, noise, pillars and a spin echo. Use the arrows on the drive pad.',
-      learn: 'You steered a qubit with real drive physics: rotations about X, Y and Z, the phase dependence of a pulse, and the Born rule. That is the toolkit behind every single-qubit gate.',
+      learn: 'You steered a qubit with real drive physics: rotations about X and Y, the phase dependence of a pulse, and the Born rule. That is the toolkit behind every single-qubit gate.',
       items: [['r', 40, 90], ['n', 90, '|+i⟩'], ['c', 130, 50, 13], ['r', 140, 120], ['q', 200, 2], ['p', 260, 0, 75, 7], ['r', 260, 125],
         ['u', 300, 110, 'echo'], ['n', 360, '|+⟩'], ['c', 400, 130, 14], ['r', 410, 70], ['p', 460, 105, 180, 7], ['r', 460, 55], ['q', 530, 0],
         ['r', 590, 90], ['n', 630, '|−i⟩'], ['r', 680, 100], ['n', 720, '|+⟩']] },
   ];
+  // Gate tokens act with the drive axis tied to the state's longitude, so φ stays put and only θ changes.
+  // X, a π pulse about the axis pointing at your longitude, reflects the state through the equator;
+  // √X, a π/2 pulse about the axis across your meridian, turns it a quarter turn toward the far pole.
+  const gateTheta = (kind, th) => kind === 'X' ? Math.PI - th : th < Math.PI / 2 ? th + Math.PI / 2 : th - Math.PI / 2;
   const isGood = o => o.type === 'ring' || o.type === 'power';   // things to collect, which obstacles never cover
 
   /* ---------------- the world ----------------
@@ -185,7 +205,7 @@
    * step(input, dt): input = { hold } in autopilot, { x, y, z } targets in [−1, 1] in pilot mode.
    * In autopilot the drive phase is locked to the state's longitude, so the drive only changes θ:
    * amplitude a = +1 pushes toward |1⟩ at the full Rabi rate, a = −1 toward |0⟩.
-   * Each step returns a list of events: ring, quiz, quizmiss, power, block, close, heal, miss, hit, jump,
+   * Each step returns a list of events: ring, quiz, quizmiss, power, block, close, measure, heal, miss, hit, jump,
    * stage, clear (a mission finished) and over.
    * The course is generated ahead as a queue of objects at course positions cs (radians of scroll);
    * each one is placed SPAWN ahead of the camera when the scroll reaches it.
@@ -197,6 +217,7 @@
       this.pace = this.mode === 'pilot' ? 0.8 : 1;     // pilot mode scrolls a little slower
       this.rand = rng('course:' + (opts.seed ?? 'random'));
       this.jumpRand = rng('jumps:' + (opts.seed ?? 'random'));
+      this.measRand = rng('measure:' + (opts.seed ?? 'random'));
       this.r = fromAngles(70 * D2R, 0);                 // a little below the equator, at +x
       this.camPh = wrap(-P.HOME);
       this.t = 0; this.s = 0;                           // time, and distance scrolled
@@ -204,6 +225,7 @@
       this.objects = []; this.queue = []; this.nextS = 60 * D2R; this.walk = 75 * D2R; this.segment = 0;
       this.score = 0; this.combo = 0; this.rings = 0; this.perfects = 0; this.jumps = 0; this.hits = 0;
       this.hearts = P.HEARTS; this.grace = 0; this.over = false;
+      this.measures = 0; this.measWins = 0; this.gates = 0; this.snap = false;
       this.quizRight = 0; this.quizWrong = 0; this.closes = 0; this.powers = 0; this.blocked = 0; this.stage = 0;
       this.shield = false; this.slowT = 0; this.slowK = 1; this.purcellT = 0;
       this.mission = null; this.cleared = false;
@@ -211,7 +233,7 @@
       if (m) {
         this.mission = m; this.mode = m.mode; this.decay = !!m.decay; this.hearts = m.hearts ?? P.HEARTS;
         this.r = fromAngles(m.start * D2R, 0);
-        this.jumpRand = rng('jumps:mission:' + m.id);
+        this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id);
         this.script(m);
       }
     }
@@ -296,7 +318,7 @@
     generate() {
       const R = this.rand, lvl = this.level, rr = this.ringRadius, s0 = this.nextS;
       const roll = R(), kind = this.segment++ < 2 ? 'rings' : roll < 0.22 + 0.25 * lvl ? 'pillar' : roll < 0.34 + 0.25 * lvl ? 'named'
-        : roll < 0.44 + 0.25 * lvl ? 'quiz' : 'rings';
+        : roll < 0.44 + 0.25 * lvl ? 'quiz' : roll < 0.5 + 0.25 * lvl ? 'measure' : 'rings';
       if (kind === 'pillar') {
         // a pillar reaching up from |1⟩ or down from |0⟩, with a ring in the gap; it usually grows from the
         // pole the qubit is nearer to, so parking at a pole is not a safe place to wait
@@ -317,12 +339,19 @@
         this.pushQuiz(s0 + 25 * D2R, q, rr);
         this.walk = q.th;
         this.nextS += 85 * D2R;
+      } else if (kind === 'measure') {
+        // a measurement gate; the next rings start mid-sphere, so they are in reach from either outcome
+        this.push(s0 + 25 * D2R, { type: 'gate', want: R() < 0.5 ? 1 : 0, th: Math.PI / 2 });
+        this.walk = Math.PI / 2;
+        this.nextS += 110 * D2R;
       } else {
         // a short run of rings on a smooth random walk, with noise clouds beside it
         const n = 2 + Math.floor(R() * 3), stepTh = (20 + 25 * lvl) * D2R, gap = 38 * D2R;
         for (let i = 0; i < n; i++) {
-          const cs = s0 + i * gap;
-          this.walk = this.clear(cs, Math.max(22 * D2R, Math.min(158 * D2R, this.walk + (R() * 2 - 1) * stepTh)), rr);
+          const cs = s0 + i * gap, step = (R() * 2 - 1) * stepTh;
+          // after a gate token the next ring sits where the gate sends you, so the token is a shortcut
+          this.walk = this.clear(cs, Math.max(22 * D2R, Math.min(158 * D2R, this.walk + (this.snap ? 0 : step))), rr);
+          this.snap = false;
           this.push(cs, { type: 'ring', th: this.walk, rad: rr });
           if (R() < 0.35 + 0.4 * lvl) {
             const side = this.walk > Math.PI / 2 ? -1 : 1, rad = (9 + 6 * R()) * D2R;
@@ -330,8 +359,9 @@
             this.push(cs + gap / 2, { type: 'cloud', th, rad });
           } else if (R() < 0.2) {
             // a power-up on the way to the next ring; Purcell filters only matter when T₁ decay is on
-            const k = R(), kind = this.decay && k < 0.25 ? 'purcell' : k < 0.6 ? 'echo' : 'calib';
+            const k = R(), kind = this.decay && k < 0.2 ? 'purcell' : k < 0.42 ? 'echo' : k < 0.62 ? 'calib' : i < n - 1 ? (k < 0.84 ? 'X' : 'sx') : 'calib';
             this.push(cs + gap / 2, { type: 'power', kind, th: this.walk, rad: P.POWER_RAD });
+            if (kind === 'X' || kind === 'sx') { this.walk = gateTheta(kind, this.walk); this.snap = true; }
           }
         }
         this.nextS += (n * 38 + 30 - 10 * lvl) * D2R;
@@ -356,6 +386,7 @@
         else if (k === 'p') this.push(a - lead, { type: 'pillar', th0: d(it[2]), th1: d(it[3]), th: d(it[2] + it[3]) / 2, w: d(it[4]) });
         else if (k === 'u') this.push(a - lead, { type: 'power', kind: it[3], th: d(it[2]), rad: P.POWER_RAD });
         else if (k === 'q') this.pushQuiz(a - lead, QUIZ[it[2]](R), rr);
+        else if (k === 'm') this.push(a - lead, { type: 'gate', want: it[2], th: Math.PI / 2 });
         else if (k === 'n') {
           const n = NAMED.find(x => x.name === it[2]), o = { type: 'ring', named: n, th: n.th, rad: rr * 1.2, bonus: true, fallback: Math.min(n.th, d(150)) };
           if (n.th >= Math.PI - 1e-9) this.push(a, Object.assign(o, { life: it[3] }));
@@ -397,10 +428,12 @@
     }
     // Rings and power-ups always win: an obstacle that would cover one is not placed (or is removed).
     blocks(ring, ob) {
+      if (ob.type === 'gate') return false;   // a measurement gate spans the whole meridian and blocks nothing
       const m = ring.rad * 0.6 + 3 * D2R;
       return ob.type === 'cloud' ? angle(ring.v, ob.v) < ob.rad + m : meridianDist(ring.v, ob.ph, ob.th0, ob.th1) < ob.w + m;
     }
     unblock(o) {
+      if (o.type === 'gate') return;
       if (isGood(o)) this.objects = this.objects.filter(q => isGood(q) || !this.blocks(o, q));
       else if (this.objects.some(q => isGood(q) && !q.done && this.blocks(q, o))) this.objects.pop();
     }
@@ -410,6 +443,8 @@
         if (o.done) continue;
         if (o.type === 'power') {
           if (angle(this.r, o.v) < o.rad) { o.done = true; this.collect(o, ev); }
+        } else if (o.type === 'gate') {
+          if (this.rel(o.ph) < me) { o.done = true; this.measure(o, ev); }   // crossed its meridian
         } else if (o.type === 'ring') {
           const a = angle(this.r, o.v);
           if (a < o.rad && o.quiz) this.answer(o, ev);
@@ -426,7 +461,12 @@
           if (d < 0 && this.grace <= 0) {
             o.struck = true; this.grace = P.GRACE;
             if (this.shield) { this.shield = false; this.blocked++; ev.push({ type: 'block', o }); }   // the spin echo takes the hit
-            else { this.hearts--; this.hits++; this.combo = 0; ev.push({ type: 'hit', o }); }
+            else {
+              // the noise costs a heart and relaxes the qubit to |0⟩ (keeping φ, so the camera stays put)
+              this.hearts--; this.hits++; this.combo = 0; this.grace = P.HIT_GRACE;
+              this.r = fromAngles(1e-4, toAngles(this.r).ph);
+              ev.push({ type: 'hit', o });
+            }
           }
           o.near = Math.min(o.near ?? Infinity, d);
           // once it is well behind, an obstacle passed closely without a touch is a close call
@@ -454,12 +494,23 @@
       ev.push({ type: 'quiz', o, q, correct: o.correct, pts, combo: this.combo });
       if (o.correct) this.counted(ev);
     }
+    // A projective measurement of σz: |1⟩ with probability P₁ = sin²(θ/2), otherwise |0⟩.
+    measure(o, ev) {
+      const p1 = (1 - this.r[2]) / 2, one = this.measRand() < p1;
+      this.r = fromAngles(one ? Math.PI - 1e-4 : 1e-4, toAngles(this.r).ph);
+      this.measures++;
+      const win = (one ? 1 : 0) === o.want, pts = win ? 400 * Math.max(1, this.combo) : 0;
+      if (win) { this.measWins++; this.score += pts; }
+      ev.push({ type: 'measure', o, one, p1, win, pts });
+    }
     collect(o, ev) {
+      const a = toAngles(this.r);
       if (o.kind === 'echo') this.shield = true;
       else if (o.kind === 'calib') this.slowT = P.SLOW;
-      else this.purcellT = P.PURCELL;
+      else if (o.kind === 'purcell') this.purcellT = P.PURCELL;
+      else { this.r = fromAngles(Math.max(1e-4, Math.min(Math.PI - 1e-4, gateTheta(o.kind, a.th))), a.ph); this.gates++; }
       this.powers++; this.score += 50;
-      ev.push({ type: 'power', o, kind: o.kind });
+      ev.push({ type: 'power', o, kind: o.kind, from: a.th });
     }
     cull(ev) {
       this.objects = this.objects.filter(o => {
@@ -473,7 +524,7 @@
   }
 
   const api = { P, D2R, dot, cross, norm, unit, fromAngles, toAngles, wrap, rotate, liftRate, liftAxis, fidelity, angle,
-    meridianDist, rng, NAMED, QUIZ, MISSIONS, World };
+    meridianDist, rng, NAMED, QUIZ, MISSIONS, gateTheta, World };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RabiEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
