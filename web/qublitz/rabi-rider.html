@@ -94,7 +94,8 @@
   #sphere{display:block;width:100%;aspect-ratio:1;border-radius:8px;background:var(--night)}
   .readout{font-size:12.5px;font-variant-numeric:tabular-nums;display:grid;grid-template-columns:auto 1fr;gap:1px 10px}
   .readout span{color:var(--muted)}
-  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pad{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+  .pad button small{font-weight:400;color:var(--muted)}
   .pad button{padding:9px 4px;font-weight:700;font-size:14px;touch-action:none;position:relative;background:var(--panel)}
   .pad button.on{background:var(--green);color:#fff;border-color:var(--green)}
   .pad button i{display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--muted);min-height:15px}
@@ -125,7 +126,7 @@
   table.lift{border-collapse:collapse;font-size:13px;margin:8px 0}
   table.lift td,table.lift th{border-bottom:1px solid var(--line);padding:4px 12px;text-align:left}
   .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
-  .card code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
+  .card code,.card kbd{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
   .dl[hidden]{display:none}
 </style>
 </head>
@@ -147,7 +148,7 @@
       <h2>Rabi Rider<small>STEER A QUBIT THROUGH ITS STATE SPACE</small></h2>
       <div class="modes" role="group" aria-label="Mode">
         <button data-mode="auto" aria-pressed="true"><b>Autopilot</b><span>one button: hold to climb</span></button>
-        <button data-mode="pilot" aria-pressed="false"><b>Pilot</b><span>drive about X, Y and Z yourself</span></button>
+        <button data-mode="pilot" aria-pressed="false"><b>Pilot</b><span>rotate about X and Y yourself</span></button>
         <button id="missionsBtn"><b>Missions</b><span id="missionsSub">9 short lessons, with stars to earn</span></button>
       </div>
       <p id="howto"></p>
@@ -155,6 +156,7 @@
         <label><input type="checkbox" id="optDecay" checked> T₁ decay (quantum jumps)</label>
         <label>Course <select id="optCourse"><option value="random">random</option><option value="daily">today's course</option><option value="custom">custom seed…</option></select></label>
         <input type="text" id="optSeed" placeholder="seed, e.g. ENGS53" size="12" hidden>
+        <label>View <select id="optView"><option value="3d">3D globe</option><option value="map">flat map</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <button class="go" id="play">Play ▶</button>
@@ -163,7 +165,7 @@
     </div>
 
     <div class="overlay" id="missionsOv" hidden>
-      <h2>Missions<small>NINE SHORT LESSONS IN STEERING A QUBIT</small></h2>
+      <h2>Missions<small id="missionsCount">SHORT LESSONS IN STEERING A QUBIT</small></h2>
       <div class="missions" id="missionGrid"></div>
       <div class="row"><button id="missionsBack">Back</button></div>
     </div>
@@ -210,7 +212,7 @@
 
   <aside class="side">
     <div class="panel">
-      <h3>On the Bloch sphere</h3>
+      <h3 style="display:flex;align-items:center">On the Bloch sphere<button id="viewBtn" style="margin-left:auto;font-size:11px;padding:2px 7px;text-transform:none;letter-spacing:0">Flat map view (V)</button></h3>
       <canvas id="sphere" aria-label="The qubit's Bloch vector, the drive axis and the next target"></canvas>
     </div>
     <div class="panel">
@@ -226,10 +228,11 @@
     <div class="panel" id="pilotPanel" hidden>
       <h3>Drive axes <span style="text-transform:none;letter-spacing:0;font-weight:400">— arrows show what each does here</span></h3>
       <div class="pad" id="pad">
-        <button data-ax="x" data-s="1">+X<i></i></button><button data-ax="y" data-s="1">+Y<i></i></button><button data-ax="z" data-s="1">+Z<i>faster ▶</i></button>
-        <button data-ax="x" data-s="-1">−X<i></i></button><button data-ax="y" data-s="-1">−Y<i></i></button><button data-ax="z" data-s="-1">−Z<i>◀ slower</i></button>
+        <button data-ax="x" data-s="1">+X <small>→</small><i></i></button><button data-ax="y" data-s="1">+Y <small>↑</small><i></i></button>
+        <button data-ax="x" data-s="-1">−X <small>←</small><i></i></button><button data-ax="y" data-s="-1">−Y <small>↓</small><i></i></button>
       </div>
-      <p class="keys">Hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd>; add <kbd>Shift</kbd> for the negative axis. <kbd>P</kbd> pauses.</p>
+      <p class="keys">Arrow keys: <kbd>→</kbd> +X, <kbd>←</kbd> −X, <kbd>↑</kbd> +Y, <kbd>↓</kbd> −Y (or hold <kbd>X</kbd> / <kbd>Y</kbd>, with <kbd>Shift</kbd> for minus).
+        <kbd>P</kbd> pauses, <kbd>V</kbd> switches the view.</p>
     </div>
   </aside>
 </div>
@@ -248,7 +251,7 @@
     <tr><td>−X</td><td>−y</td><td>+y</td></tr>
     <tr><td>−Y</td><td>+x</td><td>−x</td></tr></table>
   <p><b>Autopilot</b> locks the drive phase to α = φ ± 90°, the axis perpendicular to your meridian, so the drive only changes θ.
-    Holding uses the phase that climbs, letting go adds π. <b>Pilot</b> mode gives you the four equatorial axes and Z (extra precession)
+    Holding uses the phase that climbs, letting go adds π. <b>Pilot</b> mode gives you the four equatorial axes, ±X and ±Y,
     and leaves the choice to you. The drive amplitude ramps with a 0.16 s time constant, like a real bandwidth-limited pulse.</p>
   <p><b>Rings</b> are target pure states. You collect one when the state fidelity |⟨target|ψ⟩|² = (1 + <b>r</b>·<b>t</b>)/2 is
     high enough, about 0.99; a dead-center pass scores a perfect. Named rings sit at their real places on the sphere:
@@ -267,10 +270,23 @@
     that slow noise cancels itself; in the game it absorbs one hit. <b>Δ↓</b>, recalibration: moving the drive closer to the qubit
     frequency shrinks the detuning Δ, so the precession (the scrolling) slows for 6 s. <b>T₁↑</b>, a Purcell filter: it keeps the qubit
     from leaking energy into its readout line, so there are no quantum jumps for 10 s.</p>
-  <p><b>Missions</b> are nine short scripted courses, one idea each: Rabi rotations, the π pulse, the equator and its named states,
-    the Born rule, how the drive axis matters, noise, the lab tricks above, quantum jumps, and a final exam. A link with
-    <code>?mission=pi</code> (or <code>flight</code>, <code>equator</code>, <code>born</code>, <code>axes</code>, <code>noise</code>,
-    <code>tools</code>, <code>jumps</code>, <code>exam</code>) opens one directly, which is handy for a class.</p>
+  <p><b>Gate tokens</b> apply a single-qubit gate at once, as a fast calibrated pulse would. Their axis follows your longitude, so
+    only θ changes and you stay on your meridian. <b>X</b> is a π rotation about the axis pointing at your longitude,
+    (cos φ, sin φ, 0), which reflects the state through the equator: θ → 180° − θ, so |0⟩ ↔ |1⟩. <b>√X</b> is a π/2 rotation about the
+    axis across your meridian, which turns the state 90° toward the other pole.</p>
+  <p><b>Noise</b> (the clouds and pillars) costs a heart of coherence and relaxes the qubit to |0⟩, the ground state.
+    <b>Measurement gates</b>, the blue curtains, are projective measurements of σ<sub>z</sub>: crossing one sends the state to |1⟩ with
+    probability sin²(θ/2) and to |0⟩ otherwise, and it stays there. Each gate pays for one outcome, so the way to win is to load the
+    dice by flying close to that pole first.</p>
+  <p><b>The 3D view</b> puts the camera just behind the qubit, outside the sphere and level with the equator, looking along the
+    direction of precession with |0⟩ up. The sphere turning under you is the detuning Δ at work. Everything you fly through hovers
+    at the qubit's flying height; whether you hit it is still decided by angles on the sphere. Press <kbd>V</kbd> for the flat map,
+    where longitude runs across the screen.</p>
+  <p><b>Missions</b> are short scripted courses, one idea each: Rabi rotations, the π pulse, the equator and its named states,
+    the Born rule, measurement, how the drive axis matters, noise, the lab tricks above, gate shortcuts, quantum jumps, and a final
+    exam. A link with <code>?mission=pi</code> (or <code>flight</code>, <code>equator</code>, <code>born</code>, <code>collapse</code>,
+    <code>axes</code>, <code>noise</code>, <code>tools</code>, <code>gates</code>, <code>jumps</code>, <code>exam</code>) opens one
+    directly, which is handy for a class. Add <code>&amp;view=map</code> for the flat map.</p>
 </div>
 <p class="dl" id="offlineHint"><a href="rabi-rider-offline.html" download="qublitz-rabi-rider.html">Download the game</a>
   as a single HTML file that runs offline in any browser.</p>
@@ -297,11 +313,12 @@ const S = {
   course: P0.has('seed') ? 'custom' : store.get('rabi:course', 'random'),
   seed: P0.raw.get('seed') || store.get('rabi:seed', ''),
   sound: store.get('rabi:sound', true),
+  view: P0.str('view', ['3d', 'map']) || store.get('rabi:view', '3d'),
 };
 const HOWTO = {
   auto: 'Hold <kbd>Space</kbd> (or press and hold the game) and the drive rotates your qubit toward |0⟩. Let go and the drive flips ' +
     'phase by π, sending it toward |1⟩. Fly through the rings, which are target states, and dodge the noise clouds and pillars.',
-  pilot: 'Hold <kbd>X</kbd>, <kbd>Y</kbd> or <kbd>Z</kbd> to rotate about that axis, with <kbd>Shift</kbd> for the negative one. ' +
+  pilot: 'Rotate about X or Y with the arrow keys (<kbd>→</kbd> +X, <kbd>←</kbd> −X, <kbd>↑</kbd> +Y, <kbd>↓</kbd> −Y). ' +
     'Which axis lifts you depends on where you are: +X pushes you toward |0⟩ on the +y side of the sphere and toward |1⟩ on the −y side. ' +
     'The arrows on the drive pad show what each axis does right now.',
 };
@@ -323,7 +340,9 @@ const BADGES = [
   { id: 'cardinal', icon: '🧭', name: 'Cardinal points', desc: 'Collect |+⟩, |−⟩, |+i⟩, |−i⟩ and |1⟩ (over any flights).', test: () => namedSeen.size >= 5 },
   { id: 'born', icon: '🎓', name: 'Born rule', desc: 'Answer 5 quiz gates right in one flight.', test: w => w.quizRight >= 5 },
   { id: 'close', icon: '😅', name: 'Close shave', desc: '5 close calls in one flight.', test: w => w.closes >= 5 },
-  { id: 'jumps', icon: '⚡', name: 'Watched pot', desc: 'Keep flying through 5 quantum jumps.', test: w => w.jumps >= 5 },
+  { id: 'jumps', icon: '📡', name: 'Watched pot', desc: 'Keep flying through 5 quantum jumps.', test: w => w.jumps >= 5 },
+  { id: 'dice', icon: '🎲', name: 'Loaded dice', desc: 'Win 3 measurement gates in one flight.', test: w => w.measWins >= 3 },
+  { id: 'gates', icon: '⚡', name: 'Shortcut', desc: 'Use 4 gate tokens (X or √X) in one flight.', test: w => w.gates >= 4 },
   { id: 'echo', icon: '🛡️', name: 'Echo chamber', desc: 'Let a spin echo absorb a hit.', test: w => w.blocked >= 1 },
   { id: 'long', icon: '⏳', name: 'Long-lived', desc: 'Fly 120 s in one flight.', test: w => w.t >= 120 },
   { id: 'score', icon: '💯', name: 'High scorer', desc: 'Score 25 000 in one flight.', test: w => w.score >= 25000 },
@@ -349,6 +368,10 @@ const POWER = {
     note: '<b>Spin echo.</b> A π pulse halfway through a sequence flips the qubit, so slow noise undoes itself. Here it absorbs your next hit.' },
   calib: { glyph: 'Δ↓', color: '#b8f28c', label: 'recalibrated: Δ drops',
     note: '<b>Recalibrated.</b> The drive moved closer to the qubit frequency, so the detuning Δ, and with it the scrolling, drops for 6 s.' },
+  X: { glyph: 'X', color: '#ff9ad5', label: 'X gate: through the equator',
+    note: '<b>X gate.</b> A π pulse about the axis pointing at your longitude reflects the state through the equator, θ → 180° − θ: one pulse instead of a long climb.' },
+  sx: { glyph: '√X', color: '#ffb38a', label: '√X gate: a quarter turn',
+    note: '<b>√X gate.</b> A π/2 pulse, half of an X, turns the state 90° toward the other pole in an instant.' },
   purcell: { glyph: 'T₁↑', color: '#ffcf7a', label: 'Purcell filter: no jumps',
     note: '<b>Purcell filter.</b> It stops the qubit leaking photons into its readout line: no quantum jumps for 10 s, so skim near |1⟩.' },
 };
@@ -373,6 +396,7 @@ function show(id) { OVERLAYS.forEach(o => { $(o).hidden = o !== id; }); }
 /* ---------------- missions and badges screens ---------------- */
 function openMissions() {
   phase = 'missions'; show('#missionsOv');
+  $('#missionsCount').textContent = `${MISSIONS.length} SHORT LESSONS IN STEERING A QUBIT`;
   const ms = mstars();
   $('#missionGrid').innerHTML = MISSIONS.map((m, i) => `<button data-i="${i}"${unlocked(i) ? '' : ' disabled title="Clear the mission before it first"'}>` +
     `<small>${unlocked(i) ? '' : '🔒 '}${i + 1} · ${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'}${m.decay ? ' · T₁' : ''}</small><b>${m.title}</b><span>${starStr(ms[m.id] || 0)}</span></button>`).join('');
@@ -420,6 +444,9 @@ document.querySelectorAll('#menu .modes button[data-mode]').forEach(b => b.addEv
 $('#optDecay').addEventListener('change', e => { S.decay = e.target.checked; store.set('rabi:decay', S.decay); syncMenu(); });
 $('#optCourse').addEventListener('change', e => { S.course = e.target.value; store.set('rabi:course', S.course); syncMenu(); if (S.course === 'custom') $('#optSeed').focus(); });
 $('#optSeed').addEventListener('input', e => { S.seed = e.target.value; store.set('rabi:seed', S.seed); syncMenu(); });
+function setView(v) { S.view = v; store.set('rabi:view', v); $('#optView').value = v; $('#viewBtn').textContent = v === '3d' ? 'Flat map view (V)' : '3D view (V)'; }
+$('#optView').addEventListener('change', e => setView(e.target.value));
+$('#viewBtn').addEventListener('click', () => setView(S.view === '3d' ? 'map' : '3d'));
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rabi:sound', S.sound); });
 
 /* ---------------- canvas geometry ---------------- */
@@ -441,11 +468,11 @@ const KX = () => W / (R - L), KY = () => (H - 36) / Math.PI;
 
 /* ---------------- input ---------------- */
 const keys = new Set();
-let pointerHold = false, padHold = { x: 0, y: 0, z: 0 };
+let pointerHold = false, padHold = { x: 0, y: 0 };
 function input() {
   if (world.mode === 'auto') return { hold: pointerHold || keys.has(' ') || keys.has('arrowup') || keys.has('w') };
-  const neg = keys.has('shift') ? -1 : 1, k = a => keys.has(a) ? neg : 0;
-  return { x: k('x') || padHold.x, y: k('y') || padHold.y, z: k('z') || padHold.z };
+  const neg = keys.has('shift') ? -1 : 1, k = a => keys.has(a) ? neg : 0, arrow = (p, m) => (keys.has(p) ? 1 : 0) - (keys.has(m) ? 1 : 0);
+  return { x: k('x') || arrow('arrowright', 'arrowleft') || padHold.x, y: k('y') || arrow('arrowup', 'arrowdown') || padHold.y };
 }
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -454,7 +481,8 @@ addEventListener('keydown', e => {
     e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || phase === 'brief' || performance.now() - overAt > 900) start(); return;
   }
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
-  if (phase === 'play' && [' ', 'arrowup', 'x', 'y', 'z', 'w'].includes(k)) e.preventDefault();
+  if (k === 'v' && !e.target.closest('input,select,textarea')) { setView(S.view === '3d' ? 'map' : '3d'); return; }
+  if (phase === 'play' && [' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'x', 'y', 'w'].includes(k)) e.preventDefault();
   keys.add(k === 'shift' ? 'shift' : k); if (e.shiftKey) keys.add('shift');
 });
 addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys.delete(k); if (!e.shiftKey) keys.delete('shift'); });
@@ -576,6 +604,7 @@ function gameOver(clear) {
   setTimeout(() => { if (phase === 'over') show('#over'); }, 650);
 }
 function tipFor(w) {
+  if (lastEvent === 'measure') return 'A measurement gate gives |1⟩ with probability sin²(θ/2). To win one, sit as close as you can to the pole it pays for before you cross it.';
   if (lastEvent === 'quiz') return 'Watch the P(|1⟩) readout in the State panel as you fly: it is sin²(θ/2), which changes fastest near the equator.';
   if (lastEvent === 'pillar' ) return 'A pillar that reaches a pole covers the whole pole: every meridian passes through it. Go around, not over.';
   if (w.mode === 'pilot' && w.rings < 4) return 'Tip: +X lifts you toward |0⟩ only on the +y half of the sphere. Watch the arrows on the drive pad as φ turns.';
@@ -610,6 +639,17 @@ function handle(ev) {
       lastEvent = 'quiz'; note(`<b>Missed the quiz gate.</b> ${e.q.why}`, true); SND.miss();
     } else if (e.type === 'power') {
       const pw = POWER[e.kind]; burst(a.ph, a.th, pw.color, 24); say(a.ph, a.th - 0.2, pw.label, pw.color, 13); note(pw.note); SND.power();
+      if (e.kind === 'X' || e.kind === 'sx') {   // a streak of light from where the gate found you
+        for (let k = 0; k <= 12; k++) burst(a.ph, e.from + (a.th - e.from) * k / 12, pw.color, 3, 0.25);
+        trail = []; SND.arp(660, e.kind === 'X' ? [12, 7, 0] : [7, 0], 0.05);
+      }
+    } else if (e.type === 'measure') {
+      const p = (100 * e.p1).toFixed(0), out = e.one ? 1 : 0;
+      burst(a.ph, a.th, '#9fe0ff', 30, 1); flash = 0; trail = []; lastEvent = 'measure';
+      say(a.ph, e.one ? Math.PI - 0.35 : 0.35, `measured |${out}⟩${e.win ? `  +${e.pts}` : ''}`, e.win ? '#9fe0ff' : '#c7d3e6', 15);
+      note(`<b>Measured |${out}⟩.</b> You had P(|1⟩) = ${p} % going in, so this was ${e.p1 > 0.9 || e.p1 < 0.1 ? 'nearly certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a gamble'}. ` +
+        (e.win ? 'The gate paid out.' : `The gate paid for |${e.o.want}⟩: get closer to that pole next time.`) + ' The qubit is now in that state.', !e.win);
+      e.win ? SND.arp(587, [0, 7, 12], 0.06) : tone(300, 200, 0.25, 'triangle', 0.07);
     } else if (e.type === 'block') {
       burst(a.ph, a.th, '#9fd8ff', 26, 1); say(a.ph, a.th - 0.2, 'echo! the hit is refocused', '#9fd8ff', 13); SND.block();
     } else if (e.type === 'close') {
@@ -619,8 +659,8 @@ function handle(ev) {
     } else if (e.type === 'clear') {
       SND.clear(); gameOver(e);
     } else if (e.type === 'hit') {
-      lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; SND.hit();
-      say(a.ph, a.th - 0.2, e.o.type === 'cloud' ? 'noise! −1 coherence' : 'pillar! −1 coherence', '#ff8fa0', 13);
+      lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; SND.hit(); trail = [];
+      say(a.ph, 0.3, `${e.o.type === 'cloud' ? 'noise' : 'pillar'}! −1 ♥, relaxed to |0⟩`, '#ff8fa0', 13);
     } else if (e.type === 'jump') {
       lastEvent = 'jump'; texts.push({ photon: true, ph: a.ph, th: a.th, t: 0 });
       say(a.ph, 0.25, 'photon detected → jump to |0⟩', '#ffe66d', 13); SND.jump(); trail = [];
@@ -729,6 +769,17 @@ function drawPower(o, w, t) {
   g.fillStyle = pw.color; g.font = `700 ${Math.max(10, Math.min(15, r * 0.9))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(pw.glyph, x, y + 1);
 }
+function drawGate(o, w, t) {
+  if (o.done) return;
+  const rel = w.rel(o.ph); if (rel < L - 0.2 || rel > R + 0.2) return;
+  const x = X(rel), pulse = 0.5 + 0.5 * Math.sin(t * 8);
+  const grd = g.createLinearGradient(x - 10, 0, x + 10, 0);
+  grd.addColorStop(0, 'rgba(110,200,255,0)'); grd.addColorStop(0.5, `rgba(110,200,255,${0.35 + 0.2 * pulse})`); grd.addColorStop(1, 'rgba(110,200,255,0)');
+  g.fillStyle = grd; g.fillRect(x - 10, Y(0), 20, Y(Math.PI) - Y(0));
+  g.strokeStyle = 'rgba(190,235,255,.9)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, Y(0)); g.lineTo(x, Y(Math.PI)); g.stroke();
+  const sy = Y(((t * 0.9) % 1) * Math.PI); g.fillStyle = '#e6f7ff'; g.fillRect(x - 8, sy - 1.5, 16, 3);
+  g.fillStyle = '#bfe8ff'; g.font = '700 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText(`MEASURE · pays |${o.want}⟩`, x, Y(0) + 16);
+}
 function drawShip(w, t) {
   const a = w.angles, x = X(w.rel(a.ph)), y = Y(a.th);
   // trail, in sphere coordinates so it scrolls with the map
@@ -747,45 +798,29 @@ function drawShip(w, t) {
     grd.addColorStop(0, 'rgba(255,200,90,.9)'); grd.addColorStop(1, 'rgba(255,90,40,0)');
     g.fillStyle = grd; g.beginPath(); g.moveTo(x - 5, y + dir * 4); g.lineTo(x + 5, y + dir * 4); g.lineTo(x, y + dir * len); g.closePath(); g.fill();
   }
-  if (w.mode === 'pilot' && Math.abs(w.amp.z) > 0.05) {
-    const dir = w.amp.z > 0 ? -1 : 1, len = 8 + 10 * Math.abs(w.amp.z);
-    g.fillStyle = 'rgba(126,249,255,.6)'; g.beginPath(); g.moveTo(x + dir * 4, y - 4); g.lineTo(x + dir * 4, y + 4); g.lineTo(x + dir * len, y); g.closePath(); g.fill();
-  }
-  if (w.shield) {   // the spin echo, waiting to take a hit
-    g.strokeStyle = `rgba(159,216,255,${0.6 + 0.3 * Math.sin(t * 8)})`; g.lineWidth = 2;
-    g.beginPath(); g.arc(x, y, 14, 0, Math.PI * 2); g.stroke();
-  }
-  if (w.purcellT > 0) {
-    g.strokeStyle = 'rgba(255,207,122,.7)'; g.lineWidth = 1.5; g.setLineDash([3, 4]);
-    g.beginPath(); g.arc(x, y, 19, t * 2, t * 2 + Math.PI * 2 * w.purcellT / E.P.PURCELL); g.stroke(); g.setLineDash([]);
-  }
-  const blink = w.grace > 0 && Math.floor(t * 14) % 2 === 0;
-  if (!blink) {
-    const glow = g.createRadialGradient(x, y, 0, x, y, 18);
-    glow.addColorStop(0, 'rgba(200,240,255,.9)'); glow.addColorStop(1, 'rgba(120,200,255,0)');
-    g.fillStyle = glow; g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
-  }
+  shipCore(x, y, w, t);
 }
+// Screen position of a point on the sphere (at the flying height) in the current view, or null if hidden.
+const at = (w, ph, th) => (S.view === '3d' ? scr3(ph, th) : { x: X(w.rel(ph)), y: Y(th) });
 function drawFx(w, dt) {
   for (const p of fx) {
     p.t += dt; p.ph += p.vph * dt; p.th += p.vth * dt;
-    const k = 1 - p.t / p.life; if (k <= 0) continue;
-    g.fillStyle = p.color; g.globalAlpha = k; g.fillRect(X(w.rel(p.ph)) - 2, Y(p.th) - 2, 4, 4);
+    const k = 1 - p.t / p.life, q = at(w, p.ph, p.th); if (k <= 0 || !q) continue;
+    g.fillStyle = p.color; g.globalAlpha = k; g.fillRect(q.x - 2, q.y - 2, 4, 4);
   }
   g.globalAlpha = 1; fx = fx.filter(p => p.t < p.life);
   for (const s of texts) {
     s.t += dt;
     if (s.photon) {   // a wavy photon leaving the qubit
       const k = s.t / 0.9; if (k > 1) continue;
-      const x0 = X(w.rel(s.ph)), y0 = Y(s.th);
+      const q = at(w, s.ph, s.th); if (!q) continue; const x0 = q.x, y0 = q.y;
       g.strokeStyle = `rgba(255,230,109,${1 - k})`; g.lineWidth = 2; g.beginPath();
       for (let i = 0; i <= 30; i++) { const d = i / 30 * 160 * k; g.lineTo(x0 + d * 0.8, y0 - d * 0.6 + 5 * Math.sin(i * 1.3 - s.t * 30)); }
       g.stroke(); continue;
     }
-    const k = s.t / 1.3; if (k > 1) continue;
+    const k = s.t / 1.3, q = at(w, s.ph, s.th); if (k > 1 || !q) continue;
     g.globalAlpha = Math.min(1, 2 * (1 - k)); g.fillStyle = s.color; g.font = `700 ${s.size}px Helvetica,Arial`;
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.text, X(w.rel(s.ph)), Y(s.th) - 30 * k);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.text, q.x, q.y - 30 * k);
   }
   g.globalAlpha = 1; texts = texts.filter(s => s.t < (s.photon ? 0.9 : 1.3));
 }
@@ -832,8 +867,237 @@ function drawHUD(w) {
     g.globalAlpha = Math.min(1, hintT); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '600 15px Helvetica,Arial';
     const narrow = W < 600;
     g.fillText(w.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
-      : (narrow ? 'Hold the axis buttons to rotate' : 'Hold X, Y or Z to rotate · Shift for the negative axis'), W / 2, H - 34);
+      : (narrow ? 'Hold the axis buttons to rotate' : 'Arrow keys: → +X  ← −X  ↑ +Y  ↓ −Y'), W / 2, H - 34);
     g.globalAlpha = 1;
+  }
+}
+
+/* ---------------- drawing: the 3D view ----------------
+ * The camera rides with the qubit, a little ahead of it and outside the sphere, with |0⟩ up, and
+ * follows its latitude part of the way. The sphere turns under it as the state precesses, so what
+ * is coming rotates into view from the right. The qubit hovers at ALT above the surface and casts
+ * a shadow; rings, noise bands and measurement curtains are drawn on the surface where they sit.
+ * Collisions are still decided by angles on the sphere, exactly as on the map. */
+const V3 = { fov: 58 * D2R, dist: 2.35, back: -18 * D2R, ahead: 16 * D2R, follow: 0.8, ALT: 0.1 };
+const RA = 1 + V3.ALT;
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const thetaHat = v => { const a = E.toAngles(v); return [Math.cos(a.th) * Math.cos(a.ph), Math.cos(a.th) * Math.sin(a.ph), -Math.sin(a.th)]; };
+const phiHat = v => { const p = Math.atan2(v[1], v[0]); return [-Math.sin(p), Math.cos(p), 0]; };
+let cam = null, camTh = Math.PI / 2, camW = null, camT = 0;
+function setCamera(w, t) {
+  // follow the qubit's latitude part of the way (smoothly), so it climbs and dives on screen while the sphere turns
+  const dt = Math.min(0.1, Math.max(0, t - camT)); camT = t;
+  const want = Math.PI / 2 + V3.follow * (w.angles.th - Math.PI / 2);
+  if (camW !== w) { camW = w; camTh = want; } else camTh += (want - camTh) * (1 - Math.exp(-dt / 0.35));
+  const lam = w.camPh + E.P.HOME;   // where the engine's camera keeps the qubit
+  const C = mul3(E.fromAngles(Math.PI / 2 + 0.75 * (camTh - Math.PI / 2), lam - V3.back), V3.dist);
+  const T = mul3(E.fromAngles(camTh, lam + V3.ahead), RA);
+  const f = E.unit(sub3(T, C)), r = E.unit(E.cross(f, [0, 0, 1])), u = E.cross(r, f);
+  cam = { C, f, r, u, F: (H / 2) / Math.tan(V3.fov / 2) };
+}
+function proj(p) {
+  const d = sub3(p, cam.C), z = E.dot(d, cam.f);
+  if (z < 0.05) return null;
+  return { x: W / 2 + E.dot(d, cam.r) / z * cam.F, y: H / 2 - E.dot(d, cam.u) / z * cam.F, z };
+}
+// Hidden behind the sphere: the segment from the camera to p enters the unit sphere before reaching p.
+function occluded(p) {
+  const d = sub3(p, cam.C), a = E.dot(d, d), b = 2 * E.dot(cam.C, d), c = E.dot(cam.C, cam.C) - 1, disc = b * b - 4 * a * c;
+  if (disc <= 0) return false;
+  const t = (-b - Math.sqrt(disc)) / (2 * a);
+  return t > 0 && t < 0.998;
+}
+const see = p => (occluded(p) ? null : proj(p));
+const scr3 = (ph, th, alt = RA) => see(mul3(E.fromAngles(th, ph), alt));
+
+// the globe as a mesh of 6° patches, shaded from the latitude (blue at |0⟩, violet at |1⟩) and a light
+const NLAT = 30, NLON = 60, GV = [];
+for (let i = 0; i <= NLAT; i++) { GV.push([]); for (let j = 0; j <= NLON; j++) GV[i].push(E.fromAngles(i * Math.PI / NLAT, j * 2 * Math.PI / NLON)); }
+const STARS = Array.from({ length: 160 }, (_, i) => { const R = E.rng('star' + i); return { v: E.fromAngles(Math.acos(2 * R() - 1), 2 * Math.PI * R()), b: 0.3 + 0.7 * R() }; });
+function drawGlobe() {
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#0a1222'); grd.addColorStop(1, '#120c22');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  for (const s of STARS) {   // fixed in the lab frame, so they wheel past as the camera circles
+    const p = proj(add3(cam.C, mul3(s.v, 40))); if (!p) continue;
+    g.fillStyle = `rgba(220,230,255,${0.25 + 0.5 * s.b})`; g.fillRect(p.x, p.y, 1.6 * s.b + 0.4, 1.6 * s.b + 0.4);
+  }
+  const C = cam.C, light = E.unit(add3(mul3(cam.u, 0.9), add3(mul3(cam.f, -0.5), mul3(cam.r, -0.4))));
+  const P = GV.map(row => row.map(v => (E.dot(v, C) > 0.96 ? proj(v) : null)));
+  const lines = [];
+  for (let i = 0; i < NLAT; i++) for (let j = 0; j < NLON; j++) {
+    const a = P[i][j], b = P[i][j + 1], c = P[i + 1][j + 1], d = P[i + 1][j];
+    if (!a || !b || !c || !d) continue;
+    const n = E.fromAngles((i + 0.5) * Math.PI / NLAT, (j + 0.5) * 2 * Math.PI / NLON);
+    if (E.dot(n, C) <= 1) continue;   // facing away
+    const k = 0.42 + 0.58 * Math.max(0, E.dot(n, light)), m = i / NLAT;
+    const col = `rgb(${Math.round((34 + 46 * m) * k)},${Math.round((70 - 28 * m) * k)},${Math.round((128 - 8 * m) * k)})`;
+    g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(c.x, c.y); g.lineTo(d.x, d.y); g.closePath(); g.fill(); g.stroke();
+    if (j % 5 === 0) lines.push([a, d, j % 15 === 0 ? 0.32 : 0.14]);              // meridians every 30°
+    if (i % 5 === 0 && i) lines.push([a, b, i === 15 ? 0.45 : 0.14]);             // parallels every 30°, the equator brighter
+  }
+  for (const [a, b, al] of lines) { g.strokeStyle = `rgba(170,200,240,${al})`; g.lineWidth = al > 0.3 ? 1.4 : 1; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  // the axes, poking out of the sphere
+  g.font = '600 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const [v, lab, len] of [[[0, 0, 1], '|0⟩', 1.42], [[0, 0, -1], '|1⟩', 1.42], [[1, 0, 0], '+x', 1.3], [[0, 1, 0], '+y', 1.3], [[-1, 0, 0], '−x', 1.3], [[0, -1, 0], '−y', 1.3]]) {
+    const a = see(v), b = see(mul3(v, len)), c = see(mul3(v, len + 0.08));
+    if (a && b) { g.strokeStyle = 'rgba(200,220,250,.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+    if (c) { g.fillStyle = lab[0] === '|' ? '#e8eef7' : 'rgba(200,220,250,.8)'; g.fillText(lab, c.x, c.y); }
+  }
+}
+// A closed curve of 3D points, drawn where it is visible; the part under the surface is left out.
+function curve3(pts, style, width) {
+  g.strokeStyle = style; g.lineWidth = width; g.beginPath();
+  let pen = false;
+  for (const q of pts) {
+    const p = E.norm(q) >= 0.999 ? see(q) : null;
+    if (!p) { pen = false; continue; }
+    pen ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); pen = true;
+  }
+  g.stroke();
+}
+// Points around the cap of angular radius rad about v, at radius R.
+function capPts(v, rad, R = 1, n = 40) {
+  const e1 = thetaHat(v), e2 = phiHat(v), out = [];
+  for (let i = 0; i <= n; i++) { const s = i / n * 2 * Math.PI; out.push(mul3(add3(mul3(v, Math.cos(rad)), add3(mul3(e1, Math.sin(rad) * Math.cos(s)), mul3(e2, Math.sin(rad) * Math.sin(s)))), R)); }
+  return out;
+}
+const lw3 = (z, k = 0.012) => Math.max(1, Math.min(9, k * cam.F / z));
+function ring3(o, t) {
+  if (o.done) return;
+  const col = o.quiz ? '201,167,255' : o.bonus ? '126,249,255' : '255,209,102';
+  if (o.pole) {   // |1⟩: the whole bottom of the sphere glows
+    const pts = capPts([0, 0, -1], o.rad, 1.002), pulse = 0.5 + 0.5 * Math.sin(t * 6);
+    curve3(pts, `rgba(${col},${0.6 + 0.4 * pulse})`, 3);
+    const p = see([0, 0, -1.02]); if (p) { g.fillStyle = `rgba(${col},${0.25 + 0.2 * pulse})`; g.beginPath(); g.arc(p.x, p.y, 30, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#7ef9ff'; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, (o.life ?? 8) - (world ? world.t - o.born : 0)).toFixed(0)} s`, W / 2, H - 40);
+    return;
+  }
+  const base = see(mul3(o.v, 1.004)); if (!base) return;
+  const pts = capPts(o.v, o.rad, 1.004, 48), P = pts.map(see);
+  if (P.every(Boolean)) { g.fillStyle = `rgba(${col},.12)`; g.beginPath(); P.forEach((q, i) => (i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y))); g.fill(); }
+  curve3(pts, `rgba(${col},.25)`, lw3(base.z, 0.03));
+  curve3(pts, `rgba(${col},${0.85 + 0.15 * Math.sin(t * 5 + o.ph)})`, lw3(base.z, 0.011));
+  curve3(capPts(o.v, o.rad / 3, 1.004, 24), `rgba(${col},.4)`, 1);
+  // a beam of light up from its center, to the flying height
+  const top = see(mul3(o.v, RA + 0.05));
+  if (top) {
+    const grd = g.createLinearGradient(base.x, base.y, top.x, top.y);
+    grd.addColorStop(0, `rgba(${col},.75)`); grd.addColorStop(1, `rgba(${col},0)`);
+    g.strokeStyle = grd; g.lineWidth = lw3(base.z, 0.012); g.beginPath(); g.moveTo(base.x, base.y); g.lineTo(top.x, top.y); g.stroke();
+    const label = o.name || (o.quiz && '?');
+    if (label) { g.fillStyle = `rgb(${col})`; g.font = `700 ${Math.round(Math.max(12, Math.min(22, 0.05 * cam.F / base.z)))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(label, top.x, top.y); }
+  }
+}
+function cloud3(o, t) {
+  const c = mul3(o.v, RA), p = see(c); if (!p) return;
+  const r = cam.F * RA * Math.sin(o.rad) / p.z;
+  const grd = g.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+  grd.addColorStop(0, 'rgba(255,120,160,.9)'); grd.addColorStop(0.7, 'rgba(200,50,130,.6)'); grd.addColorStop(1, 'rgba(120,40,160,.15)');
+  g.fillStyle = grd; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,225,240,.65)';
+  for (let i = 0; i < 16; i++) { const a = (i * 2.4 + t * (3 + i % 3)) % (Math.PI * 2), d = r * (0.15 + 0.7 * ((i * 0.37 + t * 0.9) % 1)); g.fillRect(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 2, 2); }
+  curve3(capPts(o.v, o.rad, 1.003), 'rgba(255,90,140,.35)', 1.2);   // its shadow
+}
+// A band of angular half-width w on the surface along a meridian arc, with low walls on its edges up to height hTop
+// (a pillar, or a measurement curtain). Its edges are at a fixed angle from the meridian, so near a pole it closes over it.
+function band3(ph, th0, th1, w, fill, wallFill, edge, hTop) {
+  const n = 32, sides = [-1, 1].map(() => ({ base: [], top: [] }));
+  for (let k = 0; k <= n; k++) {
+    const th = th0 + (th1 - th0) * k / n, sn = Math.sin(th), dph = sn <= Math.sin(w) ? Math.PI / 2 : Math.asin(Math.sin(w) / sn);
+    [-1, 1].forEach((sd, i) => { const v = E.fromAngles(th, ph + sd * dph); sides[i].base.push(mul3(v, 1.003)); sides[i].top.push(mul3(v, hTop)); });
+  }
+  const quad = (q, style) => {
+    if (q.some(occluded)) return;
+    const P = q.map(proj); if (P.some(x => !x)) return;
+    g.fillStyle = style; g.beginPath(); P.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath(); g.fill();
+  };
+  const [a, b] = sides;
+  for (let k = 0; k < n; k++) quad([a.base[k], a.base[k + 1], b.base[k + 1], b.base[k]], fill);
+  for (const sd of sides) {
+    for (let k = 0; k < n; k++) quad([sd.base[k], sd.base[k + 1], sd.top[k + 1], sd.top[k]], wallFill);
+    curve3(sd.top, edge, 2);
+  }
+}
+function pillar3(o) { band3(o.ph, o.th0, o.th1, o.w, 'rgba(255,70,100,.55)', 'rgba(255,90,120,.35)', 'rgba(255,170,190,.95)', RA + 0.05); }
+function gate3(o, t) {
+  if (o.done) return;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 8);
+  band3(o.ph, 0.01, Math.PI - 0.01, 1.5 * D2R, `rgba(140,215,255,${0.35 + 0.2 * pulse})`, `rgba(110,200,255,${0.18 + 0.08 * pulse})`, 'rgba(190,235,255,.9)', RA + 0.08);
+  const v = E.fromAngles(0.05 + ((t * 0.9) % 1) * (Math.PI - 0.1), o.ph), a = see(mul3(v, 1.003)), b = see(mul3(v, RA + 0.08));
+  if (a && b) { g.strokeStyle = 'rgba(230,248,255,.95)'; g.lineWidth = 3; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+  const lab = see(mul3(E.fromAngles(0.3, o.ph), RA + 0.14));
+  if (lab) { g.fillStyle = '#bfe8ff'; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(`MEASURE · pays |${o.want}⟩`, lab.x, lab.y); }
+}
+function power3(o, t) {
+  if (o.done) return;
+  const p = see(mul3(o.v, RA)); if (!p) return;
+  const sh = see(mul3(o.v, 1.003)); if (sh) { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(sh.x, sh.y, 8, 3, 0, 0, Math.PI * 2); g.fill(); }
+  const pw = POWER[o.kind], r = cam.F * RA * Math.sin(o.rad) / p.z * (1 + 0.08 * Math.sin(t * 6));
+  const glow = g.createRadialGradient(p.x, p.y, r * 0.3, p.x, p.y, r * 1.8);
+  glow.addColorStop(0, pw.color); glow.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalAlpha = 0.5; g.fillStyle = glow; g.beginPath(); g.arc(p.x, p.y, r * 1.8, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+  g.fillStyle = 'rgba(11,18,32,.85)'; g.strokeStyle = pw.color; g.lineWidth = 2; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = pw.color; g.font = `700 ${Math.max(10, Math.min(22, r * 0.8))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(pw.glyph, p.x, p.y + 1);
+}
+function ship3(w, t) {
+  const pos = mul3(w.r, RA), p = proj(pos); if (!p) return;
+  const sh = see(w.r);   // shadow on the surface below
+  if (sh) { g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(sh.x, sh.y, 10, 4, 0, 0, Math.PI * 2); g.fill(); }
+  g.lineCap = 'round';
+  for (let i = 1; i < trail.length; i++) {
+    const a = scr3(trail[i - 1].ph, trail[i - 1].th), b = scr3(trail[i].ph, trail[i].th); if (!a || !b) continue;
+    g.strokeStyle = `rgba(160,220,255,${0.55 * i / trail.length})`; g.lineWidth = lw3(b.z, 0.008) * i / trail.length + 0.5;
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  // thrust along the screen direction of the push on θ (up = toward |0⟩)
+  const a = w.angles, up = w.mode === 'auto' ? -w.amp.a : (w.amp.x * Math.sin(a.ph) - w.amp.y * Math.cos(a.ph));
+  const n = proj(add3(pos, mul3(thetaHat(w.r), -0.05)));
+  if (Math.abs(up) > 0.05 && n) {
+    let dx = n.x - p.x, dy = n.y - p.y; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+    const s = up > 0 ? -1 : 1, len = 12 + 16 * Math.abs(up) * (0.8 + 0.2 * Math.sin(t * 40));   // the flame points away from the push
+    const grd = g.createLinearGradient(p.x, p.y, p.x + s * dx * len, p.y + s * dy * len);
+    grd.addColorStop(0, 'rgba(255,200,90,.95)'); grd.addColorStop(1, 'rgba(255,90,40,0)');
+    g.fillStyle = grd; g.beginPath(); g.moveTo(p.x - dy * 5 + s * dx * 4, p.y + dx * 5 + s * dy * 4); g.lineTo(p.x + dy * 5 + s * dx * 4, p.y - dx * 5 + s * dy * 4);
+    g.lineTo(p.x + s * dx * len, p.y + s * dy * len); g.closePath(); g.fill();
+  }
+  shipCore(p.x, p.y, w, t);
+}
+// The glowing qubit, its spin-echo shield and its Purcell timer: shared by both views.
+function shipCore(x, y, w, t) {
+  if (w.shield) { g.strokeStyle = `rgba(159,216,255,${0.6 + 0.3 * Math.sin(t * 8)})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 14, 0, Math.PI * 2); g.stroke(); }
+  if (w.purcellT > 0) {
+    g.strokeStyle = 'rgba(255,207,122,.7)'; g.lineWidth = 1.5; g.setLineDash([3, 4]);
+    g.beginPath(); g.arc(x, y, 19, t * 2, t * 2 + Math.PI * 2 * w.purcellT / E.P.PURCELL); g.stroke(); g.setLineDash([]);
+  }
+  if (w.grace > 0 && Math.floor(t * 14) % 2 === 0) return;
+  const glow = g.createRadialGradient(x, y, 0, x, y, 18);
+  glow.addColorStop(0, 'rgba(200,240,255,.9)'); glow.addColorStop(1, 'rgba(120,200,255,0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
+}
+function drawWorld3D(w, t, withShip) {
+  setCamera(w, t); drawGlobe();
+  // far things first; the qubit is sorted in with the rest so a hoop can pass in front of it
+  const me = w.rel(w.angles.ph), items = [];
+  for (const o of w.objects) {
+    if (!o.pole && o.type !== 'pillar' && o.type !== 'gate') { const rel = w.rel(o.ph); if (rel < me - 1.0 || rel > me + 2.6) continue; }
+    const at = o.pole ? [0, 0, -1] : o.type === 'pillar' ? E.fromAngles(o.th, o.ph) : o.type === 'gate' ? E.fromAngles(Math.PI / 2, o.ph) : o.v;
+    items.push({ o, d: E.norm(sub3(mul3(at, RA), cam.C)) });
+  }
+  if (withShip) items.push({ ship: true, d: E.norm(sub3(mul3(w.r, RA), cam.C)) - 0.02 });
+  items.sort((a, b) => b.d - a.d);
+  for (const { o, ship } of items) {
+    if (ship) ship3(w, t);
+    else if (o.type === 'ring') ring3(o, t);
+    else if (o.type === 'cloud') cloud3(o, t);
+    else if (o.type === 'pillar') pillar3(o);
+    else if (o.type === 'gate') gate3(o, t);
+    else if (o.type === 'power') power3(o, t);
   }
 }
 
@@ -907,7 +1171,6 @@ function updateSide(w) {
   if (w.mode === 'pilot') {
     // what each equatorial axis does to θ right now: up (toward |0⟩) at rate Ω sin(φ − α)
     document.querySelectorAll('#pad button').forEach(b => {
-      if (b.dataset.ax === 'z') return;
       const al = (b.dataset.ax === 'x' ? 0 : Math.PI / 2) + (b.dataset.s === '-1' ? Math.PI : 0), up = Math.sin(a.ph - al);
       b.querySelector('i').textContent = Math.abs(up) < 0.2 ? '· sideways' : (up > 0 ? '▲ up' : '▼ down') + (Math.abs(up) > 0.8 ? '' : ' (weak)');
     });
@@ -940,13 +1203,18 @@ function render(dt, t) {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (shake > 0) { shake -= dt; g.translate((Math.random() - 0.5) * 10 * shake / 0.35, (Math.random() - 0.5) * 10 * shake / 0.35); }
   const w = world || demoWorld();
-  drawGrid(w);
-  for (const o of w.objects) if (o.type === 'pillar') drawPillar(o, w);
-  for (const o of w.objects) if (o.type === 'cloud') drawCloud(o, w, t);
-  for (const o of w.objects) if (o.type === 'ring') drawRing(o, w, t);
-  for (const o of w.objects) if (o.type === 'power') drawPower(o, w, t);
+  if (S.view === '3d') drawWorld3D(w, t, !!world);
+  else {
+    drawGrid(w);
+    for (const o of w.objects) if (o.type === 'pillar') drawPillar(o, w);
+    for (const o of w.objects) if (o.type === 'gate') drawGate(o, w, t);
+    for (const o of w.objects) if (o.type === 'cloud') drawCloud(o, w, t);
+    for (const o of w.objects) if (o.type === 'ring') drawRing(o, w, t);
+    for (const o of w.objects) if (o.type === 'power') drawPower(o, w, t);
+    if (world) drawShip(w, t);
+  }
   if (world && w.slowK < 0.98) { g.fillStyle = `rgba(110,190,255,${0.1 * (1 - w.slowK) / (1 - E.P.SLOW_FACTOR)})`; g.fillRect(0, 0, W, H); }
-  if (world) { drawShip(w, t); drawFx(w, phase === 'play' ? dt : 0); drawHUD(w); }
+  if (world) { drawFx(w, phase === 'play' ? dt : 0); drawHUD(w); }
   if (flash > 0) { flash -= dt; g.fillStyle = `rgba(255,60,90,${flash})`; g.fillRect(-20, -20, W + 40, H + 40); }
   drawSphere(world);
 }
@@ -959,7 +1227,7 @@ function demoWorld() {
 }
 
 addEventListener('resize', resize);
-resize(); syncMenu();
+resize(); syncMenu(); setView(S.view);
 const linked = MISSIONS.findIndex(m => m.id === P0.raw.get('mission'));
 if (linked >= 0) openBrief(linked);   // a mission link opens its briefing, even if it is not unlocked yet
 if (P0.has('seed')) $('#menuBest').insertAdjacentHTML('beforebegin', `<p id="challengeNote" style="color:#ffd166;margin:4px 0 0">Challenge course: <b>${PageKit.params().raw.get('seed').replace(/[<>&"]/g, '')}</b></p>`);
