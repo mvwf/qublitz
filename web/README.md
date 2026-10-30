@@ -48,10 +48,23 @@ node web/qublitz/tests/qubit-engine.test.js
 Hidden qubits come from a shareable code (`?qubit=K7RX4P`). The same code gives the same
 qubit everywhere. The value ranges are `QUBIT_RANGES` in the engine.
 
+## Fridge Noise Explorer
+
+`qublitz/fridge-engine.js` ports the attenuator-chain model from
+`pages/Dilution_Refrigerator_Noise_Explorer.py`, and `qublitz/fridge-noise.html` is its page.
+`qublitz/tests/fridge-engine.test.js` (run in CI) checks the port against
+`qublitz/tests/fridge-reference.json`, written by `scripts/make_fridge_reference.py` from the
+page's own Python functions. To regenerate:
+
+```
+python scripts/make_fridge_reference.py
+node web/qublitz/tests/fridge-engine.test.js
+```
+
 ## Offline download
 
-The Qubit Simulator offers a single-file download (`qublitz/qubit-simulator-offline.html`)
-that runs from disk in any browser with no network. The deploy workflow builds it with
+The Qubit Simulator and the Fridge Noise Explorer each offer a single-file download
+(`qublitz/<page>-offline.html`) that runs from disk in any browser with no network. The deploy workflow builds it with
 `scripts/build_standalone.py`, which inlines the page's local scripts (Plotly and the engine)
 and fails if anything is still loaded from the network. To build it yourself:
 
@@ -66,7 +79,8 @@ the built site.
 
 The Arena links to other Qublitz pages by name (`Qubit_Simulator`, ...).
 `web/qublitz/<Name>.html` forwards each name either to the ported page
-(`Qubit_Simulator` → `qubit-simulator.html`) or, until it is ported, to the Streamlit app.
+(`Qubit_Simulator` → `qubit-simulator.html`,
+`Dilution_Refrigerator_Noise_Explorer` → `fridge-noise.html`) or, until it is ported, to the Streamlit app.
 
 ## Embedding in Google Sites
 
