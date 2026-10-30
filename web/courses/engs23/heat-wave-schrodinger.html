@@ -1,0 +1,378 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three Equations, One Eigenbasis — Heat, Wave, Schrödinger</title>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31;
+    --heat:#c84b31; --wave:#2d6fb3; --sch:#00693e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 44px;}
+  a.back{font-size:12.5px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:23px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:960px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .eqbox{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0;
+    font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,'Times New Roman',Times,serif;font-size:16px;overflow-x:auto}
+  .eqbox .lab{float:right;color:var(--muted);font-size:13px;font-family:Helvetica,Arial,sans-serif}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0}
+  label.lbl{font-size:12.5px;color:var(--muted)}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+  button.primary:hover{background:var(--green2);color:#fff}
+  select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:#fff;color:var(--ink)}
+  input[type=range]{accent-color:var(--green);vertical-align:middle;width:150px}
+  .val{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink);min-width:48px;display:inline-block}
+  .spacer{flex:1 1 auto}
+  .trip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:1000px){.trip{grid-template-columns:1fr}}
+  .pan{border:1px solid var(--line);border-radius:10px;padding:12px 12px 10px;background:#fff}
+  .pan h3{margin:0 0 2px;font-size:15px}
+  .pan .tag{font-size:11.5px;color:var(--muted);font-family:'Latin Modern Roman',Georgia,serif}
+  .pan.heat h3{color:var(--heat)} .pan.wave h3{color:var(--wave)} .pan.sch h3{color:var(--sch)}
+  canvas{display:block;width:100%;border-radius:8px;background:var(--panel);border:1px solid var(--line);margin-top:8px}
+  .mini{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px;min-height:16px}
+  .note{font-size:12.5px;color:var(--muted);max-width:960px}
+  .note b{color:var(--ink)}
+  .barwrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.barwrap{grid-template-columns:1fr}}
+  .barlab{font-size:11.5px;color:var(--muted);margin:0 0 3px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:4px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:13px;height:3px;border-radius:2px;display:inline-block}
+</style>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+
+<a class="back" href="../../index.html#engs23">&larr; All demos</a>
+<h1>Three Equations, One Eigenbasis</h1>
+<p class="sub">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
+operator and therefore one set of modes sin(n&pi;x/L). Give all three the <i>same</i> starting shape and release them. What
+differs is only how each equation turns a spatial eigenvalue &lambda;<sub>n</sub> into motion in time. The clock below is set
+so the fundamental mode n = 1 has the same rate in all three panels, which makes the contrast between them the real content.</p>
+
+<div class="card">
+  <h2>The one idea</h2>
+  <div class="eqbox"><span class="lab">shared spatial eigenproblem</span>
+    \(-\dfrac{d^{2}\varphi}{dx^{2}}=\lambda\,\varphi,\quad \varphi(0)=\varphi(L)=0 \;\Longrightarrow\; \varphi_n=\sqrt{\tfrac{2}{L}}\,\sin\dfrac{n\pi x}{L},\quad \lambda_n=\Big(\dfrac{n\pi}{L}\Big)^{2}\)</div>
+  <div class="eqbox"><span class="lab">heat &mdash; first order in t, real</span>
+    \(\partial_t u=\alpha\,\partial_{xx}u \;\Longrightarrow\; T_n(t)=e^{-\alpha\lambda_n t}\quad(\text{rate}\propto\lambda_n\propto n^{2})\)</div>
+  <div class="eqbox"><span class="lab">wave &mdash; second order in t, real</span>
+    \(\partial_{tt}u=v^{2}\,\partial_{xx}u \;\Longrightarrow\; T_n(t)=\cos\!\big(v\sqrt{\lambda_n}\,t\big)\quad(\omega\propto\sqrt{\lambda_n}\propto n)\)</div>
+  <div class="eqbox"><span class="lab">Schr&ouml;dinger &mdash; first order in t, the factor i</span>
+    \(i\hbar\,\partial_t\Psi=-\dfrac{\hbar^{2}}{2m}\,\partial_{xx}\Psi \;\Longrightarrow\; T_n(t)=e^{-i(\hbar\lambda_n/2m)t}\quad(\omega\propto\lambda_n\propto n^{2})\)</div>
+  <p class="note" style="margin-top:10px">Read the three right-hand sides together. Heat and Schr&ouml;dinger carry the
+  <i>same</i> n&sup2; spectrum because both are first order in time against the same operator, yet one is a real exponential
+  that decays and the other is a complex exponential that only rotates. The single factor of i is the whole difference
+  between irreversible smoothing and reversible unitary flow. The wave equation is second order in time, so it takes the
+  square root of the eigenvalue and lands on &omega; &prop; n, the plain harmonic series of the guitar string.</p>
+</div>
+
+<div class="card">
+  <h2>Controls</h2>
+  <div class="row">
+    <label class="lbl">Initial shape u(x,0)</label>
+    <select id="preset">
+      <option value="gauss" selected>Localized bump (Gaussian)</option>
+      <option value="pluck">Plucked triangle</option>
+      <option value="step">Box / top hat</option>
+      <option value="mode1">Single mode n = 1</option>
+      <option value="mode3">Single mode n = 3</option>
+      <option value="two">Two modes, &phi;&#8321;+&phi;&#8322;</option>
+      <option value="draw">Draw your own shape</option>
+      <option value="custom">Custom (edited bars)</option>
+    </select>
+    <label class="lbl">Modes N</label>
+    <input id="nmodes" type="range" min="2" max="48" step="1" value="30">
+    <span class="val" id="nmodesLbl">30</span>
+    <span class="spacer"></span>
+    <button id="play" class="primary">&#9658; Play</button>
+    <button id="reset">t = 0</button>
+  </div>
+  <div class="row">
+    <label class="lbl">Time&nbsp; (units of the n = 1 rate)</label>
+    <input id="time" type="range" min="0" max="1.25" step="0.0005" value="0" style="width:360px">
+    <span class="val" id="timeLbl" style="min-width:70px">0.000</span>
+    <label class="lbl">Speed</label>
+    <input id="speed" type="range" min="0.05" max="2" step="0.05" value="0.5">
+    <span class="val" id="speedLbl">0.50</span>
+    <label class="lbl">Schr&ouml;dinger rate</label>
+    <input id="schrate" type="range" min="0.1" max="1" step="0.05" value="0.3">
+    <span class="val" id="schrateLbl">0.30</span>
+  </div>
+  <p class="note">The clock is shared, with one deliberate twist. Schr&ouml;dinger phases spin as n&sup2;, far faster than the
+  wave&rsquo;s n, so run at the same rate it would just blur. The <b>Schr&ouml;dinger rate</b> control scales its clock down (default 0.3)
+  to make the motion watchable. The time axis is arbitrary anyway. At rate 1 the packet would revive exactly when the wave
+  reforms at t = 1, where the heat profile has also faded to e<sup>&minus;1</sup> of its fundamental with the high modes gone first.</p>
+  <div class="row">
+    <label class="lbl">Draw u(x,0)</label>
+    <button id="clearDraw">Clear</button>
+    <span class="note" style="margin:0">Drag on the strip to sketch the shared starting shape. Ends pin to the walls.</span>
+  </div>
+  <canvas id="draw" style="height:104px"></canvas>
+</div>
+
+<div class="card">
+  <h2>Fourier components c<sub>n</sub> &mdash; drag the bars</h2>
+  <div class="barwrap">
+    <div>
+      <div class="barlab">Re c<sub>n</sub> &mdash; amplitude, felt by all three equations</div>
+      <canvas id="barsRe" style="height:120px"></canvas>
+    </div>
+    <div>
+      <div class="barlab">Im c<sub>n</sub> &mdash; phase, changes Schr&ouml;dinger only (this is momentum)</div>
+      <canvas id="barsIm" style="height:120px"></canvas>
+    </div>
+  </div>
+  <p class="note" style="margin-top:8px">Drag a bar up or down to set that mode. Heat and wave are real equations, so they
+  respond only to Re&thinsp;c<sub>n</sub>. Schr&ouml;dinger carries the full complex amplitude c<sub>n</sub> = Re + i&thinsp;Im,
+  so a sloped Im&thinsp;c<sub>n</sub> pattern gives the packet momentum and sends it moving. The bars hold still while the clock
+  runs, which is the whole point: every |c<sub>n</sub>| is conserved under all three flows.</p>
+</div>
+
+<div class="trip">
+  <div class="pan heat">
+    <h3>Heat</h3>
+    <div class="tag">\(T_n=e^{-n^{2}t}\) &nbsp; diffusion, decay</div>
+    <canvas id="cHeat"></canvas>
+    <div class="legend"><span><i class="sw" style="background:var(--heat)"></i>u(x,t)</span><span><i class="sw" style="background:#b9c7c0"></i>initial</span></div>
+    <div class="mini" id="mHeat"></div>
+  </div>
+  <div class="pan wave">
+    <h3>Wave</h3>
+    <div class="tag">\(T_n=\cos(2\pi n\,t)\) &nbsp; vibration, reforms</div>
+    <canvas id="cWave"></canvas>
+    <div class="legend"><span><i class="sw" style="background:var(--wave)"></i>y(x,t)</span><span><i class="sw" style="background:#b9c7c0"></i>initial</span></div>
+    <div class="mini" id="mWave"></div>
+  </div>
+  <div class="pan sch">
+    <h3>Schr&ouml;dinger</h3>
+    <div class="tag">\(T_n=e^{-i\,2\pi n^{2}t}\) &nbsp; disperse, revive</div>
+    <canvas id="cSch"></canvas>
+    <div class="legend"><span><i class="sw" style="background:#2d6fb3"></i>Re&Psi;</span><span><i class="sw" style="background:#c84b31"></i>Im&Psi;</span><span><i class="sw" style="background:var(--sch)"></i>|&Psi;|&sup2;</span></div>
+    <div class="mini" id="mSch"></div>
+  </div>
+</div>
+
+<p class="note" style="margin-top:6px">Built for ENGS 23. Sources: M. L. Boas, <i>Mathematical Methods in the Physical
+Sciences</i>, 3rd ed. (Wiley, 2006), separation of variables and eigenfunction expansions for all three equations.
+D. J. Griffiths and D. F. Schroeter, <i>Introduction to Quantum Mechanics</i>, 3rd ed. (Cambridge, 2018), the square well.
+R. W. Robinett, &ldquo;Quantum wave packet revivals,&rdquo; <i>Physics Reports</i> <b>392</b>, 1 (2004).</p>
+
+<script>
+"use strict";
+/* ===========================================================================
+   Units L = 1, domain x in [0,1].  phi_n(x)=sqrt2 sin(n pi x),  lambda_n=(n pi)^2.
+   Common clock t (dimensionless), fundamental mode normalized identically:
+     heat        T_n = exp(-n^2 t)         (1/e for n=1 at t=1)
+     wave        T_n = cos(2 pi n t)       (n=1 period at t=1, reforms)
+     schrodinger T_n = exp(-i 2 pi n^2 t)  (revival at t=1)
+   =========================================================================== */
+const $=id=>document.getElementById(id);
+const NX=361, PI=Math.PI, SQRT2=Math.SQRT2;
+const Xg=new Float32Array(NX); for(let j=0;j<NX;j++) Xg[j]=j/(NX-1);
+let Nmax=30, PHI=[null];
+function buildModes(){ PHI=[null];
+  for(let n=1;n<=Nmax;n++){ const r=new Float32Array(NX); for(let j=0;j<NX;j++) r[j]=SQRT2*Math.sin(n*PI*Xg[j]); PHI.push(r); } }
+let cRe=new Float64Array(Nmax+1), cIm=new Float64Array(Nmax+1);  // complex coefficients c_n = cRe + i cIm
+let schRate=0.3;  // Schrodinger clock scaled down for visibility (time axis is arbitrary)
+const u0=new Float64Array(NX);             // initial shape (for the dashed guide + scaling)
+let A0=1, R0=1;                            // display scales (amplitude, probability)
+
+const params={ pluck:0.3, x0:0.35, sigma:0.06 };
+function clearC(){ cRe=new Float64Array(Nmax+1); cIm=new Float64Array(Nmax+1); }
+function resizeC(){ if(cRe.length<Nmax+1){ const a=new Float64Array(Nmax+1),b=new Float64Array(Nmax+1); a.set(cRe); b.set(cIm); cRe=a; cIm=b; } }
+function projectReal(fn){
+  clearC();
+  const psi=Xg.map(x=>fn(x)); const dx=1/(NX-1);
+  for(let n=1;n<=Nmax;n++){ let s=0,ph=PHI[n]; for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; s+=w*ph[j]*psi[j]; } cRe[n]=s*dx; }
+}
+function setModes(list){ clearC(); for(const [n,v] of list) if(n<=Nmax) cRe[n]=v; }
+function normalizeC(){ let s=0; for(let n=1;n<=Nmax;n++) s+=cRe[n]*cRe[n]+cIm[n]*cIm[n];
+  if(s>0){ const inv=1/Math.sqrt(s); for(let n=1;n<=Nmax;n++){ cRe[n]*=inv; cIm[n]*=inv; } } }
+function recomputeScales(){
+  let amax=1e-6, rmax=1e-6;
+  for(let j=0;j<NX;j++){ let vr=0,vi=0; for(let n=1;n<=Nmax;n++){ const ph=PHI[n][j]; vr+=cRe[n]*ph; vi+=cIm[n]*ph; }
+    u0[j]=vr; const a=Math.max(Math.abs(vr),Math.abs(vi)); if(a>amax)amax=a; const r=vr*vr+vi*vi; if(r>rmax)rmax=r; }
+  A0=amax; R0=rmax;
+}
+function rebuildState(){
+  resizeC();
+  const p=$("preset").value;
+  if(p==="mode1"){ setModes([[1,1]]); normalizeC(); }
+  else if(p==="mode3"){ setModes([[3,1]]); normalizeC(); }
+  else if(p==="two"){ setModes([[1,1],[2,1]]); normalizeC(); }
+  else if(p==="pluck"){ const a=params.pluck; projectReal(x=> x<a? x/a : (1-x)/(1-a)); normalizeC(); }
+  else if(p==="step"){ projectReal(x=> (x>0.33&&x<0.66)?1:0); normalizeC(); }
+  else if(p==="gauss"){ const {x0,sigma}=params; projectReal(x=> Math.exp(-((x-x0)*(x-x0))/(2*sigma*sigma))); normalizeC(); }
+  else if(p==="draw"){ projectFromDrawn(); normalizeC(); }
+  else if(p==="custom"){ /* keep current c_n as edited on the bars */ }
+  recomputeScales();
+  if(p!=="draw") for(let j=0;j<NX;j++) drawnShape[j]=u0[j];
+  drawEditor(); drawBars();
+}
+
+/* ---------- field evaluators at clock t ---------- */
+const reA=new Float64Array(NX), imA=new Float64Array(NX);
+function heatField(t,out){ for(let j=0;j<NX;j++){ let v=0; for(let n=1;n<=Nmax;n++) v+=cRe[n]*Math.exp(-n*n*t)*PHI[n][j]; out[j]=v; } }
+function waveField(t,out){ for(let j=0;j<NX;j++){ let v=0; for(let n=1;n<=Nmax;n++) v+=cRe[n]*Math.cos(2*PI*n*t)*PHI[n][j]; out[j]=v; } }
+function schField(t){ for(let j=0;j<NX;j++){ reA[j]=0; imA[j]=0; }
+  const ts=t*schRate;
+  for(let n=1;n<=Nmax;n++){ const th=2*PI*n*n*ts, co=Math.cos(th), si=Math.sin(th);
+    // (cRe + i cIm) e^{-i th} = (cRe cos + cIm sin) + i (cIm cos - cRe sin)
+    const ar=cRe[n]*co+cIm[n]*si, ai=cIm[n]*co-cRe[n]*si;
+    for(let j=0;j<NX;j++){ const ph=PHI[n][j]; reA[j]+=ar*ph; imA[j]+=ai*ph; } } }
+
+/* ---------- drawing ---------- */
+function fit(cv,cssH){ const dpr=Math.min(window.devicePixelRatio||1,2); const cssW=cv.clientWidth||300;
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr);
+  const ctx=cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx,W:cssW,H:cssH}; }
+const PANH=230;
+function axes(ctx,m,pw,ph){ ctx.strokeStyle="#e4ede8"; ctx.lineWidth=1;
+  ctx.fillStyle="#fbfdfc"; ctx.fillRect(m.l,m.t,pw,ph);
+  ctx.fillStyle="rgba(27,42,36,0.08)"; ctx.fillRect(m.l-5,m.t,5,ph); ctx.fillRect(m.l+pw,m.t,5,ph);
+  ctx.fillStyle="#5a6b63"; ctx.font="11px Helvetica,Arial"; ctx.textAlign="center"; ctx.textBaseline="top";
+  ctx.fillText("0",m.l,m.t+ph+4); ctx.fillText("L/2",m.l+pw/2,m.t+ph+4); ctx.fillText("L",m.l+pw,m.t+ph+4); }
+function curve(ctx,m,pw,ph,xpix,ypix,arr){ ctx.beginPath();
+  for(let j=0;j<NX;j++){ const x=xpix(Xg[j]), y=ypix(arr[j]); j?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); }
+
+function drawHeat(t){
+  const {ctx,W,H}=fit($("cHeat"),PANH); const m={l:26,r:10,t:12,b:24}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  ctx.clearRect(0,0,W,H); axes(ctx,m,pw,ph);
+  const xpix=x=>m.l+x*pw, yMid=m.t+ph*0.5, ypix=v=>yMid - v*(ph*0.44)/A0;
+  ctx.strokeStyle="#e4ede8"; ctx.beginPath(); ctx.moveTo(m.l,yMid); ctx.lineTo(m.l+pw,yMid); ctx.stroke();
+  ctx.strokeStyle="#b9c7c0"; ctx.lineWidth=1; ctx.setLineDash([4,3]); curve(ctx,m,pw,ph,xpix,ypix,u0); ctx.setLineDash([]);
+  const u=new Float64Array(NX); heatField(t,u);
+  // shaded area
+  ctx.beginPath(); ctx.moveTo(xpix(0),yMid); for(let j=0;j<NX;j++) ctx.lineTo(xpix(Xg[j]),ypix(u[j])); ctx.lineTo(xpix(1),yMid); ctx.closePath();
+  ctx.fillStyle="rgba(200,75,49,0.12)"; ctx.fill();
+  ctx.strokeStyle="#c84b31"; ctx.lineWidth=2; curve(ctx,m,pw,ph,xpix,ypix,u);
+  let e=0; const dx=1/(NX-1); for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; e+=w*u[j]*u[j]; } e*=dx;
+  $("mHeat").textContent="∫u² dx = "+e.toFixed(3)+"  (decays to 0)";
+}
+function drawWave(t){
+  const {ctx,W,H}=fit($("cWave"),PANH); const m={l:26,r:10,t:12,b:24}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  ctx.clearRect(0,0,W,H); axes(ctx,m,pw,ph);
+  const xpix=x=>m.l+x*pw, yMid=m.t+ph*0.5, ypix=v=>yMid - v*(ph*0.44)/A0;
+  ctx.strokeStyle="#e4ede8"; ctx.beginPath(); ctx.moveTo(m.l,yMid); ctx.lineTo(m.l+pw,yMid); ctx.stroke();
+  ctx.strokeStyle="#b9c7c0"; ctx.lineWidth=1; ctx.setLineDash([4,3]); curve(ctx,m,pw,ph,xpix,ypix,u0); ctx.setLineDash([]);
+  const y=new Float64Array(NX); waveField(t,y);
+  ctx.strokeStyle="#2d6fb3"; ctx.lineWidth=2; curve(ctx,m,pw,ph,xpix,ypix,y);
+  let e=0; const dx=1/(NX-1); for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; e+=w*y[j]*y[j]; } e*=dx;
+  $("mWave").textContent="∫y² dx = "+e.toFixed(3)+"  (bounded, reforms)";
+}
+function drawSch(t){
+  const {ctx,W,H}=fit($("cSch"),PANH); const m={l:26,r:10,t:12,b:24}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+  ctx.clearRect(0,0,W,H); axes(ctx,m,pw,ph);
+  const xpix=x=>m.l+x*pw, yMid=m.t+ph*0.60, yAmp=v=>yMid - v*(ph*0.32)/A0, yRho=r=>(m.t+ph) - r*(ph*0.92)/R0;
+  schField(t);
+  const rho=new Float64Array(NX); for(let j=0;j<NX;j++) rho[j]=reA[j]*reA[j]+imA[j]*imA[j];
+  ctx.strokeStyle="#e4ede8"; ctx.beginPath(); ctx.moveTo(m.l,yMid); ctx.lineTo(m.l+pw,yMid); ctx.stroke();
+  // probability fill
+  ctx.beginPath(); ctx.moveTo(xpix(0),m.t+ph); for(let j=0;j<NX;j++) ctx.lineTo(xpix(Xg[j]),yRho(rho[j])); ctx.lineTo(xpix(1),m.t+ph); ctx.closePath();
+  ctx.fillStyle="rgba(0,105,62,0.15)"; ctx.fill();
+  ctx.strokeStyle="#00693e"; ctx.lineWidth=2; curve(ctx,m,pw,ph,xpix,yRho,rho);
+  ctx.strokeStyle="#2d6fb3"; ctx.lineWidth=1.6; curve(ctx,m,pw,ph,xpix,yAmp,reA);
+  ctx.strokeStyle="#c84b31"; ctx.lineWidth=1.3; ctx.setLineDash([4,3]); curve(ctx,m,pw,ph,xpix,yAmp,imA); ctx.setLineDash([]);
+  let nrm=0; const dx=1/(NX-1); for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; nrm+=w*rho[j]; } nrm*=dx;
+  $("mSch").textContent="∫|Ψ|² dx = "+nrm.toFixed(3)+"  (conserved in time)";
+}
+
+let t=0, playing=false, last=0, speed=0.5;
+function drawAll(){ drawHeat(t); drawWave(t); drawSch(t); $("timeLbl").textContent=t.toFixed(3); }
+function frame(ts){ if(!playing) return; if(!last) last=ts; const dt=(ts-last)/1000; last=ts;
+  t+=dt*speed*0.15; if(t>+$("time").max) t=0; $("time").value=t; drawAll(); requestAnimationFrame(frame); }
+function setPlay(on){ playing=on; $("play").innerHTML=on?"&#10073;&#10073; Pause":"&#9658; Play"; if(on){ last=0; requestAnimationFrame(frame); } }
+
+$("play").addEventListener("click",()=>setPlay(!playing));
+$("reset").addEventListener("click",()=>{ t=0; $("time").value=0; drawAll(); });
+$("time").addEventListener("input",()=>{ t=+$("time").value; drawAll(); });
+$("speed").addEventListener("input",()=>{ speed=+$("speed").value; $("speedLbl").textContent=speed.toFixed(2); });
+$("schrate").addEventListener("input",()=>{ schRate=+$("schrate").value; $("schrateLbl").textContent=schRate.toFixed(2); drawAll(); });
+$("nmodes").addEventListener("input",()=>{ Nmax=+$("nmodes").value; $("nmodesLbl").textContent=Nmax; buildModes(); rebuildState(); drawAll(); });
+$("preset").addEventListener("change",()=>{ rebuildState(); drawAll(); });
+window.addEventListener("resize",()=>{ drawAll(); drawEditor(); drawBars(); });
+
+/* ---------- draw-your-own initial shape ---------- */
+const drawnShape=new Float64Array(NX);
+function projectFromDrawn(){ drawnShape[0]=0; drawnShape[NX-1]=0; clearC(); const dx=1/(NX-1);
+  for(let n=1;n<=Nmax;n++){ let s=0,ph=PHI[n]; for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; s+=w*ph[j]*drawnShape[j]; } cRe[n]=s*dx; } }
+let drawGeo=null;
+function drawEditor(){
+  const cv=$("draw"); const {ctx,W,H}=fit(cv,104); ctx.clearRect(0,0,W,H);
+  const m={l:12,r:12,t:12,b:10}, pw=W-m.l-m.r, ph=H-m.t-m.b, yMid=m.t+ph/2;
+  let amax=1e-6; for(let j=0;j<NX;j++) amax=Math.max(amax,Math.abs(drawnShape[j]));
+  const scale=(ph*0.42)/amax; drawGeo={m,pw,yMid,scale};
+  ctx.fillStyle="#fbfdfc"; ctx.fillRect(m.l,m.t,pw,ph);
+  ctx.fillStyle="rgba(27,42,36,0.08)"; ctx.fillRect(m.l-5,m.t,5,ph); ctx.fillRect(m.l+pw,m.t,5,ph);
+  ctx.strokeStyle="#e4ede8"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(m.l,yMid); ctx.lineTo(m.l+pw,yMid); ctx.stroke();
+  ctx.strokeStyle="#00693e"; ctx.lineWidth=2; ctx.beginPath();
+  for(let j=0;j<NX;j++){ const x=m.l+Xg[j]*pw, y=yMid-drawnShape[j]*scale; j?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+  ctx.fillStyle="#9fb0a8"; ctx.font="10px Helvetica,Arial"; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillText("drag to draw u(x,0)", m.l+4, m.t+2);
+}
+let drawingIC=false, lastJ=-1;
+function icPt(e){ const r=$("draw").getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  const g=drawGeo; let f=(cx-g.m.l)/g.pw; f=Math.max(0,Math.min(1,f)); return { j:Math.round(f*(NX-1)), v:(g.yMid-cy)/g.scale }; }
+function icRefresh(){ $("preset").value="draw"; rebuildState(); t=0; $("time").value=0; drawAll(); }
+function icStart(e){ e.preventDefault(); drawingIC=true; lastJ=-1; icMove(e); }
+function icMove(e){ if(!drawingIC) return; e.preventDefault(); const {j,v}=icPt(e);
+  if(lastJ<0) drawnShape[j]=v;
+  else { const a=Math.min(lastJ,j), b=Math.max(lastJ,j), va=lastJ<=j?drawnShape[lastJ]:v, vb=lastJ<=j?v:drawnShape[lastJ];
+    for(let k=a;k<=b;k++){ const tt=(b===a)?0:(k-a)/(b-a); drawnShape[k]=va+(vb-va)*tt; } }
+  lastJ=j; drawnShape[0]=0; drawnShape[NX-1]=0; icRefresh(); }
+function icEnd(){ drawingIC=false; }
+(function(){ const cv=$("draw");
+  cv.addEventListener("mousedown",icStart); window.addEventListener("mousemove",icMove); window.addEventListener("mouseup",icEnd);
+  cv.addEventListener("touchstart",icStart,{passive:false}); cv.addEventListener("touchmove",icMove,{passive:false}); cv.addEventListener("touchend",icEnd); })();
+$("clearDraw").addEventListener("click",()=>{ drawnShape.fill(0); $("preset").value="draw"; icRefresh(); });
+
+/* ---------- Fourier-component bar editor ---------- */
+const VMAX=1.0;
+let barGeoRe=null, barGeoIm=null, barDrag=null;
+function drawBarPanel(cv, arr, color){
+  const {ctx,W,H}=fit(cv,120); ctx.clearRect(0,0,W,H);
+  const m={l:24,r:8,t:8,b:16}, pw=W-m.l-m.r, ph=H-m.t-m.b, yMid=m.t+ph/2;
+  const NB=Math.min(Nmax,16), bw=(pw/NB)*0.62;
+  ctx.fillStyle="#fbfdfc"; ctx.fillRect(m.l,m.t,pw,ph);
+  ctx.strokeStyle="#e4ede8"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(m.l,yMid); ctx.lineTo(m.l+pw,yMid); ctx.stroke();
+  ctx.fillStyle="#9fb0a8"; ctx.font="10px Helvetica,Arial"; ctx.textAlign="right"; ctx.textBaseline="middle";
+  ctx.fillText("+",m.l-4,m.t+ph*0.12); ctx.fillText("0",m.l-4,yMid); ctx.fillText("−",m.l-4,m.t+ph*0.88);
+  ctx.textAlign="center"; ctx.textBaseline="top";
+  for(let n=1;n<=NB;n++){ const x=m.l+(n-0.5)*pw/NB; let v=arr[n]||0; v=Math.max(-VMAX,Math.min(VMAX,v));
+    const hgt=v*(ph*0.46)/VMAX; ctx.fillStyle=color; ctx.fillRect(x-bw/2, yMid, bw, -hgt);
+    ctx.fillStyle="#5a6b63"; ctx.fillText(n, x, m.t+ph+3); }
+  return {m,pw,ph,yMid,NB};
+}
+function drawBars(){ barGeoRe=drawBarPanel($("barsRe"), cRe, "#12855a"); barGeoIm=drawBarPanel($("barsIm"), cIm, "#2d6fb3"); }
+function barHit(cv,geo,e){ const r=cv.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  const g=geo; let n=Math.floor((cx-g.m.l)/(g.pw/g.NB))+1; n=Math.max(1,Math.min(g.NB,n));
+  let v=(g.yMid-cy)/((g.ph*0.46)/VMAX); v=Math.max(-VMAX,Math.min(VMAX,v)); return {n,v}; }
+function barEdit(which,e){ e.preventDefault();
+  const cv=which==="re"?$("barsRe"):$("barsIm"), geo=which==="re"?barGeoRe:barGeoIm; if(!geo) return;
+  const {n,v}=barHit(cv,geo,e); resizeC();
+  if(which==="re") cRe[n]=v; else cIm[n]=v;
+  $("preset").value="custom"; recomputeScales();
+  for(let j=0;j<NX;j++) drawnShape[j]=u0[j];
+  drawBars(); drawEditor(); t=0; $("time").value=0; drawAll();
+}
+(function(){ const re=$("barsRe"), im=$("barsIm");
+  const start=w=>e=>{ barDrag=w; barEdit(w,e); };
+  re.addEventListener("mousedown",start("re")); im.addEventListener("mousedown",start("im"));
+  window.addEventListener("mousemove",e=>{ if(barDrag) barEdit(barDrag,e); });
+  window.addEventListener("mouseup",()=>{ barDrag=null; });
+  re.addEventListener("touchstart",start("re"),{passive:false}); im.addEventListener("touchstart",start("im"),{passive:false});
+  re.addEventListener("touchmove",e=>{ if(barDrag) barEdit(barDrag,e); },{passive:false});
+  im.addEventListener("touchmove",e=>{ if(barDrag) barEdit(barDrag,e); },{passive:false});
+  window.addEventListener("touchend",()=>{ barDrag=null; });
+})();
+
+buildModes(); rebuildState(); drawAll();
+</script>

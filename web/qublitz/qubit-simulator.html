@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qubit Simulator — Qublitz</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<script src="qubit-engine.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1180px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  h3{font-size:15px;margin:16px 0 6px}
+  .row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:8px 0}
+  .field{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .field label,.lbl{font-size:12.5px;color:var(--muted)}
+  input[type=number],input[type=text],select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    padding:6px 9px;background:#fff;color:var(--ink);width:150px;max-width:100%}
+  input:focus,select:focus{outline:2px solid rgba(0,105,62,.22);border-color:var(--green2)}
+  input[type=range]{accent-color:var(--green);width:170px;vertical-align:middle}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  button.primary:hover{background:var(--green2);color:#fff}
+  button:disabled{opacity:.45;cursor:default}
+  .code{font:600 18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--green);
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:3px 10px}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
+  .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;margin:6px 0;overflow-x:auto}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 14px;flex-wrap:wrap}
+  .tab{border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:none;padding:8px 14px;
+    font-size:14px;color:var(--muted);margin-bottom:-1px}
+  .tab[aria-selected="true"]{border-color:var(--line);background:#fff;color:var(--green);font-weight:600}
+  .panel[hidden]{display:none}
+  .metrics{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+  .metric{border:1px solid var(--line);border-radius:9px;padding:8px 13px;background:var(--panel);min-width:170px}
+  .metric span{display:block;font-size:11.5px;color:var(--muted);letter-spacing:.03em}
+  .metric b{font-size:19px;font-variant-numeric:tabular-nums}
+  .plot{width:100%;min-height:120px}
+  .progress{height:6px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line);width:220px;display:none}
+  .progress.on{display:inline-block}
+  .progress i{display:block;height:100%;width:0;background:var(--green);transition:width .1s}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .grid2>*{min-width:0}
+  details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+  details p{font-size:13px;color:var(--muted);margin:6px 0 0}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{border:none;border-radius:0;padding:6px 11px}
+  .seg button[aria-pressed="true"]{background:var(--green);color:#fff}
+  .scrub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 0}
+  .scrub input{flex:1 1 220px}
+  .val{font-variant-numeric:tabular-nums;font-size:12.5px;min-width:70px;display:inline-block}
+  .reveal{display:none}
+  .reveal.on{display:block}
+  .empty{color:var(--muted);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:10px;background:var(--panel)}
+</style>
+</head>
+<body>
+<div class="page">
+<a class="back" href="../index.html#qublitz">&larr; All demos</a>
+<h1>⚛ Qubit Simulator <span style="font-weight:400;color:var(--muted);font-size:17px">(Free Play)</span></h1>
+<p class="sub">Your qubit's frequency, Rabi rate and T₁ are hidden. Sweep the drive frequency to find the resonance, fit the Rabi
+  oscillation, measure T₁ from the decay after a pulse, then use a Ramsey sequence to measure T₂. The dynamics come from the
+  full Lindblad master equation in the lab frame, solved in your browser.</p>
+
+<div class="card">
+  <h2>Your qubit</h2>
+  <div class="row" style="align-items:center">
+    <span class="lbl">Qubit code</span><span class="code" id="qcode">······</span>
+    <button id="copyLink" title="Copy a link that opens this same qubit">Copy link</button>
+    <button id="newQubit">New qubit</button>
+    <span style="flex:1"></span>
+    <div class="field"><label for="codeIn">Have a code?</label>
+      <div style="display:flex;gap:6px"><input id="codeIn" type="text" maxlength="12" placeholder="e.g. K7RX4P" style="width:120px;text-transform:uppercase"><button id="useCode">Load</button></div></div>
+    <div class="field"><label for="shots">Shots</label><input id="shots" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
+  </div>
+  <p class="hint">The same code always gives the same qubit, so an instructor can hand out codes and check answers with
+    <b>Reveal parameters</b> on the Ramsey tab. Loading a new qubit clears your results and pulses.</p>
+  <details><summary>Simulation convention</summary>
+    <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), with no rotating-wave
+      approximation. Energy relaxation at rate 1/T₁, and T₂ = 2T₁ (no pure dephasing), the teaching model of the original Qublitz page.
+      Frequencies are in GHz (ω/2π) and times in ns. Results match the Python/qutip implementation to better than 10⁻⁶.</p></details>
+</div>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-tab="freq">Frequency Domain</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="time">Time Domain</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="ramsey">Ramsey Sequence</button>
+</div>
+
+<!-- ======================= FREQUENCY ======================= -->
+<section class="panel" id="panel-freq" role="tabpanel">
+  <p class="hint">You cannot dial the qubit frequency \(\omega_q\) directly. It is a fixed, hidden property of this qubit. Sweep the
+    <b>drive</b> frequency \(\omega_d\) and read \(\omega_q\) off the resonance, where \(P(|1\rangle)\) peaks at \(\omega_d=\omega_q\).</p>
+  <div class="row">
+    <div class="field"><label for="fdStart">Start ω<sub>d</sub>/2π [GHz]</label><input id="fdStart" type="number" step="0.01" value="3.5"></div>
+    <div class="field"><label for="fdStop">Stop ω<sub>d</sub>/2π [GHz]</label><input id="fdStop" type="number" step="0.01" value="5.5"></div>
+    <div class="field"><label for="fdN">Number of frequencies</label><input id="fdN" type="number" min="5" max="201" step="2" value="41"></div>
+    <div class="field"><label for="fdT">Pulse duration [ns]</label><input id="fdT" type="number" min="1" max="500" step="1" value="25"></div>
+    <button class="primary" id="fdRun">Run frequency sweep</button>
+    <span class="progress" id="fdProg"><i></i></span>
+  </div>
+  <div id="fdNotice"></div>
+  <div id="fdEmpty" class="empty">Run a sweep to see P(|1⟩) versus drive frequency and time.</div>
+  <div id="fdPlot" class="plot"></div>
+  <div class="row" id="fdDlRow" hidden><button id="fdDl">Download sweep summary CSV</button></div>
+  <div id="cutPlot" class="plot"></div>
+  <div id="cutFit"></div>
+</section>
+
+<!-- ======================= TIME ======================= -->
+<section class="panel" id="panel-time" role="tabpanel" hidden>
+  <div class="row">
+    <div class="field"><label for="tdWd">ω<sub>d</sub>/2π [GHz]</label><input id="tdWd" type="number" step="0.000001" value="5.0" style="width:170px"></div>
+    <div class="field"><label for="tdT">Duration Δt [ns]</label><input id="tdT" type="number" min="1" max="2000" step="1" value="200"></div>
+    <button id="useFit" hidden title="Set ωd to the peak of your frequency sweep">Use sweep peak</button>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <h2>Pulse schedule</h2>
+    <div class="row">
+      <div class="field"><span class="lbl">Target channel</span>
+        <div class="seg" id="target"><button aria-pressed="true" data-v="x">σx</button><button aria-pressed="false" data-v="y">σy</button></div></div>
+      <div class="field"><span class="lbl">Pulse type</span>
+        <div class="seg" id="ptype"><button aria-pressed="true" data-v="square">Square</button><button aria-pressed="false" data-v="gauss">Gaussian</button></div></div>
+      <div class="field"><label for="amp">Amplitude <span class="val" id="ampVal">1.00</span></label><input id="amp" type="range" min="-1" max="1" step="0.05" value="1"></div>
+    </div>
+    <div class="row" id="sqFields">
+      <div class="field"><label for="sqStart">Start [ns]</label><input id="sqStart" type="number" min="0" step="0.04" value="5"></div>
+      <div class="field"><label for="sqDur">Duration [ns]</label><input id="sqDur" type="number" min="0.04" step="0.04" value="20"></div>
+      <span class="hint" id="sqStop"></span>
+    </div>
+    <div class="row" id="gFields" hidden>
+      <div class="field"><label for="gCenter">Center [ns]</label><input id="gCenter" type="number" min="0" step="0.04" value="50"></div>
+      <div class="field"><label for="gSigma">Sigma [ns]</label><input id="gSigma" type="number" min="0.04" step="0.04" value="10"></div>
+    </div>
+    <div class="row">
+      <button class="primary" id="addPulse">Add pulse</button>
+      <button id="undoPulse">Undo last</button>
+      <button id="clearPulse">Clear schedule</button>
+      <span id="quickPulses" hidden>
+        <span class="lbl">From your Rabi fit:</span>
+        <button id="qPi">+ π pulse</button><button id="qPi2">+ π/2 pulse</button>
+      </span>
+    </div>
+    <p class="hint" id="resHint"></p>
+    <div id="envPlot" class="plot"></div>
+  </div>
+
+  <h3>Time-domain results</h3>
+  <p class="hint">Use this tab mainly to extract T₁ from the decay after a pulse. Results update automatically as you edit the
+    schedule. Each run draws fresh measurement shots.</p>
+  <div id="tdEmpty" class="empty">Add a pulse to the schedule to see the qubit respond.</div>
+  <div id="tdResults" hidden>
+    <div class="grid2">
+      <div id="expPlot" class="plot"></div>
+      <div id="blochPlot" class="plot"></div>
+    </div>
+    <div class="scrub"><button id="play">▶ Play</button><input id="scrub" type="range" min="0" max="1000" value="1000"><span class="val" id="scrubVal"></span></div>
+    <div id="p1Plot" class="plot"></div>
+    <div class="metrics" id="tdMetrics"></div>
+    <div id="tdMsgs"></div>
+    <div class="eq">\[P_{1,\mathrm{T1}}(t) \approx C + A\,e^{-t/T_1}\]</div>
+    <div class="row"><button id="tdDl">Download time-domain CSV</button></div>
+  </div>
+</section>
+
+<!-- ======================= RAMSEY ======================= -->
+<section class="panel" id="panel-ramsey" role="tabpanel" hidden>
+  <p class="hint">Use a \(\pi/2 - \tau - \pi/2\) sequence to build a Ramsey chevron in measured \(P(|1\rangle)\). For each point the
+    simulator applies an ideal π/2 rotation, lets the qubit idle for τ with T₁ and T₂ decay at detuning Δ, applies a second π/2 rotation
+    and measures.</p>
+  <div class="eq">\[\pi/2_x \;\rightarrow\; \tau \;\rightarrow\; \pi/2_x \;\rightarrow\; \mathrm{measure}
+    \qquad t_\pi = \frac{1}{2\,\Omega_R/2\pi}, \quad t_{\pi/2} = \frac{1}{4\,\Omega_R/2\pi}\]</div>
+
+  <div class="row">
+    <div class="field"><label for="rqRef">Reference ω<sub>q</sub>/2π [GHz]</label><input id="rqRef" type="number" step="0.000001" style="width:170px"></div>
+    <span class="hint" id="rqRefHint"></span>
+  </div>
+  <div class="row" id="pi2Row">
+    <div class="field"><span class="lbl">π/2 duration source</span>
+      <div class="seg" id="pi2Src"><button aria-pressed="false" data-v="fit">Fitted Rabi rate</button><button aria-pressed="true" data-v="manual">Manual entry</button></div></div>
+    <div class="field" id="pi2ManualF"><label for="pi2">π/2 pulse duration [ns]</label><input id="pi2" type="number" min="0.01" max="500" step="0.01" value="2.5"></div>
+    <span class="hint" id="pi2Info"></span>
+  </div>
+
+  <h3>Chevron sweep</h3>
+  <div class="row">
+    <div class="field"><label for="dMin">Detuning min [MHz]</label><input id="dMin" type="number" step="0.1" value="-2"></div>
+    <div class="field"><label for="dMax">Detuning max [MHz]</label><input id="dMax" type="number" step="0.1" value="2"></div>
+    <div class="field"><label for="dN">Detuning points</label><input id="dN" type="number" min="11" max="401" step="2" value="81"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="tMin">Idle-time min [ns]</label><input id="tMin" type="number" min="0" step="10" value="0"></div>
+    <div class="field"><label for="tMax">Idle-time max [ns]</label><input id="tMax" type="number" min="10" step="50" value="1000"></div>
+    <div class="field"><label for="tN">Idle-time points</label><input id="tN" type="number" min="11" max="501" step="2" value="121"></div>
+    <div class="field"><label for="rShots">Shots per point</label><input id="rShots" type="number" min="32" max="4096" step="32" value="256"></div>
+    <button class="primary" id="rRun">Run Ramsey chevron</button>
+  </div>
+  <p class="hint" id="rTotal"></p>
+  <div id="rEmpty" class="empty">Run the chevron to see Ramsey fringes versus detuning and idle time.</div>
+  <div id="rOut" hidden>
+    <div id="chevPlot" class="plot"></div>
+    <h3>Fit a vertical cut</h3>
+    <div class="row">
+      <div class="field"><label for="cutDet">Detuning for vertical cut [MHz]</label><input id="cutDet" type="number" step="0.1" value="2"></div>
+      <span class="hint">Tip: click the chevron to pick a cut. Choose a detuning with at least one full fringe in the window.</span>
+    </div>
+    <div class="metrics" id="cutInfo"></div>
+    <div id="rCutPlot" class="plot"></div>
+    <div class="metrics" id="rFit"></div>
+    <div class="row"><button id="rDl">Download chevron CSV</button></div>
+  </div>
+
+  <h3>Reveal parameters</h3>
+  <label class="lbl" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="reveal"> Show hidden simulator parameters</label>
+  <div class="reveal" id="revealBox">
+    <div class="metrics" id="revealMetrics"></div>
+    <a id="battle" href="arena.html">⚔️ Battle with this qubit →</a>
+  </div>
+</section>
+</div>
+
+<script>
+'use strict';
+const Q = window.QubitEngine;
+const $ = s => document.querySelector(s);
+const C = { green:'#00693e', blue:'#2d6fb3', red:'#c84b31', gold:'#d9a521', muted:'#5a6b63', line:'#d8e2dc' };
+const PTS_PER_NS = 25;
+const PLOT_CFG = { responsive:true, displaylogo:false, modeBarButtonsToRemove:['lasso2d','select2d'] };
+
+const state = {
+  qubit: null,
+  freq: null, freqFit: null,
+  td: { tFinal: 200, sx: null, sy: null, history: [], out: null, fits: null },
+  chev: null,
+};
+
+/* ---------------- helpers ---------------- */
+const num = (id, fallback) => { const v = parseFloat($(id).value); return isFinite(v) ? v : fallback; };
+const int = (id, fallback) => Math.round(num(id, fallback));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fmtG = (v, d = 3) => String(parseFloat(Number(v).toPrecision(d)));
+function formatPM(val, err, unit = '', digits = 3) {          // _format_pm()
+  if (val == null || !isFinite(val)) return 'fit unavailable';
+  const vs = fmtG(val, digits);
+  if (err == null || !isFinite(err) || err <= 0 || err > 10 * Math.max(Math.abs(val), 1e-12)) return `${vs} ${unit}`.trim();
+  return `${vs} ± ${fmtG(err, digits)} ${unit}`.trim();
+}
+function metric(label, value) { return `<div class="metric"><span>${label}</span><b>${value}</b></div>`; }
+function timeGrid(tFinal) { const n = Math.max(2, Math.floor(PTS_PER_NS * tFinal)); return { t: Q.linspace(0, tFinal, n), n }; }
+function interpToGrid(vec, tOld, tNew, nNew) {                  // _interp_to_grid()
+  if (!vec) return new Float64Array(nNew);
+  if (vec.length === nNew && tOld === tNew) return vec;
+  const xo = Q.linspace(0, tOld, vec.length), out = new Float64Array(nNew);
+  for (let i = 0; i < nNew; i++) {
+    const x = i * tNew / (nNew - 1);
+    if (x <= 0) { out[i] = vec[0]; continue; }
+    if (x >= tOld) { out[i] = vec[vec.length - 1]; continue; }
+    let j = Math.min(vec.length - 2, Math.floor(x / tOld * (vec.length - 1)));
+    while (j > 0 && xo[j] > x) j--;
+    while (j < vec.length - 2 && xo[j + 1] < x) j++;
+    const f = (x - xo[j]) / (xo[j + 1] - xo[j]);
+    out[i] = vec[j] + f * (vec[j + 1] - vec[j]);
+  }
+  return out;
+}
+function downloadCSV(name, header, rows) {
+  const text = [header.join(',')].concat(rows.map(r => r.map(v => (v == null || Number.isNaN(v) ? '' : v)).join(','))).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function layout(title, extra = {}) {
+  return Object.assign({
+    title: { text: title, font: { size: 14 }, x: 0.02 },
+    font: { family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1b2a24' },
+    paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+    margin: { t: 50, b: 50, l: 60, r: 20 },
+    legend: { orientation: 'h', y: -0.22 },
+    xaxis: { gridcolor: '#eef2ef', zerolinecolor: C.line }, yaxis: { gridcolor: '#eef2ef', zerolinecolor: C.line },
+  }, extra);
+}
+const tick = () => new Promise(r => setTimeout(r, 0));
+function typeset(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(el ? [el] : undefined).catch(() => {}); }
+
+/* ---------------- qubit selection ---------------- */
+function setQubit(code, { keepUrl = false } = {}) {
+  state.qubit = Q.qubitFromCode(code);
+  $('#qcode').textContent = state.qubit.code;
+  if (!keepUrl) {
+    try { const u = new URL(location.href); u.searchParams.set('qubit', state.qubit.code); history.replaceState(null, '', u); } catch (e) {}
+  }
+  // _clear_results_and_pulses()
+  state.freq = null; state.freqFit = null; state.chev = null;
+  state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null;
+  $('#reveal').checked = false;
+  renderFreq(); syncSchedule(); renderTD(); renderRamsey(); renderReveal(); syncRamseyInputs();
+}
+$('#newQubit').onclick = () => setQubit(Q.randomCode());
+$('#useCode').onclick = () => { const v = $('#codeIn').value.trim(); if (v) { setQubit(v); $('#codeIn').value = ''; } };
+$('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#useCode').click(); });
+$('#copyLink').onclick = async () => {
+  const u = new URL(location.href); u.searchParams.set('qubit', state.qubit.code); u.hash = '';
+  try { await navigator.clipboard.writeText(u.href); $('#copyLink').textContent = 'Copied ✓'; }
+  catch (e) { prompt('Copy this link:', u.href); }
+  setTimeout(() => ($('#copyLink').textContent = 'Copy link'), 1500);
+};
+const shots = () => clamp(int('#shots', 256), 1, 4096);
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('.panel').forEach(p => p.hidden = p.id !== 'panel-' + b.dataset.tab);
+  // Plotly needs a resize once a hidden panel becomes visible.
+  document.querySelectorAll('#panel-' + b.dataset.tab + ' .js-plotly-plot').forEach(el => Plotly.Plots.resize(el));
+  if (b.dataset.tab === 'ramsey') syncRamseyInputs();
+});
+function segmented(id, onChange) {
+  const el = $(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    onChange && onChange(b.dataset.v);
+  });
+  return () => el.querySelector('[aria-pressed="true"]').dataset.v;
+}
+
+/* =======================================================================
+   FREQUENCY DOMAIN
+   ======================================================================= */
+let fdRunning = false;
+$('#fdRun').onclick = async () => {
+  if (fdRunning) return;
+  const start = num('#fdStart', 3.5), stop = num('#fdStop', 5.5);
+  const nf = clamp(int('#fdN', 41), 5, 201), tf = clamp(num('#fdT', 25), 1, 500);
+  if (!(stop > start)) { $('#fdNotice').innerHTML = '<div class="note warn">Stop frequency must be above the start frequency.</div>'; return; }
+  const nSteps = Math.floor(PTS_PER_NS * tf);
+  const q = state.qubit, freqs = Q.linspace(start, stop, nf), envI = new Float64Array(nSteps).fill(1);
+  fdRunning = true; $('#fdRun').disabled = true; $('#fdNotice').innerHTML = '';
+  const prog = $('#fdProg'); prog.classList.add('on');
+  const Z = []; let last = performance.now();
+  // run_frequency_sweep(): the noiseless P(|1⟩), one solve per drive frequency, yielding to the page between chunks
+  for (let i = 0; i < nf; i++) {
+    Z.push(Q.solve({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: tf, nSteps, omegaD: freqs[i], envI, envQ: null,
+      T1: q.T1, T2: 2 * q.T1 }).p1);
+    if (performance.now() - last > 30) { prog.firstElementChild.style.width = (100 * (i + 1) / nf) + '%'; await tick(); last = performance.now(); }
+  }
+  prog.firstElementChild.style.width = '100%';
+  const timeList = Q.linspace(0, tf, nSteps);
+  const maxProb = Z.map(col => Math.max(...col));
+  const avgProb = Z.map(col => col.reduce((a, b) => a + b, 0) / col.length);
+  let peakIdx = 0; maxProb.forEach((v, i) => { if (v > maxProb[peakIdx]) peakIdx = i; });
+  state.freq = { freqs, timeList, Z, maxProb, avgProb, peakIdx, peakFreq: freqs[peakIdx], start, stop };
+  state.freqFit = Q.fitRabi(timeList, Z[peakIdx]);
+  fdRunning = false; $('#fdRun').disabled = false; setTimeout(() => prog.classList.remove('on'), 300);
+  // No-peak guard: a flat spectrum means the resonance is outside the window.
+  if (Math.max(...maxProb) - Q.median(maxProb) < 0.1) {
+    $('#fdNotice').innerHTML = `<div class="note">No resonance found in this window. P(|1⟩) stayed flat across
+      ${start.toFixed(3)}–${stop.toFixed(3)} GHz, so the qubit's ω<sub>q</sub> is outside the swept range. Widen the range or lower the
+      start frequency and run again.</div>`;
+  }
+  renderFreq(); syncQuickPulses(); syncRamseyInputs();
+};
+
+function renderFreq() {
+  const f = state.freq;
+  $('#fdEmpty').hidden = !!f; $('#fdDlRow').hidden = !f;
+  if (!f) { Plotly.purge('fdPlot'); Plotly.purge('cutPlot'); $('#cutFit').innerHTML = ''; $('#fdNotice').innerHTML = ''; return; }
+  // Heatmap rows are time; thin very long traces for display only.
+  const stride = Math.max(1, Math.ceil(f.timeList.length / 600));
+  const rows = [], ty = [];
+  for (let i = 0; i < f.timeList.length; i += stride) { ty.push(f.timeList[i]); rows.push(f.Z.map(col => col[i])); }
+  Plotly.react('fdPlot', [
+    { type: 'heatmap', x: Array.from(f.freqs), y: ty, z: rows, colorscale: 'Viridis', zmin: 0, zmax: 1, xaxis: 'x', yaxis: 'y',
+      colorbar: { title: { text: 'P(|1⟩)' }, len: 0.72, y: 0.66, thickness: 18 },
+      hovertemplate: 'ωd=%{x:.6f} GHz<br>t=%{y:.2f} ns<br>P1=%{z:.3f}<extra></extra>' },
+    { type: 'scatter', mode: 'lines', x: Array.from(f.freqs), y: f.maxProb, xaxis: 'x', yaxis: 'y2', line: { color: C.green, width: 3 },
+      hovertemplate: 'ωd=%{x:.6f} GHz<br>max P1=%{y:.3f}<extra></extra>', showlegend: false },
+  ], layout('Frequency-domain simulation: time-resolved P(|1⟩) and its maximum', {
+    height: 640, margin: { t: 50, b: 50, l: 65, r: 20 },
+    grid: { rows: 2, columns: 1, roworder: 'top to bottom' },
+    xaxis: { title: { text: 'Drive frequency ω<sub>d</sub>/2π [GHz]' }, anchor: 'y2', gridcolor: '#eef2ef' },
+    yaxis: { title: { text: 'Time [ns]' }, domain: [0.32, 1] },
+    yaxis2: { title: { text: 'Max P(|1⟩)' }, domain: [0, 0.24], range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: f.peakFreq, x1: f.peakFreq, y0: 0, y1: 1, line: { color: C.red, width: 1, dash: 'dot' } }],
+  }), PLOT_CFG);
+
+  const fit = state.freqFit, cut = f.Z[f.peakIdx];
+  const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(f.timeList), y: Array.from(cut), name: 'P(|1⟩) at peak frequency',
+    line: { color: C.blue, width: 2.5 }, marker: { size: 3 } }];
+  if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(f.timeList), y: fit.fitCurve, name: 'Rabi fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
+  Plotly.react('cutPlot', traces, layout(`P(|1⟩) vs time at peak frequency (ωd = ${f.peakFreq.toFixed(6)} GHz)`, {
+    height: 380, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+  }), PLOT_CFG);
+  $('#cutFit').innerHTML = fit
+    ? `<div class="metrics">${metric('Peak drive frequency ω<sub>d</sub>/2π', f.peakFreq.toFixed(6) + ' GHz')}
+        ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, 'MHz'))}
+        ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ns')}</div>
+       <p class="hint">The fit uses the oscillation period of the peak-frequency trace. Try a narrower sweep around the peak to pin down ω<sub>q</sub>.</p>
+       <div class="eq">\\[P_{1,\\mathrm{Rabi}}(t) \\approx C + A e^{-t/\\tau_R} \\cos\\!\\left(2\\pi f_R t + \\phi\\right)\\]</div>`
+    : '<div class="note">Rabi fit unavailable for this trace.</div>';
+  typeset($('#cutFit'));
+}
+$('#fdDl').onclick = () => {
+  const f = state.freq;
+  downloadCSV('frequency_sweep_summary.csv', ['omega_d_GHz', 'max_prob_1', 'avg_prob_1'], Array.from(f.freqs, (w, i) => [w, f.maxProb[i], f.avgProb[i]]));
+};
+
+/* =======================================================================
+   TIME DOMAIN
+   ======================================================================= */
+const getTarget = segmented('#target');
+const getPtype = segmented('#ptype', v => { $('#sqFields').hidden = v !== 'square'; $('#gFields').hidden = v !== 'gauss'; });
+$('#amp').oninput = () => ($('#ampVal').textContent = (+$('#amp').value).toFixed(2));
+
+function syncSchedule() {                                         // pulse_ui() grid bookkeeping
+  const tf = clamp(num('#tdT', 200), 1, 2000);
+  const { t, n } = timeGrid(tf), td = state.td;
+  if (!td.sx || !td.sy) { td.sx = new Float64Array(n); td.sy = new Float64Array(n); td.tFinal = tf; }
+  if (td.tFinal !== tf || td.sx.length !== n) {
+    td.sx = interpToGrid(td.sx, td.tFinal, tf, n); td.sy = interpToGrid(td.sy, td.tFinal, tf, n);
+    td.history = td.history.map(h => ({ sx: interpToGrid(h.sx, td.tFinal, tf, n), sy: interpToGrid(h.sy, td.tFinal, tf, n) }));
+    td.tFinal = tf;
+  }
+  const dt = t[1] - t[0];
+  $('#resHint').textContent = `Pulse schedule resolution: about ${dt.toFixed(3)} ns per sample. Square pulses take decimal start times and durations, which makes π and π/2 calibrations easier.`;
+  $('#sqStop').textContent = `Stop time: ${Math.min(tf, num('#sqStart', 5) + num('#sqDur', 20)).toFixed(3)} ns`;
+  Plotly.react('envPlot', [
+    { type: 'scatter', mode: 'lines', x: Array.from(t), y: Array.from(td.sx), name: 'Ω<sub>x</sub>(t)', line: { color: C.green, width: 2.5 } },
+    { type: 'scatter', mode: 'lines', x: Array.from(t), y: Array.from(td.sy), name: 'Ω<sub>y</sub>(t)', line: { color: C.gold, width: 2.5 } },
+  ], layout('Time-dependent envelopes', {
+    height: 260, margin: { t: 40, b: 40, l: 55, r: 15 }, legend: { orientation: 'h', y: 1.15, x: 1, xanchor: 'right' },
+    xaxis: { title: { text: 'Time [ns]' }, range: [0, tf], gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Amplitude' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
+  }), PLOT_CFG);
+  return { t, n, tf };
+}
+
+function addPulse(spec) {
+  const { t, n, tf } = syncSchedule(), td = state.td;
+  const env = new Float64Array(n);
+  if (spec.type === 'square') {
+    const stop = Math.min(tf, spec.start + spec.dur);
+    for (let i = 0; i < n; i++) if (t[i] >= spec.start && t[i] < stop) env[i] = spec.amp;
+  } else {
+    const sig = Math.max(1e-9, spec.sigma);
+    for (let i = 0; i < n; i++) env[i] = spec.amp * Math.exp(-0.5 * ((t[i] - spec.center) / sig) ** 2);
+  }
+  td.history.push({ sx: Float64Array.from(td.sx), sy: Float64Array.from(td.sy) });
+  const tgt = spec.target === 'y' ? 'sy' : 'sx';
+  for (let i = 0; i < n; i++) td[tgt][i] += env[i];
+  syncSchedule(); scheduleRun();
+}
+$('#addPulse').onclick = () => {
+  const tf = clamp(num('#tdT', 200), 1, 2000), step = 0.04;
+  const start = clamp(num('#sqStart', 5), 0, Math.max(0, tf - step));
+  addPulse(getPtype() === 'square'
+    ? { type: 'square', target: getTarget(), amp: +$('#amp').value, start, dur: clamp(num('#sqDur', 20), step, Math.max(step, tf - start)) }
+    : { type: 'gauss', target: getTarget(), amp: +$('#amp').value, center: clamp(num('#gCenter', 50), 0, tf), sigma: clamp(num('#gSigma', 10), step, Math.max(step, tf / 2)) });
+};
+$('#undoPulse').onclick = () => { const h = state.td.history.pop(); if (h) { state.td.sx = h.sx; state.td.sy = h.sy; syncSchedule(); scheduleRun(); } };
+$('#clearPulse').onclick = () => {
+  const td = state.td; td.history.push({ sx: td.sx, sy: td.sy });
+  td.sx = new Float64Array(td.sx.length); td.sy = new Float64Array(td.sy.length); syncSchedule(); scheduleRun();
+};
+['#tdT', '#tdWd'].forEach(id => $(id).addEventListener('change', () => { syncSchedule(); scheduleRun(); }));
+['#sqStart', '#sqDur'].forEach(id => $(id).addEventListener('input', syncSchedule));
+$('#shots').addEventListener('change', scheduleRun);
+
+function syncQuickPulses() {
+  const fit = state.freqFit, f = state.freq;
+  $('#quickPulses').hidden = !(fit && fit.fMHz > 0);
+  $('#useFit').hidden = !f;
+}
+$('#useFit').onclick = () => { $('#tdWd').value = state.freq.peakFreq.toFixed(6); syncSchedule(); scheduleRun(); };
+const quick = frac => () => {
+  const dur = frac / (2 * state.freqFit.fMHz * 1e-3);       // π: 1/(2Ω), π/2: 1/(4Ω)
+  addPulse({ type: 'square', target: 'x', amp: 1, start: clamp(num('#sqStart', 5), 0, state.td.tFinal), dur });
+};
+$('#qPi').onclick = quick(1); $('#qPi2').onclick = quick(0.5);
+
+let runTimer = null;
+function scheduleRun() { clearTimeout(runTimer); runTimer = setTimeout(runTD, 120); }
+function runTD() {                                                 // run_time_domain()
+  const td = state.td, q = state.qubit;
+  const active = td.sx.some(v => v !== 0) || td.sy.some(v => v !== 0);
+  if (!active) { td.out = null; renderTD(); return; }
+  const wd = num('#tdWd', 5), n = td.sx.length;
+  const clip = a => Float64Array.from(a, v => clamp(v, -1, 1));
+  const r = Q.runQuantumSimulation({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: td.tFinal, nSteps: n, omegaD: wd,
+    envI: clip(td.sx), envQ: clip(td.sy), T1: q.T1, T2: 2 * q.T1 }, shots());
+  const rot = Q.rotatingFrame(r.t, r.x, r.y, wd);
+  td.out = { t: r.t, x: rot.x, y: rot.y, z: r.z, p1: r.p1Sampled, wd, shots: shots() };
+  td.fits = Q.analyzeTimeDomainFits(r.t, r.p1Sampled, td.sx, td.sy);
+  renderTD();
+}
+
+function bloch(o) {
+  const u = 40, v = 20, xs = [], ys = [], zs = [];
+  for (let i = 0; i < u; i++) {
+    const a = 2 * Math.PI * i / (u - 1), rx = [], ry = [], rz = [];
+    for (let j = 0; j < v; j++) { const b = Math.PI * j / (v - 1); rx.push(Math.cos(a) * Math.sin(b)); ry.push(Math.sin(a) * Math.sin(b)); rz.push(-Math.cos(b)); }
+    xs.push(rx); ys.push(ry); zs.push(rz);
+  }
+  const stride = Math.max(1, Math.ceil(o.t.length / 1500));
+  const idx = []; for (let i = 0; i < o.t.length; i += stride) idx.push(i);
+  // |0⟩ (the ground state, ⟨σz⟩ = −1 in the engine) is drawn at the top, as on the original page.
+  return [
+    { type: 'surface', x: xs, y: ys, z: zs, opacity: 0.18, showscale: false, hoverinfo: 'skip', colorscale: [[0, '#cfe3d8'], [1, '#cfe3d8']] },
+    { type: 'scatter3d', mode: 'markers', x: idx.map(i => o.x[i]), y: idx.map(i => o.y[i]), z: idx.map(i => -o.z[i]), name: 'State',
+      marker: { size: 3, color: idx.map(i => o.t[i]), colorscale: 'Cividis', opacity: 0.9,
+        colorbar: { title: { text: 'Time [ns]' }, len: 0.7, thickness: 14 } },
+      hovertemplate: 't=%{marker.color:.2f} ns<extra></extra>' },
+    { type: 'scatter3d', mode: 'text', x: [0, 0], y: [0, 0], z: [1.18, -1.18], text: ['|0⟩', '|1⟩'], textfont: { size: 16, color: '#1b2a24' }, hoverinfo: 'skip', showlegend: false },
+    { type: 'scatter3d', mode: 'lines+markers', x: [0, 0], y: [0, 0], z: [0, 0], line: { color: C.red, width: 7 }, marker: { size: [0, 6], color: C.red }, hoverinfo: 'skip', showlegend: false },
+  ];
+}
+
+function renderTD() {
+  const o = state.td.out, f = state.td.fits;
+  $('#tdEmpty').hidden = !!o; $('#tdResults').hidden = !o;
+  if (!o) { stopPlay(); return; }
+  const t = Array.from(o.t), tf = state.td.tFinal;
+  const vline = { type: 'line', xref: 'x', yref: 'paper', x0: tf, x1: tf, y0: 0, y1: 1, line: { color: C.red, width: 1.2, dash: 'dot' } };
+  Plotly.react('expPlot', [
+    { type: 'scatter', mode: 'lines', x: t, y: Array.from(o.x), name: '⟨σx⟩', line: { color: C.green, width: 2.2 } },
+    { type: 'scatter', mode: 'lines', x: t, y: Array.from(o.y), name: '⟨σy⟩', line: { color: C.gold, width: 2.2 } },
+    { type: 'scatter', mode: 'lines', x: t, y: Array.from(o.z), name: '⟨σz⟩', line: { color: C.blue, width: 2.2 } },
+  ], layout(`Rotating-frame dynamics (ωd = ${o.wd.toFixed(6)} GHz)`, {
+    height: 440, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Expectation value' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
+    shapes: [vline], legend: { orientation: 'h', y: 1.12, x: 1, xanchor: 'right' },
+  }), PLOT_CFG);
+  Plotly.react('blochPlot', bloch(o), layout('State vector on the Bloch sphere', {
+    height: 440, margin: { t: 40, b: 0, l: 0, r: 0 }, showlegend: false,
+    scene: { aspectmode: 'cube', camera: { eye: { x: 1.35, y: 1.35, z: 0.8 } },
+      xaxis: { title: { text: '⟨σx⟩' }, range: [-1.2, 1.2], showbackground: false },
+      yaxis: { title: { text: '⟨σy⟩' }, range: [-1.2, 1.2], showbackground: false },
+      zaxis: { title: { text: '−⟨σz⟩' }, range: [-1.2, 1.2], showbackground: false } },
+  }), PLOT_CFG);
+
+  const traces = [{ type: 'scatter', mode: 'lines', x: t, y: Array.from(o.p1), name: 'Measured P(|1⟩)', line: { color: C.blue, width: 2 } }];
+  if (f.rabi && f.rabiSlice) {
+    const [s0] = f.rabiSlice;
+    traces.push({ type: 'scatter', mode: 'lines', x: f.rabi.fitCurve.map((_, i) => t[s0 + i]), y: f.rabi.fitCurve, name: 'Rabi fit', line: { color: C.gold, width: 2.5, dash: 'dash' } });
+  }
+  if (f.t1 && f.t1Slice) {
+    const [i0] = f.t1Slice;
+    traces.push({ type: 'scatter', mode: 'lines', x: f.t1.fitCurve.map((_, i) => t[i0 + i]), y: f.t1.fitCurve, name: 'T₁ fit', line: { color: C.red, width: 2.5, dash: 'dot' } });
+  }
+  Plotly.react('p1Plot', traces, layout(`Measurement record (shots = ${o.shots})`, {
+    height: 380, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Measured P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    shapes: [vline], legend: { orientation: 'h', y: 1.14, x: 1, xanchor: 'right' },
+  }), PLOT_CFG);
+
+  $('#tdMetrics').innerHTML = (f.t1 ? metric('Fitted T₁', formatPM(f.t1.T1Ns, f.t1.T1NsErr, 'ns')) : '')
+    + (f.rabi ? metric('Fitted Ω<sub>R</sub>/2π during the pulse', formatPM(f.rabi.fMHz, f.rabi.fMHzErr, 'MHz')) : '');
+  $('#tdMsgs').innerHTML = (f.t1 ? '' : '<div class="note">T₁ fit unavailable for the current schedule.</div>')
+    + f.messages.map(m => `<p class="hint">${m}</p>`).join('');
+  $('#scrub').value = 1000; setScrub(1000);
+}
+
+/* --- time scrubber: moves the Bloch arrow and the dotted cursor on both traces --- */
+function setScrub(v) {
+  const o = state.td.out; if (!o) return;
+  const i = Math.round(v / 1000 * (o.t.length - 1)), tt = o.t[i];
+  $('#scrubVal').textContent = `t = ${tt.toFixed(2)} ns`;
+  Plotly.restyle('blochPlot', { x: [[0, o.x[i]]], y: [[0, o.y[i]]], z: [[0, -o.z[i]]] }, [3]);
+  const sh = { 'shapes[0].x0': tt, 'shapes[0].x1': tt };
+  Plotly.relayout('expPlot', sh); Plotly.relayout('p1Plot', sh);
+}
+$('#scrub').addEventListener('input', e => { stopPlay(); setScrub(+e.target.value); });
+let playing = null;
+function stopPlay() { if (playing) cancelAnimationFrame(playing); playing = null; $('#play').textContent = '▶ Play'; }
+$('#play').onclick = () => {
+  if (playing) return stopPlay();
+  let v = +$('#scrub').value >= 1000 ? 0 : +$('#scrub').value, last = performance.now();
+  $('#play').textContent = '❚❚ Pause';
+  const step = now => {
+    v = Math.min(1000, v + (now - last) * 0.12); last = now;   // ~8 s for the full run
+    $('#scrub').value = v; setScrub(v);
+    if (v >= 1000) return stopPlay();
+    playing = requestAnimationFrame(step);
+  };
+  playing = requestAnimationFrame(step);
+};
+
+$('#tdDl').onclick = () => {
+  const o = state.td.out, f = state.td.fits, n = o.t.length, fit = new Array(n).fill(NaN);
+  if (f.t1 && f.t1Slice) f.t1.fitCurve.forEach((v, i) => (fit[f.t1Slice[0] + i] = v));
+  downloadCSV('time_domain_sim.csv', ['time_ns', 'exp_x_rot', 'exp_y_rot', 'exp_z', 'p1_meas'].concat(f.t1 ? ['t1_fit'] : []),
+    Array.from(o.t, (t, i) => [t, o.x[i], o.y[i], o.z[i], o.p1[i]].concat(f.t1 ? [fit[i]] : [])));
+};
+
+/* =======================================================================
+   RAMSEY
+   ======================================================================= */
+const getPi2Src = segmented('#pi2Src', () => syncRamseyInputs());
+function syncRamseyInputs() {
+  // Reference ωq: defaults to your sweep's peak, never the hidden value itself.
+  const ref = $('#rqRef');
+  if (!ref.dataset.touched) ref.value = state.freq ? state.freq.peakFreq.toFixed(6) : '';
+  $('#rqRefHint').textContent = state.freq ? 'Filled in from your frequency sweep peak. It only labels drive frequencies in the chevron.'
+    : 'Run a frequency sweep first, or type your best estimate. It only labels drive frequencies in the chevron.';
+  const fit = state.freqFit, fitBtn = $('#pi2Src [data-v="fit"]');
+  fitBtn.disabled = !(fit && fit.fMHz > 0);
+  if (fitBtn.disabled && getPi2Src() === 'fit') $('#pi2Src [data-v="manual"]').click();
+  if (fit && fit.fMHz > 0 && !$('#pi2').dataset.touched) $('#pi2').value = (1e3 / (4 * fit.fMHz)).toFixed(3);
+  const useFit = getPi2Src() === 'fit';
+  $('#pi2ManualF').hidden = useFit;
+  $('#pi2Info').innerHTML = useFit
+    ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, 'MHz')} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ns.`
+    : `Corresponding π duration: ${(2 * num('#pi2', 2.5)).toFixed(3)} ns.`;
+  $('#rTotal').textContent = `Total Ramsey points: ${clamp(int('#dN', 81), 11, 401) * clamp(int('#tN', 121), 11, 501)}`;
+}
+$('#rqRef').addEventListener('input', e => (e.target.dataset.touched = '1'));
+$('#pi2').addEventListener('input', e => { e.target.dataset.touched = '1'; syncRamseyInputs(); });
+['#dN', '#tN'].forEach(id => $(id).addEventListener('input', syncRamseyInputs));
+
+$('#rRun').onclick = () => {
+  const q = state.qubit, T1 = q.T1, T2 = 2 * T1;
+  const dets = Q.linspace(num('#dMin', -2), num('#dMax', 2), clamp(int('#dN', 81), 11, 401));
+  const delays = Q.linspace(Math.max(0, num('#tMin', 0)), Math.max(10, num('#tMax', 1000)), clamp(int('#tN', 121), 11, 501));
+  const rshots = clamp(int('#rShots', 256), 1, 4096);
+  const fit = state.freqFit;
+  const pi2 = getPi2Src() === 'fit' && fit ? 1e3 / (4 * fit.fMHz) : num('#pi2', 2.5);
+  const refF = num('#rqRef', NaN);
+  state.chev = { dets, delays, cols: Q.ramseyChevron(delays, dets, T1, T2, rshots), pi2, refF, shots: rshots };
+  renderRamsey();
+};
+
+function renderRamsey() {
+  const c = state.chev;
+  $('#rEmpty').hidden = !!c; $('#rOut').hidden = !c;
+  if (!c) return;
+  const z = Array.from(c.delays, (_, i) => c.cols.map(col => col[i]));
+  const hasRef = isFinite(c.refF);
+  Plotly.react('chevPlot', [{
+    type: 'heatmap', x: Array.from(c.dets), y: Array.from(c.delays), z, colorscale: 'Inferno', zmin: 0, zmax: 1,
+    colorbar: { title: { text: 'P(|1⟩)' }, thickness: 18 },
+    customdata: hasRef ? Array.from(c.delays, () => Array.from(c.dets, d => c.refF + 1e-3 * d)) : undefined,
+    hovertemplate: 'Δ=%{x:.3f} MHz' + (hasRef ? '<br>ωd/2π=%{customdata:.9f} GHz' : '') + '<br>τ=%{y:.1f} ns<br>P1=%{z:.3f}<extra></extra>',
+  }], layout(`Ramsey chevron, π/2 = ${c.pi2.toFixed(3)} ns`, {
+    height: 560, xaxis: { title: { text: 'Relative detuning Δ/2π [MHz]' } }, yaxis: { title: { text: 'Idle time τ [ns]' } },
+    shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: num('#cutDet', 2), x1: num('#cutDet', 2), y0: 0, y1: 1, line: { color: '#7fd1ff', width: 1.5, dash: 'dash' } }],
+  }), PLOT_CFG);
+  const chev = $('#chevPlot');
+  if (!chev.dataset.bound) {
+    chev.on('plotly_click', ev => { if (ev.points && ev.points[0]) { $('#cutDet').value = (+ev.points[0].x).toFixed(3); renderCut(); } });
+    chev.dataset.bound = '1';
+  }
+  renderCut();
+}
+
+function renderCut() {
+  const c = state.chev; if (!c) return;
+  const want = num('#cutDet', 2);
+  let j = 0; c.dets.forEach((d, k) => { if (Math.abs(d - want) < Math.abs(c.dets[j] - want)) j = k; });
+  const det = c.dets[j], col = c.cols[j], fit = Q.fitRamsey(c.delays, col, Math.abs(det));
+  Plotly.relayout('chevPlot', { 'shapes[0].x0': det, 'shapes[0].x1': det });
+  $('#cutInfo').innerHTML = metric('Selected detuning', `${det >= 0 ? '+' : ''}${det.toFixed(3)} MHz`)
+    + (isFinite(c.refF) ? metric('Corresponding ω<sub>d</sub>/2π', (c.refF + 1e-3 * det).toFixed(9) + ' GHz') : '');
+  const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(c.delays), y: Array.from(col), name: `Ramsey data (Δ = ${det >= 0 ? '+' : ''}${det.toFixed(3)} MHz)`,
+    line: { color: C.blue, width: 2.2 }, marker: { size: 4 } }];
+  if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(c.delays), y: fit.fitCurve, name: 'Ramsey fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
+  Plotly.react('rCutPlot', traces, layout('Ramsey trace from a vertical cut of the chevron', {
+    height: 400, xaxis: { title: { text: 'Idle time τ [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    legend: { orientation: 'h', y: 1.14, x: 1, xanchor: 'right' },
+  }), PLOT_CFG);
+  $('#rFit').innerHTML = fit
+    ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, 'ns')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, 'MHz'))
+    : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
+}
+$('#cutDet').addEventListener('change', renderCut);
+$('#rDl').onclick = () => {
+  const c = state.chev, rows = [];
+  c.delays.forEach((tau, i) => c.dets.forEach((d, j) => rows.push([isFinite(c.refF) ? c.refF : '', isFinite(c.refF) ? c.refF + 1e-3 * d : '', d, tau, c.cols[j][i]])));
+  downloadCSV('ramsey_chevron_p1.csv', ['qubit_freq_GHz', 'drive_freq_GHz', 'detuning_MHz', 'delay_ns', 'p1'], rows);
+};
+
+function renderReveal() {
+  const on = $('#reveal').checked, q = state.qubit;
+  $('#revealBox').classList.toggle('on', on);
+  if (!on) return;
+  $('#revealMetrics').innerHTML = metric('Qubit frequency ω<sub>q</sub>/2π', q.omegaQ.toFixed(3) + ' GHz')
+    + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' MHz')
+    + metric('T₁', q.T1.toFixed(1) + ' ns') + metric('T₂ = 2T₁', (2 * q.T1).toFixed(1) + ' ns');
+  // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
+  $('#battle').href = `arena.html?t1=${q.T1.toFixed(1)}`;
+  $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
+}
+$('#reveal').addEventListener('change', renderReveal);
+
+/* ---------------- boot ---------------- */
+let initial = null;
+try { initial = new URL(location.href).searchParams.get('qubit'); } catch (e) {}
+setQubit(initial || Q.randomCode(), { keepUrl: !!initial });
+syncQuickPulses();
+</script>
+</body>
+</html>

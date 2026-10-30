@@ -1,0 +1,60 @@
+name: Pages
+
+# Publishes the static demo site (web/) to GitHub Pages. The Arena game is not
+# duplicated under web/: its canonical copy stays at pages/_assets/quantum_chess.html
+# (pinned by VENDOR_SHA, see ci.yml) and is copied in unchanged at build time.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "pages/_assets/quantum_chess.html"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r web/. _site/
+          cp pages/_assets/quantum_chess.html _site/qublitz/arena.html
+          rm -rf _site/qublitz/tests _site/README.md
+
+      # Every local href in the hub's DEMOS list must exist in the built site,
+      # so a renamed or forgotten file fails here instead of 404ing for students.
+      - name: Check hub links
+        run: |
+          missing=0
+          for href in $(grep -oE "href:'[^']+'" _site/index.html | sed -E "s/href:'([^']+)'/\1/" | grep -v '^https\?://'); do
+            if [ ! -f "_site/$href" ]; then echo "missing: $href"; missing=1; fi
+          done
+          exit $missing
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
