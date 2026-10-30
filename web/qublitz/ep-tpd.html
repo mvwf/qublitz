@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exceptional Points &amp; Transmission Peak Degeneracies — Qublitz</title>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these two scripts into a single downloadable file. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
+<script src="ep-engine.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1180px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+  @media(max-width:960px){.layout{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:3px;margin:0 0 12px}
+  .field label{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .field label b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+  input[type=range]{accent-color:var(--green);width:100%}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  #map{width:100%;height:640px}
+  #split{width:100%;height:440px}
+  @media(max-width:640px){#map{height:520px}}
+  table{border-collapse:collapse;font-size:12.5px;width:100%;font-variant-numeric:tabular-nums}
+  th,td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:11.5px}
+  .mk{display:inline-block;width:11px;text-align:center;font-weight:700;margin-right:5px}
+  /* typeset math as plain HTML (no MathJax), so the page works offline */
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16.5px;margin:8px 0 8px 18px;overflow-x:auto;white-space:nowrap}
+  .eq i{font-style:italic}
+  .fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 2px;line-height:1.15}
+  .fr>span+span{border-top:1px solid currentColor;padding:0 3px}
+  .fr>span:first-child{padding:0 3px}
+  .sq>span{text-decoration:overline}
+  .mat{display:inline-grid;grid-template-columns:auto auto;gap:6px 22px;vertical-align:middle;padding:4px 10px;
+    border-left:1.5px solid currentColor;border-right:1.5px solid currentColor;border-radius:6px}
+  .math p{font-size:13.5px;margin:10px 0 2px}
+  details summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="page">
+<a class="back" id="back" href="../index.html#research">&larr; All demos</a>
+<h1>🎯 Exceptional Points &amp; Transmission Peak Degeneracies</h1>
+<p class="sub">Explore where exceptional points (EPs) and transmission-peak degeneracies (TPDs) coincide in a tunable
+  magnon&ndash;photon dimer. Based on
+  <a href="https://arxiv.org/abs/2506.09141" target="_blank" rel="noopener">Unification of Exceptional Points and Transmission
+  Peak Degeneracies in a Highly Tunable Magnon-Photon Dimer</a> (arXiv:2506.09141).</p>
+
+<div class="card">
+  <h2>Dynamical matrix of the dimer</h2>
+  <div class="eq"><i>A&#771;</i> = <span class="mat">
+    <span>&minus;<i>i</i>(<i>f&#771;</i><sub>c</sub> &minus; <i>f&#771;</i><sub>d</sub>) &minus; <span class="fr"><span><i>&kappa;&#771;</i><sub>c</sub></span><span>2</span></span></span>
+    <span>&minus;<i>i</i></span>
+    <span>&minus;<i>i</i> <i>e</i><sup><i>i&phi;</i></sup></span>
+    <span>&minus;<i>i</i>(<i>f&#771;</i><sub>c</sub> &minus; <i>f&#771;</i><sub>d</sub> &minus; <i>&Delta;&#771;</i><sub>f</sub>) + (<i>&Delta;&#771;</i><sub>&kappa;</sub> &minus; <span class="fr"><span><i>&kappa;&#771;</i><sub>c</sub></span><span>2</span></span>)</span>
+  </span></div>
+  <p class="hint">Frequencies and damping rates are in units of the coupling <i>J</i>. The map below is drawn over the
+    detuning <i>&Delta;&#771;</i><sub>f</sub> and the damping difference <i>&Delta;&#771;</i><sub>&kappa;</sub>.</p>
+</div>
+
+<div class="layout">
+<div>
+  <div class="card">
+    <h2>Petermann factor over (&Delta;&#771;<sub>&kappa;</sub>, &Delta;&#771;<sub>f</sub>)</h2>
+    <div id="map"></div>
+    <p class="hint">Color shows the Petermann factor where the system is stable (instability &le; 0); the gray region is
+      unstable. Dashed lines mark where <i>q&#771;</i> = 0, the discriminant = 0, the instability boundary, and where the
+      Petermann factor reaches its minimum of 1. Red marks are the primary EP (&times;) and TPD (&cir;); gray marks are the
+      secondary and &ldquo;rogue&rdquo; ones.</p>
+  </div>
+  <div class="card">
+    <h2>Primary EP and TPD peak splitting</h2>
+    <div id="split"></div>
+    <p class="hint">Along a cut through the primary EP: the transmission peaks <i>&nu;</i><sub>&plusmn;</sub> (purple) merge at
+      the TPD, while the eigenvalues |Im <i>&lambda;</i><sub>&plusmn;</sub>| (black, dashed) merge at the EP.
+      <span id="cutNote"></span></p>
+  </div>
+</div>
+
+<aside>
+  <div class="card">
+    <h2>System parameters</h2>
+    <div class="field"><label for="kc"><span>Cavity damping <i>&kappa;&#771;</i><sub>c</sub></span> <b id="kcV"></b></label>
+      <input id="kc" type="range" min="0" max="2.5" step="0.01" value="0.68"></div>
+    <div class="field"><label for="phi"><span>Coupling phase <i>&phi;</i></span> <b id="phiV"></b></label>
+      <input id="phi" type="range" min="0" max="16" step="1" value="0"></div>
+    <div class="row"><button id="copyLink">Copy link</button><button id="reset">Reset</button></div>
+  </div>
+  <div class="card">
+    <h2>Degeneracies at these settings</h2>
+    <table id="degTable"></table>
+  </div>
+  <p class="hint" id="offlineHint"><a href="ep-tpd-offline.html" download="qublitz-ep-tpd-explorer.html">Download this explorer</a>
+    as a single HTML file that runs offline in any browser.</p>
+  <p class="hint">Original Streamlit page by S. Sacerdote. Also available as part of
+    <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Qublitz</a>, and contributions are welcome.</p>
+</aside>
+</div>
+
+<details class="card math"><summary>Relevant equations</summary>
+  <p>Eigenvalues of the dynamical matrix:</p>
+  <div class="eq"><i>&lambda;&#771;</i><sub>0</sub> = (<span class="fr"><span><i>&Delta;&#771;</i><sub>&kappa;</sub></span><span>2</span></span> &minus; <span class="fr"><span><i>&kappa;&#771;</i><sub>c</sub></span><span>2</span></span>)
+    + <i>i</i>(<span class="fr"><span><i>&Delta;&#771;</i><sub>f</sub></span><span>2</span></span> &minus; <i>f&#771;</i><sub>c</sub> + <i>f&#771;</i><sub>d</sub>)</div>
+  <div class="eq"><i>&Delta;&#771;</i><sub>&lambda;</sub> = <span class="sq">&radic;<span>&minus;<i>&Delta;&#771;</i><sub>f</sub><sup>2</sup> + 2<i>i</i> <i>&Delta;&#771;</i><sub>f</sub><i>&Delta;&#771;</i><sub>&kappa;</sub> + <i>&Delta;&#771;</i><sub>&kappa;</sub><sup>2</sup> &minus; 4<i>e</i><sup><i>i&phi;</i></sup></span></span></div>
+  <div class="eq"><i>&lambda;&#771;</i><sub>&plusmn;</sub> = <i>&lambda;&#771;</i><sub>0</sub> &plusmn; <span class="fr"><span><i>&Delta;&#771;</i><sub>&lambda;</sub></span><span>2</span></span></div>
+  <p>Petermann factor:</p>
+  <div class="eq"><i>K&#772;</i><sub>2</sub> = <span class="fr"><span><i>&Delta;&#771;</i><sub>f</sub><sup>2</sup> + <i>&Delta;&#771;</i><sub>&kappa;</sub><sup>2</sup> + |<i>&Delta;&#771;</i><sub>&lambda;</sub>|<sup>2</sup> + 4</span><span>2|<i>&Delta;&#771;</i><sub>&lambda;</sub>|<sup>2</sup></span></span></div>
+  <p>TPD equations:</p>
+  <div class="eq">0 = <i>f</i><sup>3</sup> + <i>p&#771;</i> <i>f</i> + <i>q&#771;</i></div>
+  <div class="eq"><i>p&#771;</i> = <span class="fr"><span>(<i>&kappa;&#771;</i><sub>c</sub> &minus; <i>&Delta;&#771;</i><sub>&kappa;</sub>)<sup>2</sup> + Re(<i>&Delta;&#771;</i><sub>&lambda;</sub><sup>2</sup>)</span><span>4</span></span>,
+    &emsp;<i>q&#771;</i> = <span class="fr"><span>(<i>&kappa;&#771;</i><sub>c</sub> &minus; <i>&Delta;&#771;</i><sub>&kappa;</sub>) Im(<i>&Delta;&#771;</i><sub>&lambda;</sub><sup>2</sup>)</span><span>8</span></span></div>
+  <p style="margin-top:14px">Carney, A. S., Salcedo-Gallo, J. S., Bedkihal, S. K., &amp; Fitzpatrick, M. (2025). Unification of
+    Exceptional Points and Transmission Peak Degeneracies in a Highly Tunable Magnon-Photon Dimer.
+    <a href="https://arxiv.org/abs/2506.09141" target="_blank" rel="noopener">arXiv:2506.09141</a>.</p>
+</details>
+</div>
+
+<script>
+'use strict';
+const E = window.EpEngine;
+const $ = s => document.querySelector(s);
+
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// has no neighbouring pages, so its links point at the published site instead.
+const SITE = 'https://mvwf.github.io/qublitz/';
+const STANDALONE = !!window.QUBLITZ_STANDALONE;
+if (STANDALONE) { $('#back').href = SITE + '#research'; $('#offlineHint').hidden = true; }
+
+const DEFAULTS = { kc: 0.68, phi: 0 };
+// Python plotly's 'plasma' and 'gray' scales (plotly.js has neither built in).
+const PLASMA = ['#0d0887','#46039f','#7201a8','#9c179e','#bd3786','#d8576b','#ed7953','#fb9f3a','#fdca26','#f0f921']
+  .map((c, i, a) => [i / (a.length - 1), c]);
+const GRAY = [[0,'rgb(0,0,0)'],[1,'rgb(254,254,253)']];
+const MARKERS = {
+  PRIMARY_EP: ['red', 'x-thin'], PRIMARY_TPD: ['red', 'circle-open'],
+  SECONDARY_EP: ['gray', 'x-thin'], SECONDARY_TPD: ['gray', 'circle-open'], ROGUE_TPD: ['gray', 'diamond-open'],
+};
+const ORDER = Object.keys(MARKERS);
+const degeneracies = (phi, kc) => [...E.epLocation(phi), ...E.tpdLocation(phi, kc)]
+  .sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type) || a.dk - b.dk);
+const NAME = t => t.split('_').map((w, i) => i ? w : w[0] + w.slice(1).toLowerCase()).join(' ');
+const AX = { dk: 'Δ̃<sub>κ</sub>', df: 'Δ̃<sub>f</sub>' };
+const CONFIG = { responsive: true, displaylogo: false };
+
+// Flat row-major field to Plotly's array of rows; `keep` blanks the cells it rejects.
+function rows(arr, n, keep) {
+  const out = new Array(n);
+  for (let j = 0; j < n; j++) {
+    const r = new Array(n);
+    for (let i = 0; i < n; i++) { const k = j * n + i; r[i] = keep && !keep(k) ? null : arr[k]; }
+    out[j] = r;
+  }
+  return out;
+}
+
+function drawMap(phi, kc) {
+  const f = E.fields(phi, kc), n = f.x.length, x = Array.from(f.x);
+  const stable = k => f.instability[k] <= 0;
+  const contour = (z, color, name) => ({ type: 'contour', x, y: x, z: rows(z, n), showscale: false, name,
+    contours: { start: 0, end: 0, size: 1, coloring: 'none' }, line: { color, dash: 'dash', width: 3 },
+    hoverinfo: 'skip', showlegend: true });
+  const traces = [
+    { type: 'heatmap', x, y: x, z: rows(f.K, n, stable), colorscale: PLASMA, zmin: 1, zmax: 1.6, name: 'K₂',
+      colorbar: { title: { text: 'Petermann factor', side: 'right' }, thickness: 14 },
+      hovertemplate: 'Δ̃κ %{x:.2f}<br>Δ̃f %{y:.2f}<br>K₂ %{z:.3f}<extra></extra>' },
+    { type: 'heatmap', x, y: x, z: rows(f.K, n, k => !stable(k)), colorscale: GRAY, zmin: 1, zmax: 1.6, showscale: false,
+      name: 'K₂ (unstable)', hovertemplate: 'Δ̃κ %{x:.2f}<br>Δ̃f %{y:.2f}<br>K₂ %{z:.3f} (unstable)<extra></extra>' },
+    contour(f.q, 'magenta', 'q̃ = 0'),
+    contour(f.disc, 'cyan', 'Disc = 0'),
+    contour(f.instability, 'chartreuse', 'Instability'),
+    contour(f.minPetermann, 'white', 'Petermann factor = 1'),
+  ];
+  const seen = new Set();
+  for (const d of degeneracies(phi, kc)) {
+    const [color, symbol] = MARKERS[d.type];
+    traces.push({ type: 'scatter', mode: 'markers', x: [d.dk], y: [d.df], name: NAME(d.type), legendgroup: d.type,
+      showlegend: !seen.has(d.type), marker: { color, symbol, size: 15, line: { width: 3.5, color } },
+      hovertemplate: `${NAME(d.type)}<br>Δ̃κ %{x:.3f}<br>Δ̃f %{y:.3f}<extra></extra>` });
+    seen.add(d.type);
+  }
+  Plotly.react('map', traces, {
+    margin: { t: 10, r: 10, b: 20, l: 60 },
+    xaxis: { title: { text: AX.dk, font: { size: 20 } }, range: [-4, 4], constrain: 'domain' },
+    yaxis: { title: { text: AX.df, font: { size: 20 } }, range: [-4, 4] },
+    legend: { orientation: 'h', y: -0.17, x: 0.5, xanchor: 'center', yanchor: 'top', bgcolor: '#e5e5e5', font: { size: 12.5 } },
+    font: { family: 'Helvetica, Arial, sans-serif' },
+  }, CONFIG);
+}
+
+function drawSplit(phi, kc) {
+  const s = E.splitting(phi, kc), x = Array.from(s.x);
+  const line = (y, name, group, show, style) => ({ type: 'scatter', mode: 'lines', x, y: Array.from(y), name,
+    legendgroup: group, showlegend: show, line: style });
+  const nu = { width: 3.5, color: 'purple' }, lam = { width: 3.5, color: 'black', dash: 'dash' };
+  const vline = (v, name, color) => ({ type: 'scatter', mode: 'lines', x: [v, v], y: [s.ymin, s.ymax], name,
+    line: { width: 3.5, color } });
+  const traces = [
+    line(s.nuPlus, 'ν±', 'nu', true, nu), line(s.nuMinus, 'ν±', 'nu', false, nu), line(s.nu0, 'ν±', 'nu', false, nu),
+    line(s.lamPlus, '|Im(λ±)|', 'lam', true, lam), line(s.lamMinus, '|Im(λ±)|', 'lam', false, lam),
+  ];
+  if (s.tpd !== null) traces.push(vline(s.tpd, 'TPD', 'cyan'));
+  traces.push(vline(s.ep, 'EP', 'red'));
+  if (s.instability !== null) traces.push(vline(s.instability, 'Instability', 'chartreuse'));
+  Plotly.react('split', traces, {
+    margin: { t: 10, r: 10, b: 50, l: 60 },
+    xaxis: { title: { text: AX[s.axis], font: { size: 20 } }, showgrid: false },
+    yaxis: { title: { text: 'Frequency [arb.]' }, showgrid: false },
+    legend: { font: { size: 13 } }, font: { family: 'Helvetica, Arial, sans-serif' },
+  }, CONFIG);
+  $('#cutNote').textContent = s.axis === 'df'
+    ? 'At φ = π the cut runs along Δ̃f with Δ̃κ = 0.'
+    : phi === 0 ? 'At φ = 0 the cut runs along Δ̃κ with Δ̃f = 0.'
+      : 'The cut follows Δ̃f = 2 sin φ / Δ̃κ, which passes through the EPs.';
+}
+
+function drawTable(phi, kc) {
+  const list = degeneracies(phi, kc);
+  const sym = { 'x-thin': '×', 'circle-open': '○', 'diamond-open': '◇' };
+  $('#degTable').innerHTML = '<tr><th>Type</th><th>Δ̃κ</th><th>Δ̃f</th></tr>' + list.map(d => {
+    const [color, symbol] = MARKERS[d.type];
+    return `<tr><td><span class="mk" style="color:${color}">${sym[symbol]}</span>${NAME(d.type)}</td>`
+      + `<td>${d.dk.toFixed(3)}</td><td>${d.df.toFixed(3)}</td></tr>`;
+  }).join('');
+}
+
+/* ---------- state: sliders and the shareable URL ---------- */
+function state() { return { kc: +$('#kc').value, phi: +$('#phi').value }; }
+function toQuery(st) { return '?' + new URLSearchParams({ kc: st.kc.toFixed(2), phi: st.phi }); }
+function fromQuery() {
+  const q = new URLSearchParams(location.search), st = { ...DEFAULTS };
+  const kc = parseFloat(q.get('kc')), phi = parseInt(q.get('phi'), 10);
+  if (kc >= 0 && kc <= 2.5) st.kc = kc;
+  if (phi >= 0 && phi <= 16) st.phi = phi;
+  return st;
+}
+function setControls(st) { $('#kc').value = st.kc; $('#phi').value = st.phi; }
+
+let pending = 0;
+function update() {
+  const st = state(), [label, phi] = E.PHASES[st.phi];
+  $('#kcV').textContent = st.kc.toFixed(2);
+  $('#phiV').textContent = label;
+  drawTable(phi, st.kc);
+  // The map is the slow part (four 500×500 contours), so redraw it at most once per frame.
+  cancelAnimationFrame(pending);
+  pending = requestAnimationFrame(() => { drawMap(phi, st.kc); drawSplit(phi, st.kc); });
+  try { history.replaceState(null, '', toQuery(st) + location.hash); } catch (e) {}   // can throw for file:// pages
+}
+
+$('#kc').addEventListener('input', update);
+$('#phi').addEventListener('input', update);
+$('#reset').addEventListener('click', () => { setControls(DEFAULTS); update(); });
+$('#copyLink').addEventListener('click', async e => {
+  const b = e.target, url = STANDALONE ? SITE + 'qublitz/ep-tpd.html' + toQuery(state()) : location.href;
+  try { await navigator.clipboard.writeText(url); b.textContent = 'Copied'; }
+  catch (err) { prompt('Copy this link:', url); }
+  setTimeout(() => { b.textContent = 'Copy link'; }, 1400);
+});
+
+setControls(fromQuery());
+update();
+</script>
+</body>
+</html>
