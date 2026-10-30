@@ -41,7 +41,7 @@
   .overlay p{max-width:620px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
   .overlay .modes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0 4px}
   .overlay .modes button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;
-    padding:10px 16px;min-width:190px;text-align:left}
+    padding:10px 16px;min-width:170px;text-align:left}
   .overlay .modes button b{display:block;font-size:15px}
   .overlay .modes button span{font-size:12px;color:#9fb2cc}
   .overlay .modes button[aria-pressed=true]{border-color:#ffd166;background:rgba(255,209,102,.12)}
@@ -67,6 +67,8 @@
   .overlay .missions button span i,.overlay .best i{font-style:normal;color:rgba(255,255,255,.2)}
   .overlay .missions button small{font-size:11px;color:#9fb2cc}
   .overlay .missions button:disabled{opacity:.42;cursor:not-allowed}
+  .circ{font:13px ui-monospace,Menlo,Consolas,monospace;color:#c7d3e6;white-space:nowrap}
+  .circ b{display:inline-block;border:1px solid #ffd166;color:#ffd166;border-radius:4px;padding:0 5px;margin:0 1px;font-weight:700}
   .overlay .stars{font-size:40px;letter-spacing:.12em;color:#ffd166;line-height:1;margin:6px 0 0}
   .overlay .stars i{font-style:normal;color:rgba(255,255,255,.2)}
   .overlay .learn{max-width:640px;text-align:left;background:rgba(126,249,255,.08);border:1px solid rgba(126,249,255,.3);border-radius:10px;
@@ -149,14 +151,15 @@
       <div class="modes" role="group" aria-label="Mode">
         <button data-mode="auto" aria-pressed="true"><b>Autopilot</b><span>one button: hold to climb</span></button>
         <button data-mode="pilot" aria-pressed="false"><b>Pilot</b><span>rotate about X and Y yourself</span></button>
-        <button id="missionsBtn"><b>Missions</b><span id="missionsSub">9 short lessons, with stars to earn</span></button>
+        <button id="missionsBtn"><b>Missions</b><span id="missionsSub">short lessons, with stars to earn</span></button>
+        <button id="circuitsBtn"><b>Circuits</b><span id="circuitsSub">fly real gate sequences</span></button>
       </div>
       <p id="howto"></p>
       <div class="opts">
         <label><input type="checkbox" id="optDecay" checked> T₁ decay (quantum jumps)</label>
         <label>Course <select id="optCourse"><option value="random">random</option><option value="daily">today's course</option><option value="custom">custom seed…</option></select></label>
         <input type="text" id="optSeed" placeholder="seed, e.g. ENGS53" size="12" hidden>
-        <label>View <select id="optView"><option value="3d">3D globe</option><option value="map">flat map</option></select></label>
+        <label>View <select id="optView"><option value="3d">3D globe</option><option value="fp">first person</option><option value="map">flat map</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <button class="go" id="play">Play ▶</button>
@@ -282,6 +285,14 @@
     direction of precession with |0⟩ up. The sphere turning under you is the detuning Δ at work. Everything you fly through hovers
     at the qubit's flying height; whether you hit it is still decided by angles on the sphere. Press <kbd>V</kbd> for the flat map,
     where longitude runs across the screen.</p>
+  <p><b>Circuits</b> are real gate sequences. Each gate is a rotation of the Bloch vector (H is a half turn about the axis
+    halfway between x and z, S a quarter turn about z, T an eighth, √X a quarter turn about x, and so on), applied to the state the
+    gates before it left, starting from |0⟩. Every ring sits at the exact state after its gate, and the dotted arc on the sphere is the
+    path that gate's rotation takes. Between gates the qubit precesses freely, which only turns φ, so each ring waits for you where
+    your longitude matches its state; a state at a pole, |0⟩ or |1⟩, is a band that can be reached anywhere. <b>Random circuit</b> keeps
+    drawing gates from H, S, T, X, Y, Z, √X, √Y, Rx(π/4) and Ry(π/3); three missed gates and the qubit decoheres.</p>
+  <p><b>First person</b> puts you just behind the qubit, with the sphere as the ground and its path straight ahead. Up on the
+    sphere, toward |0⟩, becomes left, and toward |1⟩ becomes right; the gauge at the top shows where you are between them.</p>
   <p><b>Missions</b> are short scripted courses, one idea each: Rabi rotations, the π pulse, the equator and its named states,
     the Born rule, measurement, how the drive axis matters, noise, the lab tricks above, gate shortcuts, quantum jumps, and a final
     exam. A link with <code>?mission=pi</code> (or <code>flight</code>, <code>equator</code>, <code>born</code>, <code>collapse</code>,
@@ -313,7 +324,7 @@ const S = {
   course: P0.has('seed') ? 'custom' : store.get('rabi:course', 'random'),
   seed: P0.raw.get('seed') || store.get('rabi:seed', ''),
   sound: store.get('rabi:sound', true),
-  view: P0.str('view', ['3d', 'map']) || store.get('rabi:view', '3d'),
+  view: P0.str('view', ['3d', 'fp', 'map']) || store.get('rabi:view', '3d'),
 };
 const HOWTO = {
   auto: 'Hold <kbd>Space</kbd> (or press and hold the game) and the drive rotates your qubit toward |0⟩. Let go and the drive flips ' +
@@ -337,7 +348,7 @@ const BADGES = [
   { id: 'liftoff', icon: '🚀', name: 'Lift-off', desc: 'Fly for 20 s.', test: w => w.t >= 20 },
   { id: 'combo', icon: '🔥', name: 'Fully coherent', desc: 'Reach a ×10 combo.', test: w => w.combo >= 10 },
   { id: 'perfect', icon: '🎯', name: 'Dead center', desc: '5 perfect passes in one flight.', test: w => w.perfects >= 5 },
-  { id: 'cardinal', icon: '🧭', name: 'Cardinal points', desc: 'Collect |+⟩, |−⟩, |+i⟩, |−i⟩ and |1⟩ (over any flights).', test: () => namedSeen.size >= 5 },
+  { id: 'cardinal', icon: '🧭', name: 'Cardinal points', desc: 'Collect |+⟩, |−⟩, |+i⟩, |−i⟩ and |1⟩ (over any flights).', test: () => ['|+⟩', '|−⟩', '|+i⟩', '|−i⟩', '|1⟩'].every(n => namedSeen.has(n)) },
   { id: 'born', icon: '🎓', name: 'Born rule', desc: 'Answer 5 quiz gates right in one flight.', test: w => w.quizRight >= 5 },
   { id: 'close', icon: '😅', name: 'Close shave', desc: '5 close calls in one flight.', test: w => w.closes >= 5 },
   { id: 'jumps', icon: '📡', name: 'Watched pot', desc: 'Keep flying through 5 quantum jumps.', test: w => w.jumps >= 5 },
@@ -348,6 +359,8 @@ const BADGES = [
   { id: 'score', icon: '💯', name: 'High scorer', desc: 'Score 25 000 in one flight.', test: w => w.score >= 25000 },
   { id: 'ace', icon: '✈️', name: 'Ace pilot', desc: '40 rings in one Pilot flight.', test: w => w.mode === 'pilot' && w.rings >= 40 },
   { id: 'daily', icon: '📅', name: 'Daily flyer', desc: "Score 2 000 on today's course.", test: w => !w.mission && S.course === 'daily' && w.score >= 2000 },
+  { id: 'circuits', icon: '🔌', name: 'Circuit runner', desc: 'Clear every circuit.', test: () => E.CIRCUITS.every(m => mstars()[m.id] > 0) },
+  { id: 'gatemaster', icon: '🧮', name: 'Gate master', desc: 'Fly 25 gates of one random circuit.', test: w => w.circuitMode && w.rings >= 25 },
   { id: 'graduate', icon: '🏅', name: 'Graduate', desc: 'Clear every mission.', test: () => MISSIONS.every(m => mstars()[m.id] > 0) },
   { id: 'fullmarks', icon: '⭐', name: 'Full marks', desc: 'Three stars on every mission.', test: () => MISSIONS.every(m => mstars()[m.id] === 3) },
 ];
@@ -375,7 +388,7 @@ const POWER = {
   purcell: { glyph: 'T₁↑', color: '#ffcf7a', label: 'Purcell filter: no jumps',
     note: '<b>Purcell filter.</b> It stops the qubit leaking photons into its readout line: no quantum jumps for 10 s, so skim near |1⟩.' },
 };
-const bestKey = (seed) => `rabi:best:${S.mode}:${S.decay ? 1 : 0}` + (S.course === 'random' ? '' : ':' + seed);
+const bestKey = (seed) => (circuitRun ? `rabi:best:circuit:${S.mode}` : `rabi:best:${S.mode}:${S.decay ? 1 : 0}`) + (S.course === 'random' ? '' : ':' + seed);
 
 function syncMenu() {
   document.querySelectorAll('#menu .modes button[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
@@ -387,6 +400,8 @@ function syncMenu() {
   setPanels(S.mode);
   const ms = mstars(), got = MISSIONS.reduce((n, m) => n + (ms[m.id] || 0), 0);
   $('#missionsSub').textContent = got ? `★ ${got} / ${3 * MISSIONS.length} stars earned` : `${MISSIONS.length} short lessons, with stars to earn`;
+  const cgot = E.CIRCUITS.reduce((n, m) => n + (ms[m.id] || 0), 0);
+  $('#circuitsSub').textContent = cgot ? `★ ${cgot} / ${3 * E.CIRCUITS.length} · fly real gate sequences` : 'fly real gate sequences';
   $('#badgesBtn').textContent = `🏅 Badges ${badgesHave().size} / ${BADGES.length}`;
 }
 function setPanels(mode) { $('#autoPanel').hidden = mode !== 'auto'; $('#pilotPanel').hidden = mode !== 'pilot'; }
@@ -394,22 +409,35 @@ const OVERLAYS = ['#menu', '#missionsOv', '#brief', '#badgesOv', '#over', '#paus
 function show(id) { OVERLAYS.forEach(o => { $(o).hidden = o !== id; }); }
 
 /* ---------------- missions and badges screens ---------------- */
-function openMissions() {
-  phase = 'missions'; show('#missionsOv');
-  $('#missionsCount').textContent = `${MISSIONS.length} SHORT LESSONS IN STEERING A QUBIT`;
-  const ms = mstars();
-  $('#missionGrid').innerHTML = MISSIONS.map((m, i) => `<button data-i="${i}"${unlocked(i) ? '' : ' disabled title="Clear the mission before it first"'}>` +
-    `<small>${unlocked(i) ? '' : '🔒 '}${i + 1} · ${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'}${m.decay ? ' · T₁' : ''}</small><b>${m.title}</b><span>${starStr(ms[m.id] || 0)}</span></button>`).join('');
-  $('#missionGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => openBrief(+b.dataset.i)));
+// Missions unlock in order; circuits are all open.
+let levelSet = 'missions', circuitRun = false;
+const levelList = set => (set === 'circuits' ? E.CIRCUITS : MISSIONS);
+const circuitHTML = c => `<span class="circ">|0⟩ ${c.map(k => `─<b>${E.GATES[k].label}</b>`).join('')}─</span>`;
+function openMissions(set = levelSet) {
+  levelSet = set; phase = 'missions'; show('#missionsOv');
+  const list = levelList(set), ms = mstars(), circ = set === 'circuits';
+  $('#missionsOv h2').firstChild.textContent = circ ? 'Circuits' : 'Missions';
+  $('#missionsCount').textContent = circ ? 'REAL GATE SEQUENCES: EACH RING IS THE STATE AFTER ITS GATE' : `${list.length} SHORT LESSONS IN STEERING A QUBIT`;
+  $('#missionGrid').innerHTML = (circ ? `<button data-random="1"><small>Endless</small><b>Random circuit</b><small>a new gate every ring · miss 3 and you decohere</small></button>` : '') +
+    list.map((m, i) => {
+      const open = circ || unlocked(i);
+      return `<button data-i="${i}"${open ? '' : ' disabled title="Clear the mission before it first"'}><small>${open ? '' : '🔒 '}${i + 1}` +
+        (circ ? ` · ${m.circuit.map(k => E.GATES[k].label).join(' ')}` : ` · ${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'}${m.decay ? ' · T₁' : ''}`) +
+        `</small><b>${m.title}</b><span>${starStr(ms[m.id] || 0)}</span></button>`;
+    }).join('');
+  $('#missionGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.random) { mission = null; circuitRun = true; start(); } else openBrief(+b.dataset.i, set);
+  }));
 }
-function openBrief(i) {
-  mission = MISSIONS[i]; phase = 'brief'; show('#brief');
-  const m = mission, best = mstars()[m.id] || 0;
-  $('#briefTitle').innerHTML = `${i + 1}. ${m.title}<small>MISSION ${i + 1} OF ${MISSIONS.length}</small>`;
-  $('#briefMeta').innerHTML = `${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'} · ${m.decay ? 'T₁ decay on' : 'no decay'} · ${m.hearts ?? E.P.HEARTS} ♥` +
+function openBrief(i, set = levelSet) {
+  levelSet = set; const list = levelList(set);
+  mission = list[i]; circuitRun = false; phase = 'brief'; show('#brief');
+  const m = mission, best = mstars()[m.id] || 0, circ = !!m.circuit;
+  $('#briefTitle').innerHTML = `${i + 1}. ${m.title}<small>${circ ? 'CIRCUIT' : 'MISSION'} ${i + 1} OF ${list.length}</small>`;
+  $('#briefMeta').innerHTML = (circ ? circuitHTML(m.circuit) + '<br>' : '') + `${(m.mode || 'auto') === 'pilot' ? 'Pilot' : 'Autopilot'} · ${m.decay ? 'T₁ decay on' : 'no decay'} · ${m.hearts ?? E.P.HEARTS} ♥` +
     (best ? ` · best <span style="color:#ffd166">${starStr(best)}</span>` : '');
   $('#briefText').innerHTML = m.brief;
-  setPanels(m.mode);
+  setPanels(m.mode || 'auto');
 }
 function openBadges() {
   phase = 'badges'; show('#badgesOv');
@@ -434,9 +462,10 @@ function toast(text) {
 }
 let noteT = 0;
 function note(html, bad = false, secs = 6) { const el = $('#note'); el.innerHTML = html; el.className = 'note' + (bad ? ' bad' : ''); noteT = secs; }
-$('#missionsBtn').addEventListener('click', openMissions);
-$('#missionsBack').addEventListener('click', () => { mission = null; phase = 'menu'; show('#menu'); syncMenu(); });
-$('#briefBack').addEventListener('click', openMissions);
+$('#missionsBtn').addEventListener('click', () => openMissions('missions'));
+$('#circuitsBtn').addEventListener('click', () => openMissions('circuits'));
+$('#missionsBack').addEventListener('click', () => { mission = null; circuitRun = false; phase = 'menu'; show('#menu'); syncMenu(); });
+$('#briefBack').addEventListener('click', () => openMissions());
 $('#briefGo').addEventListener('click', () => start());
 $('#badgesBtn').addEventListener('click', openBadges);
 $('#badgesBack').addEventListener('click', () => { phase = 'menu'; show('#menu'); syncMenu(); });
@@ -444,9 +473,10 @@ document.querySelectorAll('#menu .modes button[data-mode]').forEach(b => b.addEv
 $('#optDecay').addEventListener('change', e => { S.decay = e.target.checked; store.set('rabi:decay', S.decay); syncMenu(); });
 $('#optCourse').addEventListener('change', e => { S.course = e.target.value; store.set('rabi:course', S.course); syncMenu(); if (S.course === 'custom') $('#optSeed').focus(); });
 $('#optSeed').addEventListener('input', e => { S.seed = e.target.value; store.set('rabi:seed', S.seed); syncMenu(); });
-function setView(v) { S.view = v; store.set('rabi:view', v); $('#optView').value = v; $('#viewBtn').textContent = v === '3d' ? 'Flat map view (V)' : '3D view (V)'; }
+const VIEWS = { '3d': '3D globe', fp: 'First person', map: 'Flat map' }, nextView = () => ({ '3d': 'fp', fp: 'map', map: '3d' })[S.view];
+function setView(v) { S.view = VIEWS[v] ? v : '3d'; store.set('rabi:view', S.view); $('#optView').value = S.view; $('#viewBtn').textContent = `${VIEWS[S.view]} · V to switch`; }
 $('#optView').addEventListener('change', e => setView(e.target.value));
-$('#viewBtn').addEventListener('click', () => setView(S.view === '3d' ? 'map' : '3d'));
+$('#viewBtn').addEventListener('click', () => setView(nextView()));
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rabi:sound', S.sound); });
 
 /* ---------------- canvas geometry ---------------- */
@@ -481,7 +511,7 @@ addEventListener('keydown', e => {
     e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || phase === 'brief' || performance.now() - overAt > 900) start(); return;
   }
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
-  if (k === 'v' && !e.target.closest('input,select,textarea')) { setView(S.view === '3d' ? 'map' : '3d'); return; }
+  if (k === 'v' && !e.target.closest('input,select,textarea')) { setView(nextView()); return; }
   if (phase === 'play' && [' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'x', 'y', 'w'].includes(k)) e.preventDefault();
   keys.add(k === 'shift' ? 'shift' : k); if (e.shiftKey) keys.add('shift');
 });
@@ -546,32 +576,35 @@ const SND = {
 
 /* ---------------- game state ---------------- */
 let world = null, mission = null, phase = 'menu', seed = '', fx = [], texts = [], trail = [], shake = 0, flash = 0, hintT = 0, lastEvent = '', overAt = 0;
-let banner = null, badgeT = 0;
+let banner = null, badgeT = 0, flashCol = '255,60,90', hitstop = 0, snapCam = false;
 const STEP = 1 / 120;
 function start() {
   if (mission) { seed = 'mission:' + mission.id; world = new E.World({ mission: mission.id }); }
+  else if (circuitRun) { seed = seedFor(); world = new E.World({ seed, mode: S.mode, circuit: true }); }
   else { seed = seedFor(); world = new E.World({ seed, mode: S.mode, decay: S.decay }); }
+  snapCam = true; hitstop = 0;
   fx = []; texts = []; trail = []; shake = 0; flash = 0; hintT = mission ? 3 : 4.5; lastEvent = ''; banner = null; noteT = 0;
   if (mission) banner = { text: mission.title.toUpperCase(), t: 0 };
+  else if (circuitRun) banner = { text: 'RANDOM CIRCUIT', t: 0 };
   setPanels(world.mode);
   phase = 'play'; show(null);
   acc = 0; last = performance.now();
 }
 function pause() { phase = 'paused'; $('#paused').hidden = false; }
 function resume() { phase = 'play'; $('#paused').hidden = true; last = performance.now(); }
-$('#play').addEventListener('click', () => { mission = null; start(); });
+$('#play').addEventListener('click', () => { mission = null; circuitRun = false; start(); });
 $('#again').addEventListener('click', start);
-$('#nextMission').addEventListener('click', () => openBrief(MISSIONS.indexOf(mission) + 1));
-$('#toMissions').addEventListener('click', openMissions);
-$('#toMenu').addEventListener('click', () => { mission = null; phase = 'menu'; show('#menu'); syncMenu(); });
+$('#nextMission').addEventListener('click', () => openBrief(levelList(levelSet).indexOf(mission) + 1));
+$('#toMissions').addEventListener('click', () => openMissions());
+$('#toMenu').addEventListener('click', () => { mission = null; circuitRun = false; phase = 'menu'; show('#menu'); syncMenu(); });
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html',
-  new URLSearchParams(mission ? { mission: mission.id } : { seed, mode: S.mode, t1: S.decay ? 1 : 0 }).toString()));
+  new URLSearchParams(mission ? { mission: mission.id } : circuitRun ? { seed, mode: S.mode, circuit: 1 } : { seed, mode: S.mode, t1: S.decay ? 1 : 0 }).toString()));
 
 // clear is the mission's 'clear' event (with its stars), or null when the qubit ran out of hearts.
 function gameOver(clear) {
   phase = 'over'; overAt = performance.now();
   const w = world, score = Math.round(w.score), stat = (v, l) => `<div><b>${v}</b>${l}</div>`;
-  const i = MISSIONS.indexOf(mission), next = mission && clear && i + 1 < MISSIONS.length;
+  const list = levelList(levelSet), i = list.indexOf(mission), next = mission && clear && i + 1 < list.length;
   $('#overScore').textContent = score;
   if (mission) {
     const ms = mstars(), prev = ms[mission.id] || 0, st = clear ? clear.stars : 0;
@@ -604,6 +637,7 @@ function gameOver(clear) {
   setTimeout(() => { if (phase === 'over') show('#over'); }, 650);
 }
 function tipFor(w) {
+  if (w.circuitMode) return 'Each gate is a rotation: the dotted arc shows where the next one takes the state. Watch the circuit at the top to see what comes next.';
   if (lastEvent === 'measure') return 'A measurement gate gives |1⟩ with probability sin²(θ/2). To win one, sit as close as you can to the pole it pays for before you cross it.';
   if (lastEvent === 'quiz') return 'Watch the P(|1⟩) readout in the State panel as you fly: it is sin²(θ/2), which changes fastest near the equator.';
   if (lastEvent === 'pillar' ) return 'A pillar that reaches a pole covers the whole pole: every meridian passes through it. Go around, not over.';
@@ -626,7 +660,10 @@ function handle(ev) {
       const o = e.o; burst(o.ph, o.v ? E.toAngles(o.v).th : a.th, o.bonus ? '#7ef9ff' : '#ffd166', o.bonus ? 30 : 18);
       say(a.ph, a.th - 0.12, `+${e.pts}${e.combo > 1 ? '  ×' + e.combo : ''}`, '#ffd166');
       if (e.perfect) say(a.ph, a.th - 0.25, 'PERFECT', '#7ef9ff', 13);
-      if (o.name) {
+      if (o.gate) {
+        const G = E.GATES[o.gate];
+        note(`<b>${G.label}</b> is ${G.what}: ${E.stateName(o.from)} → ${o.label}.`, false, 5);
+      } else if (o.name) {
         say(a.ph, a.th + 0.2, `${o.name} = ${o.ket}`, '#7ef9ff', 14);
         if (!namedSeen.has(o.name)) { namedSeen.add(o.name); store.set('rabi:named', [...namedSeen]); }
       }
@@ -645,7 +682,10 @@ function handle(ev) {
       }
     } else if (e.type === 'measure') {
       const p = (100 * e.p1).toFixed(0), out = e.one ? 1 : 0;
-      burst(a.ph, a.th, '#9fe0ff', 30, 1); flash = 0; trail = []; lastEvent = 'measure';
+      // the collapse is instant: freeze for a beat, flash, and cut the camera straight to the pole
+      burst(a.ph, a.th, '#9fe0ff', 40, 1.3); flash = 0.45; flashCol = '235,248,255'; trail = []; lastEvent = 'measure';
+      hitstop = reduceMotion ? 0 : 0.22; snapCam = true; shake = reduceMotion ? 0 : 0.2;
+      banner = { text: `COLLAPSE → |${out}⟩`, t: 0.6 };
       say(a.ph, e.one ? Math.PI - 0.35 : 0.35, `measured |${out}⟩${e.win ? `  +${e.pts}` : ''}`, e.win ? '#9fe0ff' : '#c7d3e6', 15);
       note(`<b>Measured |${out}⟩.</b> You had P(|1⟩) = ${p} % going in, so this was ${e.p1 > 0.9 || e.p1 < 0.1 ? 'nearly certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a gamble'}. ` +
         (e.win ? 'The gate paid out.' : `The gate paid for |${e.o.want}⟩: get closer to that pole next time.`) + ' The qubit is now in that state.', !e.win);
@@ -659,13 +699,17 @@ function handle(ev) {
     } else if (e.type === 'clear') {
       SND.clear(); gameOver(e);
     } else if (e.type === 'hit') {
-      lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; SND.hit(); trail = [];
+      lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; flashCol = '255,60,90'; SND.hit(); trail = []; snapCam = true;
       say(a.ph, 0.3, `${e.o.type === 'cloud' ? 'noise' : 'pillar'}! −1 ♥, relaxed to |0⟩`, '#ff8fa0', 13);
     } else if (e.type === 'jump') {
       lastEvent = 'jump'; texts.push({ photon: true, ph: a.ph, th: a.th, t: 0 });
-      say(a.ph, 0.25, 'photon detected → jump to |0⟩', '#ffe66d', 13); SND.jump(); trail = [];
+      say(a.ph, 0.25, 'photon detected → jump to |0⟩', '#ffe66d', 13); SND.jump(); trail = []; snapCam = true;
     } else if (e.type === 'heal') {
       say(a.ph, a.th + 0.3, '10 rings: +1 coherence ♥', '#ff8fa0', 14); tone(660, 990, 0.25, 'sine', 0.1);
+    } else if (e.type === 'miss' && e.o.gate) {
+      const G = E.GATES[e.o.gate];
+      note(`<b>Missed ${G.label}.</b> It is ${G.what}, so it took ${E.stateName(e.o.from)} to ${e.o.label}.`, true, 5);
+      if (e.heart) { shake = reduceMotion ? 0 : 0.25; flash = 0.18; flashCol = '255,60,90'; SND.hit(); } else SND.miss();
     } else if (e.type === 'miss') {
       if (e.o.v) say(e.o.ph, E.toAngles(e.o.v).th, 'missed', 'rgba(200,210,230,.6)', 12); SND.miss();
     } else if (e.type === 'over') { SND.over(); gameOver(null); }
@@ -738,13 +782,13 @@ function drawPillar(o, w) {
 }
 function drawRing(o, w, t) {
   if (o.done) return;
-  if (o.pole) {   // |1⟩: a band along the bottom edge
-    const y = Y(Math.PI - o.rad), pulse = 0.5 + 0.5 * Math.sin(t * 6);
-    const grd = g.createLinearGradient(0, y, 0, Y(Math.PI));
-    grd.addColorStop(0, 'rgba(126,249,255,0)'); grd.addColorStop(1, `rgba(126,249,255,${0.35 + 0.25 * pulse})`);
-    g.fillStyle = grd; g.fillRect(0, y, W, Y(Math.PI) - y + 18);
-    g.fillStyle = '#7ef9ff'; g.font = '700 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
-    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, (o.life ?? 8) - (w.t - o.born)).toFixed(0)} s`, W / 2, y - 2);
+  if (o.pole) {   // a pole: a band along the top or bottom edge
+    const top = o.v[2] > 0, edge = top ? Y(0) : Y(Math.PI), y = top ? Y(o.rad) : Y(Math.PI - o.rad), pulse = 0.5 + 0.5 * Math.sin(t * 6);
+    const col = o.gate ? '255,209,102' : '126,249,255', grd = g.createLinearGradient(0, y, 0, edge);
+    grd.addColorStop(0, `rgba(${col},0)`); grd.addColorStop(1, `rgba(${col},${0.35 + 0.25 * pulse})`);
+    g.fillStyle = grd; g.fillRect(0, Math.min(y, edge) - (top ? 18 : 0), W, Math.abs(edge - y) + 18);
+    g.fillStyle = `rgb(${col})`; g.font = '700 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = top ? 'top' : 'bottom';
+    g.fillText(poleText(o, w), W / 2, top ? y + 2 : y - 2);
     return;
   }
   const rel = w.rel(o.ph); if (rel < L - 0.3 || rel > R + 0.3) return;
@@ -754,7 +798,7 @@ function drawRing(o, w, t) {
   g.lineWidth = 7; g.strokeStyle = `rgba(${col},.18)`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 3; g.strokeStyle = `rgba(${col},${0.85 + 0.15 * Math.sin(t * 5 + o.ph)})`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1; g.strokeStyle = `rgba(${col},.35)`; g.beginPath(); g.ellipse(x, y, rx / 3, ry / 3, 0, 0, Math.PI * 2); g.stroke();
-  const label = o.name || (o.quiz && '?');
+  const label = (o.gate && E.GATES[o.gate].label) || o.name || (o.quiz && '?');
   if (label) { g.fillStyle = `rgb(${col})`; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(label, x, y - ry - 4); }
 }
 function drawPower(o, w, t) {
@@ -768,6 +812,23 @@ function drawPower(o, w, t) {
   g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
   g.fillStyle = pw.color; g.font = `700 ${Math.max(10, Math.min(15, r * 0.9))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(pw.glyph, x, y + 1);
+}
+function poleText(o, w) {
+  const left = Math.max(0, (o.life ?? 8) - (w.t - o.born)).toFixed(0), top = o.v[2] > 0;
+  return o.gate ? `${E.GATES[o.gate].label} → ${o.name}: ${top ? 'climb to the top' : 'dive to the bottom'}! ${left} s` : `${o.name} bonus: ${top ? 'climb to the top' : 'dive to the bottom'}! ${left} s`;
+}
+// The next gate of a circuit, and the path its rotation takes from the state before it to the state after.
+const nextGate = w => w.circuitLog.find(o => !o.done && !o.missed);
+function drawGateArc2D(w, t) {
+  const o = nextGate(w); if (!o) return;
+  g.strokeStyle = 'rgba(255,209,102,.55)'; g.lineWidth = 2; g.setLineDash([4, 6]); g.lineDashOffset = -t * 20; g.beginPath();
+  let prev = null;
+  for (const v of E.gateArc(o.from, o.gate, 48)) {
+    const a = E.toAngles(v), x = X(w.rel(a.ph)), y = Y(a.th);
+    if (prev && Math.abs(x - prev) < W / 3) g.lineTo(x, y); else g.moveTo(x, y);
+    prev = x;
+  }
+  g.stroke(); g.setLineDash([]);
 }
 function drawGate(o, w, t) {
   if (o.done) return;
@@ -801,7 +862,7 @@ function drawShip(w, t) {
   shipCore(x, y, w, t);
 }
 // Screen position of a point on the sphere (at the flying height) in the current view, or null if hidden.
-const at = (w, ph, th) => (S.view === '3d' ? scr3(ph, th) : { x: X(w.rel(ph)), y: Y(th) });
+const at = (w, ph, th) => (S.view !== 'map' ? scr3(ph, th) : { x: X(w.rel(ph)), y: Y(th) });
 function drawFx(w, dt) {
   for (const p of fx) {
     p.t += dt; p.ph += p.vph * dt; p.th += p.vth * dt;
@@ -824,6 +885,37 @@ function drawFx(w, dt) {
   }
   g.globalAlpha = 1; texts = texts.filter(s => s.t < (s.photon ? 0.9 : 1.3));
 }
+// The circuit being flown, as a row of gate boxes: flown (gold), missed (red), next (pulsing), to come (dim).
+function drawCircuitStrip(w) {
+  const log = w.circuitLog, nxt = log.findIndex(o => !o.done && !o.missed), from = w.circuitMode ? Math.max(0, (nxt < 0 ? log.length : nxt) - 3) : 0;
+  const items = log.slice(from, w.circuitMode ? from + 8 : log.length);
+  g.font = '700 14px ui-monospace,Menlo,Consolas,monospace'; g.textBaseline = 'middle';
+  const lab = o => E.GATES[o.gate].label, widths = items.map(o => g.measureText(lab(o)).width + 14), lead = from ? '… ' : '|0⟩ ';
+  const total = g.measureText(lead).width + widths.reduce((a, b) => a + b + 14, 0) + 14;
+  let x = W / 2 - total / 2; const y = 34, pulse = 0.6 + 0.4 * Math.sin(performance.now() / 150);
+  g.fillStyle = 'rgba(8,13,25,.75)'; g.fillRect(x - 10, y - 17, total + 20, 34);
+  g.textAlign = 'left'; g.fillStyle = '#c7d3e6'; g.fillText(lead, x, y); x += g.measureText(lead).width;
+  items.forEach((o, i) => {
+    g.strokeStyle = 'rgba(199,211,230,.5)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14, y); g.stroke(); x += 14;
+    const wd = widths[i], isNext = log.indexOf(o) === nxt;
+    const col = o.done ? '#ffd166' : o.missed ? '#ff6b85' : isNext ? `rgba(255,255,255,${pulse})` : 'rgba(199,211,230,.45)';
+    g.fillStyle = o.done ? 'rgba(255,209,102,.18)' : 'rgba(255,255,255,.04)'; g.fillRect(x, y - 12, wd, 24);
+    g.strokeStyle = col; g.lineWidth = isNext ? 2.5 : 1.5; g.strokeRect(x, y - 12, wd, 24);
+    g.fillStyle = col; g.textAlign = 'center'; g.fillText(lab(o), x + wd / 2, y + 1); x += wd;
+  });
+  g.strokeStyle = 'rgba(199,211,230,.5)'; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14, y); g.stroke();
+}
+// First person turns θ into left and right; this gauge shows where you are between |0⟩ and |1⟩, and where the next ring is.
+function drawGauge(w) {
+  const x0 = W * 0.3, x1 = W * 0.7, y = w.circuitLog.length ? 66 : 30, X = th => x0 + (x1 - x0) * th / Math.PI;
+  g.fillStyle = 'rgba(8,13,25,.6)'; g.fillRect(x0 - 34, y - 11, x1 - x0 + 68, 22);
+  g.strokeStyle = 'rgba(199,211,230,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+  g.font = '600 12px Helvetica,Arial'; g.textBaseline = 'middle'; g.fillStyle = '#c7d3e6';
+  g.textAlign = 'right'; g.fillText('|0⟩', x0 - 6, y); g.textAlign = 'left'; g.fillText('|1⟩', x1 + 6, y);
+  const n = nextRing(w);
+  if (n) { const xt = X(n.pole ? (n.v[2] > 0 ? 0 : Math.PI) : E.toAngles(n.v).th); g.fillStyle = n.quiz ? '#c9a7ff' : '#ffd166'; g.beginPath(); g.moveTo(xt, y - 8); g.lineTo(xt + 6, y); g.lineTo(xt, y + 8); g.lineTo(xt - 6, y); g.fill(); }
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(X(w.angles.th), y, 5, 0, Math.PI * 2); g.fill();
+}
 function drawHUD(w) {
   g.textBaseline = 'top'; g.textAlign = 'left';
   g.fillStyle = '#fff'; g.font = '800 26px Helvetica,Arial'; g.fillText(Math.round(w.score), 40, 18);
@@ -844,6 +936,8 @@ function drawHUD(w) {
     g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3);
     g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * Math.min(1, Math.max(0, w.s / w.endS)), 3);
   }
+  if (w.circuitLog.length) drawCircuitStrip(w);
+  if (S.view === 'fp') drawGauge(w);
   // the question of the quiz gate ahead
   const quiz = w.objects.find(o => o.quiz && !o.done);
   if (quiz) {
@@ -866,7 +960,8 @@ function drawHUD(w) {
   if (hintT > 0) {
     g.globalAlpha = Math.min(1, hintT); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '600 15px Helvetica,Arial';
     const narrow = W < 600;
-    g.fillText(w.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
+    if (S.view === 'fp' && w.mode === 'auto') g.fillText(narrow ? 'Hold to steer toward |0⟩ (left)' : 'Hold SPACE to steer toward |0⟩ (left); let go to drift to |1⟩ (right)', W / 2, H - 34);
+    else g.fillText(w.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
       : (narrow ? 'Hold the axis buttons to rotate' : 'Arrow keys: → +X  ← −X  ↑ +Y  ↓ −Y'), W / 2, H - 34);
     g.globalAlpha = 1;
   }
@@ -879,7 +974,8 @@ function drawHUD(w) {
  * a shadow; rings, noise bands and measurement curtains are drawn on the surface where they sit.
  * Collisions are still decided by angles on the sphere, exactly as on the map. */
 const V3 = { fov: 58 * D2R, dist: 2.35, back: -18 * D2R, ahead: 16 * D2R, follow: 0.8, ALT: 0.1 };
-const RA = 1 + V3.ALT;
+const FP = { fov: 74 * D2R, back: 7 * D2R, ahead: 26 * D2R, eye: 0.13, ALT: 0.2 };
+let RA = 1 + V3.ALT;   // the flying height: a little higher in first person, so the hoops stand clear of the ground
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -887,20 +983,33 @@ const thetaHat = v => { const a = E.toAngles(v); return [Math.cos(a.th) * Math.c
 const phiHat = v => { const p = Math.atan2(v[1], v[0]); return [-Math.sin(p), Math.cos(p), 0]; };
 let cam = null, camTh = Math.PI / 2, camW = null, camT = 0;
 function setCamera(w, t) {
-  // follow the qubit's latitude part of the way (smoothly), so it climbs and dives on screen while the sphere turns
   const dt = Math.min(0.1, Math.max(0, t - camT)); camT = t;
+  const snap = camW !== w || snapCam; camW = w; snapCam = false;
+  if (S.view === 'fp') {
+    // first person: just behind and above the qubit, looking along its path, with the sphere as the ground;
+    // |0⟩ is to the left and |1⟩ to the right. The camera trails the qubit's latitude a little.
+    const want = Math.max(12 * D2R, Math.min(168 * D2R, w.angles.th));
+    camTh = snap ? want : camTh + (want - camTh) * (1 - Math.exp(-dt / 0.25));
+    const lam = w.camPh + E.P.HOME, C = mul3(E.fromAngles(camTh, lam - FP.back), RA + FP.eye);
+    const T = mul3(E.fromAngles(camTh, lam + FP.ahead), 1 + 0.4 * (RA - 1)), up = E.unit(C);
+    const f = E.unit(sub3(T, C)), r = E.unit(E.cross(f, up)), u = E.cross(r, f);
+    cam = { C, f, r, u, F: (H / 2) / Math.tan(FP.fov / 2) };
+    return;
+  }
+  // the globe: follow the qubit's latitude part of the way, so it climbs and dives on screen while the sphere turns
   const want = Math.PI / 2 + V3.follow * (w.angles.th - Math.PI / 2);
-  if (camW !== w) { camW = w; camTh = want; } else camTh += (want - camTh) * (1 - Math.exp(-dt / 0.35));
+  camTh = snap ? want : camTh + (want - camTh) * (1 - Math.exp(-dt / 0.35));
   const lam = w.camPh + E.P.HOME;   // where the engine's camera keeps the qubit
   const C = mul3(E.fromAngles(Math.PI / 2 + 0.75 * (camTh - Math.PI / 2), lam - V3.back), V3.dist);
   const T = mul3(E.fromAngles(camTh, lam + V3.ahead), RA);
   const f = E.unit(sub3(T, C)), r = E.unit(E.cross(f, [0, 0, 1])), u = E.cross(r, f);
   cam = { C, f, r, u, F: (H / 2) / Math.tan(V3.fov / 2) };
 }
-function proj(p) {
+function proj(p, near = 0.05) {
   const d = sub3(p, cam.C), z = E.dot(d, cam.f);
-  if (z < 0.05) return null;
-  return { x: W / 2 + E.dot(d, cam.r) / z * cam.F, y: H / 2 - E.dot(d, cam.u) / z * cam.F, z };
+  if (z < near) { if (near > 0) return null; }
+  const zz = Math.max(z, 0.02);   // ground patches reaching behind the camera are stretched off screen rather than dropped
+  return { x: W / 2 + E.dot(d, cam.r) / zz * cam.F, y: H / 2 - E.dot(d, cam.u) / zz * cam.F, z: zz };
 }
 // Hidden behind the sphere: the segment from the camera to p enters the unit sphere before reaching p.
 function occluded(p) {
@@ -925,7 +1034,7 @@ function drawGlobe() {
     g.fillStyle = `rgba(220,230,255,${0.25 + 0.5 * s.b})`; g.fillRect(p.x, p.y, 1.6 * s.b + 0.4, 1.6 * s.b + 0.4);
   }
   const C = cam.C, light = E.unit(add3(mul3(cam.u, 0.9), add3(mul3(cam.f, -0.5), mul3(cam.r, -0.4))));
-  const P = GV.map(row => row.map(v => (E.dot(v, C) > 0.96 ? proj(v) : null)));
+  const fp = S.view === 'fp', P = GV.map(row => row.map(v => (E.dot(v, C) > 0.96 ? proj(v, fp ? -1 : 0.05) : null)));
   const lines = [];
   for (let i = 0; i < NLAT; i++) for (let j = 0; j < NLON; j++) {
     const a = P[i][j], b = P[i][j + 1], c = P[i + 1][j + 1], d = P[i + 1][j];
@@ -969,14 +1078,15 @@ const lw3 = (z, k = 0.012) => Math.max(1, Math.min(9, k * cam.F / z));
 function ring3(o, t) {
   if (o.done) return;
   const col = o.quiz ? '201,167,255' : o.bonus ? '126,249,255' : '255,209,102';
-  if (o.pole) {   // |1⟩: the whole bottom of the sphere glows
-    const pts = capPts([0, 0, -1], o.rad, 1.002), pulse = 0.5 + 0.5 * Math.sin(t * 6);
+  if (o.pole) {   // a pole: the whole cap around it glows
+    const pts = capPts(o.v, o.rad, 1.002), pulse = 0.5 + 0.5 * Math.sin(t * 6);
     curve3(pts, `rgba(${col},${0.6 + 0.4 * pulse})`, 3);
-    const p = see([0, 0, -1.02]); if (p) { g.fillStyle = `rgba(${col},${0.25 + 0.2 * pulse})`; g.beginPath(); g.arc(p.x, p.y, 30, 0, Math.PI * 2); g.fill(); }
-    g.fillStyle = '#7ef9ff'; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
-    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, (o.life ?? 8) - (world ? world.t - o.born : 0)).toFixed(0)} s`, W / 2, H - 40);
+    const p = see(mul3(o.v, 1.02)); if (p) { g.fillStyle = `rgba(${col},${0.25 + 0.2 * pulse})`; g.beginPath(); g.arc(p.x, p.y, 30, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = `rgb(${col})`; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+    if (world) g.fillText(poleText(o, world), W / 2, H - 70);
     return;
   }
+  if (S.view === 'fp') return hoop3(o, col, t);
   const base = see(mul3(o.v, 1.004)); if (!base) return;
   const pts = capPts(o.v, o.rad, 1.004, 48), P = pts.map(see);
   if (P.every(Boolean)) { g.fillStyle = `rgba(${col},.12)`; g.beginPath(); P.forEach((q, i) => (i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y))); g.fill(); }
@@ -989,9 +1099,20 @@ function ring3(o, t) {
     const grd = g.createLinearGradient(base.x, base.y, top.x, top.y);
     grd.addColorStop(0, `rgba(${col},.75)`); grd.addColorStop(1, `rgba(${col},0)`);
     g.strokeStyle = grd; g.lineWidth = lw3(base.z, 0.012); g.beginPath(); g.moveTo(base.x, base.y); g.lineTo(top.x, top.y); g.stroke();
-    const label = o.name || (o.quiz && '?');
+    const label = (o.gate && E.GATES[o.gate].label) || o.name || (o.quiz && '?');
     if (label) { g.fillStyle = `rgb(${col})`; g.font = `700 ${Math.round(Math.max(12, Math.min(22, 0.05 * cam.F / base.z)))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(label, top.x, top.y); }
   }
+}
+// In first person a ring is a hoop standing across the path at the flying height, to fly through.
+function hoop3(o, col, t) {
+  const c = mul3(o.v, RA), pc = see(c), z = pc ? pc.z : 1;
+  curve3(capPts(o.v, o.rad, 1.004), `rgba(${col},.3)`, 1.5);
+  const e1 = thetaHat(o.v), rho = RA * Math.sin(o.rad), pts = [];
+  for (let i = 0; i <= 48; i++) { const s = i / 48 * 2 * Math.PI; pts.push(add3(c, add3(mul3(o.v, rho * Math.cos(s)), mul3(e1, rho * Math.sin(s))))); }
+  curve3(pts, `rgba(${col},.22)`, lw3(z, 0.05));
+  curve3(pts, `rgba(${col},${0.85 + 0.15 * Math.sin(t * 5 + o.ph)})`, lw3(z, 0.016));
+  const top = see(add3(c, mul3(o.v, rho + 0.03))), label = (o.gate && E.GATES[o.gate].label) || o.name || (o.quiz && '?');
+  if (label && top) { g.fillStyle = `rgb(${col})`; g.font = `700 ${Math.round(Math.max(12, Math.min(24, 0.05 * cam.F / z)))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(label, top.x, top.y); }
 }
 function cloud3(o, t) {
   const c = mul3(o.v, RA), p = see(c); if (!p) return;
@@ -1081,12 +1202,15 @@ function shipCore(x, y, w, t) {
   g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
 }
 function drawWorld3D(w, t, withShip) {
+  RA = 1 + (S.view === 'fp' ? FP.ALT : V3.ALT);
   setCamera(w, t); drawGlobe();
+  const ng = nextGate(w);   // the next gate's path, dotted on the surface
+  if (ng) { g.setLineDash([5, 7]); g.lineDashOffset = -t * 24; curve3(E.gateArc(ng.from, ng.gate, 48).map(v => mul3(v, 1.006)), 'rgba(255,209,102,.7)', 2.2); g.setLineDash([]); }
   // far things first; the qubit is sorted in with the rest so a hoop can pass in front of it
   const me = w.rel(w.angles.ph), items = [];
   for (const o of w.objects) {
     if (!o.pole && o.type !== 'pillar' && o.type !== 'gate') { const rel = w.rel(o.ph); if (rel < me - 1.0 || rel > me + 2.6) continue; }
-    const at = o.pole ? [0, 0, -1] : o.type === 'pillar' ? E.fromAngles(o.th, o.ph) : o.type === 'gate' ? E.fromAngles(Math.PI / 2, o.ph) : o.v;
+    const at = o.pole ? o.v : o.type === 'pillar' ? E.fromAngles(o.th, o.ph) : o.type === 'gate' ? E.fromAngles(Math.PI / 2, o.ph) : o.v;
     items.push({ o, d: E.norm(sub3(mul3(at, RA), cam.C)) });
   }
   if (withShip) items.push({ ship: true, d: E.norm(sub3(mul3(w.r, RA), cam.C)) - 0.02 });
@@ -1127,6 +1251,13 @@ function drawSphere(w) {
   // next ring target
   const nxt = nextRing(w);
   // a quiz gate shows both of its rings, so the inset does not give the answer away
+  const ngt = nextGate(w);
+  if (ngt) {   // the axis the next gate turns about
+    const ax = E.GATES[ngt.gate].axis, a1 = P(ax.map(c => c * 1.25)), a0 = P(ax.map(c => -c * 1.25));
+    sg.strokeStyle = 'rgba(255,209,102,.8)'; sg.lineWidth = 1.5; sg.setLineDash([4, 3]); sg.beginPath(); sg.moveTo(a0.x, a0.y); sg.lineTo(a1.x, a1.y); sg.stroke(); sg.setLineDash([]);
+    sg.fillStyle = '#ffd166'; sg.font = '700 11px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle'; sg.fillText(E.GATES[ngt.gate].label, a1.x, a1.y - 8);
+    sg.strokeStyle = 'rgba(255,209,102,.6)'; sg.beginPath(); E.gateArc(ngt.from, ngt.gate, 32).forEach((v, i) => { const q = P(v); i ? sg.lineTo(q.x, q.y) : sg.moveTo(q.x, q.y); }); sg.stroke();
+  }
   const marks = nxt && nxt.quiz ? w.objects.filter(o => o.quiz === nxt.quiz) : nxt ? [nxt] : [];
   for (const o of marks) {
     const p = P(o.v); sg.strokeStyle = o.quiz ? '#c9a7ff' : o.bonus ? '#7ef9ff' : '#ffd166'; sg.lineWidth = 2;
@@ -1172,7 +1303,8 @@ function updateSide(w) {
     // what each equatorial axis does to θ right now: up (toward |0⟩) at rate Ω sin(φ − α)
     document.querySelectorAll('#pad button').forEach(b => {
       const al = (b.dataset.ax === 'x' ? 0 : Math.PI / 2) + (b.dataset.s === '-1' ? Math.PI : 0), up = Math.sin(a.ph - al);
-      b.querySelector('i').textContent = Math.abs(up) < 0.2 ? '· sideways' : (up > 0 ? '▲ up' : '▼ down') + (Math.abs(up) > 0.8 ? '' : ' (weak)');
+      const fp = S.view === 'fp';
+      b.querySelector('i').textContent = Math.abs(up) < 0.2 ? '· sideways' : (up > 0 ? (fp ? '◀ to |0⟩' : '▲ to |0⟩') : (fp ? '▶ to |1⟩' : '▼ to |1⟩')) + (Math.abs(up) > 0.8 ? '' : ' (weak)');
     });
   }
 }
@@ -1182,7 +1314,7 @@ let acc = 0, last = performance.now(), sideT = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (phase === 'play' && world) {
-    acc += dt;
+    if (hitstop > 0) { hitstop -= dt; acc = 0; } else acc += dt;   // a measurement freezes the action for a beat
     const inp = input();
     while (acc >= STEP) {
       acc -= STEP; const ev = world.step(inp, STEP);
@@ -1203,9 +1335,10 @@ function render(dt, t) {
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (shake > 0) { shake -= dt; g.translate((Math.random() - 0.5) * 10 * shake / 0.35, (Math.random() - 0.5) * 10 * shake / 0.35); }
   const w = world || demoWorld();
-  if (S.view === '3d') drawWorld3D(w, t, !!world);
+  if (S.view !== 'map') drawWorld3D(w, t, !!world);
   else {
     drawGrid(w);
+    drawGateArc2D(w, t);
     for (const o of w.objects) if (o.type === 'pillar') drawPillar(o, w);
     for (const o of w.objects) if (o.type === 'gate') drawGate(o, w, t);
     for (const o of w.objects) if (o.type === 'cloud') drawCloud(o, w, t);
@@ -1215,7 +1348,7 @@ function render(dt, t) {
   }
   if (world && w.slowK < 0.98) { g.fillStyle = `rgba(110,190,255,${0.1 * (1 - w.slowK) / (1 - E.P.SLOW_FACTOR)})`; g.fillRect(0, 0, W, H); }
   if (world) { drawFx(w, phase === 'play' ? dt : 0); drawHUD(w); }
-  if (flash > 0) { flash -= dt; g.fillStyle = `rgba(255,60,90,${flash})`; g.fillRect(-20, -20, W + 40, H + 40); }
+  if (flash > 0) { flash -= dt; g.fillStyle = `rgba(${flashCol},${Math.max(0, flash)})`; g.fillRect(-20, -20, W + 40, H + 40); }
   drawSphere(world);
 }
 // Behind the menu: a course scrolling by on its own.
@@ -1228,8 +1361,10 @@ function demoWorld() {
 
 addEventListener('resize', resize);
 resize(); syncMenu(); setView(S.view);
-const linked = MISSIONS.findIndex(m => m.id === P0.raw.get('mission'));
-if (linked >= 0) openBrief(linked);   // a mission link opens its briefing, even if it is not unlocked yet
+const linked = MISSIONS.findIndex(m => m.id === P0.raw.get('mission')), linkedC = E.CIRCUITS.findIndex(m => m.id === P0.raw.get('mission'));
+if (linked >= 0) openBrief(linked, 'missions');
+else if (linkedC >= 0) openBrief(linkedC, 'circuits');
+else if (P0.has('circuit')) openMissions('circuits');   // a mission link opens its briefing, even if it is not unlocked yet
 if (P0.has('seed')) $('#menuBest').insertAdjacentHTML('beforebegin', `<p id="challengeNote" style="color:#ffd166;margin:4px 0 0">Challenge course: <b>${PageKit.params().raw.get('seed').replace(/[<>&"]/g, '')}</b></p>`);
 requestAnimationFrame(frame);
 </script>

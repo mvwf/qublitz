@@ -180,19 +180,33 @@ const close = (a, b, tol) => Math.abs(a - b) <= tol;
   check('X is a rotation by π: the state moved through angle π − 2θ in the meridian', close(E.gateTheta('X', 0.3), Math.PI - 0.3, 1e-12));
 }
 
+// ---- circuits: every ring is the state the gates so far make from |0⟩ ----
+{
+  check('H|0⟩ = |+⟩, S|+⟩ = |+i⟩, H|+i⟩ = |−i⟩, √X|0⟩ = |−i⟩ (Bloch rotations)',
+    E.stateName(E.applyGate([0, 0, 1], 'H')) === '|+⟩' && E.stateName(E.applyGate([1, 0, 0], 'S')) === '|+i⟩'
+    && E.stateName(E.applyGate([0, 1, 0], 'H')) === '|−i⟩' && E.stateName(E.applyGate([0, 0, 1], 'SX')) === '|−i⟩');
+  let bad = 0;
+  for (const m of E.CIRCUITS) {
+    const w = new E.World({ mission: m.id }); let r = [0, 0, 1];
+    m.circuit.forEach((k, i) => { r = E.applyGate(r, k); if (E.angle(w.circuitLog[i].to, r) > 1e-6) bad++; });
+    for (const { o } of w.queue) if (o.fixedPh != null && E.angle(E.fromAngles(o.th, o.fixedPh), o.to) > 1e-6) bad++;
+  }
+  check('circuit rings sit at the states of their circuits', bad === 0, `${bad} off`);
+}
+
 // ---- missions: each can be cleared with every ring, by a bot that chases the next target ----
 {
   const drive = w => {
     const pole = w.objects.find(o => o.pole && !o.done), me = w.rel(w.angles.ph);
     const c = w.objects.filter(o => (o.type === 'ring' || o.type === 'power') && !o.done && !o.pole && !(o.quiz && !o.correct) && w.rel(o.ph) > me - 0.05)
       .sort((a, b) => w.rel(a.ph) - w.rel(b.ph));
-    const err = (pole ? Math.PI : c[0] ? toAngles(c[0].v).th : Math.PI / 2) - w.angles.th;
+    const err = (pole ? (pole.v[2] > 0 ? 0 : Math.PI) : c[0] ? toAngles(c[0].v).th : Math.PI / 2) - w.angles.th;
     if (w.mode === 'auto') return { hold: err < 0.02 + 0.12 * w.amp.a };
     const ph = w.angles.ph, k = Math.sign(err) * Math.min(1, Math.abs(err) * 4);
     return { x: -Math.sin(ph) * k, y: Math.cos(ph) * k };
   };
   const short = [];
-  for (const m of E.MISSIONS) {
+  for (const m of [...E.MISSIONS, ...E.CIRCUITS]) {
     const w = new E.World({ mission: m.id }); w.hearts = 1e9; let cleared = false;
     for (let i = 0; i < 120 * 120 && !w.over; i++) for (const e of w.step(drive(w), 1 / 120)) if (e.type === 'clear') cleared = true;
     if (!cleared || w.rings < Math.ceil((m.three ?? 1) * w.total)) short.push(`${m.id} ${w.rings}/${w.total}`);
