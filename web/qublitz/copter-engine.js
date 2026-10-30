@@ -78,10 +78,10 @@
   const K = Object.fromEntries(KETS.map(([v, n]) => [n, v]));
   const LESSONS = [
     { id: 'flip', title: 'Flip the bit', start: '|0⟩', goal: '|1⟩', axes: ['x'],
-      brief: 'Hold <b>X</b> (or press <b>π</b>). The drive turns the state about the x axis, so it swings from |0⟩ over to |1⟩. Watch the three strips.',
+      brief: 'Hold <b>+X</b> (or press <b>180°</b> on the X row). The drive turns the state about the x axis, so it swings from |0⟩ over to |1⟩. Watch the three strips.',
       learn: 'That half turn is a <b>π pulse</b>, the quantum NOT gate X. ⟨σz⟩ went from +1 to −1 while <b>⟨σx⟩ never moved</b>: a rotation leaves the part of the state along its own axis alone. Keep holding and it comes back: that is a Rabi oscillation.' },
     { id: 'super', title: 'Superposition', start: '|0⟩', goal: '|+⟩', axes: ['y'],
-      brief: 'Turn about <b>Y</b> until you reach |+⟩ on the equator. Try the <b>π/2</b> button: a quarter turn.',
+      brief: 'Turn about <b>Y</b> until you reach |+⟩ on the equator. Try the <b>90°</b> button: a quarter turn.',
       learn: 'A π/2 pulse makes |+⟩ = (|0⟩ + |1⟩)/√2. On the equator ⟨σz⟩ = 0, so P(1) = (1 − ⟨σz⟩)/2 = ½: a measurement gives 0 or 1 with even odds.' },
     { id: 'phase', title: 'Phase is a direction', start: '|+⟩', goal: '|+i⟩', axes: ['z'],
       brief: 'Now turn about <b>Z</b>. Keep an eye on the ⟨σz⟩ strip, which is P(1) in disguise.',
