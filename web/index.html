@@ -171,6 +171,11 @@ const DEMOS = [
     eq:'<i>H</i> = <span class="fr"><span>&omega;<sub><i>q</i></sub></span><span>2</span></span>&sigma;<sub><i>z</i></sub> + &Omega;<sub><i>R</i></sub>[<i>I</i>(<i>t</i>)&sigma;<sub><i>x</i></sub> + <i>Q</i>(<i>t</i>)&sigma;<sub><i>y</i></sub>] cos &omega;<sub><i>d</i></sub><i>t</i>',
     desc:'A virtual qubit lab. Find a mystery qubit by experiment (frequency sweep, Rabi, T₁ and Ramsey), set your own qubit in free play, or, as an instructor, generate a code for every student with a private answer key. Includes the QuBlitz Arena battle game.',
     tags:['quantum','qubits','Rabi','Ramsey','T1','game'] },
+  { group:'labs', title:'Rabi Rider', thumb:'rider', hidden:true,
+    href:'qublitz/rabi-rider.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'<i>d</i><b>r</b>/<i>dt</i> = <b>&omega;</b> &times; <b>r</b>,&ensp; <b>&omega;</b> = (&Omega; cos &alpha;, &Omega; sin &alpha;, &Delta;)',
+    desc:'A side-scrolling game on a map of the Bloch sphere. Drive rotations about x, y and z to fly your qubit through target states, dodge noise, and survive quantum jumps.',
+    tags:['quantum','Bloch sphere','game'] },
   { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
     href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>n&#772;</i><sub>out</sub> = <span class="fr"><span><i>n&#772;</i><sub>in</sub></span><span><i>L</i></span></span> + (1 &minus; <span class="fr"><span>1</span><span><i>L</i></span></span>) <i>n&#772;</i>(<i>T<sub>i</sub></i>, <i>f</i>)',
@@ -208,6 +213,9 @@ const DEMOS = [
     desc:'Turn the rows of an image into sound: brightness becomes amplitude on a carrier tone. Try the Mona Lisa, a gravitational-wave chirp or your own picture.',
     tags:['sonification','audio','Fourier'] },
 ];
+
+// Cards marked hidden:true stay off the hub unless it is opened with ?all=1 (their pages are still published).
+if (!new URLSearchParams(location.search).has('all')) DEMOS.splice(0, DEMOS.length, ...DEMOS.filter(d => !d.hidden));
 
 /* ======================================================================
    Animated thumbnails: each draws one frame at time t (seconds).
@@ -350,6 +358,23 @@ const THUMBS = {
     branch(xt,1.15,'#7b2d8e',[]);
     g.fillStyle=C.red; g.beginPath(); g.arc(xe,ym,4,0,7); g.fill();
     g.strokeStyle='#19b8c9'; g.lineWidth=2.2; g.beginPath(); g.arc(xt,ym,5,0,7); g.stroke();
+  },
+  rider(g,w,h,t){
+    // a qubit flying across the Bloch-sphere map: rings ahead, a noise cloud, the |0⟩/|1⟩ edges
+    g.fillStyle='#0f1930'; g.fillRect(0,0,w,h);
+    g.strokeStyle='rgba(160,190,230,.18)'; g.lineWidth=1;
+    const sp=w/4, off=(t*28)%sp;
+    for(let x=-off;x<w;x+=sp){ g.beginPath(); g.moveTo(x,6); g.lineTo(x,h-6); g.stroke(); }
+    g.setLineDash([4,4]); g.beginPath(); g.moveTo(0,h/2); g.lineTo(w,h/2); g.stroke(); g.setLineDash([]);
+    const path=x=>h/2-(h*0.32)*Math.sin((x+t*28)*0.018);
+    for(let k=0;k<4;k++){ const x=((k*90-t*28)%360+360)%360+60; if(x>w+20) continue;
+      g.strokeStyle=k%3===2?'#7ef9ff':'#ffd166'; g.lineWidth=2.4; g.beginPath(); g.ellipse(x,path(x),11,13,0,0,7); g.stroke(); }
+    const cx=((200-t*28)%360+360)%360+40, cy=path(cx)+(path(cx)<h/2?34:-34);
+    g.fillStyle='rgba(255,70,120,.55)'; g.beginPath(); g.ellipse(cx,cy,14,12,0,0,7); g.fill();
+    g.strokeStyle='rgba(160,220,255,.6)'; g.lineWidth=2; g.beginPath();
+    for(let x=10;x<=60;x+=2) x===10?g.moveTo(x,path(x)):g.lineTo(x,path(x)); g.stroke();
+    g.fillStyle='#fff'; g.beginPath(); g.arc(60,path(60),4,0,7); g.fill();
+    g.fillStyle='rgba(190,210,240,.75)'; g.font='10px Helvetica,Arial'; g.fillText('|0⟩',4,12); g.fillText('|1⟩',4,h-5);
   },
   sonify(g,w,h,t){
     // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone

@@ -85,7 +85,8 @@
 <p class="sub">Characterize a qubit the way a lab does. Sweep the drive frequency to find the resonance, fit the Rabi
   oscillation, measure T₁ from the decay after a π pulse, then run a Ramsey sequence to pin down ω<sub>q</sub> and T₂. The dynamics
   come from the full Lindblad master equation in the lab frame, solved in your browser.
-  Also part of Qublitz: <a id="arenaTop" href="arena.html">⚔️ the QuBlitz Arena</a> (a qubit battle game) and the
+  Also part of Qublitz: <a id="arenaTop" href="arena.html">⚔️ the QuBlitz Arena</a> (a qubit battle game),
+  <a id="riderTop" href="rabi-rider.html">🌀 Rabi Rider</a> (fly a qubit around the Bloch sphere) and the
   <a href="https://qublitz-qubit-lab.streamlit.app/" target="_blank" rel="noopener">original Streamlit lab</a>.</p>
 
 <div class="card">
@@ -367,6 +368,7 @@ const arenaUrl = t1 => (STANDALONE ? SITE + 'qublitz/' : '') + `arena.html?t1=${
 if (STANDALONE) {
   $('#back').href = SITE + '#labs';
   $('#arenaTop').href = SITE + 'qublitz/arena.html';
+  $('#riderTop').href = SITE + 'qublitz/rabi-rider.html';
   $('#offlineHint').hidden = true;
 }
 

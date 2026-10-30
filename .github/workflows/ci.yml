@@ -55,6 +55,10 @@ jobs:
       - name: Sonify engine regression test
         run: node web/qublitz/tests/sonify-engine.test.js
 
+      # Rabi Rider: rotation sense, the watched-T1 trajectories against e^{-t/T1}, and course fairness.
+      - name: Rabi Rider engine test
+        run: node web/qublitz/tests/rabi-engine.test.js
+
       # BE-7 — pages/_assets/quantum_chess.html is a hand-synced copy of the
       # game repo's canonical file; nothing enforced that until now. Fails
       # the build if it drifts from the committed pages/_assets/VENDOR_SHA
