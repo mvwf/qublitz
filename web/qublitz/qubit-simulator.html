@@ -87,7 +87,7 @@
   oscillation, measure T₁ from the decay after a π pulse, then run a Ramsey sequence to pin down ω<sub>q</sub> and T₂. The dynamics
   come from the full Lindblad master equation in the lab frame, solved in your browser.
   Also part of Qublitz: <a id="arenaTop" href="arena.html">⚔️ the QuBlitz Arena</a> (a qubit battle game),
-  <a id="riderTop" href="rabi-rider.html">🌀 Rabi Rider</a> (fly a qubit around the Bloch sphere) and the
+  <a id="copterTop" href="qubit-copter.html">🚁 Qubit Copter</a> (turn a qubit about x, y and z by hand), <a id="riderTop" href="rabi-rider.html">🌀 Rabi Rider</a> and the
   <a href="https://qublitz-qubit-lab.streamlit.app/" target="_blank" rel="noopener">original Streamlit lab</a>.</p>
 
 <div class="card">
@@ -213,6 +213,9 @@
       </span>
     </div>
     <p class="hint" id="resHint"></p>
+    <p class="hint">Each square pulse turns the Bloch vector about an axis in the equator: the σx channel about x, σy about y, and
+      both at once about the axis between them. A pulse of duration <i>t</i> turns it by 2π(Ω<sub>R</sub>/2π)<i>t</i>. To feel what each
+      rotation does, steer by hand in <a id="copterSched" href="qubit-copter.html">🚁 Qubit Copter</a>; its Learn and Free flight modes send your moves back here as a schedule.</p>
     <div id="envPlot" class="plot"></div>
   </div>
 
@@ -370,6 +373,7 @@ if (STANDALONE) {
   $('#back').href = SITE + '#labs';
   $('#arenaTop').href = SITE + 'qublitz/arena.html';
   $('#riderTop').href = SITE + 'qublitz/rabi-rider.html';
+  $('#copterTop').href = SITE + 'qublitz/qubit-copter.html'; $('#copterSched').href = SITE + 'qublitz/qubit-copter.html';
   $('#offlineHint').hidden = true;
 }
 
@@ -858,6 +862,19 @@ if (free && !assigned) {
     $('#mode [data-v="free"]').click();
   }
 }
+// ?tab=time&pulses=x:amp:start:dur,y:amp:start:dur (ns) opens a pulse schedule, e.g. moves sent from Qubit Copter.
+try {
+  const sp = new URL(location.href).searchParams, list = (sp.get('pulses') || '').split(',').map(p => p.split(':'))
+    .filter(p => p.length === 4 && /^[xy]$/.test(p[0]) && p.slice(1).every(v => Number.isFinite(+v)))
+    .map(([target, amp, start, dur]) => ({ type: 'square', target, amp: clamp(+amp, -1, 1), start: Math.max(0, +start), dur: Math.max(0.01, +dur) }));
+  if (list.length) {
+    $('#tdT').value = Math.min(2000, Math.ceil(Math.max(...list.map(p => p.start + p.dur)) + 10));
+    $('#sqStart').value = Math.min(1990, Math.ceil(Math.max(...list.map(p => p.start + p.dur)) + 2));
+    list.forEach(addPulse);
+  }
+  const tab = sp.get('tab') || (list.length ? 'time' : null);
+  if (tab) { const b = document.querySelector(`.tab[data-tab="${tab}"]`); if (b) b.click(); }
+} catch (e) { /* a malformed link just opens the page as usual */ }
 // An instructor's link: keep the code, hide the answers and the controls that would swap qubits.
 if (assigned && initial) {
   try { const u = new URL(location.href); u.searchParams.set('assigned', '1'); history.replaceState(null, '', u); } catch (e) {}

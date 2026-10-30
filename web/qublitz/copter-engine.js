@@ -4,10 +4,13 @@
  *
  * The qubit is driven exactly on resonance, so in the rotating frame there is no free precession:
  *
- *   H = (ħΩ/2)(a_x σx + a_y σy),   dr/dt = ω × r,   ω = Ω (a_x, a_y, 0),
+ *   H = (ħΩ/2)(a_x σx + a_y σy + a_z σz),   dr/dt = ω × r,   ω = Ω (a_x, a_y, a_z),
  *
- * and the state moves only while you drive it. The drive phase α sets the axis (cos α, sin α, 0); the
- * amplitudes follow their targets with time constant TAU, like a bandwidth-limited pulse.
+ * and the state moves only while you drive it. The drive phase α sets the axis (cos α, sin α, 0). The z term
+ * is off unless you ask for it: holding Z detunes the drive by Ω for as long as you hold, so the state
+ * precesses about z only then. In the game modes the amplitudes follow their targets with time constant TAU,
+ * like a bandwidth-limited pulse; in Learn and Free flight they switch instantly, so every move is a square
+ * pulse that the Virtual Qubit Lab can replay (labSequence).
  *
  * Time scrolls. Targets are states the qubit must be at when their time comes: on the page each one is a
  * window on the three projections ⟨σx⟩ = x, ⟨σy⟩ = y, ⟨σz⟩ = z and a ring on the sphere. Walls forbid a
@@ -44,7 +47,9 @@
 
   const P = {
     OMEGA: 1.8,           // Rabi rate at full drive [rad/s]: a π pulse takes 1.75 s
-    TAU: 0.12,            // drive amplitude time constant [s]
+    TAU: 0.12,            // drive amplitude time constant [s] (game modes; Learn and Free flight use square pulses)
+    WIN: 8 * D2R,         // a lesson is done when the state is this close to the goal
+    SETTLE: 0.35,         // s it has to stay there, not driving
     RAD0: 20 * D2R,       // target radius at the start (angle on the sphere)
     RAD_MIN: 11 * D2R,
     LEVEL_TIME: 150,      // s for the course to reach full difficulty
@@ -69,21 +74,94 @@
     return { x: nx * k, y: ny * k };
   }
 
+  /* Learn mode: short tasks, each with a start state, a goal state and the axes you may use. No clock. */
+  const K = Object.fromEntries(KETS.map(([v, n]) => [n, v]));
+  const LESSONS = [
+    { id: 'flip', title: 'Flip the bit', start: '|0⟩', goal: '|1⟩', axes: ['x'],
+      brief: 'Hold <b>X</b> (or press <b>π</b>). The drive turns the state about the x axis, so it swings from |0⟩ over to |1⟩. Watch the three strips.',
+      learn: 'That half turn is a <b>π pulse</b>, the quantum NOT gate X. ⟨σz⟩ went from +1 to −1 while <b>⟨σx⟩ never moved</b>: a rotation leaves the part of the state along its own axis alone. Keep holding and it comes back: that is a Rabi oscillation.' },
+    { id: 'super', title: 'Superposition', start: '|0⟩', goal: '|+⟩', axes: ['y'],
+      brief: 'Turn about <b>Y</b> until you reach |+⟩ on the equator. Try the <b>π/2</b> button: a quarter turn.',
+      learn: 'A π/2 pulse makes |+⟩ = (|0⟩ + |1⟩)/√2. On the equator ⟨σz⟩ = 0, so P(1) = (1 − ⟨σz⟩)/2 = ½: a measurement gives 0 or 1 with even odds.' },
+    { id: 'phase', title: 'Phase is a direction', start: '|+⟩', goal: '|+i⟩', axes: ['z'],
+      brief: 'Now turn about <b>Z</b>. Keep an eye on the ⟨σz⟩ strip, which is P(1) in disguise.',
+      learn: 'A Z rotation changes only the <b>relative phase</b> φ. P(1) did not budge, yet |+⟩ and |+i⟩ = (|0⟩ + i|1⟩)/√2 are different states: measuring along x or y tells them apart. In a real lab Z is free, a <b>virtual Z</b>: you just shift the phase of every later pulse.' },
+    { id: 'sqx', title: 'Same distance, new phase', start: '|0⟩', goal: '|−i⟩', axes: ['x'],
+      brief: 'Reach |−i⟩ using only <b>X</b>.',
+      learn: 'A quarter turn about x (√X) takes |0⟩ to |−i⟩ = (|0⟩ − i|1⟩)/√2, while a quarter turn about y gave |+⟩. Same P(1), different phase: the <b>drive phase</b> (x or y) sets which superposition you make.' },
+    { id: 'had', title: 'Make |−⟩ from |1⟩', start: '|1⟩', goal: '|−⟩', axes: ['x', 'y', 'z'],
+      brief: 'Any axis you like. One quarter turn about the right axis does it.',
+      learn: 'That is what a <b>Hadamard</b> does to |1⟩. H swaps the z and x axes (|0⟩ ↔ |+⟩, |1⟩ ↔ |−⟩): a half turn about the axis between x and z. Here a quarter turn about y had the same effect on |1⟩.' },
+    { id: 'euler', title: 'Anywhere on the sphere', start: '|0⟩', goal: [60, 135], axes: ['x', 'y', 'z'],
+      brief: 'The gold ring is off every axis: θ = 60°, φ = 135°. Tip: tilt it down with Y, then swing it around with Z.',
+      learn: 'Two axes reach <b>any</b> pure state: a turn about y sets θ (and so P(1) = sin²(θ/2) = ¼ here), a turn about z sets φ. Every single-qubit gate is a rotation like these, which is how a quantum computer builds them out of pulses.' },
+  ];
+  const lessonVec = g => (typeof g === 'string' ? K[g].slice() : fromAngles(g[0] * D2R, g[1] * D2R));
+
+  /* The moves of a Learn or Free flight run, as the Virtual Qubit Lab's pulse schedule. log is a list of square
+   * segments { x, y, z, dur } (game seconds). The lab drives the σx and σy channels on resonance, which turn the
+   * state exactly as the game's +X and +Y do; its Rabi rate is 2π f (f = Ω_R/2π in GHz, so angles per ns).
+   * It has no σz channel, so Z turns are done the way real labs do them, as a virtual Z: a turn by Φ about z
+   * commutes to the end of the sequence if every later drive axis is turned by −Φ, so the lab's P(1) comes out
+   * the same and its final state differs only by the leftover Φ about z. A segment that drives z together with
+   * x or y is split into short slices (a Trotter step every 3°). */
+  function labSequence(log, opts = {}) {
+    const f = opts.fGHz ?? 0.05, t0 = opts.start ?? 5, rate = 2 * Math.PI * f, slice = 3 * D2R, max = opts.max ?? 80;
+    const out = []; let phi = 0, t = t0;
+    const drive = (ax, ay, dur) => {
+      const m = Math.hypot(ax, ay); if (m < 1e-9 || dur <= 0) return;
+      const al = Math.atan2(ay, ax) - phi, ns = dur * P.OMEGA / rate;   // same turn angle Ω m dur in lab time
+      const sx = m * Math.cos(al), sy = m * Math.sin(al), last = out[out.length - 1];
+      if (last && Math.abs(last.sx - sx) < 1e-6 && Math.abs(last.sy - sy) < 1e-6 && Math.abs(last.start + last.dur - t) < 1e-9) last.dur += ns;
+      else out.push({ sx, sy, start: t, dur: ns });
+      t += ns;
+    };
+    for (const s of log) {
+      const xy = Math.hypot(s.x, s.y) > 1e-9, z = Math.abs(s.z) > 1e-9;
+      if (xy && z) {
+        const n = Math.max(1, Math.ceil(P.OMEGA * Math.hypot(s.x, s.y, s.z) * s.dur / slice)), d = s.dur / n;
+        for (let i = 0; i < n; i++) { drive(s.x, s.y, d); phi += P.OMEGA * s.z * d; }
+      } else if (xy) drive(s.x, s.y, s.dur);
+      else if (z) phi += P.OMEGA * s.z * s.dur;
+    }
+    const kept = out.slice(-max), cut = out.length - kept.length;
+    return { pulses: kept, cut, phi: ((phi % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI, end: t, f };
+  }
+
   class World {
-    // opts: { seed, mode: 'targets' | 'circuit' }
+    // opts: { seed, mode: 'targets' | 'circuit' | 'learn' | 'free', lesson: id }
     constructor(opts = {}) {
-      this.mode = opts.mode === 'circuit' ? 'circuit' : 'targets';
+      this.mode = ['circuit', 'learn', 'free'].includes(opts.mode) ? opts.mode : 'targets';
+      this.game = this.mode === 'targets' || this.mode === 'circuit';
+      this.tau = this.game ? P.TAU : 0;
       this.rand = rng('copter:' + this.mode + ':' + (opts.seed ?? 'random'));
-      this.r = [0, 0, 1]; this.amp = { x: 0, y: 0 };
+      this.r = [0, 0, 1]; this.amp = { x: 0, y: 0, z: 0 };
       this.t = 0; this.score = 0; this.combo = 0; this.hits = 0; this.misses = 0; this.perfects = 0; this.wallHits = 0;
       this.hearts = P.HEARTS; this.grace = 0; this.over = false;
       this.targets = []; this.walls = [];
+      this.pulses = []; this.log = []; this.moves = 0;
+      this.lesson = null; this.goal = null; this.settle = 0; this.done = false;
+      if (this.mode === 'learn') {
+        this.lesson = LESSONS.find(l => l.id === opts.lesson) || LESSONS[0];
+        this.r = lessonVec(this.lesson.start); this.goal = lessonVec(this.lesson.goal);
+      }
       this.plan = { t: 1.5, v: [0, 0, 1] };   // the last scheduled target (the start state, to begin with)
-      this.generate();
+      if (this.game) this.generate();
     }
     get level() { return Math.min(1, this.t / P.LEVEL_TIME); }
     get radius() { return P.RAD0 + (P.RAD_MIN - P.RAD0) * this.level; }
-    omega() { return [P.OMEGA * this.amp.x, P.OMEGA * this.amp.y, 0]; }
+    get driving() { return this.pulses.length > 0 || Math.hypot(this.amp.x, this.amp.y, this.amp.z) > 1e-3; }
+    omega() { return [P.OMEGA * this.amp.x, P.OMEGA * this.amp.y, P.OMEGA * this.amp.z]; }
+    // Queue a square pulse that turns the state by ang (radians, signed) about axis 'x', 'y' or 'z'.
+    pulse(axis, ang) { this.pulses.push({ axis, sign: Math.sign(ang), left: Math.abs(ang) }); this.moves++; }
+    // Put the state back (Free flight: at |0⟩) and forget the moves.
+    reset(r) { this.r = (r || [0, 0, 1]).slice(); this.amp = { x: 0, y: 0, z: 0 }; this.pulses = []; this.log = []; this.settle = 0; }
+    record(a, dur) {
+      if (this.game) return;
+      const last = this.log[this.log.length - 1];
+      if (last && last.x === a.x && last.y === a.y && last.z === a.z) last.dur += dur;
+      else if (a.x || a.y || a.z) this.log.push({ x: a.x, y: a.y, z: a.z, dur });
+    }
 
     // Keep AHEAD seconds of targets (and the odd wall) scheduled.
     generate() {
@@ -124,11 +202,28 @@
     step(input, dt) {
       const ev = [];
       if (this.over) return ev;
-      const f = 1 - Math.exp(-dt / P.TAU), A = this.amp;
-      for (const k of ['x', 'y']) A[k] += (Math.max(-1, Math.min(1, input[k] || 0)) - A[k]) * f;
-      const n = Math.hypot(A.x, A.y); if (n > 1) { A.x /= n; A.y /= n; }   // one drive: its amplitude is at most 1
-      this.r = unit(rotate(this.r, this.omega(), dt));
+      const A = this.amp;
+      if (this.pulses.length) {
+        // a queued pulse: full amplitude on one axis, stopped exactly at its angle
+        const p = this.pulses[0], d = Math.min(dt, p.left / P.OMEGA);
+        for (const k of ['x', 'y', 'z']) A[k] = k === p.axis ? p.sign : 0;
+        this.r = unit(rotate(this.r, this.omega(), d)); this.record(A, d);
+        p.left -= P.OMEGA * d; if (p.left < 1e-9) { this.pulses.shift(); if (!this.pulses.length) A.x = A.y = A.z = 0; }
+      } else {
+        const f = this.tau > 0 ? 1 - Math.exp(-dt / this.tau) : 1;
+        for (const k of ['x', 'y', 'z']) A[k] += (Math.max(-1, Math.min(1, input[k] || 0)) - A[k]) * f;
+        const n = Math.hypot(A.x, A.y); if (n > 1) { A.x /= n; A.y /= n; }   // one drive: its amplitude is at most 1
+        this.r = unit(rotate(this.r, this.omega(), dt)); this.record(A, dt);
+      }
       this.t += dt; this.grace = Math.max(0, this.grace - dt);
+      if (!this.game) {
+        // a lesson is done once the state rests within WIN of the goal
+        if (this.goal && !this.done) {
+          this.settle = angle(this.r, this.goal) < P.WIN && !this.driving ? this.settle + dt : 0;
+          if (this.settle >= P.SETTLE) { this.done = true; ev.push({ type: 'goal', fidelity: (1 + dot(this.r, this.goal)) / 2 }); }
+        }
+        return ev;
+      }
       // targets whose moment has come
       while (this.targets.length && this.targets[0].t <= this.t) {
         const o = this.targets.shift(), a = angle(this.r, o.v);
@@ -157,16 +252,17 @@
     }
     // Where the state would be after `secs` of holding drive (x, y) from now (amplitude ramp included).
     predict(input, secs, n = 20) {
-      let r = this.r.slice(); const a = { ...this.amp }, out = [r], dt = secs / n, f = 1 - Math.exp(-dt / P.TAU);
+      let r = this.r.slice(); const a = { ...this.amp }, out = [r], dt = secs / n, f = this.tau > 0 ? 1 - Math.exp(-dt / this.tau) : 1;
       for (let i = 0; i < n; i++) {
         a.x += ((input.x || 0) - a.x) * f; a.y += ((input.y || 0) - a.y) * f;
-        r = rotate(r, [P.OMEGA * a.x, P.OMEGA * a.y, 0], dt); out.push(r);
+        a.z = (a.z ?? 0) + ((input.z || 0) - (a.z ?? 0)) * f;
+        r = rotate(r, [P.OMEGA * a.x, P.OMEGA * a.y, P.OMEGA * a.z], dt); out.push(r);
       }
       return out;
     }
   }
 
-  const api = { P, steerToward, World, GATES, applyGate, gateArc, stateName, fromAngles };
+  const api = { P, steerToward, World, GATES, applyGate, gateArc, stateName, fromAngles, LESSONS, lessonVec, labSequence, KETS };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.CopterEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
