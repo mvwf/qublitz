@@ -800,7 +800,7 @@ const GUIDED=[
     intro:"The signal is 1000 Hz plus 1050 Hz, sampled at 44.1 kHz. A window of N samples gives frequency bins f<sub>s</sub>/N apart, and the Hann window smears each line over about ±2 bins.",
     ask:"What is the smallest window that shows two separate lines?",
     choices:["512","1024","2048","4096","8192"], answer:3,
-    explain:"The bins are 86, 43, 21.5, 10.8 and 5.4 Hz wide. At 2048 the tones are only 2.3 bins apart: their Hann main lobes overlap, and the dip between them comes and goes from frame to frame (2 to 20 dB, depending on the tones' relative phase). At 4096 they are 4.6 bins apart and the dip is at least 35 dB deep in every frame. That window is 93 ms long: resolving Δf takes a time of order 1/Δf, here 20 ms, times a few.",
+    explain:"The bins are 86, 43, 21.5, 10.8 and 5.4 Hz wide. At 2048 the tones are only 2.3 bins apart: their Hann main lobes overlap, and the page's bins show a dip of at most 4 dB between them, so they read as one fat line. At 4096 they are 4.6 bins apart and the dip is 27 to 41 dB deep, depending on the frame. That window is 93 ms long: resolving Δf takes a time of order 1/Δf, here 20 ms, times a few.",
     try:"Step through the window sizes and watch the line split." },
   { title:"Two clicks 20 ms apart",
     setup:{rec:"clicks",N:8192,scale:"lin",fmax:22050,dr:80}, reveal:{N:512}, cover:["#specCard","#lineCard"],
