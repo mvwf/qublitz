@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qubit Copter — steer a qubit through its projections</title>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --night:#0b1220;
+    --cx:#ff7a8a; --cy:#7ee08a; --cz:#7fb8ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  .page{max-width:1240px;margin:0 auto;padding:18px 20px 44px}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700}
+  h1 span{font-weight:400;color:var(--muted);font-size:17px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:940px}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer}
+
+  .stage{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:0;border-radius:12px;overflow:hidden;
+    background:var(--night);box-shadow:0 8px 30px rgba(11,18,32,.25);user-select:none;-webkit-user-select:none}
+  .stage canvas{display:block;width:100%}
+  #sphere{aspect-ratio:1;touch-action:none;cursor:crosshair}
+  #strips{height:100%;min-height:300px;border-left:1px solid rgba(160,190,230,.15)}
+  @media(max-width:760px){.stage{grid-template-columns:1fr} #strips{height:300px;border-left:0;border-top:1px solid rgba(160,190,230,.15)}}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;text-align:center;
+    background:rgba(8,13,25,.84);color:#e8eef7;padding:18px;overflow:auto}
+  .overlay>:first-child{margin-top:auto} .overlay>:last-child{margin-bottom:auto}
+  .overlay[hidden]{display:none}
+  .overlay h2{margin:0 0 2px;font-size:32px;color:#fff}
+  .overlay h2 small{display:block;font-size:13px;font-weight:400;color:#9fb2cc;letter-spacing:.04em;margin-top:2px}
+  .overlay p{max-width:640px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
+  .overlay .modes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0 4px}
+  .overlay .modes button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 16px;min-width:200px;text-align:left}
+  .overlay .modes button b{display:block;font-size:15px}
+  .overlay .modes button span{font-size:12px;color:#9fb2cc}
+  .overlay .modes button[aria-pressed=true]{border-color:#ffd166;background:rgba(255,209,102,.12)}
+  .overlay .go{font-size:16px;padding:10px 26px;margin-top:10px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .overlay .row button:not(.go){background:transparent;color:#e8eef7;border-color:rgba(255,255,255,.3)}
+  .overlay .big{font-size:52px;font-weight:800;color:#ffd166;line-height:1;margin:6px 0}
+  .overlay .stats{display:grid;grid-template-columns:repeat(4,auto);gap:4px 18px;font-size:13px;color:#c7d3e6;margin:8px 0}
+  .overlay .stats b{display:block;font-size:18px;color:#fff}
+  .overlay .best{font-size:12.5px;color:#9fb2cc}
+  .overlay kbd,.keys kbd{font:12px ui-monospace,Menlo,Consolas,monospace;border:1px solid rgba(160,180,210,.5);border-radius:4px;padding:0 5px}
+  .note{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:max-content;max-width:min(680px,92%);background:rgba(8,13,25,.9);
+    border:1px solid rgba(255,209,102,.45);color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:7px 12px;text-align:center;
+    pointer-events:none;transition:opacity .4s}
+  .note b{color:#ffd166} .note.fade{opacity:0}
+  .help{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+  .panel{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:13px}
+  .panel h3{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+  .keys kbd{border-color:var(--line);background:var(--panel);color:var(--ink)}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px 12px;margin-top:16px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .card p{font-size:13.5px;max-width:960px}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto}
+  .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="page">
+<script src="../shared/sitebar.js"></script>
+<a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
+<h1>🚁 Qubit Copter <span>steer a qubit through its projections (prototype)</span></h1>
+<p class="sub">The drive is on resonance, so nothing moves unless you drive it. The big sphere shows your qubit; the three strips scroll
+  in time like a helicopter game and show its projections ⟨σx⟩, ⟨σy⟩ and ⟨σz⟩, which are what repeated measurements along x, y and z
+  would average to. Each target is a window on all three strips at once, and a ring on the sphere: be in all three windows when it
+  arrives. A companion to <a id="riderLink" href="rabi-rider.html">Rabi Rider</a>.</p>
+
+<div class="stage" id="stage">
+  <canvas id="sphere" aria-label="The Bloch sphere: your qubit, the next targets, and any forbidden caps"></canvas>
+  <canvas id="strips" aria-label="Scrolling traces of the three projections, with target windows and walls"></canvas>
+
+  <div class="overlay" id="menu">
+    <h2>Qubit Copter<small>NO PRECESSION · YOU DRIVE EVERY ROTATION</small></h2>
+    <div class="modes" role="group" aria-label="Course">
+      <button data-mode="targets" aria-pressed="true"><b>Targets</b><span>random states, faster and smaller as you go</span></button>
+      <button data-mode="circuit" aria-pressed="false"><b>Circuit</b><span>each target is the state after a real gate</span></button>
+    </div>
+    <p><b>Point to steer:</b> hold the mouse (or a finger) on the sphere where you want to go, and the drive picks its phase to take you there.
+      <b>Or steer by axis</b> with the arrow keys: <kbd>←</kbd> +X, <kbd>→</kbd> −X, <kbd>↓</kbd> +Y, <kbd>↑</kbd> −Y; the colored arcs show where each one leads.
+      Stay out of the red: a wall on a strip is a forbidden cap on the sphere.</p>
+    <button class="go" id="play">Play ▶</button>
+    <p class="best" id="menuBest"></p>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <h2 id="overTitle">Decohered!</h2>
+    <div class="big" id="overScore">0</div>
+    <div class="stats" id="overStats"></div>
+    <p class="best" id="overBest"></p>
+    <p id="overTip"></p>
+    <div class="row"><button class="go" id="again">Play again ▶</button><button id="toMenu">Menu</button></div>
+  </div>
+
+  <div class="overlay" id="paused" hidden><h2>Paused</h2><p>Press <kbd>P</kbd> or tap to keep flying.</p></div>
+  <div class="note fade" id="note"></div>
+</div>
+
+<div class="help">
+  <div class="panel"><h3>Point to steer</h3>Hold on the sphere. A drive about an axis in the equator keeps the component along that axis fixed,
+    so it can carry you straight to the point you hold: the game picks that axis (the drive phase) for you. The orange arrow is the drive.</div>
+  <div class="panel keys"><h3>Steer by axis</h3><kbd>←</kbd> +X &nbsp; <kbd>→</kbd> −X &nbsp; <kbd>↓</kbd> +Y &nbsp; <kbd>↑</kbd> −Y &nbsp; (or <kbd>A</kbd> <kbd>D</kbd> <kbd>S</kbd> <kbd>W</kbd>).
+    Near |0⟩ each key pushes the state the way it points; elsewhere, follow its colored arc. <kbd>P</kbd> pauses.</div>
+  <div class="panel"><h3>Reading the strips</h3>Time runs right to left; the copter is now. Gold windows are targets (be inside all three),
+    red blocks are walls. Since x² + y² + z² = 1, the three windows together pin down one state.</div>
+</div>
+
+<div class="card">
+  <h2>The physics</h2>
+  <p>In the frame rotating with a drive that is exactly on resonance, the qubit's Hamiltonian has no σ<sub>z</sub> term:</p>
+  <div class="eq">H = (ħΩ/2)(a<sub>x</sub> σ<sub>x</sub> + a<sub>y</sub> σ<sub>y</sub>),&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = Ω (a<sub>x</sub>, a<sub>y</sub>, 0)</div>
+  <p>so the Bloch vector <b>r</b> = (⟨σ<sub>x</sub>⟩, ⟨σ<sub>y</sub>⟩, ⟨σ<sub>z</sub>⟩) stays put unless driven, and a drive with phase α turns it about the
+    equatorial axis (cos α, sin α, 0) at the Rabi rate Ω (here 1.8 rad/s, so a π pulse takes 1.75 s). The amplitude ramps with a 0.12 s time constant.</p>
+  <p>The three strips are the projections ⟨σ<sub>x</sub>⟩, ⟨σ<sub>y</sub>⟩ and ⟨σ<sub>z</sub>⟩: what you would get by averaging many measurements along each
+    axis (state tomography). Because a pure state has x² + y² + z² = 1, fixing all three fixes the state, which is why a target is three windows
+    at once. A wall that forbids, say, ⟨σ<sub>z</sub>⟩ < −0.4 cuts the cap around |1⟩ off the sphere.</p>
+  <p><b>Point to steer</b> uses a neat fact: a rotation about an equatorial axis <b>n</b> keeps <b>r</b>·<b>n</b> fixed, so it joins <b>r</b> to a
+    point <b>p</b> in one turn when (<b>r</b> − <b>p</b>)·<b>n</b> = 0, that is <b>n</b> ∥ (<b>r</b> − <b>p</b>) × <b>z</b>. That is a real choice of drive
+    phase, not a cheat. <b>Circuit</b> targets are the states a random gate sequence (H, S, T, X, Y, Z, √X, √Y, Rx(π/4), Ry(π/3)) makes from |0⟩;
+    the dotted arc is the path the gate's own rotation would take, which is often not the path your drive takes.</p>
+</div>
+<p class="dl" id="offlineHint"><a href="qubit-copter-offline.html" download="qublitz-qubit-copter.html">Download the game</a>
+  as a single HTML file that runs offline in any browser.</p>
+</div>
+
+<script src="rabi-engine.js"></script>
+<script src="copter-engine.js"></script>
+<script>
+'use strict';
+const C = window.CopterEngine, RE = window.RabiEngine, D2R = Math.PI / 180;
+const $ = s => document.querySelector(s);
+const SITE = 'https://mvwf.github.io/qublitz/';
+if (window.QUBLITZ_STANDALONE) { $('#back').href = SITE + '#labs'; $('#riderLink').href = SITE + 'qublitz/rabi-rider.html'; $('#offlineHint').hidden = true; }
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
+const S = { mode: store.get('copter:mode', 'targets') };
+const AXC = ['#ff7a8a', '#7ee08a', '#7fb8ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'];
+
+/* ---------------- canvases ---------------- */
+const sc = $('#sphere'), sg = sc.getContext('2d'), tc = $('#strips'), tg = tc.getContext('2d');
+let SW = 500, TW = 600, TH = 500, DPR = 1;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const a = sc.getBoundingClientRect(); SW = Math.max(240, a.width); sc.width = Math.round(SW * DPR); sc.height = Math.round(SW * DPR);
+  const b = tc.getBoundingClientRect(); TW = Math.max(240, b.width); TH = Math.max(240, b.height); tc.width = Math.round(TW * DPR); tc.height = Math.round(TH * DPR);
+}
+addEventListener('resize', resize);
+
+/* ---------------- the sphere view: orthographic, |0⟩ up, +x toward you on the left, +y to the right ---------------- */
+const VIEW_AZ = 22 * D2R, VIEW_EL = 18 * D2R;
+const Vd = [Math.cos(VIEW_EL) * Math.cos(VIEW_AZ), Math.cos(VIEW_EL) * Math.sin(VIEW_AZ), Math.sin(VIEW_EL)];   // toward the viewer
+const Vr = RE.unit(RE.cross([0, 0, 1], Vd)), Vu = RE.cross(Vd, Vr);
+const sph = () => ({ c: SW / 2, R: SW * 0.36 });
+function P(v) { const { c, R } = sph(); return { x: c + R * RE.dot(v, Vr), y: c - R * RE.dot(v, Vu), front: RE.dot(v, Vd) >= -1e-9 }; }
+// The point on the front of the sphere under screen point (x, y), or null off the sphere.
+function unproject(x, y) {
+  const { c, R } = sph(), u = (x - c) / R, v = (c - y) / R, q = u * u + v * v;
+  if (q > 1.15) return null;
+  const k = q > 1 ? 1 / Math.sqrt(q) : 1, w = q > 1 ? 0 : Math.sqrt(1 - q);
+  return RE.unit([0, 1, 2].map(i => u * k * Vr[i] + v * k * Vu[i] + w * Vd[i]));
+}
+// Draw a curve of unit vectors: solid where it faces you, dashed behind.
+function curve(pts, style, width, dashBack = true) {
+  sg.strokeStyle = style; sg.lineWidth = width;
+  for (const front of [false, true]) {
+    sg.setLineDash(front ? [] : (dashBack ? [3, 4] : [])); sg.globalAlpha = front ? 1 : 0.35; sg.beginPath(); let pen = false;
+    for (const v of pts) { const p = P(v); if (p.front !== front) { pen = false; continue; } pen ? sg.lineTo(p.x, p.y) : sg.moveTo(p.x, p.y); pen = true; }
+    sg.stroke();
+  }
+  sg.setLineDash([]); sg.globalAlpha = 1;
+}
+const circleAt = (n, h, k = 64) => {   // the circle r·n = h on the unit sphere
+  const ref = Math.abs(n[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1], e1 = RE.unit(RE.cross(n, ref)), e2 = RE.cross(n, e1), s = Math.sqrt(Math.max(0, 1 - h * h));
+  return Array.from({ length: k + 1 }, (_, i) => { const a = i / k * 2 * Math.PI; return [0, 1, 2].map(j => h * n[j] + s * (Math.cos(a) * e1[j] + Math.sin(a) * e2[j])); });
+};
+const capRing = (v, rad) => circleAt(v, Math.cos(rad), 48);
+const AX = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+
+/* ---------------- input ---------------- */
+const keys = new Set();
+let aim = null;   // the point held on the sphere
+function keyDrive() {
+  const h = (a, b) => (keys.has(a) || keys.has(b) ? 1 : 0);
+  return { x: h('arrowleft', 'a') - h('arrowright', 'd'), y: h('arrowdown', 's') - h('arrowup', 'w') };
+}
+function input() {
+  if (aim) return C.steerToward(world.r, aim);
+  return keyDrive();
+}
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (phase !== 'play' && (k === ' ' || k === 'enter') && !e.target.closest('button,input,select')) { e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || performance.now() - overAt > 900) start(); return; }
+  if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+  keys.add(k);
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => { keys.clear(); aim = null; if (phase === 'play') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pause(); });
+const aimAt = e => { const b = sc.getBoundingClientRect(); aim = unproject(e.clientX - b.left, e.clientY - b.top); };
+sc.addEventListener('pointerdown', e => { if (phase !== 'play') return; sc.setPointerCapture(e.pointerId); aimAt(e); });
+sc.addEventListener('pointermove', e => { if (aim) aimAt(e); });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => sc.addEventListener(t, () => { aim = null; }));
+$('#stage').addEventListener('pointerdown', e => { if (phase === 'paused' && e.target.closest('.overlay')) resume(); });
+
+/* ---------------- sound ---------------- */
+let actx = null;
+function tone(f0, f1, dur, type = 'sine', vol = 0.1, when = 0) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime + when, o = actx.createOscillator(), a = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    a.gain.setValueAtTime(vol, t); a.gain.exponentialRampToValueAtTime(0.0008, t + dur); o.connect(a).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) { /* audio unavailable */ }
+}
+const SND = {
+  hit: (combo, perfect) => { const f = 523 * Math.pow(2, Math.min(combo, 12) / 12); tone(f, f, 0.12, 'triangle', 0.12); tone(f * 1.5, f * 1.5, 0.15, 'sine', 0.07, 0.06); if (perfect) tone(f * 3, f * 3.1, 0.2, 'sine', 0.05, 0.1); },
+  miss: () => { tone(220, 150, 0.25, 'square', 0.05); },
+  wall: () => { tone(160, 60, 0.35, 'sawtooth', 0.08); },
+  over: () => { tone(330, 110, 0.7, 'triangle', 0.12); tone(247, 82, 0.9, 'sine', 0.08, 0.12); },
+};
+
+/* ---------------- game state ---------------- */
+let world = null, phase = 'menu', hist = [], marks = [], overAt = 0, noteT = 0, flash = 0;
+const STEP = 1 / 120, PAST = 2.5, FUTURE = 7;
+function show(id) { ['#menu', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); }
+function syncMenu() {
+  document.querySelectorAll('#menu .modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+  const b = store.get('copter:best:' + S.mode, 0); $('#menuBest').textContent = b ? `Best ${S.mode === 'circuit' ? 'Circuit' : 'Targets'} score: ${b}` : '';
+}
+document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('copter:mode', S.mode); syncMenu(); }));
+function start() {
+  world = new C.World({ seed: 'r' + Math.random().toString(36).slice(2, 8), mode: S.mode });
+  hist = []; marks = []; noteT = 0; flash = 0; aim = null; phase = 'play'; show(null); acc = 0; last = performance.now();
+  note(S.mode === 'circuit' ? '<b>Circuit.</b> Each target is the state after the gate written above it, starting from |0⟩.' : '<b>Targets.</b> Be inside all three gold windows when they reach the copter.', 4);
+}
+function pause() { phase = 'paused'; show('#paused'); }
+function resume() { phase = 'play'; show(null); last = performance.now(); }
+$('#play').addEventListener('click', start); $('#again').addEventListener('click', start);
+$('#toMenu').addEventListener('click', () => { phase = 'menu'; show('#menu'); syncMenu(); });
+function note(html, secs = 5) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
+function gameOver() {
+  phase = 'over'; overAt = performance.now();
+  const w = world, score = Math.round(w.score), key = 'copter:best:' + S.mode, prev = store.get(key, 0);
+  if (score > prev) store.set(key, score);
+  $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
+  $('#overScore').textContent = score;
+  $('#overStats').innerHTML = [[w.hits, 'targets'], [w.perfects, 'perfect'], [w.wallHits, 'walls hit'], [w.t.toFixed(0) + ' s', 'flight']].map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
+  $('#overBest').textContent = `Best ${Math.max(score, prev)}`;
+  $('#overTip').textContent = w.wallHits > w.misses ? 'A wall on one strip is a cap on the sphere: steer around the red cap, not through it.'
+    : 'Try pointing to steer: hold where you want to go, slightly early, and let the drive take you.';
+  setTimeout(() => { if (phase === 'over') show('#over'); }, 600);
+}
+function handle(ev) {
+  for (const e of ev) {
+    if (e.type === 'hit') {
+      SND.hit(world.combo, e.perfect);
+      marks.push({ t: world.t, ok: [true, true, true], pts: e.pts, perfect: e.perfect });
+      if (e.o.gate) note(`<b>${C.GATES[e.o.gate].label}</b> is ${C.GATES[e.o.gate].what}: ${C.stateName(e.o.from)} → ${e.o.label}.`, 4);
+    } else if (e.type === 'miss') {
+      SND.miss(); flash = 0.2;
+      const ok = [0, 1, 2].map(i => inWindow(world.r[i], e.o, i));
+      marks.push({ t: world.t, ok });
+      const bad = ok.map((v, i) => v ? null : AXN[i]).filter(Boolean);
+      note(`<b>Missed by ${(e.off / D2R).toFixed(0)}°.</b> Out of the window on ${bad.join(', ') || 'none (just outside the ring)'}.`, 3);
+    } else if (e.type === 'wall') { SND.wall(); flash = 0.3; note(`<b>Wall!</b> ${AXN[e.w.axis]} was in the forbidden band: on the sphere, that is the red cap.`, 3); }
+    else if (e.type === 'heal') note('<b>10 targets:</b> +1 ♥', 2.5);
+    else if (e.type === 'over') { SND.over(); gameOver(); }
+  }
+}
+// The range of a projection over a target's ring: the window drawn on the strips.
+function windowOf(o, i) { const th = Math.acos(Math.max(-1, Math.min(1, o.v[i]))); return [Math.cos(Math.min(Math.PI, th + o.rad)), Math.cos(Math.max(0, th - o.rad))]; }
+function inWindow(x, o, i) { const [lo, hi] = windowOf(o, i); return x >= lo && x <= hi; }
+
+/* ---------------- drawing: the sphere ---------------- */
+function drawSphere(t) {
+  const { c, R } = sph(), w = world;
+  sg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  sg.fillStyle = '#0b1220'; sg.fillRect(0, 0, SW, SW);
+  const grd = sg.createRadialGradient(c - R * 0.3, c - R * 0.35, R * 0.1, c, c, R);
+  grd.addColorStop(0, '#24406e'); grd.addColorStop(1, '#141c38');
+  sg.fillStyle = grd; sg.beginPath(); sg.arc(c, c, R, 0, Math.PI * 2); sg.fill();
+  sg.strokeStyle = 'rgba(160,190,230,.35)'; sg.lineWidth = 1; sg.beginPath(); sg.arc(c, c, R, 0, Math.PI * 2); sg.stroke();
+  for (const h of [-0.5, 0.5]) curve(circleAt([0, 0, 1], h), 'rgba(160,190,230,.18)', 1);
+  curve(circleAt([0, 0, 1], 0), 'rgba(170,200,240,.45)', 1.3);
+  curve(circleAt([0, 1, 0], 0), 'rgba(160,190,230,.25)', 1); curve(circleAt([1, 0, 0], 0), 'rgba(160,190,230,.25)', 1);
+  sg.font = '600 13px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+  for (const [v, lab, col] of [[[0, 0, 1], '|0⟩', AXC[2]], [[0, 0, -1], '|1⟩', AXC[2]], [[1, 0, 0], '+x', AXC[0]], [[-1, 0, 0], '−x', AXC[0]], [[0, 1, 0], '+y', AXC[1]], [[0, -1, 0], '−y', AXC[1]]]) {
+    const a = P(v.map(q => q * 1.0)), b = P(v.map(q => q * 1.16));
+    sg.strokeStyle = col; sg.globalAlpha = a.front ? 0.8 : 0.3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(a.x, a.y); sg.stroke(); sg.globalAlpha = 1;
+    sg.fillStyle = col; sg.fillText(lab, b.x, b.y);
+  }
+  if (!w) return;
+  // walls: forbidden caps (the side of the plane r_i = boundary that is off limits), fading in before they start
+  for (const wl of w.walls) {
+    const lead = wl.t0 - w.t; if (lead > C.P.WALL_WARN + 2 || w.t > wl.t1) continue;
+    const live = w.t >= wl.t0, al = live ? 0.75 : 0.25 + 0.2 * Math.sin(t * 8), b = wl.lo > -1 ? wl.lo : wl.hi;
+    const ring = circleAt(AX[wl.axis], b);
+    sg.fillStyle = `rgba(255,70,100,${live ? 0.22 : 0.1})`; sg.beginPath(); ring.forEach((v, i) => { const p = P(v); i ? sg.lineTo(p.x, p.y) : sg.moveTo(p.x, p.y); }); sg.fill();
+    curve(ring, `rgba(255,110,130,${al})`, live ? 2.5 : 1.5);
+    const tip = P(AX[wl.axis].map(q => q * (wl.lo > -1 ? 1 : -1) * 1.05));
+    sg.fillStyle = `rgba(255,140,160,${al})`; sg.font = '700 12px Helvetica,Arial'; sg.fillText(live ? 'no fly' : `in ${lead.toFixed(1)} s`, tip.x, tip.y - 10);
+  }
+  // targets: the next one bright with a countdown, the one after faint; in a circuit, the gate's own path
+  const [n1, n2] = w.targets;
+  if (n2) curve(capRing(n2.v, n2.rad), 'rgba(255,209,102,.3)', 1.5);
+  if (n1) {
+    if (n1.gate) { sg.setLineDash([4, 5]); curve(C.gateArc(n1.from, n1.gate), 'rgba(255,209,102,.55)', 1.5, false); sg.setLineDash([]); }
+    const pulse = 0.75 + 0.25 * Math.sin(t * 7);
+    curve(capRing(n1.v, n1.rad), `rgba(255,209,102,${pulse})`, 3);
+    const p = P(n1.v), left = Math.max(0, n1.t - w.t), span = Math.max(0.5, n1.t - (w.prevT ?? 0));
+    sg.strokeStyle = 'rgba(255,209,102,.9)'; sg.lineWidth = 3; sg.beginPath(); sg.arc(p.x, p.y, 16, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, left / span)); sg.stroke();
+    sg.fillStyle = '#ffd166'; sg.font = '700 13px Helvetica,Arial'; sg.fillText(n1.gate ? C.GATES[n1.gate].label : left.toFixed(1), p.x, p.y - 26);
+  }
+  // where the arrow keys would take you (only while you are not pointing)
+  if (!aim && phase === 'play') {
+    const kd = keyDrive();
+    [[{ x: 1, y: 0 }, '←'], [{ x: -1, y: 0 }, '→'], [{ x: 0, y: 1 }, '↓'], [{ x: 0, y: -1 }, '↑']].forEach(([d, k]) => {
+      const on = kd.x === d.x && kd.y === d.y && (d.x || d.y), path = w.predict(d, 0.7, 14);
+      curve(path, d.x ? AXC[0] : AXC[1], on ? 3 : 1.3, false);
+      const end = P(path[path.length - 1]); sg.fillStyle = d.x ? AXC[0] : AXC[1]; sg.globalAlpha = end.front ? 0.9 : 0.4; sg.font = '700 11px Helvetica,Arial'; sg.fillText(k, end.x, end.y); sg.globalAlpha = 1;
+    });
+  }
+  if (aim) {   // the point you hold, and where the drive is taking you
+    const p = P(aim); sg.strokeStyle = '#fff'; sg.lineWidth = 1.5; sg.beginPath(); sg.arc(p.x, p.y, 7, 0, Math.PI * 2); sg.stroke();
+    curve(w.predict(C.steerToward(w.r, aim), 1.2, 24), 'rgba(255,255,255,.6)', 1.5);
+  }
+  // trail, drive axis, state
+  curve(hist.slice(-120).map(h => h.r), 'rgba(160,220,255,.6)', 2, false);
+  const dm = Math.hypot(w.amp.x, w.amp.y);
+  if (dm > 0.05) { const q = P([w.amp.x, w.amp.y, 0]); sg.strokeStyle = '#ffb347'; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(q.x, q.y); sg.stroke(); sg.fillStyle = '#ffb347'; sg.beginPath(); sg.arc(q.x, q.y, 3.5, 0, Math.PI * 2); sg.fill(); }
+  const s = P(w.r);
+  sg.strokeStyle = '#fff'; sg.lineWidth = 2.5; sg.globalAlpha = s.front ? 1 : 0.5; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
+  const glow = sg.createRadialGradient(s.x, s.y, 0, s.x, s.y, 16); glow.addColorStop(0, 'rgba(200,240,255,.9)'); glow.addColorStop(1, 'rgba(120,200,255,0)');
+  if (!(w.grace > 0 && Math.floor(t * 14) % 2 === 0)) { sg.fillStyle = glow; sg.beginPath(); sg.arc(s.x, s.y, 16, 0, Math.PI * 2); sg.fill(); sg.fillStyle = '#fff'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill(); }
+  sg.globalAlpha = 1;
+  // HUD
+  sg.textAlign = 'left'; sg.textBaseline = 'top'; sg.fillStyle = '#fff'; sg.font = '800 24px Helvetica,Arial'; sg.fillText(Math.round(w.score), 14, 12);
+  if (w.combo > 1) { sg.fillStyle = '#ffd166'; sg.font = '700 13px Helvetica,Arial'; sg.fillText(`combo ×${w.combo}`, 16, 40); }
+  sg.textAlign = 'right'; sg.font = '19px Helvetica,Arial'; sg.fillStyle = '#ff6b85';
+  let hearts = ''; for (let i = 0; i < C.P.HEARTS; i++) hearts += i < w.hearts ? '♥' : '♡'; sg.fillText(hearts, SW - 12, 12);
+  sg.textBaseline = 'bottom'; sg.font = '11px Helvetica,Arial'; sg.fillStyle = 'rgba(190,210,240,.7)';
+  sg.fillText(`${w.t.toFixed(0)} s · ring ${(w.radius / D2R).toFixed(0)}°`, SW - 12, SW - 8);
+  sg.textAlign = 'left'; sg.fillText(`state ${C.stateName(w.r)}`, 12, SW - 8);
+}
+
+/* ---------------- drawing: the strips ---------------- */
+function drawStrips(t) {
+  const w = world;
+  tg.setTransform(DPR, 0, 0, DPR, 0, 0);
+  tg.fillStyle = '#0d1628'; tg.fillRect(0, 0, TW, TH);
+  const L = 46, nowX = L + (TW - L - 10) * PAST / (PAST + FUTURE), pxs = (TW - L - 10) / (PAST + FUTURE);
+  const X = tt => nowX + (tt - (w ? w.t : 0)) * pxs, rowH = TH / 3;
+  for (let i = 0; i < 3; i++) {
+    const top = i * rowH + 8, h = rowH - 16, Y = v => top + h * (1 - v) / 2;
+    tg.fillStyle = 'rgba(255,255,255,.025)'; tg.fillRect(L, top, TW - L - 10, h);
+    tg.strokeStyle = 'rgba(160,190,230,.12)'; tg.lineWidth = 1;
+    for (const v of [-0.5, 0.5]) { tg.beginPath(); tg.moveTo(L, Y(v)); tg.lineTo(TW - 10, Y(v)); tg.stroke(); }
+    tg.strokeStyle = 'rgba(160,190,230,.3)'; tg.beginPath(); tg.moveTo(L, Y(0)); tg.lineTo(TW - 10, Y(0)); tg.stroke();
+    tg.fillStyle = AXC[i]; tg.font = '700 13px Helvetica,Arial'; tg.textAlign = 'left'; tg.textBaseline = 'middle'; tg.fillText(AXN[i], 6, top + h / 2);
+    tg.font = '10px Helvetica,Arial'; tg.fillStyle = 'rgba(190,210,240,.5)'; tg.textAlign = 'right';
+    tg.fillText('+1', L - 4, Y(1) + 5); tg.fillText('−1', L - 4, Y(-1) - 5);
+    if (!w) continue;
+    tg.save(); tg.beginPath(); tg.rect(L, top, TW - L - 10, h); tg.clip();
+    for (const wl of w.walls) {   // walls
+      if (wl.axis !== i) continue;
+      const x0 = X(wl.t0), x1 = X(wl.t1), y0 = Y(Math.min(1, wl.hi)), y1 = Y(Math.max(-1, wl.lo));
+      tg.fillStyle = 'rgba(255,70,100,.35)'; tg.fillRect(x0, y0, x1 - x0, y1 - y0);
+      tg.strokeStyle = 'rgba(255,120,140,.9)'; tg.lineWidth = 1.5; tg.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    }
+    w.targets.forEach((o, k) => {   // target windows
+      const x = X(o.t); if (x > TW) return;
+      const [lo, hi] = windowOf(o, i), next = k === 0;
+      tg.fillStyle = next ? 'rgba(255,209,102,.28)' : 'rgba(255,209,102,.12)'; tg.fillRect(x - 7, Y(hi), 14, Y(lo) - Y(hi));
+      tg.strokeStyle = next ? '#ffd166' : 'rgba(255,209,102,.5)'; tg.lineWidth = next ? 2.5 : 1.2; tg.strokeRect(x - 7, Y(hi), 14, Y(lo) - Y(hi));
+      if (i === 0 && o.gate) { tg.fillStyle = next ? '#ffd166' : 'rgba(255,209,102,.6)'; tg.font = '700 12px Helvetica,Arial'; tg.textAlign = 'center'; tg.textBaseline = 'top'; tg.fillText(C.GATES[o.gate].label, x, top + 2); }
+    });
+    // where the current drive leads (dotted), and the past
+    const fut = aim ? w.predict(C.steerToward(w.r, aim), 1.5, 15) : (keyDrive().x || keyDrive().y ? w.predict(keyDrive(), 1.5, 15) : null);
+    if (fut) { tg.setLineDash([3, 4]); tg.strokeStyle = 'rgba(255,255,255,.5)'; tg.lineWidth = 1.5; tg.beginPath(); fut.forEach((r, j) => { const x = nowX + j * 0.1 * pxs; j ? tg.lineTo(x, Y(r[i])) : tg.moveTo(x, Y(r[i])); }); tg.stroke(); tg.setLineDash([]); }
+    tg.strokeStyle = AXC[i]; tg.lineWidth = 2; tg.beginPath();
+    hist.forEach((hh, j) => { const x = X(hh.t); j ? tg.lineTo(x, Y(hh.r[i])) : tg.moveTo(x, Y(hh.r[i])); }); tg.stroke();
+    // hit or miss marks, per projection
+    for (const m of marks) {
+      const age = w.t - m.t; if (age > 1.4) continue;
+      tg.globalAlpha = 1 - age / 1.4; tg.fillStyle = m.ok[i] ? '#9cf09f' : '#ff7a8a'; tg.font = '700 16px Helvetica,Arial'; tg.textAlign = 'center'; tg.textBaseline = 'middle';
+      tg.fillText(m.ok[i] ? '✓' : '✗', X(m.t), top + 14 - age * 10);
+      if (i === 1 && m.pts) { tg.fillStyle = '#ffd166'; tg.font = '700 14px Helvetica,Arial'; tg.fillText(`+${m.pts}${m.perfect ? ' PERFECT' : ''}`, X(m.t) + 40, top + h / 2 - age * 14); }
+      tg.globalAlpha = 1;
+    }
+    tg.restore();
+    // the copter: now, at this projection's value
+    const y = Y(w.r[i]);
+    tg.fillStyle = '#fff'; tg.beginPath(); tg.ellipse(nowX, y, 8, 5.5, 0, 0, Math.PI * 2); tg.fill();
+    tg.strokeStyle = '#fff'; tg.lineWidth = 2; const sp = Math.sin(t * 40) * 9; tg.beginPath(); tg.moveTo(nowX - 9 - sp * 0.2, y - 9); tg.lineTo(nowX + 9 + sp * 0.2, y - 9); tg.stroke();
+    tg.beginPath(); tg.moveTo(nowX, y - 5); tg.lineTo(nowX, y - 9); tg.stroke();
+    tg.beginPath(); tg.moveTo(nowX - 8, y); tg.lineTo(nowX - 16, y - 3); tg.stroke();
+  }
+  tg.strokeStyle = 'rgba(255,255,255,.25)'; tg.lineWidth = 1; tg.beginPath(); tg.moveTo(nowX, 0); tg.lineTo(nowX, TH); tg.stroke();
+  if (flash > 0) { tg.fillStyle = `rgba(255,60,90,${flash})`; tg.fillRect(0, 0, TW, TH); }
+}
+
+/* ---------------- main loop ---------------- */
+let acc = 0, last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (phase === 'play' && world) {
+    acc += dt; const inp = input();
+    while (acc >= STEP) {
+      acc -= STEP; const prevHead = world.targets[0];
+      const ev = world.step(inp, STEP);
+      if (world.targets[0] !== prevHead && prevHead) world.prevT = prevHead.t;
+      hist.push({ t: world.t, r: world.r }); while (hist.length && hist[0].t < world.t - PAST) hist.shift();
+      if (ev.length) handle(ev);
+      if (phase !== 'play') break;
+    }
+  }
+  if (noteT > 0 && phase === 'play') { noteT -= dt; if (noteT <= 0) $('#note').classList.add('fade'); }
+  if (flash > 0) flash -= dt;
+  drawSphere(now / 1000); drawStrips(now / 1000);
+  requestAnimationFrame(frame);
+}
+resize(); syncMenu(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

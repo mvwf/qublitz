@@ -65,3 +65,7 @@ jobs:
       # (written by the game repo's scripts/sync_vendor.sh).
       - name: Vendor hash check
         run: bash scripts/check_vendor.sh
+
+      # Qubit Copter: on-resonance rotations, the steering rule, and that every target can be reached in time.
+      - name: Qubit Copter engine test
+        run: node web/qublitz/tests/copter-engine.test.js
