@@ -39,6 +39,9 @@ jobs:
           for page in qubit-simulator fridge-noise; do
             python3 scripts/build_standalone.py web/qublitz/$page.html _site/qublitz/$page-offline.html
           done
+          for page in heat-wave-schrodinger vibrating-string spectrogram; do
+            python3 scripts/build_standalone.py web/courses/engs23/$page.html _site/courses/engs23/$page-offline.html
+          done
 
       # Every local href in the hub's DEMOS list must exist in the built site,
       # so a renamed or forgotten file fails here instead of 404ing for students.

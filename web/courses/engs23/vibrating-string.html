@@ -1,9 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Vibrating String — Fourier Modes &amp; the Wave Equation</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
-<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<script src="../../vendor/plotly-2.35.2.min.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -79,16 +77,18 @@
   .tag.odd{background:#fdeae4;color:var(--accent)}
   a{color:var(--green)}
   .footer{margin-top:18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+  .dl{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .dl[hidden]{display:none}
   ol{margin:6px 0 0;padding-left:20px}
   ol li{margin:4px 0}
 </style>
 
-<a href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
+<a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>The Vibrating String</h1>
 <p class="sub">An ideal string obeys the wave equation on 0 ≤ <span class="mvar">x</span> ≤ <span class="mvar">L</span>,
   with both ends fixed (<span class="mvar">y</span> = 0) and wave speed <span class="mvar">v</span>. Give it a shape,
   watch each Fourier mode oscillate at its own frequency, see what the pickup coil reads, and hear the result.</p>
-<div class="eqn-wrap">\[ \frac{\partial^{2} y}{\partial x^{2}} \;=\; \frac{1}{v^{2}}\,\frac{\partial^{2} y}{\partial t^{2}} \tag{1} \]</div>
+<div class="eqn-wrap"><span class="eqn"><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>x</i><sup>2</sup></span></span><span class="eqop">=</span><span class="frac"><span class="num">1</span><span class="den"><i>v</i><sup>2</sup></span></span><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>t</i><sup>2</sup></span></span></span><span class="eqnum">(1)</span></div>
 
 <div class="card" id="fbCard" style="margin-bottom:16px">
   <div class="flexcap"><h2 style="margin:0">Fretboard — click a string to fret it</h2>
@@ -211,8 +211,18 @@
   Here the eigenvalue is real-and-imaginary-free in space but gives ±iω in time, so modes oscillate instead of decay.
   <br><br>
   Developed with Claude (Anthropic) through extensive prompt engineering and deep knowledge of the ENGS 23 course material.
+<p class="dl" id="offlineHint"><a href="vibrating-string-offline.html" download="engs23-vibrating-string.html">Download this demo</a>
+  as a single HTML file that runs offline in any browser.</p>
 </div>
 
+<script>
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// runs from disk, so the back link goes to the live site and the download link is hidden.
+if (window.QUBLITZ_STANDALONE) {
+  document.getElementById('back').href = 'https://mvwf.github.io/qublitz/#engs23';
+  document.getElementById('offlineHint').hidden = true;
+}
+</script>
 <script>
 "use strict";
 (function(){

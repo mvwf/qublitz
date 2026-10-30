@@ -45,12 +45,15 @@
   .barlab{font-size:11.5px;color:var(--muted);margin:0 0 3px}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:4px}
   .legend span{display:inline-flex;align-items:center;gap:5px}
+  .fr{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.15;font-size:.9em;margin:0 .12em}
+  .fr>span+span{border-top:1px solid currentColor}
+  .sq>span{border-top:1px solid currentColor;padding-left:1px}
+  .dl{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .dl[hidden]{display:none}
   .sw{width:13px;height:3px;border-radius:2px;display:inline-block}
 </style>
-<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
 
-<a class="back" href="../../index.html#engs23">&larr; All demos</a>
+<a class="back" id="back" href="../../index.html#engs23">&larr; All demos</a>
 <h1>Three Equations, One Eigenbasis</h1>
 <p class="sub">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
 operator and therefore one set of modes sin(n&pi;x/L). Give all three the <i>same</i> starting shape and release them. What
@@ -60,13 +63,13 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
 <div class="card">
   <h2>The one idea</h2>
   <div class="eqbox"><span class="lab">shared spatial eigenproblem</span>
-    \(-\dfrac{d^{2}\varphi}{dx^{2}}=\lambda\,\varphi,\quad \varphi(0)=\varphi(L)=0 \;\Longrightarrow\; \varphi_n=\sqrt{\tfrac{2}{L}}\,\sin\dfrac{n\pi x}{L},\quad \lambda_n=\Big(\dfrac{n\pi}{L}\Big)^{2}\)</div>
+    &minus;<span class="fr"><span><i>d</i><sup>2</sup>&phi;</span><span><i>dx</i><sup>2</sup></span></span> = &lambda;&thinsp;&phi;,&emsp;&phi;(0) = &phi;(<i>L</i>) = 0&ensp;&rArr;&ensp;&phi;<sub><i>n</i></sub> = <span class="sq">&radic;<span><span class="fr"><span>2</span><span><i>L</i></span></span></span></span>&thinsp;sin&thinsp;<span class="fr"><span><i>n</i>&pi;<i>x</i></span><span><i>L</i></span></span>,&emsp;&lambda;<sub><i>n</i></sub> = (<span class="fr"><span><i>n</i>&pi;</span><span><i>L</i></span></span>)<sup>2</sup></div>
   <div class="eqbox"><span class="lab">heat &mdash; first order in t, real</span>
-    \(\partial_t u=\alpha\,\partial_{xx}u \;\Longrightarrow\; T_n(t)=e^{-\alpha\lambda_n t}\quad(\text{rate}\propto\lambda_n\propto n^{2})\)</div>
+    &part;<sub><i>t</i></sub><i>u</i> = &alpha;&thinsp;&part;<sub><i>xx</i></sub><i>u</i>&ensp;&rArr;&ensp;<i>T</i><sub><i>n</i></sub>(<i>t</i>) = <i>e</i><sup>&minus;&alpha;&lambda;<sub><i>n</i></sub><i>t</i></sup>&emsp;(rate &prop; &lambda;<sub><i>n</i></sub> &prop; <i>n</i><sup>2</sup>)</div>
   <div class="eqbox"><span class="lab">wave &mdash; second order in t, real</span>
-    \(\partial_{tt}u=v^{2}\,\partial_{xx}u \;\Longrightarrow\; T_n(t)=\cos\!\big(v\sqrt{\lambda_n}\,t\big)\quad(\omega\propto\sqrt{\lambda_n}\propto n)\)</div>
+    &part;<sub><i>tt</i></sub><i>u</i> = <i>v</i><sup>2</sup>&thinsp;&part;<sub><i>xx</i></sub><i>u</i>&ensp;&rArr;&ensp;<i>T</i><sub><i>n</i></sub>(<i>t</i>) = cos(<i>v</i><span class="sq">&radic;<span>&lambda;<sub><i>n</i></sub></span></span>&thinsp;<i>t</i>)&emsp;(&omega; &prop; <span class="sq">&radic;<span>&lambda;<sub><i>n</i></sub></span></span> &prop; <i>n</i>)</div>
   <div class="eqbox"><span class="lab">Schr&ouml;dinger &mdash; first order in t, the factor i</span>
-    \(i\hbar\,\partial_t\Psi=-\dfrac{\hbar^{2}}{2m}\,\partial_{xx}\Psi \;\Longrightarrow\; T_n(t)=e^{-i(\hbar\lambda_n/2m)t}\quad(\omega\propto\lambda_n\propto n^{2})\)</div>
+    <i>i</i>&hbar;&thinsp;&part;<sub><i>t</i></sub>&Psi; = &minus;<span class="fr"><span>&hbar;<sup>2</sup></span><span>2<i>m</i></span></span>&thinsp;&part;<sub><i>xx</i></sub>&Psi;&ensp;&rArr;&ensp;<i>T</i><sub><i>n</i></sub>(<i>t</i>) = <i>e</i><sup>&minus;<i>i</i>(&hbar;&lambda;<sub><i>n</i></sub>/2<i>m</i>)<i>t</i></sup>&emsp;(&omega; &prop; &lambda;<sub><i>n</i></sub> &prop; <i>n</i><sup>2</sup>)</div>
   <p class="note" style="margin-top:10px">Read the three right-hand sides together. Heat and Schr&ouml;dinger carry the
   <i>same</i> n&sup2; spectrum because both are first order in time against the same operator, yet one is a real exponential
   that decays and the other is a complex exponential that only rotates. The single factor of i is the whole difference
@@ -139,21 +142,21 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
 <div class="trip">
   <div class="pan heat">
     <h3>Heat</h3>
-    <div class="tag">\(T_n=e^{-n^{2}t}\) &nbsp; diffusion, decay</div>
+    <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>n</i><sup>2</sup><i>t</i></sup> &nbsp; diffusion, decay</div>
     <canvas id="cHeat"></canvas>
     <div class="legend"><span><i class="sw" style="background:var(--heat)"></i>u(x,t)</span><span><i class="sw" style="background:#b9c7c0"></i>initial</span></div>
     <div class="mini" id="mHeat"></div>
   </div>
   <div class="pan wave">
     <h3>Wave</h3>
-    <div class="tag">\(T_n=\cos(2\pi n\,t)\) &nbsp; vibration, reforms</div>
+    <div class="tag"><i>T</i><sub><i>n</i></sub> = cos(2&pi;<i>n</i>&thinsp;<i>t</i>) &nbsp; vibration, reforms</div>
     <canvas id="cWave"></canvas>
     <div class="legend"><span><i class="sw" style="background:var(--wave)"></i>y(x,t)</span><span><i class="sw" style="background:#b9c7c0"></i>initial</span></div>
     <div class="mini" id="mWave"></div>
   </div>
   <div class="pan sch">
     <h3>Schr&ouml;dinger</h3>
-    <div class="tag">\(T_n=e^{-i\,2\pi n^{2}t}\) &nbsp; disperse, revive</div>
+    <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>i</i>&thinsp;2&pi;<i>n</i><sup>2</sup><i>t</i></sup> &nbsp; disperse, revive</div>
     <canvas id="cSch"></canvas>
     <div class="legend"><span><i class="sw" style="background:#2d6fb3"></i>Re&Psi;</span><span><i class="sw" style="background:#c84b31"></i>Im&Psi;</span><span><i class="sw" style="background:var(--sch)"></i>|&Psi;|&sup2;</span></div>
     <div class="mini" id="mSch"></div>
@@ -164,7 +167,17 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
 Sciences</i>, 3rd ed. (Wiley, 2006), separation of variables and eigenfunction expansions for all three equations.
 D. J. Griffiths and D. F. Schroeter, <i>Introduction to Quantum Mechanics</i>, 3rd ed. (Cambridge, 2018), the square well.
 R. W. Robinett, &ldquo;Quantum wave packet revivals,&rdquo; <i>Physics Reports</i> <b>392</b>, 1 (2004).</p>
+<p class="dl" id="offlineHint"><a href="heat-wave-schrodinger-offline.html" download="engs23-three-equations.html">Download this demo</a>
+  as a single HTML file that runs offline in any browser.</p>
 
+<script>
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// runs from disk, so the back link goes to the live site and the download link is hidden.
+if (window.QUBLITZ_STANDALONE) {
+  document.getElementById('back').href = 'https://mvwf.github.io/qublitz/#engs23';
+  document.getElementById('offlineHint').hidden = true;
+}
+</script>
 <script>
 "use strict";
 /* ===========================================================================
