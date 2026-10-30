@@ -77,7 +77,7 @@
 </head>
 <body>
 <div class="page">
-<a class="back" id="back" href="../index.html#qublitz">&larr; All demos</a>
+<a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>⚛ Qubit Simulator <span style="font-weight:400;color:var(--muted);font-size:17px">(Free Play)</span></h1>
 <p class="sub">Your qubit's frequency, Rabi rate and T₁ are hidden. Sweep the drive frequency to find the resonance, fit the Rabi
   oscillation, measure T₁ from the decay after a pulse, then use a Ramsey sequence to measure T₂. The dynamics come from the
@@ -315,7 +315,7 @@ const STANDALONE = !!window.QUBLITZ_STANDALONE;
 const pageUrl = () => new URL(STANDALONE ? SITE + 'qublitz/qubit-simulator.html' : location.href);
 const arenaUrl = t1 => (STANDALONE ? SITE + 'qublitz/' : '') + `arena.html?t1=${t1}`;
 if (STANDALONE) {
-  $('#back').href = SITE + '#qublitz';
+  $('#back').href = SITE + '#labs';
   $('#offlineHint').hidden = true;
 }
 

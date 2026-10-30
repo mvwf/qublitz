@@ -153,8 +153,10 @@
    - thumb:    name of an animated preview in THUMBS below
    ====================================================================== */
 const GROUPS = [
-  { id:'qublitz', code:'Qublitz', title:'Learn Quantum by Playing',
-    desc:'Qublitz is the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T\\(_1\\) relaxation, T\\(_2\\) dephasing and real gates.' },
+  { id:'games', code:'Quantum Games', title:'Learn Quantum by Playing',
+    desc:'Games from Qublitz, the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T\\(_1\\) relaxation, T\\(_2\\) dephasing and real gates.' },
+  { id:'labs', code:'Virtual Quantum Labs', title:'Run the Experiment',
+    desc:'Simulated qubit experiments with realistic noise. Find a hidden qubit, calibrate its drive and measure its coherence the way a real lab does.' },
   { id:'research', code:'Research', title:'Research Tools',
     desc:'Tools built in the lab to run quantum hardware, released openly for anyone to use.' },
   { id:'engs23', code:'ENGS 23', title:'Systems, Fields and Waves',
@@ -162,17 +164,17 @@ const GROUPS = [
 ];
 
 const DEMOS = [
-  { group:'qublitz', title:'QuBlitz Arena', thumb:'arena',
+  { group:'games', title:'QuBlitz Arena', thumb:'arena',
     href:'qublitz/arena.html', repo:'https://github.com/mvwf/qublitz',
     eq:'\\(\\dot\\rho=-i[H,\\rho]+\\mathcal{D}_{T_1,T_2}[\\rho]\\)',
     desc:'A turn-based battle game where every unit is a qubit. Charge with gates, strike before T₁ drains you, set relative phase to guard, and entangle enemies for splash damage.',
     tags:['quantum','game','decoherence','entanglement'] },
-  { group:'qublitz', title:'Qubit Simulator', thumb:'bloch',
+  { group:'labs', title:'Qubit Simulator', thumb:'bloch',
     href:'qublitz/qubit-simulator.html', repo:'https://github.com/mvwf/qublitz',
     eq:'\\(H=\\tfrac{\\omega_q}{2}\\sigma_z+\\Omega_R\\,[I(t)\\sigma_x+Q(t)\\sigma_y]\\cos\\omega_d t\\)',
     desc:'Find a hidden qubit by experiment. Sweep the drive to find its frequency, fit Rabi oscillations, measure T₁ from the decay, and build a Ramsey chevron to measure T₂.',
     tags:['quantum','qubits','Rabi','Ramsey','T1'] },
-  { group:'qublitz', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
+  { group:'labs', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
     href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
     eq:'\\(|\\psi\\rangle=\\cos\\tfrac{\\theta}{2}|0\\rangle+e^{i\\phi}\\sin\\tfrac{\\theta}{2}|1\\rangle\\)',
     desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points and image sonification. These pages are moving to this site one by one.',
