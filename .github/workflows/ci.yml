@@ -52,6 +52,9 @@ jobs:
       - name: EP/TPD engine regression test
         run: node web/qublitz/tests/ep-engine.test.js
 
+      - name: Sonify engine regression test
+        run: node web/qublitz/tests/sonify-engine.test.js
+
       # BE-7 — pages/_assets/quantum_chess.html is a hand-synced copy of the
       # game repo's canonical file; nothing enforced that until now. Fails
       # the build if it drifts from the committed pages/_assets/VENDOR_SHA

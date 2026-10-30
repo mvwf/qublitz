@@ -161,6 +161,8 @@ const GROUPS = [
     desc:'Tools built in the lab to run quantum hardware, released openly for anyone to use.' },
   { id:'engs23', code:'ENGS 23', title:'Systems, Fields and Waves',
     desc:'Intuition helpers built on the course spine of separating variables into a spatial eigenproblem <span class="math">&minus;<i>&phi;</i>&Prime; = <i>&lambda;&phi;</i></span>, where each equation turns the same modes into different behavior in time.' },
+  { id:'fun', code:'Fun', title:'Just for Fun',
+    desc:'Playful side projects from the lab: hear what an image, a gravitational wave or the ocean\'s Bloop sounds like.' },
 ];
 
 const DEMOS = [
@@ -177,7 +179,7 @@ const DEMOS = [
   { group:'labs', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
     href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
     eq:'|<i>&psi;</i>&rang; = cos<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|0&rang; + <i>e</i><sup><i>i&phi;</i></sup> sin<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|1&rang;',
-    desc:'The rest of the Streamlit suite: measurement, IQ mixing and image sonification. These pages are moving to this site one by one.',
+    desc:'The rest of the Streamlit suite, including measurement and IQ mixing. These pages are moving to this site one by one.',
     tags:['quantum','qubits','simulator'] },
   { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
     href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
@@ -210,6 +212,11 @@ const DEMOS = [
     eq:'|&int; <i>w</i>(<i>&tau;</i> &minus; <i>t</i>) <i>s</i>(<i>&tau;</i>) <i>e</i><sup>&minus;<i>i&omega;&tau;</i></sup> <i>d&tau;</i>|<sup>2</sup>',
     desc:'Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time.',
     tags:['STFT','signals','microphone'] },
+  { group:'fun', title:'Sonify Images', thumb:'sonify',
+    href:'qublitz/sonify.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'<i>s</i>(<i>t</i>) = <i>I</i><sub>row</sub>(<i>t</i>) cos(2&pi;<i>f</i><sub>mod</sub><i>t</i>)',
+    desc:'Turn the rows of an image into sound: brightness becomes amplitude on a carrier tone. Try the Mona Lisa, a gravitational-wave chirp or your own picture.',
+    tags:['sonification','audio','Fourier'] },
 ];
 
 /* ======================================================================
@@ -353,6 +360,19 @@ const THUMBS = {
     branch(xt,1.15,'#7b2d8e',[]);
     g.fillStyle=C.red; g.beginPath(); g.arc(xe,ym,4,0,7); g.fill();
     g.strokeStyle='#19b8c9'; g.lineWidth=2.2; g.beginPath(); g.arc(xt,ym,5,0,7); g.stroke();
+  },
+  sonify(g,w,h,t){
+    // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone
+    const cols=48, rows=6, x0=10, x1=w-10, y0=10, sh=(h-20)*0.45, cw=(x1-x0)/cols, rh=sh/rows;
+    const px=(c,r)=>0.5+0.45*Math.sin(c*0.31+r*0.9)*Math.cos(c*0.07-r*0.5);
+    const sel=Math.floor(t*0.5)%rows;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const v=Math.round(px(c,r)*235); g.fillStyle=`rgb(${v},${v},${v})`; g.fillRect(x0+c*cw,y0+r*rh,cw+0.6,rh+0.6); }
+    g.strokeStyle=C.red; g.lineWidth=1.5; g.setLineDash([4,3]); g.beginPath(); g.moveTo(x0,y0+(sel+0.5)*rh); g.lineTo(x1,y0+(sel+0.5)*rh); g.stroke(); g.setLineDash([]);
+    const ym=y0+sh+(h-y0-sh)/2+2, A=(h-y0-sh)/2-6, head=x0+((t*0.35)%1)*(x1-x0);
+    g.strokeStyle=C.green; g.lineWidth=1.4; g.beginPath();
+    for(let x=x0;x<=x1;x+=1){ const env=px((x-x0)/cw,sel); g.lineTo(x, ym-A*env*Math.cos((x-x0)*0.55)); }
+    g.stroke();
+    g.strokeStyle=C.muted; g.lineWidth=1; g.beginPath(); g.moveTo(head,ym-A-2); g.lineTo(head,ym+A+2); g.stroke();
   },
   fridge(g,w,h,t){
     const stages=[['50K',C.red],['4K',C.gold],['still',C.blue],['MXC',C.green]];

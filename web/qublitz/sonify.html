@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sonify Images — Qublitz</title>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
+<script src="sonify-engine.js"></script>
+<script src="sonify-images.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1180px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+  @media(max-width:960px){.layout{grid-template-columns:1fr}}
+  .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:8px 0}
+  .field{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .field label,.lbl{font-size:12.5px;color:var(--muted)}
+  input[type=number],select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    padding:6px 9px;background:#fff;color:var(--ink);width:120px;max-width:100%}
+  select{width:100%}
+  input:focus,select:focus{outline:2px solid rgba(0,105,62,.22);border-color:var(--green2)}
+  input[type=range]{accent-color:var(--green);width:100%}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+  .seg button{border:none;border-radius:0;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:none}
+  .seg button[aria-pressed="true"]{background:var(--green);color:#fff}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .err{color:var(--accent)}
+  #orig{display:block;max-width:100%;max-height:340px;border-radius:8px;border:1px solid var(--line);margin:4px 0;image-rendering:auto}
+  #orig.strip{width:100%;height:60px;object-fit:fill;image-rendering:pixelated}
+  audio{width:100%;margin:6px 0 2px}
+  .plot{width:100%;height:270px}
+  #heat{width:100%;height:440px}
+</style>
+</head>
+<body>
+<div class="page">
+<a class="back" id="back" href="../index.html#fun">&larr; All demos</a>
+<h1>🎵 Sonify Images</h1>
+<p class="sub">Turn an image's pixel rows into sound. Each row of the grayscale image is an envelope over time: brightness
+  becomes amplitude. Multiplying it by a carrier at the modulation frequency turns that envelope into a tone you can hear,
+  and its spectrum peaks at the carrier. Try the gallery, upload your own picture, or run a sound file the other way.</p>
+
+<div class="card">
+  <h2>Choose an image</h2>
+  <div class="seg" role="group" aria-label="Image source">
+    <button data-mode="gallery" aria-pressed="true">Gallery</button>
+    <button data-mode="upload" aria-pressed="false">Upload an image</button>
+    <button data-mode="sound" aria-pressed="false">Convert a sound file</button>
+  </div>
+  <div class="row" data-for="gallery"><div class="field" style="flex:1;min-width:240px">
+    <label for="gallery">Image</label><select id="gallery"></select></div></div>
+  <div class="row" data-for="upload" hidden><input id="imgFile" type="file" accept="image/png,image/jpeg"></div>
+  <div data-for="sound" hidden>
+    <div class="row"><input id="sndFile" type="file" accept=".wav,.mp3,audio/wav,audio/mpeg"></div>
+    <p class="hint">Runs the sound the other way through this same tool: the waveform becomes a striped grayscale image
+      (64 identical rows), which you can then sonify again below.</p>
+  </div>
+  <p class="hint" id="status"></p>
+</div>
+
+<div class="layout">
+<div>
+  <div class="card">
+    <h2>Grayscale image &middot; click a row to hear it</h2>
+    <div id="heat"></div>
+  </div>
+  <div class="card">
+    <h2 id="sigTitle">Row signal</h2>
+    <div id="sig" class="plot"></div>
+    <div id="mod" class="plot"></div>
+    <div id="fft" class="plot"></div>
+  </div>
+</div>
+
+<aside>
+  <div class="card">
+    <h2>Original image</h2>
+    <img id="orig" alt="">
+    <p class="hint" id="caption"></p>
+  </div>
+  <div class="card">
+    <h2>Axis controls</h2>
+    <div class="row" style="margin-top:0">
+      <div class="field"><label for="dur">Time duration [s]</label><input id="dur" type="number" min="0.1" max="30" step="any" value="4"></div>
+      <div class="field"><label for="freq">Modulation frequency [Hz]</label><input id="freq" type="number" min="0" max="11000" step="any" value="65.41"></div>
+    </div>
+    <div class="field"><label for="rowR">Row <b id="rowV"></b></label>
+      <input id="rowR" type="range" min="0" max="0" step="1" value="0"></div>
+    <div class="row">
+      <button id="flip">Flip horizontally</button><button id="resetImg">Reset image</button><button id="randRow">Random row</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2 id="audioTitle">Audio</h2>
+    <audio id="player" controls></audio>
+    <a id="dlWav" class="hint" download="sonified-row.wav" href="#">Download this row as WAV</a>
+  </div>
+  <p class="hint" id="offlineHint"><a href="sonify-offline.html" download="qublitz-sonify.html">Download this page</a>
+    as a single HTML file that runs offline in any browser, gallery included.</p>
+  <p class="hint">Also available as part of <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Qublitz</a>,
+    and contributions are welcome.</p>
+</aside>
+</div>
+</div>
+
+<script>
+'use strict';
+const S = window.SonifyEngine, GALLERY = window.SONIFY_IMAGES || [];
+const $ = s => document.querySelector(s);
+
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// has no neighbouring pages, so its links point at the published site instead.
+const SITE = 'https://mvwf.github.io/qublitz/';
+if (window.QUBLITZ_STANDALONE) { $('#back').href = SITE + '#fun'; $('#offlineHint').hidden = true; }
+
+// Python plotly's 'gray' scale, which the Streamlit page used.
+const GRAY = [[0,'rgb(0,0,0)'],[0.0909,'rgb(16,16,16)'],[0.1818,'rgb(38,38,38)'],[0.2727,'rgb(59,59,59)'],
+  [0.3636,'rgb(81,80,80)'],[0.4545,'rgb(102,101,101)'],[0.5455,'rgb(124,123,122)'],[0.6364,'rgb(146,146,145)'],
+  [0.7273,'rgb(171,171,170)'],[0.8182,'rgb(197,197,195)'],[0.9091,'rgb(224,224,223)'],[1,'rgb(254,254,253)']];
+const CONFIG = { responsive: true, displaylogo: false };
+const FONT = { family: 'Helvetica, Arial, sans-serif' };
+
+let original = null;     // { rows, cols, data } as loaded
+let img = null;          // current matrix (after flips)
+let row = 0;
+
+/* ---------- loading images ---------- */
+function status(msg, isErr) { $('#status').textContent = msg || ''; $('#status').classList.toggle('err', !!isErr); }
+
+async function pixelsFrom(src) {
+  const im = new Image();
+  im.src = src;
+  await im.decode();
+  const cv = document.createElement('canvas');
+  cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(im, 0, 0);
+  return S.lumaFromRGBA(g.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height);
+}
+
+function setImage(mat, preview, caption, strip) {
+  original = mat;
+  img = { rows: mat.rows, cols: mat.cols, data: Float64Array.from(mat.data) };
+  $('#orig').src = preview; $('#orig').classList.toggle('strip', !!strip);
+  $('#caption').innerHTML = caption || '';
+  $('#rowR').max = img.rows - 1;
+  row = Math.floor(Math.random() * img.rows);
+  $('#rowR').value = row;
+  drawHeat(); update();
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+async function loadGallery(i) {
+  const e = GALLERY[i];
+  status('Loading ' + e.name + ' …');
+  const mat = await pixelsFrom(e.gray);
+  const cap = esc(e.text) + (e.link ? ` <a href="${esc(e.link)}" target="_blank" rel="noopener">Source</a>` : '');
+  setImage(mat, e.preview || e.gray, cap, !e.preview);
+  status(`${mat.cols} × ${mat.rows} pixels.`);
+}
+
+$('#imgFile').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    status('Reading ' + f.name + ' …');
+    const url = URL.createObjectURL(f), mat = await pixelsFrom(url);
+    setImage(mat, url, esc(f.name), false);
+    status(`${mat.cols} × ${mat.rows} pixels. Nothing is uploaded; the image stays in your browser.`);
+  } catch (e) { status('Could not read that image (' + e.message + ').', true); }
+});
+
+$('#sndFile').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  try {
+    status('Decoding ' + f.name + ' …');
+    const buf = await f.arrayBuffer();
+    let samples;
+    if (/\.wav$/i.test(f.name)) samples = S.parseWav(buf).samples;
+    else {
+      // MP3s are decoded by the browser; 44.1 kHz is the usual native rate, so it rarely resamples.
+      const ctx = new OfflineAudioContext(1, 1, 44100);
+      samples = (await ctx.decodeAudioData(buf)).getChannelData(0);
+    }
+    const mat = S.audioToImage(samples);
+    const cv = document.createElement('canvas'); cv.width = mat.cols; cv.height = 1;
+    const g = cv.getContext('2d'), id = g.createImageData(mat.cols, 1);
+    for (let i = 0; i < mat.cols; i++) { const v = Math.round(mat.data[i] * 255); id.data.set([v, v, v, 255], 4 * i); }
+    g.putImageData(id, 0, 0);
+    setImage(mat, cv.toDataURL(), esc(f.name) + ' as an image', true);
+    status(`${samples.length} samples became a ${mat.cols} × ${mat.rows} image.`);
+  } catch (e) { status('Could not read that audio file (' + e.message + '). Try a WAV or MP3.', true); }
+});
+
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  document.querySelectorAll('[data-for]').forEach(el => { el.hidden = el.dataset.for !== b.dataset.mode; });
+  status('');
+  if (b.dataset.mode === 'gallery') loadGallery(+$('#gallery').value);
+}));
+
+/* ---------- drawing ---------- */
+function drawHeat() {
+  const { rows, cols, data } = img, z = new Array(rows);
+  for (let r = 0; r < rows; r++) z[r] = Array.from(data.subarray(r * cols, (r + 1) * cols));
+  const height = rows <= 64 ? 240 : 460;
+  $('#heat').style.height = height + 'px';
+  Plotly.react('heat', [{ type: 'heatmap', z, colorscale: GRAY, zmin: 0, zmax: 1,
+    colorbar: { title: { text: 'amp' }, thickness: 12 },
+    hovertemplate: 'row %{y}, column %{x}<br>amplitude %{z:.3f}<extra></extra>' }], {
+    height, margin: { t: 8, r: 8, b: 44, l: 54 },
+    xaxis: { title: { text: 'Column' } },
+    yaxis: { title: { text: 'Row' }, autorange: 'reversed' },
+    shapes: [rowLine()], font: FONT,
+  }, CONFIG);
+}
+const rowLine = () => ({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: row, y1: row, line: { color: '#e0245e', dash: 'dash', width: 2 } });
+
+let audioUrl = null;
+function update() {
+  if (!img) return;
+  const dur = Math.max(0.1, +$('#dur').value || 4), f = Math.max(0, +$('#freq').value || 0);
+  $('#rowV').textContent = row;
+  Plotly.relayout('heat', { shapes: [rowLine()] });
+  const env = img.data.subarray(row * img.cols, (row + 1) * img.cols);
+  const t = S.timeAxis(img.cols, 0, dur), mod = S.modulate(env, t, f);
+  const mag = S.rfftMag(mod), fr = S.rfftFreq(img.cols, dur / img.cols);
+  const x = Array.from(t);
+  const plot = (id, xs, ys, title, xt, yt) => Plotly.react(id, [{ type: 'scatter', mode: 'lines', x: xs, y: Array.from(ys),
+    line: { color: '#00693e', width: 1.4 } }], {
+    title: { text: title, font: { size: 14 } }, margin: { t: 34, r: 10, b: 42, l: 54 },
+    xaxis: { title: { text: xt } }, yaxis: { title: { text: yt } }, font: FONT }, CONFIG);
+  $('#sigTitle').textContent = `Row ${row}: signal, modulated signal and spectrum`;
+  plot('sig', x, env, `Row ${row} signal`, 'Time (s)', 'Amplitude');
+  plot('mod', x, mod, `Row ${row} modulated signal (modulation frequency = ${f} Hz)`, 'Time (s)', 'Amplitude');
+  plot('fft', Array.from(fr), mag, `Peak @ ~${f.toFixed(1)} Hz (modulation frequency)`, 'Frequency (Hz)', 'Magnitude');
+
+  const wav = S.toWav(S.generateAudio(env, t, f, dur), S.DEFAULT_SR);
+  if (audioUrl) URL.revokeObjectURL(audioUrl);
+  audioUrl = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+  $('#player').src = audioUrl; $('#dlWav').href = audioUrl; $('#dlWav').download = `sonified-row-${row}.wav`;
+  $('#audioTitle').textContent = `Audio for row ${row}`;
+}
+
+/* ---------- controls ---------- */
+function setRow(r) { row = Math.max(0, Math.min(img.rows - 1, r)); $('#rowR').value = row; update(); }
+$('#rowR').addEventListener('input', e => setRow(+e.target.value));
+$('#dur').addEventListener('change', update);
+$('#freq').addEventListener('change', update);
+$('#flip').addEventListener('click', () => {
+  const { rows, cols, data } = img;
+  for (let r = 0; r < rows; r++) data.subarray(r * cols, (r + 1) * cols).reverse();
+  drawHeat(); update();
+});
+$('#resetImg').addEventListener('click', () => { img.data.set(original.data); drawHeat(); update(); });
+$('#randRow').addEventListener('click', () => setRow(Math.floor(Math.random() * img.rows)));
+
+$('#gallery').innerHTML = GALLERY.map((e, i) => `<option value="${i}">${esc(e.text || e.name)}</option>`).join('');
+$('#gallery').addEventListener('change', e => loadGallery(+e.target.value));
+const start = Math.floor(Math.random() * GALLERY.length);
+$('#gallery').value = start;
+loadGallery(start).then(() => {
+  $('#heat').on('plotly_click', ev => { if (ev.points && ev.points.length) setRow(Math.round(ev.points[0].y)); });
+}).catch(e => status('Could not load the gallery (' + e.message + ').', true));
+</script>
+</body>
+</html>
