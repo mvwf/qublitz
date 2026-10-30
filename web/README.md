@@ -10,7 +10,12 @@ web/
   courses/engs23/       ENGS 23 intuition helpers
   qublitz/              Qublitz pages ported from Streamlit
                         (arena.html is copied in from pages/_assets/ at build time)
+  vendor/               third-party libraries served with the site (Plotly, MIT license)
 ```
+
+Pages load their libraries from `vendor/`, not a CDN, so the site keeps working if a CDN
+drops a version and the pages run offline. Plotly comes from the npm package
+`plotly.js-dist-min@2.35.2` (`npm pack`, which checks the registry's integrity hash).
 
 ## Adding a demo
 
@@ -55,6 +60,20 @@ page's own Python functions. To regenerate:
 python scripts/make_fridge_reference.py
 node web/qublitz/tests/fridge-engine.test.js
 ```
+
+## Offline download
+
+The Qubit Simulator and the Fridge Noise Explorer each offer a single-file download
+(`qublitz/<page>-offline.html`) that runs from disk in any browser with no network. The deploy workflow builds it with
+`scripts/build_standalone.py`, which inlines the page's local scripts (Plotly and the engine)
+and fails if anything is still loaded from the network. To build it yourself:
+
+```
+python scripts/build_standalone.py web/qublitz/qubit-simulator.html qubit-simulator-offline.html
+```
+
+The download link 404s in a plain local preview of `web/`, because the file only exists in
+the built site.
 
 ## Arena cross-links
 

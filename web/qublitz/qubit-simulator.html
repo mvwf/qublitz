@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Qubit Simulator — Qublitz</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
-<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these two scripts into a single downloadable file. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
 <script src="qubit-engine.js"></script>
 <style>
   :root{
@@ -15,6 +15,7 @@
     --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none !important}   /* .row etc. set display, which would otherwise override hidden */
   body{margin:0;background:#fff;color:var(--ink);
     font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
   .page{max-width:1180px;margin:0 auto}
@@ -76,7 +77,7 @@
 </head>
 <body>
 <div class="page">
-<a class="back" href="../index.html#qublitz">&larr; All demos</a>
+<a class="back" id="back" href="../index.html#qublitz">&larr; All demos</a>
 <h1>⚛ Qubit Simulator <span style="font-weight:400;color:var(--muted);font-size:17px">(Free Play)</span></h1>
 <p class="sub">Your qubit's frequency, Rabi rate and T₁ are hidden. Sweep the drive frequency to find the resonance, fit the Rabi
   oscillation, measure T₁ from the decay after a pulse, then use a Ramsey sequence to measure T₂. The dynamics come from the
@@ -93,6 +94,8 @@
       <div style="display:flex;gap:6px"><input id="codeIn" type="text" maxlength="12" placeholder="e.g. K7RX4P" style="width:120px;text-transform:uppercase"><button id="useCode">Load</button></div></div>
     <div class="field"><label for="shots">Shots</label><input id="shots" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
   </div>
+  <p class="hint" id="offlineHint"><a id="dlOffline" href="qubit-simulator-offline.html" download="qublitz-qubit-simulator.html">Download this simulator</a>
+    as a single HTML file that runs offline in any browser, with nothing to install.</p>
   <p class="hint">The same code always gives the same qubit, so an instructor can hand out codes and check answers with
     <b>Reveal parameters</b> on the Ramsey tab. Loading a new qubit clears your results and pulses.</p>
   <details><summary>Simulation convention</summary>
@@ -109,8 +112,8 @@
 
 <!-- ======================= FREQUENCY ======================= -->
 <section class="panel" id="panel-freq" role="tabpanel">
-  <p class="hint">You cannot dial the qubit frequency \(\omega_q\) directly. It is a fixed, hidden property of this qubit. Sweep the
-    <b>drive</b> frequency \(\omega_d\) and read \(\omega_q\) off the resonance, where \(P(|1\rangle)\) peaks at \(\omega_d=\omega_q\).</p>
+  <p class="hint">You cannot dial the qubit frequency <i>ω<sub>q</sub></i> directly. It is a fixed, hidden property of this qubit. Sweep the
+    <b>drive</b> frequency <i>ω<sub>d</sub></i> and read <i>ω<sub>q</sub></i> off the resonance, where <i>P</i>(|1⟩) peaks at <i>ω<sub>d</sub></i> = <i>ω<sub>q</sub></i>.</p>
   <div class="row">
     <div class="field"><label for="fdStart">Start ω<sub>d</sub>/2π [GHz]</label><input id="fdStart" type="number" step="0.01" value="3.5"></div>
     <div class="field"><label for="fdStop">Stop ω<sub>d</sub>/2π [GHz]</label><input id="fdStop" type="number" step="0.01" value="5.5"></div>
@@ -179,18 +182,19 @@
     <div id="p1Plot" class="plot"></div>
     <div class="metrics" id="tdMetrics"></div>
     <div id="tdMsgs"></div>
-    <div class="eq">\[P_{1,\mathrm{T1}}(t) \approx C + A\,e^{-t/T_1}\]</div>
+    <div class="eq"><i>P</i><sub>1,T1</sub>(<i>t</i>) ≈ <i>C</i> + <i>A</i> e<sup>−<i>t</i>/<i>T</i><sub>1</sub></sup></div>
     <div class="row"><button id="tdDl">Download time-domain CSV</button></div>
   </div>
 </section>
 
 <!-- ======================= RAMSEY ======================= -->
 <section class="panel" id="panel-ramsey" role="tabpanel" hidden>
-  <p class="hint">Use a \(\pi/2 - \tau - \pi/2\) sequence to build a Ramsey chevron in measured \(P(|1\rangle)\). For each point the
+  <p class="hint">Use a π/2 – <i>τ</i> – π/2 sequence to build a Ramsey chevron in measured <i>P</i>(|1⟩). For each point the
     simulator applies an ideal π/2 rotation, lets the qubit idle for τ with T₁ and T₂ decay at detuning Δ, applies a second π/2 rotation
     and measures.</p>
-  <div class="eq">\[\pi/2_x \;\rightarrow\; \tau \;\rightarrow\; \pi/2_x \;\rightarrow\; \mathrm{measure}
-    \qquad t_\pi = \frac{1}{2\,\Omega_R/2\pi}, \quad t_{\pi/2} = \frac{1}{4\,\Omega_R/2\pi}\]</div>
+  <div class="eq">π/2<sub><i>x</i></sub> → <i>τ</i> → π/2<sub><i>x</i></sub> → measure
+    <span style="display:inline-block;width:2.5em"></span><i>t</i><sub>π</sub> = 1 / (2 Ω<sub><i>R</i></sub>/2π),
+    &nbsp; <i>t</i><sub>π/2</sub> = 1 / (4 Ω<sub><i>R</i></sub>/2π)</div>
 
   <div class="row">
     <div class="field"><label for="rqRef">Reference ω<sub>q</sub>/2π [GHz]</label><input id="rqRef" type="number" step="0.000001" style="width:170px"></div>
@@ -302,7 +306,18 @@ function layout(title, extra = {}) {
   }, extra);
 }
 const tick = () => new Promise(r => setTimeout(r, 0));
-function typeset(el) { if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise(el ? [el] : undefined).catch(() => {}); }
+
+/* ---------------- online vs downloaded copy ---------------- */
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// has no neighbouring pages, so its links point at the published site instead.
+const SITE = 'https://mvwf.github.io/qublitz/';
+const STANDALONE = !!window.QUBLITZ_STANDALONE;
+const pageUrl = () => new URL(STANDALONE ? SITE + 'qublitz/qubit-simulator.html' : location.href);
+const arenaUrl = t1 => (STANDALONE ? SITE + 'qublitz/' : '') + `arena.html?t1=${t1}`;
+if (STANDALONE) {
+  $('#back').href = SITE + '#qublitz';
+  $('#offlineHint').hidden = true;
+}
 
 /* ---------------- qubit selection ---------------- */
 function setQubit(code, { keepUrl = false } = {}) {
@@ -321,7 +336,7 @@ $('#newQubit').onclick = () => setQubit(Q.randomCode());
 $('#useCode').onclick = () => { const v = $('#codeIn').value.trim(); if (v) { setQubit(v); $('#codeIn').value = ''; } };
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#useCode').click(); });
 $('#copyLink').onclick = async () => {
-  const u = new URL(location.href); u.searchParams.set('qubit', state.qubit.code); u.hash = '';
+  const u = pageUrl(); u.searchParams.set('qubit', state.qubit.code); u.hash = '';
   try { await navigator.clipboard.writeText(u.href); $('#copyLink').textContent = 'Copied ✓'; }
   catch (e) { prompt('Copy this link:', u.href); }
   setTimeout(() => ($('#copyLink').textContent = 'Copy link'), 1500);
@@ -418,9 +433,8 @@ function renderFreq() {
         ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, 'MHz'))}
         ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ns')}</div>
        <p class="hint">The fit uses the oscillation period of the peak-frequency trace. Try a narrower sweep around the peak to pin down ω<sub>q</sub>.</p>
-       <div class="eq">\\[P_{1,\\mathrm{Rabi}}(t) \\approx C + A e^{-t/\\tau_R} \\cos\\!\\left(2\\pi f_R t + \\phi\\right)\\]</div>`
+       <div class="eq"><i>P</i><sub>1,Rabi</sub>(<i>t</i>) ≈ <i>C</i> + <i>A</i> e<sup>−<i>t</i>/<i>τ</i><sub><i>R</i></sub></sup> cos(2π <i>f<sub>R</sub></i> <i>t</i> + <i>φ</i>)</div>`
     : '<div class="note">Rabi fit unavailable for this trace.</div>';
-  typeset($('#cutFit'));
 }
 $('#fdDl').onclick = () => {
   const f = state.freq;
@@ -705,7 +719,7 @@ function renderReveal() {
     + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' MHz')
     + metric('T₁', q.T1.toFixed(1) + ' ns') + metric('T₂ = 2T₁', (2 * q.T1).toFixed(1) + ' ns');
   // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
-  $('#battle').href = `arena.html?t1=${q.T1.toFixed(1)}`;
+  $('#battle').href = arenaUrl(q.T1.toFixed(1));
   $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
 }
 $('#reveal').addEventListener('change', renderReveal);

@@ -10,6 +10,7 @@ on:
     paths:
       - "web/**"
       - "pages/_assets/quantum_chess.html"
+      - "scripts/build_standalone.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -34,6 +35,10 @@ jobs:
           cp -r web/. _site/
           cp pages/_assets/quantum_chess.html _site/qublitz/arena.html
           rm -rf _site/qublitz/tests _site/README.md
+          # Single-file copies for the pages' "Download" links (they run offline).
+          for page in qubit-simulator fridge-noise; do
+            python3 scripts/build_standalone.py web/qublitz/$page.html _site/qublitz/$page-offline.html
+          done
 
       # Every local href in the hub's DEMOS list must exist in the built site,
       # so a renamed or forgotten file fails here instead of 404ing for students.
