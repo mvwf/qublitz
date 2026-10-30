@@ -125,7 +125,9 @@
   <div id="fdNotice"></div>
   <div id="fdEmpty" class="empty">Run a sweep to see P(|1⟩) versus drive frequency and time.</div>
   <div id="fdPlot" class="plot"></div>
-  <div class="row" id="fdDlRow" hidden><button id="fdDl">Download sweep summary CSV</button></div>
+  <div class="row" id="fdDlRow" hidden><button id="fdZoom" class="primary" title="Sweep a narrow window around the peak">Zoom in on the peak</button>
+    <button id="fdDl">Download sweep summary CSV</button>
+    <span class="hint" id="fdStepHint"></span></div>
   <div id="cutPlot" class="plot"></div>
   <div id="cutFit"></div>
 </section>
@@ -190,14 +192,16 @@
 <!-- ======================= RAMSEY ======================= -->
 <section class="panel" id="panel-ramsey" role="tabpanel" hidden>
   <p class="hint">Use a π/2 – <i>τ</i> – π/2 sequence to build a Ramsey chevron in measured <i>P</i>(|1⟩). For each point the
-    simulator applies an ideal π/2 rotation, lets the qubit idle for τ with T₁ and T₂ decay at detuning Δ, applies a second π/2 rotation
-    and measures.</p>
+    simulator drives at ω<sub>ref</sub> + Δ: it plays a square pulse of your π/2 duration, lets the qubit idle for τ (precessing at its
+    <em>true</em> detuning, with T₁ and T₂ decay), plays the second pulse and measures. So the chevron is an experiment, not a picture:
+    if your reference frequency is off, the chevron's center moves away from Δ = 0 by exactly that error, and if your π/2 pulse is
+    miscalibrated the fringes lose contrast.</p>
   <div class="eq">π/2<sub><i>x</i></sub> → <i>τ</i> → π/2<sub><i>x</i></sub> → measure
     <span style="display:inline-block;width:2.5em"></span><i>t</i><sub>π</sub> = 1 / (2 Ω<sub><i>R</i></sub>/2π),
     &nbsp; <i>t</i><sub>π/2</sub> = 1 / (4 Ω<sub><i>R</i></sub>/2π)</div>
 
   <div class="row">
-    <div class="field"><label for="rqRef">Reference ω<sub>q</sub>/2π [GHz]</label><input id="rqRef" type="number" step="0.000001" style="width:170px"></div>
+    <div class="field"><label for="rqRef">Reference ω<sub>ref</sub>/2π [GHz] (your best ω<sub>q</sub>)</label><input id="rqRef" type="number" step="0.000001" style="width:170px"></div>
     <span class="hint" id="rqRefHint"></span>
   </div>
   <div class="row" id="pi2Row">
@@ -221,6 +225,7 @@
     <button class="primary" id="rRun">Run Ramsey chevron</button>
   </div>
   <p class="hint" id="rTotal"></p>
+  <div id="rNotice"></div>
   <div id="rEmpty" class="empty">Run the chevron to see Ramsey fringes versus detuning and idle time.</div>
   <div id="rOut" hidden>
     <div id="chevPlot" class="plot"></div>
@@ -401,6 +406,7 @@ $('#fdRun').onclick = async () => {
 function renderFreq() {
   const f = state.freq;
   $('#fdEmpty').hidden = !!f; $('#fdDlRow').hidden = !f;
+  if (f) $('#fdStepHint').textContent = `Grid step ${(1e3 * (f.stop - f.start) / (f.freqs.length - 1)).toFixed(2)} MHz: ω_q is somewhere within about half a step of the peak.`;
   if (!f) { Plotly.purge('fdPlot'); Plotly.purge('cutPlot'); $('#cutFit').innerHTML = ''; $('#fdNotice').innerHTML = ''; return; }
   // Heatmap rows are time; thin very long traces for display only.
   const stride = Math.max(1, Math.ceil(f.timeList.length / 600));
@@ -432,10 +438,19 @@ function renderFreq() {
     ? `<div class="metrics">${metric('Peak drive frequency ω<sub>d</sub>/2π', f.peakFreq.toFixed(6) + ' GHz')}
         ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, 'MHz'))}
         ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ns')}</div>
-       <p class="hint">The fit uses the oscillation period of the peak-frequency trace. Try a narrower sweep around the peak to pin down ω<sub>q</sub>.</p>
+       <p class="hint">Off resonance the qubit oscillates <em>faster and less deeply</em>: the generalized Rabi frequency is
+         √(Ω<sub>R</sub>² + Δ²) and the peak only reaches Ω<sub>R</sub>²/(Ω<sub>R</sub>² + Δ²). So this fit is only Ω<sub>R</sub> when the peak
+         frequency sits right on ω<sub>q</sub>. Zoom in until the peak trace swings all the way to P(|1⟩) ≈ 1 before trusting the π-pulse time.</p>
        <div class="eq"><i>P</i><sub>1,Rabi</sub>(<i>t</i>) ≈ <i>C</i> + <i>A</i> e<sup>−<i>t</i>/<i>τ</i><sub><i>R</i></sub></sup> cos(2π <i>f<sub>R</sub></i> <i>t</i> + <i>φ</i>)</div>`
     : '<div class="note">Rabi fit unavailable for this trace.</div>';
 }
+// Zoom: a window of ±3 grid steps around the peak, same number of points, then rerun.
+$('#fdZoom').onclick = () => {
+  const f = state.freq; if (!f) return;
+  const step = (f.stop - f.start) / (f.freqs.length - 1), half = Math.max(3 * step, 0.002);
+  $('#fdStart').value = (f.peakFreq - half).toFixed(6); $('#fdStop').value = (f.peakFreq + half).toFixed(6);
+  $('#fdRun').click();
+};
 $('#fdDl').onclick = () => {
   const f = state.freq;
   downloadCSV('frequency_sweep_summary.csv', ['omega_d_GHz', 'max_prob_1', 'avg_prob_1'], Array.from(f.freqs, (w, i) => [w, f.maxProb[i], f.avgProb[i]]));
@@ -633,8 +648,8 @@ function syncRamseyInputs() {
   // Reference ωq: defaults to your sweep's peak, never the hidden value itself.
   const ref = $('#rqRef');
   if (!ref.dataset.touched) ref.value = state.freq ? state.freq.peakFreq.toFixed(6) : '';
-  $('#rqRefHint').textContent = state.freq ? 'Filled in from your frequency sweep peak. It only labels drive frequencies in the chevron.'
-    : 'Run a frequency sweep first, or type your best estimate. It only labels drive frequencies in the chevron.';
+  $('#rqRefHint').textContent = state.freq ? 'Filled in from your frequency sweep peak. The drive frequency at each point is this plus Δ.'
+    : 'Run a frequency sweep first, or type your best estimate. The drive frequency at each point is this plus Δ.';
   const fit = state.freqFit, fitBtn = $('#pi2Src [data-v="fit"]');
   fitBtn.disabled = !(fit && fit.fMHz > 0);
   if (fitBtn.disabled && getPi2Src() === 'fit') $('#pi2Src [data-v="manual"]').click();
@@ -658,7 +673,14 @@ $('#rRun').onclick = () => {
   const fit = state.freqFit;
   const pi2 = getPi2Src() === 'fit' && fit ? 1e3 / (4 * fit.fMHz) : num('#pi2', 2.5);
   const refF = num('#rqRef', NaN);
-  state.chev = { dets, delays, cols: Q.ramseyChevron(delays, dets, T1, T2, rshots), pi2, refF, shots: rshots };
+  if (!isFinite(refF)) {
+    $('#rNotice').innerHTML = '<div class="note warn">Enter a reference frequency first: run a frequency sweep, or type your best estimate of ω<sub>q</sub>.</div>';
+    return;
+  }
+  $('#rNotice').innerHTML = '';
+  const cols = Q.ramseyExperiment({ delays, driveFreqs: Array.from(dets, d => refF + 1e-3 * d), pi2Ns: pi2,
+    omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, T1, T2 }).map(col => Q.sampleShots(col, rshots));
+  state.chev = { dets, delays, cols, pi2, refF, shots: rshots };
   renderRamsey();
 };
 
@@ -702,6 +724,8 @@ function renderCut() {
   }), PLOT_CFG);
   $('#rFit').innerHTML = fit
     ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, 'ns')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, 'MHz'))
+      + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe',
+        `${(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(6)} or ${(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(6)} GHz`) : '')
     : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
 }
 $('#cutDet').addEventListener('change', renderCut);

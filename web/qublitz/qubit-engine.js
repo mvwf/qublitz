@@ -147,6 +147,55 @@
     });
   }
 
+  /**
+   * The Ramsey experiment as it happens on hardware, in the frame of the drive (RWA):
+   * two square π/2 pulses of length pi2Ns at each drive frequency, separated by the idle
+   * time τ. Unlike ramseyP1 (the Streamlit page's idealized model, kept for parity tests),
+   * the pulses are real rotations about the tilted axis (Ω_R, 0, Δ) for their length, and
+   * the detuning Δ = ωq − ωd is from the qubit's true frequency, so a wrong reference
+   * frequency shifts the chevron and a wrong π/2 length costs fringe contrast.
+   * Decay is applied during the idle time only (the pulses are a few ns).
+   * @returns {Float64Array[]} one P(|1⟩) column per drive frequency
+   */
+  function ramseyExperiment({ delays, driveFreqs, pi2Ns, omegaQ, omegaRabi, T1, T2 }) {
+    const g1 = 1 / T1, g2 = Math.max(0.5 * g1, 1 / T2);
+    return Array.from(driveFreqs, wd => {
+      const bz = TAU * (omegaQ - wd);
+      const pulse = pulseMap([TAU * omegaRabi, 0, bz], pi2Ns, g1, g2);
+      const out = new Float64Array(delays.length);
+      const r0 = pulse([0, 0, -1]);
+      for (let i = 0; i < delays.length; i++) {
+        const tau = delays[i], e2 = Math.exp(-g2 * tau), e1 = Math.exp(-g1 * tau);
+        const c = Math.cos(bz * tau), s = Math.sin(bz * tau);
+        const r = pulse([e2 * (c * r0[0] - s * r0[1]), e2 * (s * r0[0] + c * r0[1]), e1 * r0[2] + (e1 - 1)]);
+        out[i] = clamp01(0.5 * (1 + r[2]));
+      }
+      return out;
+    });
+  }
+  /* A constant drive B for time tp with decay is an affine map r → A·r + c on the Bloch
+   * vector (dr/dt = B × r − decay). Build it once by integrating the origin and the three
+   * unit vectors with RK4, then apply it to any state. */
+  function pulseMap(B, tp, g1, g2) {
+    const f = (r, o) => {
+      o[0] = B[1] * r[2] - B[2] * r[1] - g2 * r[0];
+      o[1] = B[2] * r[0] - B[0] * r[2] - g2 * r[1];
+      o[2] = B[0] * r[1] - B[1] * r[0] - g1 * (r[2] + 1);
+    };
+    const steps = Math.max(40, Math.ceil(Math.hypot(...B) * tp / 0.02)), h = tp / steps;
+    const run = r => {
+      r = r.slice(); const k1 = [0, 0, 0], k2 = [0, 0, 0], k3 = [0, 0, 0], k4 = [0, 0, 0];
+      const at = (k, a) => r.map((v, i) => v + a * k[i]);
+      for (let i = 0; i < steps; i++) {
+        f(r, k1); f(at(k1, h / 2), k2); f(at(k2, h / 2), k3); f(at(k3, h), k4);
+        for (let j = 0; j < 3; j++) r[j] += h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+      }
+      return r;
+    };
+    const c = run([0, 0, 0]), cols = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => run(e).map((v, i) => v - c[i]));
+    return r => [0, 1, 2].map(i => c[i] + cols[0][i] * r[0] + cols[1][i] * r[1] + cols[2][i] * r[2]);
+  }
+
   /* ---------------- shots & randomness ---------------- */
 
   /** Seedable PRNG (mulberry32). */
@@ -296,6 +345,27 @@
   const t1Model = (t, [A, T1, C]) => C + A * Math.exp(-t / T1);
   const ramseyModel = (t, [A, T2, fMHz, phi, C]) => C + A * Math.exp(-t / T2) * Math.cos(TAU * fMHz * 1e-3 * t + phi);
 
+  /**
+   * Best of several curveFit starts. A single start from the coarsest FFT bin can lock onto an
+   * alias of the sampling rate or collapse to f = 0 when the trace holds about one period, so
+   * the frequency start is also tried on a grid spanning the resolvable range.
+   */
+  function multiStartFit(model, xs, ys, p0, fIdx, fStarts, lower, upper, maxIter) {
+    let best = null;
+    for (const f of fStarts) {
+      const q = p0.slice(); q[fIdx] = Math.min(upper[fIdx], Math.max(lower[fIdx], f));
+      const res = curveFit(model, xs, ys, q, lower, upper, maxIter);
+      if (res && (!best || res.ssr < best.ssr * (1 - 1e-9))) best = res;
+    }
+    return best;
+  }
+  // Starting frequencies [MHz]: the FFT guess first, then multiples of 1/span up to fMax.
+  function freqStarts(f0, span, fMax) {
+    const out = [f0, 0.5 * f0, 2 * f0];
+    for (const c of [0.3, 0.6, 1, 1.5, 2.5, 4, 6, 10]) out.push(1e3 * c / span);
+    return out.filter(f => f > 0 && f < fMax);
+  }
+
   /** _fit_rabi_trace() */
   function fitRabi(ts, ys) {
     if (ts.length < 10) return null;
@@ -303,8 +373,11 @@
     if (!(dt > 0)) return null;
     const f = dominantFreq(ts, ys);
     const f0 = f != null ? Math.max(1e3 * f, 0.01) : 1.0;
-    const p0 = [0.5 * (max(ys) - min(ys)), f0, 0, Math.max(0.6 * (ts[ts.length - 1] - ts[0]), dt), mean(ys)];
-    const res = curveFit(rabiModel, ts, ys, p0, [-1.5, 0, -4 * Math.PI, dt, -0.5], [1.5, 5e4, 4 * Math.PI, 1e7, 1.5], 600);
+    const span = ts[ts.length - 1] - ts[0];
+    const fMax = Math.min(5e4, 1e3 * 0.25 / dt);            // half the Nyquist frequency, in MHz
+    const p0 = [0.5 * (max(ys) - min(ys)), f0, 0, Math.max(0.6 * span, dt), mean(ys)];
+    const lower = [-1.5, 0, -4 * Math.PI, dt, -0.5], upper = [1.5, fMax, 4 * Math.PI, 1e7, 1.5];
+    const res = multiStartFit(rabiModel, ts, ys, p0, 1, freqStarts(f0, span, fMax), lower, upper, 600);
     if (!res) return null;
     const [A, fMHz, phi, tauNs, C] = res.popt;
     return { A, fMHz, fMHzErr: finiteOrNull(res.perr[1]), phi, tauNs, tauNsErr: finiteOrNull(res.perr[3]), C,
@@ -331,10 +404,12 @@
     const f = dominantFreq(delays, ys);
     let f0 = f != null ? Math.max(1e3 * f, 0.02) : 0.1;
     if (freqGuessMHz != null && isFinite(freqGuessMHz) && Math.abs(freqGuessMHz) >= 0.02) f0 = Math.abs(freqGuessMHz);
-    const dmax = max(delays);
+    const dmax = max(delays), span = dmax - delays[0];
     const T20 = dmax > 0 ? 0.6 * dmax : 2 * dt;
+    const fMax = Math.min(5e3, 1e3 * 0.25 / dt);
     const p0 = [Math.max(0.5 * (max(ys) - min(ys)), 1e-3), Math.max(T20, dt), Math.max(Math.abs(f0), 0.05), 0, mean(ys)];
-    const res = curveFit(ramseyModel, delays, ys, p0, [-1.5, dt, 0, -4 * Math.PI, -0.5], [1.5, 1e6, 5e3, 4 * Math.PI, 1.5]);
+    const lower = [-1.5, dt, 0, -4 * Math.PI, -0.5], upper = [1.5, 1e6, fMax, 4 * Math.PI, 1.5];
+    const res = multiStartFit(ramseyModel, delays, ys, p0, 2, freqStarts(p0[2], span, fMax), lower, upper, 400);
     if (!res) return null;
     const [A, T2, fMHz, phi, C] = res.popt;
     const errIfSane = (e, v) => (isFinite(e) && e <= 10 * Math.max(Math.abs(v), 1e-12) ? e : null);
@@ -424,7 +499,7 @@
     return A.map((_, i) => cols.map(c => c[i]));
   }
 
-  const api = {
+  const api = { ramseyExperiment,
     solve, runQuantumSimulation, frequencySweep, rotatingFrame,
     ramseyP1, ramseyChevron,
     rngFrom, binomial, sampleShots, randomCode, qubitFromCode, QUBIT_RANGES,

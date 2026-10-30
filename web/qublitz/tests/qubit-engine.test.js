@@ -88,5 +88,22 @@ for (const f of ref.fits) {
   check('qubit code: 2000 random codes stay in range', inRange);
 }
 
+// --- The Ramsey experiment (closed form in the drive frame) against the full lab-frame solve:
+// two square π/2 pulses around an idle time, at several detunings and miscalibrated pulses.
+{
+  const q = Q.qubitFromCode('K7RX4P'), T2 = 2 * q.T1, piHalf = 1 / (4 * q.omegaRabi);
+  let worst = 0;
+  for (const [dMHz, k, tau] of [[0, 1, 0], [1.5, 1, 150], [-3, 1, 37], [2, 0.7, 400], [0.5, 1.4, 150]]) {
+    const pi2 = k * piHalf, wd = q.omegaQ - dMHz * 1e-3, tf = 2 * pi2 + tau + 1, n = Math.round(200 * tf);
+    const env = new Float64Array(n);
+    for (let i = 0; i < n; i++) { const tc = (i + 0.5) * tf / n; if (tc < pi2 || (tc >= pi2 + tau && tc < 2 * pi2 + tau)) env[i] = 1; }
+    const full = Q.solve({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: tf, nSteps: n, omegaD: wd, envI: env, T1: q.T1, T2 });
+    const iEnd = Math.min(n - 1, Math.round((2 * pi2 + tau) / tf * (n - 1)));
+    const closed = Q.ramseyExperiment({ delays: [tau], driveFreqs: [wd], pi2Ns: pi2, omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, T1: q.T1, T2 })[0][0];
+    worst = Math.max(worst, Math.abs(full.p1[iEnd] - closed));
+  }
+  check('Ramsey experiment matches the full Bloch solve', worst < 0.005, `max |ΔP1| ${worst.toFixed(4)}`);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
