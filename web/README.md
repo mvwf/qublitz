@@ -19,7 +19,7 @@ drops a version and the pages run offline. Plotly comes from the npm package
 
 ## Adding a demo
 
-1. Put the HTML file in the right folder (e.g. `web/courses/engs53/my-demo.html`).
+1. Put the HTML file in the right folder (e.g. `web/courses/engs23/my-demo.html`).
    Give it a back link to `../../index.html`.
 2. Add an entry to `DEMOS` near the top of the script in `web/index.html`.
    For a new course, also add an entry to `GROUPS`.
