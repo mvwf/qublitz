@@ -70,6 +70,9 @@
   .scrub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 0}
   .scrub input{flex:1 1 220px}
   .val{font-variant-numeric:tabular-nums;font-size:12.5px;min-width:70px;display:inline-block}
+  table.key{border-collapse:collapse;font-size:13px;margin:8px 0;font-variant-numeric:tabular-nums}
+  table.key th,table.key td{padding:4px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  table.key th:first-child,table.key td:first-child{text-align:left}
   .reveal{display:none}
   .reveal.on{display:block}
   .empty{color:var(--muted);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:10px;background:var(--panel)}
@@ -78,13 +81,20 @@
 <body>
 <div class="page">
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
-<h1>⚛ Qubit Simulator <span style="font-weight:400;color:var(--muted);font-size:17px">(Free Play)</span></h1>
-<p class="sub">Your qubit's frequency, Rabi rate and T₁ are hidden. Sweep the drive frequency to find the resonance, fit the Rabi
-  oscillation, measure T₁ from the decay after a pulse, then use a Ramsey sequence to measure T₂. The dynamics come from the
-  full Lindblad master equation in the lab frame, solved in your browser.</p>
+<h1>⚛ Qublitz <span style="font-weight:400;color:var(--muted);font-size:17px">Virtual Qubit Lab</span></h1>
+<p class="sub">Characterize a qubit the way a lab does. Sweep the drive frequency to find the resonance, fit the Rabi
+  oscillation, measure T₁ from the decay after a π pulse, then run a Ramsey sequence to pin down ω<sub>q</sub> and T₂. The dynamics
+  come from the full Lindblad master equation in the lab frame, solved in your browser.
+  Also part of Qublitz: <a id="arenaTop" href="arena.html">⚔️ the QuBlitz Arena</a> (a qubit battle game) and the
+  <a href="https://qublitz-qubit-lab.streamlit.app/" target="_blank" rel="noopener">original Streamlit lab</a>.</p>
 
 <div class="card">
   <h2>Your qubit</h2>
+  <div class="seg" id="mode" role="group" aria-label="Mode">
+    <button data-v="mystery" aria-pressed="true">Mystery qubit</button><button data-v="free" aria-pressed="false">Free play</button><button data-v="instructor" aria-pressed="false">Instructor</button>
+  </div>
+  <p class="note" id="assignedNote" hidden>This qubit was assigned by your instructor. Its parameters are hidden: find them by experiment.</p>
+  <div id="modeMystery">
   <div class="row" style="align-items:center">
     <span class="lbl">Qubit code</span><span class="code" id="qcode">······</span>
     <button id="copyLink" title="Copy a link that opens this same qubit">Copy link</button>
@@ -96,11 +106,43 @@
   </div>
   <p class="hint" id="offlineHint"><a id="dlOffline" href="qubit-simulator-offline.html" download="qublitz-qubit-simulator.html">Download this simulator</a>
     as a single HTML file that runs offline in any browser, with nothing to install.</p>
-  <p class="hint">The same code always gives the same qubit, so an instructor can hand out codes and check answers with
-    <b>Reveal parameters</b> on the Ramsey tab. Loading a new qubit clears your results and pulses.</p>
+  <p class="hint">Its frequency, Rabi rate and T₁ are hidden. The same code always gives the same qubit, and <b>Reveal parameters</b>
+    on the Ramsey tab lets you check your answers. Loading a new qubit clears your results and pulses.</p>
+  </div>
+
+  <div id="modeFree" hidden>
+    <p class="hint">Set the qubit yourself and watch how each parameter shows up in the experiments.</p>
+    <div class="row">
+      <div class="field"><label for="fWq">ω<sub>q</sub>/2π [GHz]</label><input id="fWq" type="number" min="1" max="10" step="0.001" value="5.0"></div>
+      <div class="field"><label for="fRabi">Rabi rate Ω<sub>R</sub>/2π [MHz]</label><input id="fRabi" type="number" min="1" max="1000" step="1" value="300"></div>
+      <div class="field"><label for="fT1">T₁ [ns]</label><input id="fT1" type="number" min="1" max="10000" step="1" value="150"></div>
+      <div class="field"><label for="fT2">T₂ [ns] (≤ 2T₁)</label><input id="fT2" type="number" min="1" max="20000" step="1" value="300"></div>
+      <button class="primary" id="fApply">Use this qubit</button>
+      <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
+    </div>
+    <p class="hint">T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
+  </div>
+
+  <div id="modeInstructor" hidden>
+    <p class="hint">Give every student their own qubit. Paste your roster (one student per line, e.g. an ID or a name) and choose a
+      class seed. Each code is derived from the seed and the roster line, so the same seed and roster always rebuild the same key.
+      Parameters are drawn from ω<sub>q</sub>/2π ∈ [4, 6] GHz, Ω<sub>R</sub>/2π ∈ [200, 500] MHz and T₁ ∈ [100, 200] ns, with T₂ = 2T₁.</p>
+    <div class="row" style="align-items:flex-start">
+      <div class="field" style="flex:1;min-width:240px"><label for="roster">Roster</label>
+        <textarea id="roster" rows="6" placeholder="f0082rd&#10;f0083n2&#10;…" style="font:13px ui-monospace,monospace;border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%"></textarea></div>
+      <div class="field"><label for="seed">Class seed</label><input id="seed" type="text" style="width:170px">
+        <button id="genKey" class="primary" style="margin-top:8px">Generate codes</button></div>
+    </div>
+    <div id="keyOut" hidden>
+      <div style="overflow-x:auto"><table id="keyTable" class="key"></table></div>
+      <div class="row"><button id="dlKey">Download answer key CSV</button><button id="dlStudents">Download student list (no answers)</button></div>
+    </div>
+    <p class="note warn">Keep the answer key private. Student links hide the Reveal panel, but the page runs entirely in the browser,
+      so a determined student could still recover the parameters from the code. Treat it like a take-home problem set.</p>
+  </div>
   <details><summary>Simulation convention</summary>
     <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), with no rotating-wave
-      approximation. Energy relaxation at rate 1/T₁, and T₂ = 2T₁ (no pure dephasing), the teaching model of the original Qublitz page.
+      approximation. Energy relaxation at rate 1/T₁. Mystery and assigned qubits have T₂ = 2T₁ (no pure dephasing), the teaching model of the ENGS 53 lab; in free play you can lower T₂ to add pure dephasing.
       Frequencies are in GHz (ω/2π) and times in ns. Results match the Python/qutip implementation to better than 10⁻⁶.</p></details>
 </div>
 
@@ -116,7 +158,7 @@
     <b>drive</b> frequency <i>ω<sub>d</sub></i> and read <i>ω<sub>q</sub></i> off the resonance, where <i>P</i>(|1⟩) peaks at <i>ω<sub>d</sub></i> = <i>ω<sub>q</sub></i>.</p>
   <div class="row">
     <div class="field"><label for="fdStart">Start ω<sub>d</sub>/2π [GHz]</label><input id="fdStart" type="number" step="0.01" value="3.5"></div>
-    <div class="field"><label for="fdStop">Stop ω<sub>d</sub>/2π [GHz]</label><input id="fdStop" type="number" step="0.01" value="5.5"></div>
+    <div class="field"><label for="fdStop">Stop ω<sub>d</sub>/2π [GHz]</label><input id="fdStop" type="number" step="0.01" value="6.5"></div>
     <div class="field"><label for="fdN">Number of frequencies</label><input id="fdN" type="number" min="5" max="201" step="2" value="41"></div>
     <div class="field"><label for="fdT">Pulse duration [ns]</label><input id="fdT" type="number" min="1" max="500" step="1" value="25"></div>
     <button class="primary" id="fdRun">Run frequency sweep</button>
@@ -207,7 +249,7 @@
   <div class="row" id="pi2Row">
     <div class="field"><span class="lbl">π/2 duration source</span>
       <div class="seg" id="pi2Src"><button aria-pressed="false" data-v="fit">Fitted Rabi rate</button><button aria-pressed="true" data-v="manual">Manual entry</button></div></div>
-    <div class="field" id="pi2ManualF"><label for="pi2">π/2 pulse duration [ns]</label><input id="pi2" type="number" min="0.01" max="500" step="0.01" value="2.5"></div>
+    <div class="field" id="pi2ManualF"><label for="pi2">π/2 pulse duration [ns]</label><input id="pi2" type="number" min="0.01" max="500" step="0.01" value="0.7"></div>
     <span class="hint" id="pi2Info"></span>
   </div>
 
@@ -240,11 +282,13 @@
     <div class="row"><button id="rDl">Download chevron CSV</button></div>
   </div>
 
+  <div id="revealSection">
   <h3>Reveal parameters</h3>
   <label class="lbl" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="reveal"> Show hidden simulator parameters</label>
   <div class="reveal" id="revealBox">
     <div class="metrics" id="revealMetrics"></div>
     <a id="battle" href="arena.html">⚔️ Battle with this qubit →</a>
+  </div>
   </div>
 </section>
 </div>
@@ -321,16 +365,21 @@ const pageUrl = () => new URL(STANDALONE ? SITE + 'qublitz/qubit-simulator.html'
 const arenaUrl = t1 => (STANDALONE ? SITE + 'qublitz/' : '') + `arena.html?t1=${t1}`;
 if (STANDALONE) {
   $('#back').href = SITE + '#labs';
+  $('#arenaTop').href = SITE + 'qublitz/arena.html';
   $('#offlineHint').hidden = true;
 }
 
 /* ---------------- qubit selection ---------------- */
 function setQubit(code, { keepUrl = false } = {}) {
-  state.qubit = Q.qubitFromCode(code);
-  $('#qcode').textContent = state.qubit.code;
+  const q = Q.qubitFromCode(code);
+  useQubit({ ...q, T2: 2 * q.T1 });
+  $('#qcode').textContent = q.code;
   if (!keepUrl) {
-    try { const u = new URL(location.href); u.searchParams.set('qubit', state.qubit.code); history.replaceState(null, '', u); } catch (e) {}
+    try { const u = new URL(location.href); u.searchParams.set('qubit', q.code); u.searchParams.delete('assigned'); history.replaceState(null, '', u); } catch (e) {}
   }
+}
+function useQubit(q) {
+  state.qubit = q;
   // _clear_results_and_pulses()
   state.freq = null; state.freqFit = null; state.chev = null;
   state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null;
@@ -346,7 +395,43 @@ $('#copyLink').onclick = async () => {
   catch (e) { prompt('Copy this link:', u.href); }
   setTimeout(() => ($('#copyLink').textContent = 'Copy link'), 1500);
 };
-const shots = () => clamp(int('#shots', 256), 1, 4096);
+const shots = () => clamp(int(getMode() === 'free' ? '#shotsF' : '#shots', 256), 1, 4096);
+
+/* ---------------- modes: mystery qubit, free play, instructor ---------------- */
+const getMode = segmented('#mode', m => {
+  $('#modeMystery').hidden = m !== 'mystery'; $('#modeFree').hidden = m !== 'free'; $('#modeInstructor').hidden = m !== 'instructor';
+  if (m === 'free') applyFree();
+  if (m === 'mystery' && state.qubit && state.qubit.code === 'FREE') setQubit(Q.randomCode());
+});
+function applyFree() {
+  const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1);
+  $('#fT2').value = T2;
+  useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 300), 1, 1000) / 1000, T1, T2 });
+  $('#reveal').checked = true; renderReveal();
+  try { const u = new URL(location.href); u.searchParams.delete('qubit'); u.searchParams.delete('assigned'); history.replaceState(null, '', u); } catch (e) {}
+}
+$('#fApply').onclick = applyFree;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+let key = [];
+const csvQuote = v => '"' + String(v).replace(/"/g, '""') + '"';
+$('#seed').value = 'ENGS53-' + Q.randomCode().slice(0, 4);
+$('#genKey').onclick = () => {
+  const seed = $('#seed').value.trim() || 'class';
+  const students = [...new Set($('#roster').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean))];
+  key = students.map(st => { const code = Q.codeFor(seed, st), q = Q.qubitFromCode(code); return { st, code, q }; });
+  const link = code => { const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('qubit', code); u.searchParams.set('assigned', '1'); return u.href; };
+  key.forEach(k => (k.link = link(k.code)));
+  $('#keyOut').hidden = !key.length;
+  $('#keyTable').innerHTML = '<tr><th>Student</th><th>Code</th><th>ω<sub>q</sub>/2π [GHz]</th><th>Ω<sub>R</sub>/2π [MHz]</th><th>T₁ [ns]</th><th>T₂ [ns]</th></tr>'
+    + key.map(k => `<tr><td>${esc(k.st)}</td><td><a href="${esc(k.link)}" target="_blank" rel="noopener">${k.code}</a></td><td>${k.q.omegaQ.toFixed(4)}</td>`
+      + `<td>${(k.q.omegaRabi * 1e3).toFixed(2)}</td><td>${k.q.T1.toFixed(1)}</td><td>${(2 * k.q.T1).toFixed(1)}</td></tr>`).join('');
+};
+$('#dlKey').onclick = () => downloadCSV(`qublitz_answer_key_${$('#seed').value.trim()}.csv`,
+  ['student', 'code', 'omega_q_GHz', 'rabi_rate_MHz', 'T1_ns', 'T2_ns', 'link'],
+  key.map(k => [csvQuote(k.st), k.code, k.q.omegaQ, +(k.q.omegaRabi * 1e3).toFixed(2), k.q.T1, 2 * k.q.T1, k.link]));
+$('#dlStudents').onclick = () => downloadCSV(`qublitz_student_codes_${$('#seed').value.trim()}.csv`,
+  ['student', 'code', 'link'], key.map(k => [csvQuote(k.st), k.code, k.link]));
 
 /* ---------------- tabs ---------------- */
 document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
@@ -383,7 +468,7 @@ $('#fdRun').onclick = async () => {
   // run_frequency_sweep(): the noiseless P(|1⟩), one solve per drive frequency, yielding to the page between chunks
   for (let i = 0; i < nf; i++) {
     Z.push(Q.solve({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: tf, nSteps, omegaD: freqs[i], envI, envQ: null,
-      T1: q.T1, T2: 2 * q.T1 }).p1);
+      T1: q.T1, T2: q.T2 }).p1);
     if (performance.now() - last > 30) { prog.firstElementChild.style.width = (100 * (i + 1) / nf) + '%'; await tick(); last = performance.now(); }
   }
   prog.firstElementChild.style.width = '100%';
@@ -537,7 +622,7 @@ function runTD() {                                                 // run_time_d
   const wd = num('#tdWd', 5), n = td.sx.length;
   const clip = a => Float64Array.from(a, v => clamp(v, -1, 1));
   const r = Q.runQuantumSimulation({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: td.tFinal, nSteps: n, omegaD: wd,
-    envI: clip(td.sx), envQ: clip(td.sy), T1: q.T1, T2: 2 * q.T1 }, shots());
+    envI: clip(td.sx), envQ: clip(td.sy), T1: q.T1, T2: q.T2 }, shots());
   const rot = Q.rotatingFrame(r.t, r.x, r.y, wd);
   td.out = { t: r.t, x: rot.x, y: rot.y, z: r.z, p1: r.p1Sampled, wd, shots: shots() };
   td.fits = Q.analyzeTimeDomainFits(r.t, r.p1Sampled, td.sx, td.sy);
@@ -658,29 +743,31 @@ function syncRamseyInputs() {
   $('#pi2ManualF').hidden = useFit;
   $('#pi2Info').innerHTML = useFit
     ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, 'MHz')} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ns.`
-    : `Corresponding π duration: ${(2 * num('#pi2', 2.5)).toFixed(3)} ns.`;
+    : `Corresponding π duration: ${(2 * num('#pi2', 0.7)).toFixed(3)} ns.`;
   $('#rTotal').textContent = `Total Ramsey points: ${clamp(int('#dN', 81), 11, 401) * clamp(int('#tN', 121), 11, 501)}`;
 }
 $('#rqRef').addEventListener('input', e => (e.target.dataset.touched = '1'));
 $('#pi2').addEventListener('input', e => { e.target.dataset.touched = '1'; syncRamseyInputs(); });
 ['#dN', '#tN'].forEach(id => $(id).addEventListener('input', syncRamseyInputs));
 
-$('#rRun').onclick = () => {
-  const q = state.qubit, T1 = q.T1, T2 = 2 * T1;
+$('#rRun').onclick = async () => {
+  const q = state.qubit, T1 = q.T1, T2 = q.T2;
   const dets = Q.linspace(num('#dMin', -2), num('#dMax', 2), clamp(int('#dN', 81), 11, 401));
   const delays = Q.linspace(Math.max(0, num('#tMin', 0)), Math.max(10, num('#tMax', 1000)), clamp(int('#tN', 121), 11, 501));
   const rshots = clamp(int('#rShots', 256), 1, 4096);
   const fit = state.freqFit;
-  const pi2 = getPi2Src() === 'fit' && fit ? 1e3 / (4 * fit.fMHz) : num('#pi2', 2.5);
+  const pi2 = getPi2Src() === 'fit' && fit ? 1e3 / (4 * fit.fMHz) : num('#pi2', 0.7);
   const refF = num('#rqRef', NaN);
   if (!isFinite(refF)) {
     $('#rNotice').innerHTML = '<div class="note warn">Enter a reference frequency first: run a frequency sweep, or type your best estimate of ω<sub>q</sub>.</div>';
     return;
   }
   $('#rNotice').innerHTML = '';
+  $('#rRun').disabled = true; $('#rRun').textContent = 'Running…'; await tick(); await tick();
   const cols = Q.ramseyExperiment({ delays, driveFreqs: Array.from(dets, d => refF + 1e-3 * d), pi2Ns: pi2,
     omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, T1, T2 }).map(col => Q.sampleShots(col, rshots));
   state.chev = { dets, delays, cols, pi2, refF, shots: rshots };
+  $('#rRun').disabled = false; $('#rRun').textContent = 'Run Ramsey chevron';
   renderRamsey();
 };
 
@@ -741,7 +828,7 @@ function renderReveal() {
   if (!on) return;
   $('#revealMetrics').innerHTML = metric('Qubit frequency ω<sub>q</sub>/2π', q.omegaQ.toFixed(3) + ' GHz')
     + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' MHz')
-    + metric('T₁', q.T1.toFixed(1) + ' ns') + metric('T₂ = 2T₁', (2 * q.T1).toFixed(1) + ' ns');
+    + metric('T₁', q.T1.toFixed(1) + ' ns') + metric('T₂', q.T2.toFixed(1) + ' ns');
   // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
   $('#battle').href = arenaUrl(q.T1.toFixed(1));
   $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
@@ -749,9 +836,15 @@ function renderReveal() {
 $('#reveal').addEventListener('change', renderReveal);
 
 /* ---------------- boot ---------------- */
-let initial = null;
-try { initial = new URL(location.href).searchParams.get('qubit'); } catch (e) {}
+let initial = null, assigned = false;
+try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; } catch (e) {}
 setQubit(initial || Q.randomCode(), { keepUrl: !!initial });
+// An instructor's link: keep the code, hide the answers and the controls that would swap qubits.
+if (assigned && initial) {
+  try { const u = new URL(location.href); u.searchParams.set('assigned', '1'); history.replaceState(null, '', u); } catch (e) {}
+  $('#assignedNote').hidden = false; $('#revealSection').hidden = true; $('#mode').hidden = true;
+  $('#newQubit').hidden = true; $('#codeIn').closest('.field').hidden = true;
+}
 syncQuickPulses();
 </script>
 </body>

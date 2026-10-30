@@ -148,52 +148,46 @@
   }
 
   /**
-   * The Ramsey experiment as it happens on hardware, in the frame of the drive (RWA):
-   * two square π/2 pulses of length pi2Ns at each drive frequency, separated by the idle
-   * time τ. Unlike ramseyP1 (the Streamlit page's idealized model, kept for parity tests),
-   * the pulses are real rotations about the tilted axis (Ω_R, 0, Δ) for their length, and
-   * the detuning Δ = ωq − ωd is from the qubit's true frequency, so a wrong reference
-   * frequency shifts the chevron and a wrong π/2 length costs fringe contrast.
-   * Decay is applied during the idle time only (the pulses are a few ns).
+   * The Ramsey experiment as it happens on hardware: two square π/2 pulses of length pi2Ns
+   * at each drive frequency, separated by the idle time τ. Unlike ramseyP1 (the Streamlit
+   * page's idealized model, kept for parity tests), the pulses are integrated with the same
+   * lab-frame equations as solve() (no rotating-wave approximation, which matters at Rabi
+   * rates of a few hundred MHz), and the detuning is from the qubit's true frequency, so a
+   * wrong reference frequency shifts the chevron and a wrong π/2 length costs contrast.
+   * In the frame co-rotating with the qubit the idle time is pure T1/T2 decay (exact).
    * @returns {Float64Array[]} one P(|1⟩) column per drive frequency
    */
   function ramseyExperiment({ delays, driveFreqs, pi2Ns, omegaQ, omegaRabi, T1, T2 }) {
-    const g1 = 1 / T1, g2 = Math.max(0.5 * g1, 1 / T2);
+    const g1 = 1 / T1, g2 = Math.max(0.5 * g1, 1 / T2), Bz = TAU * omegaQ, amp = 2 * TAU * omegaRabi;
     return Array.from(driveFreqs, wd => {
-      const bz = TAU * (omegaQ - wd);
-      const pulse = pulseMap([TAU * omegaRabi, 0, bz], pi2Ns, g1, g2);
-      const out = new Float64Array(delays.length);
-      const r0 = pulse([0, 0, -1]);
+      const w = TAU * wd, dtMax = 1 / (48 * (Math.abs(omegaQ) + Math.abs(wd) + 2 * Math.abs(omegaRabi) + 1e-9));
+      const steps = Math.max(8, Math.ceil(pi2Ns / dtMax)), h = pi2Ns / steps;
+      // dr'/dt in the qubit frame for a drive amp·cos(w t) along x (as in solve()).
+      const f = (t, r, o) => {
+        const bx0 = amp * Math.cos(w * t), bx = bx0 * Math.cos(Bz * t), by = -bx0 * Math.sin(Bz * t);
+        o[0] = by * r[2] - g2 * r[0]; o[1] = -bx * r[2] - g2 * r[1]; o[2] = bx * r[1] - by * r[0] - g1 * (r[2] + 1);
+      };
+      const k1 = [0, 0, 0], k2 = [0, 0, 0], k3 = [0, 0, 0], k4 = [0, 0, 0], tmp = [0, 0, 0];
+      const pulse = (r, t0) => {
+        let t = t0;
+        for (let i = 0; i < steps; i++) {
+          f(t, r, k1);
+          for (let j = 0; j < 3; j++) tmp[j] = r[j] + h / 2 * k1[j]; f(t + h / 2, tmp, k2);
+          for (let j = 0; j < 3; j++) tmp[j] = r[j] + h / 2 * k2[j]; f(t + h / 2, tmp, k3);
+          for (let j = 0; j < 3; j++) tmp[j] = r[j] + h * k3[j]; f(t + h, tmp, k4);
+          for (let j = 0; j < 3; j++) r[j] += h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
+          t += h;
+        }
+        return r;
+      };
+      const r0 = pulse([0, 0, -1], 0), out = new Float64Array(delays.length);
       for (let i = 0; i < delays.length; i++) {
         const tau = delays[i], e2 = Math.exp(-g2 * tau), e1 = Math.exp(-g1 * tau);
-        const c = Math.cos(bz * tau), s = Math.sin(bz * tau);
-        const r = pulse([e2 * (c * r0[0] - s * r0[1]), e2 * (s * r0[0] + c * r0[1]), e1 * r0[2] + (e1 - 1)]);
+        const r = pulse([e2 * r0[0], e2 * r0[1], e1 * r0[2] + (e1 - 1)], pi2Ns + tau);
         out[i] = clamp01(0.5 * (1 + r[2]));
       }
       return out;
     });
-  }
-  /* A constant drive B for time tp with decay is an affine map r → A·r + c on the Bloch
-   * vector (dr/dt = B × r − decay). Build it once by integrating the origin and the three
-   * unit vectors with RK4, then apply it to any state. */
-  function pulseMap(B, tp, g1, g2) {
-    const f = (r, o) => {
-      o[0] = B[1] * r[2] - B[2] * r[1] - g2 * r[0];
-      o[1] = B[2] * r[0] - B[0] * r[2] - g2 * r[1];
-      o[2] = B[0] * r[1] - B[1] * r[0] - g1 * (r[2] + 1);
-    };
-    const steps = Math.max(40, Math.ceil(Math.hypot(...B) * tp / 0.02)), h = tp / steps;
-    const run = r => {
-      r = r.slice(); const k1 = [0, 0, 0], k2 = [0, 0, 0], k3 = [0, 0, 0], k4 = [0, 0, 0];
-      const at = (k, a) => r.map((v, i) => v + a * k[i]);
-      for (let i = 0; i < steps; i++) {
-        f(r, k1); f(at(k1, h / 2), k2); f(at(k2, h / 2), k3); f(at(k3, h), k4);
-        for (let j = 0; j < 3; j++) r[j] += h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]);
-      }
-      return r;
-    };
-    const c = run([0, 0, 0]), cols = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => run(e).map((v, i) => v - c[i]));
-    return r => [0, 1, 2].map(i => c[i] + cols[0][i] * r[0] + cols[1][i] * r[1] + cols[2][i] * r[2]);
   }
 
   /* ---------------- shots & randomness ---------------- */
@@ -249,9 +243,9 @@
   /**
    * Deterministic qubit for a code. Same code, same qubit, on any machine, so an
    * instructor can assign codes and check answers with the page's Reveal toggle.
-   * Ranges match the assigned band the Streamlit page's defaults were tuned for.
+   * Ranges are the ENGS 53 lab assignment band: ωq 4–6 GHz, Rabi rate 200–500 MHz, T1 100–200 ns.
    */
-  const QUBIT_RANGES = { omegaQ: [4.0, 4.7], omegaRabiMHz: [10, 40], T1: [60, 250] };
+  const QUBIT_RANGES = { omegaQ: [4.0, 6.0], omegaRabiMHz: [200, 500], T1: [100, 200] };
   function qubitFromCode(code) {
     const norm = String(code).trim().toUpperCase();
     const r = rngFrom(hashString('qublitz:' + norm));
@@ -262,6 +256,14 @@
       omegaRabi: round(pick(QUBIT_RANGES.omegaRabiMHz) / 1000, 5),
       T1: round(pick(QUBIT_RANGES.T1), 1),
     };
+  }
+
+  /**
+   * Instructor codes: a student's code is derived from the class seed and their roster entry,
+   * so the same seed and roster always rebuild the same answer key (nothing has to be stored).
+   */
+  function codeFor(seed, student) {
+    return randomCode(rngFrom(hashString('qublitz-class:' + String(seed).trim() + '|' + String(student).trim().toLowerCase())));
   }
 
   /* ---------------- curve fitting ---------------- */
@@ -502,7 +504,7 @@
   const api = { ramseyExperiment,
     solve, runQuantumSimulation, frequencySweep, rotatingFrame,
     ramseyP1, ramseyChevron,
-    rngFrom, binomial, sampleShots, randomCode, qubitFromCode, QUBIT_RANGES,
+    rngFrom, binomial, sampleShots, randomCode, qubitFromCode, codeFor, QUBIT_RANGES,
     curveFit, fitRabi, fitT1, fitRamsey, activeSegments, analyzeTimeDomainFits,
     linspace, median,
   };
