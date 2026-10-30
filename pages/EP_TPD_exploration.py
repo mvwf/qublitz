@@ -127,12 +127,12 @@ def main():
     st.sidebar.image(logo) # display logo on the side 
     st.sidebar.markdown('<div style="text-align:center;"><a href="https://sites.google.com/view/fitzlab/home" target="_blank" style="font-size:1.2rem; font-weight:bold;">FitzLab Website</a></div>', unsafe_allow_html=True)
     
-    # link to preprint of the paper
+    # link to the published paper
     st.markdown('''
     <p style="font-size:18px;">
-    <a href="https://arxiv.org/abs/2506.09141" target="_blank">
-    Unification of Exceptional Points and Transmission Peak Degeneracies in a Highly Tunable Magnon-Photon Dimer
-    </a>
+    <a href="https://link.aps.org/doi/10.1103/mfq8-gzsj" target="_blank">
+    The Role of Exceptional Points and Transmission Peak Degeneracies in Non-Hermitian Sensing
+    </a> (Phys. Rev. Applied 25, 064031, 2026)
     </p>
     ''', unsafe_allow_html=True)
 
@@ -425,9 +425,10 @@ def main():
     """)
 
     # citation
-    st.markdown("""Carney, A. S., Salcedo-Gallo, J. S., Bedkihal, S. K., & Fitzpatrick, M. (2025). 
-            Unification of Exceptional Points and Transmission Peak Degeneracies in a Highly 
-            Tunable Magnon-Photon Dimer. arXiv preprint arXiv:2506.09141.""")
+    st.markdown("""Carney, A. S., Salcedo-Gallo, J. S., Bedkihal, S. K., & Fitzpatrick, M. (2026).
+            The Role of Exceptional Points and Transmission Peak Degeneracies in Non-Hermitian
+            Sensing. Physical Review Applied, 25, 064031. https://doi.org/10.1103/mfq8-gzsj
+            (preprint: arXiv:2506.09141).""")
     
 if __name__ == "__main__":
     main()
