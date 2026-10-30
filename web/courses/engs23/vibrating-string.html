@@ -158,8 +158,11 @@
     <div class="flexcap"><h2 style="margin:0">Fourier modes of the string — drag the bars</h2>
       <span class="pill">displacement a<sub>n</sub></span></div>
     <canvas id="bars" height="260"></canvas>
-    <p class="legend">How much of each mode <span class="mvar">n</span> is in the string's shape; bar height is the true amplitude
-      (taller = louder). The motion is the sum of these modes.</p>
+    <div class="row tight" style="margin-top:4px"><span class="pill" id="barRead">hover a bar to read a<sub>n</sub></span>
+      <span style="flex:1"></span><button id="dlCoeffs">Download a<sub>n</sub> (CSV)</button></div>
+    <p class="legend">How much of each mode <span class="mvar">n</span> (numbered along the bottom) is in the string's shape: the
+      Fourier sine coefficient <span class="mvar">a<sub>n</sub></span> = 2∫<sub>0</sub><sup>1</sup> <span class="mvar">y</span>(ξ,0) sin(<span class="mvar">n</span>πξ) dξ, in units
+      of the plucked height. Bar height is the true amplitude (taller = louder); the motion is the sum of these modes.</p>
   </div>
 
   <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
@@ -571,7 +574,6 @@ if (window.QUBLITZ_STANDALONE) {
       bx.fillStyle='#9bb0a6'; bx.font='10px -apple-system,sans-serif'; bx.textAlign='center';
       bx.fillText(k+1, x+bw/2, h-7);
     }
-    bx.textAlign='left'; bx.fillStyle='#8aa'; bx.font='10px -apple-system,sans-serif'; bx.fillText('mode n', padx, h-7);
   }
 
   function drawAll(){ renderStatic(); if(!playing){ clock=0; } drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); updateTimePill(); }
@@ -667,6 +669,17 @@ if (window.QUBLITZ_STANDALONE) {
     let v=barVal(e); if(!isFinite(v)) v=0; coeffs[dragBar]=Math.max(-2.6,Math.min(2.6,v));
     drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateTimePill(); }
   function endBar(){ dragBar=-1; }
+  // Numeric readout for the bar under the pointer (or being dragged), and a CSV of all a_n.
+  function showBar(k){ const el=document.getElementById('barRead'); if(!el||k<0||k>=modes.length) return;
+    const pl=playedList(), f1=pl.length?f1of(pl[0]):NaN;
+    el.innerHTML=`mode ${k+1}: a<sub>${k+1}</sub> = ${coeffs[k].toFixed(4)}`+(isFinite(f1)?` · f = ${(f1*modes[k].ratio).toFixed(1)} Hz`:''); }
+  bc.addEventListener('mousemove',e=>showBar(dragBar>=0?dragBar:barAt(e)));
+  bc.addEventListener('touchmove',e=>showBar(dragBar));
+  document.getElementById('dlCoeffs').addEventListener('click',()=>{
+    const pl=playedList(), f1=pl.length?f1of(pl[0]):NaN;
+    const text='n,a_n,f_n_Hz\n'+modes.map((m,k)=>`${k+1},${coeffs[k]},${isFinite(f1)?(f1*m.ratio).toFixed(3):''}`).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'})); a.download='string_modes.csv'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
   bc.addEventListener('mousedown',startBar); window.addEventListener('mousemove',moveBar); window.addEventListener('mouseup',endBar);
   bc.addEventListener('touchstart',startBar,{passive:false}); bc.addEventListener('touchmove',moveBar,{passive:false}); bc.addEventListener('touchend',endBar);
 
