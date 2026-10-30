@@ -22,3 +22,6 @@ net_IDs.csv
 to_recycle/
 .DS_Store
 .pytest_cache/
+
+# Local reference material (lab manuals, rosters, answer keys): never commit
+sandbox/

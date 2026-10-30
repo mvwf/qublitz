@@ -103,7 +103,7 @@
     <h2>Axis controls</h2>
     <div class="row" style="margin-top:0">
       <div class="field"><label for="dur">Time duration [s]</label><input id="dur" type="number" min="0.1" max="30" step="any" value="4"></div>
-      <div class="field"><label for="freq">Modulation frequency [Hz]</label><input id="freq" type="number" min="0" max="11000" step="any" value="65.41"></div>
+      <div class="field"><label for="freq">Modulation frequency [Hz]</label><input id="freq" type="number" min="0" max="10000" step="any" value="65.41"></div>
     </div>
     <div class="field"><label for="rowR">Row <b id="rowV"></b></label>
       <input id="rowR" type="range" min="0" max="0" step="1" value="0"></div>
@@ -240,7 +240,9 @@ const rowLine = () => ({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: row, y1:
 let audioUrl = null;
 function update() {
   if (!img) return;
-  const dur = Math.max(0.1, +$('#dur').value || 4), f = Math.max(0, +$('#freq').value || 0);
+  // Clamp to what the page can play: up to 30 s of audio, and carriers below the 11 kHz Nyquist limit of 22.05 kHz audio.
+  const clampIn = (sel, lo, hi, dflt) => { let v = parseFloat($(sel).value); v = isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; if (+$(sel).value !== v) $(sel).value = v; return v; };
+  const dur = clampIn('#dur', 0.1, 30, 4), f = clampIn('#freq', 0, 10000, 65.41);
   $('#rowV').textContent = row;
   Plotly.relayout('heat', { shapes: [rowLine()] });
   const env = img.data.subarray(row * img.cols, (row + 1) * img.cols);
