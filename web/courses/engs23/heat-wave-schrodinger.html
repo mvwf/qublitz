@@ -55,7 +55,7 @@
 
 <a class="back" id="back" href="../../index.html#engs23">&larr; All demos</a>
 <h1>Three Equations, One Eigenbasis</h1>
-<p class="sub">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
+<p class="sub" id="intro">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
 operator and therefore one set of modes sin(n&pi;x/L). Give all three the <i>same</i> starting shape and release them. What
 differs is only how each equation turns a spatial eigenvalue &lambda;<sub>n</sub> into motion in time. The clock below is set
 so the fundamental mode n = 1 has the same rate in all three panels, which makes the contrast between them the real content.</p>
@@ -91,12 +91,16 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
       <option value="draw">Draw your own shape</option>
       <option value="custom">Custom (edited bars)</option>
     </select>
+    <label class="lbl" id="x0Wrap">Bump center
+      <input id="x0" type="range" min="0.1" max="0.9" step="0.01" value="0.35" style="width:110px">
+      <span class="val" id="x0Lbl" style="min-width:34px">0.35</span></label>
     <label class="lbl">Modes N</label>
     <input id="nmodes" type="range" min="2" max="48" step="1" value="30">
     <span class="val" id="nmodesLbl">30</span>
     <span class="spacer"></span>
     <button id="play" class="primary">&#9658; Play</button>
     <button id="reset">t = 0</button>
+    <button id="copyLink" title="Copy a link that reopens the page with these settings">Copy link</button>
   </div>
   <div class="row">
     <label class="lbl">Time&nbsp; (units of the n = 1 rate)</label>
@@ -180,6 +184,7 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('offlineHint').hidden = true;
 }
 </script>
+<script src="../../shared/pagekit.js"></script>
 <script>
 "use strict";
 /* ===========================================================================
@@ -220,6 +225,7 @@ function recomputeScales(){
 function rebuildState(){
   resizeC();
   const p=$("preset").value;
+  $("x0Wrap").style.display = p==="gauss" ? "" : "none";
   if(p==="mode1"){ setModes([[1,1]]); normalizeC(); }
   else if(p==="mode3"){ setModes([[3,1]]); normalizeC(); }
   else if(p==="two"){ setModes([[1,1],[2,1]]); normalizeC(); }
@@ -312,6 +318,8 @@ $("speed").addEventListener("input",()=>{ speed=+$("speed").value; $("speedLbl")
 $("schrate").addEventListener("input",()=>{ schRate=+$("schrate").value; $("schrateLbl").textContent=schRate.toFixed(2); drawAll(); });
 $("nmodes").addEventListener("input",()=>{ Nmax=+$("nmodes").value; $("nmodesLbl").textContent=Nmax; buildModes(); rebuildState(); drawAll(); });
 $("preset").addEventListener("change",()=>{ rebuildState(); drawAll(); });
+$("x0").addEventListener("input",()=>{ params.x0=+$("x0").value; $("x0Lbl").textContent=params.x0.toFixed(2);
+  if($("preset").value!=="gauss") $("preset").value="gauss"; rebuildState(); drawAll(); });
 window.addEventListener("resize",()=>{ drawAll(); drawEditor(); drawBars(); });
 
 /* ---------- draw-your-own initial shape ---------- */
@@ -389,5 +397,85 @@ function barEdit(which,e){ e.preventDefault();
   window.addEventListener("touchend",()=>{ barDrag=null; });
 })();
 
-buildModes(); rebuildState(); drawAll();
+/* ---------- shareable state: ?s=preset&N=&t=&r=&x0= (or re=/im= for edited bars) ---------- */
+const PRESETS=["gauss","pluck","step","mode1","mode3","two","custom"];
+const coefList=a=>{ const v=[]; for(let n=1;n<=Nmax;n++) v.push(+(a[n]||0).toFixed(4)); while(v.length&&!v[v.length-1]) v.pop(); return v.join(","); };
+function shareQuery(){
+  let p=$("preset").value; const q=new URLSearchParams();
+  if(p==="draw") p="custom";               // a drawn shape is shared as its coefficients
+  q.set("s",p); q.set("N",Nmax); q.set("t",+t.toFixed(4)); q.set("r",schRate);
+  if(p==="gauss") q.set("x0",params.x0);
+  if(p==="custom"){ q.set("re",coefList(cRe)); const im=coefList(cIm); if(im) q.set("im",im); }
+  return q.toString();
+}
+function readQuery(){
+  const P=PageKit.params(), st={};
+  const s=P.str("s",PRESETS); if(s) st.s=s;
+  const N=P.num("N",2,48); if(N!=null) st.N=Math.round(N);
+  const tt=P.num("t",0,1.25); if(tt!=null) st.t=tt;
+  const r=P.num("r",0.1,1); if(r!=null) st.r=r;
+  const x0=P.num("x0",0.1,0.9); if(x0!=null) st.x0=x0;
+  const re=P.list("re"), im=P.list("im");
+  if(st.s==="custom" && re) { st.re=re; st.im=im||[]; }
+  else if(st.s==="custom") delete st.s;
+  return st;
+}
+// Apply any subset of {s, N, t, r, x0, re, im}; omitted fields keep their current value (t resets to 0).
+function applyState(st){
+  setPlay(false);
+  if(st.N!=null){ Nmax=st.N; $("nmodes").value=Nmax; $("nmodesLbl").textContent=Nmax; buildModes(); }
+  if(st.x0!=null){ params.x0=st.x0; $("x0").value=st.x0; $("x0Lbl").textContent=st.x0.toFixed(2); }
+  if(st.r!=null){ schRate=st.r; $("schrate").value=st.r; $("schrateLbl").textContent=st.r.toFixed(2); }
+  if(st.re){ if(st.re.length>Nmax){ Nmax=Math.min(48,st.re.length); $("nmodes").value=Nmax; $("nmodesLbl").textContent=Nmax; buildModes(); }
+    clearC(); resizeC(); st.re.forEach((v,i)=>{ if(i<Nmax) cRe[i+1]=v; }); (st.im||[]).forEach((v,i)=>{ if(i<Nmax) cIm[i+1]=v; });
+    st.s="custom"; }
+  if(st.s) $("preset").value=st.s;
+  rebuildState();
+  t=st.t||0; $("time").value=t; drawAll();
+}
+$("copyLink").addEventListener("click",e=>PageKit.copyLink(e.target,"courses/engs23/heat-wave-schrodinger.html",shareQuery()));
+
+/* ---------- guided predictions (?guided=1) ---------- */
+const GUIDED=[
+  { title:"Same start, three fates",
+    setup:{s:"gauss",x0:0.35,N:30,r:0.3,t:0}, reveal:{t:1}, cover:[".trip"],
+    ask:"All three panels start from the same bump. At t = 1, which panel has lost the bump <i>for good</i>?",
+    choices:["Heat","Wave","Schrödinger","All three"], answer:0,
+    explain:"Heat multiplies mode n by e<sup>−n²t</sup>, so by t = 1 everything above n = 1 is gone and no later time brings it back. The wave has exactly reformed: every cos(2πnt) is 1 at t = 1. Schrödinger at rate 0.3 looks smeared, but nothing was lost: its |c<sub>n</sub>| never change, and the bump revives (step 4).",
+    try:"Press Play and watch from t = 0." },
+  { title:"Higher modes die faster",
+    setup:{s:"mode3",t:0}, reveal:{t:0.1111}, cover:[".trip"],
+    intro:"The fundamental n = 1 decays in the heat panel as e<sup>−t</sup>. Now the starting shape is the single mode n = 3.",
+    ask:"How many times faster than n = 1 does mode n = 3 decay?",
+    answer:9, tol:0.01, unit:"×",
+    explain:"The decay rate is λ<sub>n</sub> ∝ n², so 3² = 9. The page is now at t = 1/9, where the amplitude is e<sup>−1</sup> and ∫u² (under the heat panel) is e<sup>−2</sup> ≈ 0.135, since the energy goes as the amplitude squared. The shape itself never changes: a single mode only shrinks." },
+  { title:"Half a period of the wave",
+    setup:{s:"gauss",x0:0.35,r:0.3,t:0}, reveal:{t:0.5}, cover:[".trip"],
+    ask:"The bump starts at x = 0.35. What does the <b>wave</b> panel show at t = ½?",
+    choices:["The same bump","The bump upside down, same place","The bump upside down, mirrored to x = 0.65","A flat string"], answer:2,
+    explain:"At t = ½ each mode picks up cos(πn) = (−1)<sup>n</sup>. Since (−1)<sup>n</sup> sin(nπx) = −sin(nπ(1−x)), the whole string becomes −u(1−x, 0): flipped and mirrored. On a real string, that is the pulse having reflected off both ends, each reflection inverting it." },
+  { title:"A quantum revival",
+    setup:{s:"gauss",x0:0.35,r:1,t:0}, reveal:{t:0.5}, cover:[".trip"],
+    intro:"Schrödinger rate is now 1, so its clock matches the other two.",
+    ask:"At t = ½, what does the Schrödinger probability |Ψ|² look like?",
+    choices:["Spread evenly across the box","Back where it started","A copy mirrored to x = 0.65","Two half-size copies"], answer:2,
+    explain:"Mode n turns by e<sup>−iπn²</sup> = (−1)<sup>n²</sup> = (−1)<sup>n</sup>, the same sign pattern as the wave at t = ½, so Ψ = −u(1−x): the packet reassembles as a mirror image. At t = 1 every phase is 1 and it is back exactly. This is a <i>revival</i>, and it happens because the energies are integers times n²." },
+  { title:"A fractional revival",
+    setup:{s:"gauss",x0:0.35,r:1,t:0}, reveal:{t:0.25}, cover:[".trip"],
+    ask:"Same packet, Schrödinger rate 1. How many copies of the bump does |Ψ|² show at t = ¼?",
+    choices:["One","Two","Three","None, it is smeared out"], answer:1,
+    explain:"Now the phase is e<sup>−iπn²/2</sup>. n² mod 4 is 0 for even n and 1 for odd n, so even modes get 1 and odd modes get −i. Splitting the bump into its even and odd parts about x = ½ turns that into a superposition of the bump and its mirror image, each with half the probability: two copies, at 0.35 and 0.65.",
+    try:"Try t = ⅓ with the bump center at 0.2 for three copies." },
+  { title:"Two modes beat",
+    setup:{s:"two",r:0.3,t:0}, reveal:{t:0.5556}, cover:[".trip"],
+    intro:"The start is φ<sub>1</sub> + φ<sub>2</sub>. In the Schrödinger panel mode n turns at angle 2π n² r t, with r = 0.3.",
+    ask:"What is the period of the sloshing of |Ψ|², in the page's time units?",
+    answer:1.111, tol:0.03, unit:"",
+    explain:"|Ψ|² contains the cross term cos(2π(2² − 1²) r t) = cos(2π·3·0.3·t), so the period is 1/(3 × 0.3) = 1.111. The page is now at half that, t = 0.556, with the packet on the opposite side. A transition frequency is an energy <i>difference</i>, not either energy." },
+];
+function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector(".trip"), key:"three-equations" }); }
+
+buildModes(); rebuildState();
+{ const st=readQuery(); if(Object.keys(st).length) applyState(st); else drawAll(); }
+if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry($("intro"), startGuided);
 </script>

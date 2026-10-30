@@ -85,7 +85,7 @@
 
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>The Vibrating String</h1>
-<p class="sub">An ideal string obeys the wave equation on 0 ≤ <span class="mvar">x</span> ≤ <span class="mvar">L</span>,
+<p class="sub" id="intro">An ideal string obeys the wave equation on 0 ≤ <span class="mvar">x</span> ≤ <span class="mvar">L</span>,
   with both ends fixed (<span class="mvar">y</span> = 0) and wave speed <span class="mvar">v</span>. Give it a shape,
   watch each Fourier mode oscillate at its own frequency, see what the pickup coil reads, and hear the result.</p>
 <div class="eqn-wrap"><span class="eqn"><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>x</i><sup>2</sup></span></span><span class="eqop">=</span><span class="frac"><span class="num">1</span><span class="den"><i>v</i><sup>2</sup></span></span><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>t</i><sup>2</sup></span></span></span><span class="eqnum">(1)</span></div>
@@ -139,6 +139,7 @@
     <div class="row">
       <button id="play" class="primary">▶ Play</button>
       <button id="reset">Reset to t = 0</button>
+      <button id="copyLink" title="Copy a link that reopens the page with these settings">Copy link</button>
       <button id="sound" class="sound">♪ Listen</button>
       <span class="pill" id="pitchPill">f₁ = 82 Hz ≈ E2</span>
     </div>
@@ -154,7 +155,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="barsCard">
     <div class="flexcap"><h2 style="margin:0">Fourier modes of the string — drag the bars</h2>
       <span class="pill">displacement a<sub>n</sub></span></div>
     <canvas id="bars" height="260"></canvas>
@@ -166,7 +167,7 @@
   </div>
 
   <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
-  <div class="card">
+  <div class="card" id="scopeCard">
     <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
       <span class="pill" style="display:inline-flex;gap:6px;align-items:center">coil senses
         <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12px;border:1px solid #d8e2dc;border-radius:6px;padding:1px 4px">
@@ -181,7 +182,7 @@
       exactly the sound. Click a name in the legend to hide that string.</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="fftCard">
     <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal</h2>
       <span class="pill">frequency components</span></div>
     <p class="cap">Each string's own pickup FFT (its colour) plus the FFT of the superimposed, clipped output (dark). Raw spectra.</p>
@@ -232,6 +233,7 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('offlineHint').hidden = true;
 }
 </script>
+<script src="../../shared/pagekit.js"></script>
 <script>
 "use strict";
 (function(){
@@ -259,6 +261,7 @@ if (window.QUBLITZ_STANDALONE) {
   let modes = [];                      // [{kL, shape:[...], norm, ratio}]
   let f1 = 220;                        // fundamental Hz
   let playing=false, clock=0, lastTS=null, speed=0.3;
+  let shapeTag='mode1';                // what set the shape: a preset name, 'mode<n>', or 'custom' (bars / drawing)
 
   // ---------- eigenbasis (depends only on BC) ----------
   function buildBasis(){
@@ -321,7 +324,7 @@ if (window.QUBLITZ_STANDALONE) {
 
   // ---------- presets ----------
   function setPreset(kind){
-    const p=pluckPos;
+    const p=pluckPos; shapeTag=kind;
     if(kind==='mode1'||kind==='mode3'){
       coeffs=new Array(modes.length).fill(0);
       coeffs[kind==='mode1'?0:Math.min(2,modes.length-1)]=1; drawAll(); return;
@@ -653,7 +656,7 @@ if (window.QUBLITZ_STANDALONE) {
     drawLive(liveCurve); // raw preview
   }
   function endDraw(){ if(!drawing) return; drawing=false;
-    coeffs=project(liveCurve); drawAll(); }
+    coeffs=project(liveCurve); shapeTag='custom'; drawAll(); }
   sc.addEventListener('mousedown',startDraw); window.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
   sc.addEventListener('touchstart',startDraw,{passive:false}); sc.addEventListener('touchmove',moveDraw,{passive:false}); sc.addEventListener('touchend',endDraw);
 
@@ -666,7 +669,7 @@ if (window.QUBLITZ_STANDALONE) {
     const padb=22, padt=10, zero=r.height-padb, mid=(zero+padt)/2, scale=(zero-padt)/2/2.6; return (mid-cy)/scale; }
   function startBar(e){ e.preventDefault(); if(playing) pause(); clock=0; dragBar=barAt(e); if(dragBar<0) return; moveBar(e); }
   function moveBar(e){ if(dragBar<0) return; e.preventDefault();
-    let v=barVal(e); if(!isFinite(v)) v=0; coeffs[dragBar]=Math.max(-2.6,Math.min(2.6,v));
+    let v=barVal(e); if(!isFinite(v)) v=0; coeffs[dragBar]=Math.max(-2.6,Math.min(2.6,v)); shapeTag='custom';
     drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateTimePill(); }
   function endBar(){ dragBar=-1; }
   // Numeric readout for the bar under the pointer (or being dragged), and a CSV of all a_n.
@@ -770,7 +773,7 @@ if (window.QUBLITZ_STANDALONE) {
   // pure-mode selector: set the initial condition to a single mode n
   const pmSel=document.getElementById('puremode');
   function applyPure(){ if(playing) pause(); const n=+pmSel.value;
-    coeffs=new Array(modes.length).fill(0); coeffs[Math.min(n-1,modes.length-1)]=1; drawAll(); }
+    coeffs=new Array(modes.length).fill(0); coeffs[Math.min(n-1,modes.length-1)]=1; shapeTag='mode'+n; drawAll(); }
   if(pmSel){ for(let n=1;n<=N;n++){ const o=document.createElement('option'); o.value=n; o.textContent='mode '+n; pmSel.appendChild(o); }
     pmSel.addEventListener('change',applyPure);
     const pb=document.getElementById('puremodeset'); if(pb) pb.addEventListener('click',applyPure); }
@@ -781,7 +784,86 @@ if (window.QUBLITZ_STANDALONE) {
   // Plotly present (opened in a browser) -> interactive plots; absent (Cowork sandbox) -> canvas fallback
   if(!USE_PLOTLY){ if(scopePlot) scopePlot.style.display='none'; if(fftPlot) fftPlot.style.display='none';
     if(scv) scv.style.display='block'; if(spv) spv.style.display='block'; }
+  /* ---------- shareable state ----------
+     ?fr=0,x,x,x,x,x (fret per string, low E first; x = muted) &shape=triangle&p=0.5 (or mode<n>, or a=<coefficients>)
+     &c=<cents>&g=<gain dB>&sense=vel|pos */
+  const SHAPES=['gauss','triangle','square','clear'];
+  function shareQuery(){
+    const q=new URLSearchParams();
+    q.set('fr',played.map(f=>f==null?'x':f).join(','));
+    if(shapeTag==='custom') q.set('a',coeffs.map(v=>+v.toFixed(4)).join(','));
+    else { q.set('shape',shapeTag); if(SHAPES.includes(shapeTag)&&shapeTag!=='clear') q.set('p',pluckPos); }
+    if(cents) q.set('c',cents);
+    if(gainDb) q.set('g',gainDb);
+    if(!senseVel()) q.set('sense','pos');
+    return q.toString();
+  }
+  function readQuery(){
+    const P=PageKit.params(), st={};
+    const fr=(P.raw.get('fr')||'').split(',');
+    if(fr.length===6 && fr.every(f=>f==='x'||/^\d+$/.test(f)&&+f<=NFRET)) st.fr=fr.map(f=>f==='x'?null:+f);
+    const shape=P.str('shape'); if(shape && (SHAPES.includes(shape)||/^mode([1-9]|1\d|20)$/.test(shape))) st.shape=shape;
+    const a=P.list('a'); if(a && a.length<=N) st.a=a;
+    const pp=P.num('p',0.05,0.95); if(pp!=null) st.p=pp;
+    const c=P.num('c',-50,50); if(c!=null) st.c=Math.round(c);
+    const g=P.num('g',-40,40); if(g!=null) st.g=g;
+    const sense=P.str('sense',['vel','pos']); if(sense) st.sense=sense;
+    return st;
+  }
+  // Apply any subset of the shareable fields and redraw everything.
+  function applyState(st){
+    if(playing) pause(); clock=0;
+    if(st.fr) played=st.fr.slice();
+    if(st.c!=null){ cents=st.c; document.getElementById('detune').value=cents;
+      document.getElementById('detv').textContent = cents===0?'0 cents · in tune' : (cents>0?'+':'')+cents+' cents · '+(cents>0?'sharp':'flat'); }
+    if(st.g!=null){ gainDb=st.g; document.getElementById('gain').value=gainDb;
+      document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; }
+    if(st.sense) document.getElementById('sense').value=st.sense;
+    if(st.p!=null){ pluckPos=st.p; document.getElementById('pr').value=pluckPos; document.getElementById('pv').textContent=pluckPos.toFixed(2); }
+    if(st.a){ coeffs=new Array(modes.length).fill(0); st.a.forEach((v,k)=>{ if(k<coeffs.length) coeffs[k]=v; }); shapeTag='custom'; }
+    else if(st.shape && /^mode/.test(st.shape)){ const n=+st.shape.slice(4); pmSel.value=n;
+      coeffs=new Array(modes.length).fill(0); coeffs[Math.min(n-1,modes.length-1)]=1; shapeTag=st.shape; }
+    else if(st.shape){ setPreset(st.shape); }
+    updateChord(); drawFretboard(); drawAll();
+  }
+  document.getElementById('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/vibrating-string.html',shareQuery()));
+
+  /* ---------- guided predictions (?guided=1) ---------- */
+  const OPEN_E=[0,null,null,null,null,null];
+  const GUIDED=[
+    { title:'Pluck it in the middle',
+      setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0,c:0,sense:'vel'}, cover:['#barsCard','#fftCard'],
+      ask:'The open low E string is plucked exactly at its midpoint. Which modes are <i>missing</i> from the string?',
+      choices:['None, all are present','Even modes (2, 4, 6, …)','Odd modes (1, 3, 5, …)','Every third mode'], answer:1,
+      explain:'For a triangular pluck at position p, a<sub>n</sub> ∝ sin(nπp)/n². At p = ½ that is zero for every even n: those modes have a node at the middle, and you cannot excite a mode by pushing on its node. Hover the bars to read a<sub>n</sub>.' },
+    { title:'Pluck it a third of the way along',
+      setup:{fr:OPEN_E,shape:'triangle',p:0.33,g:0}, cover:['#barsCard','#fftCard'],
+      ask:'Now the pluck is at p = 0.33. Which modes (nearly) vanish?',
+      choices:['2, 4, 6, …','3, 6, 9, …','5, 10, 15, …','None'], answer:1,
+      explain:'sin(nπ/3) = 0 for n = 3, 6, 9, …, the modes with a node at a third. Because the slider gives 0.33 rather than exactly ⅓, a<sub>3</sub> is small but not zero: |sin(0.99π)| ≈ 0.03. Guitarists use this: picking near the bridge (small p) keeps many harmonics and sounds bright, picking near the middle sounds round.' },
+    { title:'What the pickup cannot hear',
+      setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0,sense:'vel'}, cover:['#fftCard'],
+      intro:'The pickup coil sits 9 % of the scale length from the bridge, and it reads the string only at that one point. Mode n contributes in proportion to sin(nπx) at the coil.',
+      ask:'Which harmonic number n is (nearly) silent in the pickup, even though the string carries it?',
+      answer:11, tol:0, unit:'',
+      explain:'At x = 0.91 of the open string, sin(11π × 0.91) = sin(10.01π) ≈ 0.03: the coil sits almost exactly on a node of mode 11 (1/11 ≈ 0.091). The 11th harmonic, at 11 × 82.4 ≈ 906 Hz, is missing from the FFT. The 2nd, 4th, … are missing too, but for a different reason: the middle pluck never put them on the string.' },
+    { title:'The 12th fret',
+      setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0}, reveal:{fr:[12,null,null,null,null,null]}, cover:[],
+      ask:'The open low E sounds at 82.4 Hz. Fret it at the 12th fret. What fundamental frequency do you expect?',
+      answer:164.8, tol:1.5, unit:'Hz',
+      explain:'Each fret shortens the string by a factor 2<sup>−1/12</sup>, so 12 frets halve it. With the same tension and mass per length, f<sub>1</sub> = v/2L doubles to 164.8 Hz: one octave. The pitch readout above the string shows E3.' },
+    { title:'Turn it up until it clips',
+      setup:{fr:OPEN_E,shape:'mode1',g:0,sense:'vel'}, reveal:{g:40}, cover:['#scopeCard','#fftCard'],
+      intro:'The string now holds a single mode, so the pickup sends a pure sine into the amp. The amp clips symmetrically: V<sub>out</sub> = 4.5 V · tanh(gain × V<sub>in</sub> / 4.5 V).',
+      ask:'The gain goes all the way up, to +40 dB. Which new frequencies appear in the output?',
+      choices:['None, it just gets louder','Even harmonics only (2f, 4f, …)','Odd harmonics only (3f, 5f, …)','All harmonics'], answer:2,
+      explain:'tanh flattens the top and bottom of the sine by the same amount, so the output still satisfies V(t + T/2) = −V(t). Any signal with that half-wave symmetry has only odd harmonics. Clipping invents frequencies the string never had: that is distortion. An amp that clips the top and bottom differently would add even harmonics too.' },
+  ];
+  function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'vibrating-string' }); }
+
   layout(); layoutFret(); buildBasis(); updateChord(); drawFretboard(); setPreset('mode1');
+  { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
+  if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry(document.getElementById('intro'), startGuided);
   console.log('[vibrating-string] ready. modes='+modes.length+' played='+JSON.stringify(played));
 })();
 </script>

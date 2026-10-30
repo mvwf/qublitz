@@ -118,6 +118,7 @@
       <div class="field"><label for="fT1">T₁ [ns]</label><input id="fT1" type="number" min="1" max="10000" step="1" value="150"></div>
       <div class="field"><label for="fT2">T₂ [ns] (≤ 2T₁)</label><input id="fT2" type="number" min="1" max="20000" step="1" value="300"></div>
       <button class="primary" id="fApply">Use this qubit</button>
+      <button id="copyFree" title="Copy a link that opens free play with this qubit">Copy link</button>
       <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
     </div>
     <p class="hint">T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
@@ -375,7 +376,7 @@ function setQubit(code, { keepUrl = false } = {}) {
   useQubit({ ...q, T2: 2 * q.T1 });
   $('#qcode').textContent = q.code;
   if (!keepUrl) {
-    try { const u = new URL(location.href); u.searchParams.set('qubit', q.code); u.searchParams.delete('assigned'); history.replaceState(null, '', u); } catch (e) {}
+    try { const u = new URL(location.href); u.searchParams.set('qubit', q.code); u.searchParams.delete('assigned'); u.searchParams.delete('free'); history.replaceState(null, '', u); } catch (e) {}
   }
 }
 function useQubit(q) {
@@ -408,9 +409,17 @@ function applyFree() {
   $('#fT2').value = T2;
   useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 300), 1, 1000) / 1000, T1, T2 });
   $('#reveal').checked = true; renderReveal();
-  try { const u = new URL(location.href); u.searchParams.delete('qubit'); u.searchParams.delete('assigned'); history.replaceState(null, '', u); } catch (e) {}
+  try { const u = new URL(location.href); u.searchParams.delete('qubit'); u.searchParams.delete('assigned'); u.searchParams.set('free', freeParam()); history.replaceState(null, '', u); } catch (e) {}
 }
+// ?free=ωq[GHz],Ω_R[MHz],T1[ns],T2[ns] opens free play with that qubit (the lab manual links to these).
+const freeParam = () => [state.qubit.omegaQ, +(state.qubit.omegaRabi * 1000).toFixed(3), state.qubit.T1, state.qubit.T2].join(',');
 $('#fApply').onclick = applyFree;
+$('#copyFree').onclick = async () => {
+  const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('free', freeParam());
+  try { await navigator.clipboard.writeText(u.href); $('#copyFree').textContent = 'Copied ✓'; }
+  catch (e) { prompt('Copy this link:', u.href); }
+  setTimeout(() => ($('#copyFree').textContent = 'Copy link'), 1500);
+};
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 let key = [];
@@ -836,9 +845,16 @@ function renderReveal() {
 $('#reveal').addEventListener('change', renderReveal);
 
 /* ---------------- boot ---------------- */
-let initial = null, assigned = false;
-try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; } catch (e) {}
+let initial = null, assigned = false, free = null;
+try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; free = sp.get('free'); } catch (e) {}
 setQubit(initial || Q.randomCode(), { keepUrl: !!initial });
+if (free && !assigned) {
+  const v = free.split(',').map(Number);
+  if (v.length === 4 && v.every(Number.isFinite)) {
+    [['#fWq', v[0]], ['#fRabi', v[1]], ['#fT1', v[2]], ['#fT2', v[3]]].forEach(([id, x]) => { $(id).value = x; });
+    $('#mode [data-v="free"]').click();
+  }
+}
 // An instructor's link: keep the code, hide the answers and the controls that would swap qubits.
 if (assigned && initial) {
   try { const u = new URL(location.href); u.searchParams.set('assigned', '1'); history.replaceState(null, '', u); } catch (e) {}
