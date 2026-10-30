@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fitzlab Interactive Demos</title>
 <meta name="description" content="Interactive demos from Fitzlab research and Dartmouth engineering courses.">
-<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']]},svg:{fontCache:'global'}};</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
 <style>
   :root{
     color-scheme: light;
@@ -72,6 +70,10 @@
   .card .body{padding:13px 15px 15px;display:flex;flex-direction:column;flex:1}
   .card h3{font-size:16.5px;margin:0 0 3px}
   .eqtag{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:13px;color:var(--green);margin:0 0 7px;min-height:20px;overflow-x:auto}
+  .fr{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.05;font-size:.8em;margin:0 .12em}
+  .fr>span+span{border-top:1px solid currentColor}
+  .sq>span{text-decoration:overline}
+  .math{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:1.05em}
   .card p.desc{font-size:12.9px;color:var(--muted);margin:0 0 10px}
   .tags{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
   .tag{font-size:11px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--muted)}
@@ -154,34 +156,34 @@
    ====================================================================== */
 const GROUPS = [
   { id:'games', code:'Quantum Games', title:'Learn Quantum by Playing',
-    desc:'Games from Qublitz, the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T\\(_1\\) relaxation, T\\(_2\\) dephasing and real gates.' },
+    desc:'Games from Qublitz, the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T<sub>1</sub> relaxation, T<sub>2</sub> dephasing and real gates.' },
   { id:'labs', code:'Virtual Quantum Labs', title:'Run the Experiment',
     desc:'Simulated qubit experiments with realistic noise. Find a hidden qubit, calibrate its drive and measure its coherence the way a real lab does.' },
   { id:'research', code:'Research', title:'Research Tools',
     desc:'Tools built in the lab to run quantum hardware, released openly for anyone to use.' },
   { id:'engs23', code:'ENGS 23', title:'Systems, Fields and Waves',
-    desc:'Intuition helpers built on the course spine of separating variables into a spatial eigenproblem \\(-\\varphi\'\'=\\lambda\\varphi\\), where each equation turns the same modes into different behavior in time.' },
+    desc:'Intuition helpers built on the course spine of separating variables into a spatial eigenproblem <span class="math">&minus;<i>&phi;</i>&Prime; = <i>&lambda;&phi;</i></span>, where each equation turns the same modes into different behavior in time.' },
 ];
 
 const DEMOS = [
   { group:'games', title:'QuBlitz Arena', thumb:'arena',
     href:'qublitz/arena.html', repo:'https://github.com/mvwf/qublitz',
-    eq:'\\(\\dot\\rho=-i[H,\\rho]+\\mathcal{D}_{T_1,T_2}[\\rho]\\)',
+    eq:'<i>&rho;&#775;</i> = &minus;<i>i</i>[<i>H</i>, <i>&rho;</i>] + <i>D</i><sub><i>T</i>&#8321;,<i>T</i>&#8322;</sub>[<i>&rho;</i>]',
     desc:'A turn-based battle game where every unit is a qubit. Charge with gates, strike before T₁ drains you, set relative phase to guard, and entangle enemies for splash damage.',
     tags:['quantum','game','decoherence','entanglement'] },
   { group:'labs', title:'Qubit Simulator', thumb:'bloch',
     href:'qublitz/qubit-simulator.html', repo:'https://github.com/mvwf/qublitz',
-    eq:'\\(H=\\tfrac{\\omega_q}{2}\\sigma_z+\\Omega_R\\,[I(t)\\sigma_x+Q(t)\\sigma_y]\\cos\\omega_d t\\)',
+    eq:'<i>H</i> = <span class="fr"><span>&omega;<sub><i>q</i></sub></span><span>2</span></span>&sigma;<sub><i>z</i></sub> + &Omega;<sub><i>R</i></sub>[<i>I</i>(<i>t</i>)&sigma;<sub><i>x</i></sub> + <i>Q</i>(<i>t</i>)&sigma;<sub><i>y</i></sub>] cos &omega;<sub><i>d</i></sub><i>t</i>',
     desc:'Find a hidden qubit by experiment. Sweep the drive to find its frequency, fit Rabi oscillations, measure T₁ from the decay, and build a Ramsey chevron to measure T₂.',
     tags:['quantum','qubits','Rabi','Ramsey','T1'] },
   { group:'labs', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
     href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
-    eq:'\\(|\\psi\\rangle=\\cos\\tfrac{\\theta}{2}|0\\rangle+e^{i\\phi}\\sin\\tfrac{\\theta}{2}|1\\rangle\\)',
+    eq:'|<i>&psi;</i>&rang; = cos<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|0&rang; + <i>e</i><sup><i>i&phi;</i></sup> sin<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|1&rang;',
     desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points and image sonification. These pages are moving to this site one by one.',
     tags:['quantum','qubits','simulator'] },
   { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
     href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
-    eq:'\\(\\bar n_{\\text{out}}=\\frac{\\bar n_{\\text{in}}}{L}+\\big(1-\\tfrac{1}{L}\\big)\\,\\bar n(T_i,f)\\)',
+    eq:'<i>n&#772;</i><sub>out</sub> = <span class="fr"><span><i>n&#772;</i><sub>in</sub></span><span><i>L</i></span></span> + (1 &minus; <span class="fr"><span>1</span><span><i>L</i></span></span>) <i>n&#772;</i>(<i>T<sub>i</sub></i>, <i>f</i>)',
     desc:'Follow room-temperature noise down a dilution fridge drive line. Set each stage\'s temperature and attenuation and see how many thermal photons reach the qubit.',
     tags:['cryogenics','thermal noise','microwave'] },
   { group:'research', title:'Cassini Fridge Monitor', thumb:'fridge', external:true,
@@ -192,17 +194,17 @@ const DEMOS = [
 
   { group:'engs23', title:'Three Equations, One Eigenbasis', thumb:'trio',
     href:'courses/engs23/heat-wave-schrodinger.html',
-    eq:'\\(e^{-\\lambda t}\\ \\cdot\\ \\cos\\sqrt{\\lambda}\\,t\\ \\cdot\\ e^{-i\\lambda t}\\)',
+    eq:'<i>e</i><sup>&minus;<i>&lambda;t</i></sup> &middot; cos <span class="sq">&radic;<span><i>&lambda;</i></span></span>&thinsp;<i>t</i> &middot; <i>e</i><sup>&minus;<i>i&lambda;t</i></sup>',
     desc:'Give heat, wave and Schrödinger the same starting shape and the same modes, then watch one decay, one vibrate, and one disperse and revive.',
     tags:['PDEs','eigenfunctions','quantum'] },
   { group:'engs23', title:'The Vibrating String', thumb:'string',
     href:'courses/engs23/vibrating-string.html',
-    eq:'\\(y(x,t)=\\sum_n a_n\\cos(\\omega_n t)\\sin\\frac{n\\pi x}{L}\\)',
+    eq:'<i>y</i>(<i>x</i>, <i>t</i>) = &Sigma;<sub><i>n</i></sub> <i>a<sub>n</sub></i> cos(&omega;<sub><i>n</i></sub><i>t</i>) sin<span class="fr"><span><i>n&pi;x</i></span><span><i>L</i></span></span>',
     desc:'Pluck a string, read its Fourier modes, and hear a pickup sample it at one point. Raise the gain until clipping invents harmonics.',
     tags:['wave equation','Fourier','audio'] },
   { group:'engs23', title:'Spectrogram Explorer', thumb:'spectro',
     href:'courses/engs23/spectrogram.html',
-    eq:'\\(\\big|\\int w(\\tau-t)\\,s(\\tau)\\,e^{-i\\omega\\tau}\\,d\\tau\\big|^{2}\\)',
+    eq:'|&int; <i>w</i>(<i>&tau;</i> &minus; <i>t</i>) <i>s</i>(<i>&tau;</i>) <i>e</i><sup>&minus;<i>i&omega;&tau;</i></sup> <i>d&tau;</i>|<sup>2</sup>',
     desc:'Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time.',
     tags:['STFT','signals','microphone'] },
 ];
@@ -400,7 +402,6 @@ function render(){
       <div class="grid">${cards}</div></section>`;
   }).join('') || '';
   if(!shown && q) $('#main').innerHTML=`<p class="empty">No demos match “${esc(query)}”.</p>`;
-  if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([$('#main')]).catch(()=>{});
   setupThumbs();
 }
 
