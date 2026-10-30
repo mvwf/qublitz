@@ -177,8 +177,13 @@ const DEMOS = [
   { group:'qublitz', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
     href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
     eq:'\\(|\\psi\\rangle=\\cos\\tfrac{\\theta}{2}|0\\rangle+e^{i\\phi}\\sin\\tfrac{\\theta}{2}|1\\rangle\\)',
-    desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points, fridge noise and image sonification. These pages are moving to this site one by one.',
+    desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points and image sonification. These pages are moving to this site one by one.',
     tags:['quantum','qubits','simulator'] },
+  { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
+    href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'\\(\\bar n_{\\text{out}}=\\frac{\\bar n_{\\text{in}}}{L}+\\big(1-\\tfrac{1}{L}\\big)\\,\\bar n(T_i,f)\\)',
+    desc:'Follow room-temperature noise down a dilution fridge drive line. Set each stage\'s temperature and attenuation and see how many thermal photons reach the qubit.',
+    tags:['cryogenics','thermal noise','microwave'] },
   { group:'research', title:'Cassini Fridge Monitor', thumb:'fridge', external:true,
     href:'https://cassini-fitzlab.streamlit.app/', repo:'https://github.com/jussalcedoga/cassini_monitor_fitzlab',
     eq:'',
@@ -307,6 +312,25 @@ const THUMBS = {
     const a=units[1], b=units[5];      // an entangled pair
     g.strokeStyle=`rgba(217,165,33,${0.5+0.4*Math.sin(t*3)})`; g.setLineDash([3,3]); g.lineWidth=1.5;
     g.beginPath(); g.moveTo(ox+(a[0]+.5)*s,oy+(a[1]+.5)*s); g.lineTo(ox+(b[0]+.5)*s,oy+(b[1]+.5)*s); g.stroke(); g.setLineDash([]);
+  },
+  chain(g,w,h,t){
+    // photon number stepping down through the attenuators, log scale
+    const cols=[C.red,'#d9822b',C.gold,C.blue,C.green], n=[2.3,2.3,0.4,-1.6,-3.5];
+    const x0=10, x1=w-10, y0=14, y1=h-12, sw=(x1-x0)/5;
+    const y=v=>y0+(2.6-v)/6.4*(y1-y0);
+    g.strokeStyle=C.grid; g.lineWidth=1; for(let k=0;k<5;k++){g.beginPath(); g.moveTo(x0+k*sw,y0); g.lineTo(x0+k*sw,y1); g.stroke();}
+    const u=(t*0.18)%1, pos=u*5;
+    for(let k=0;k<5;k++){
+      g.fillStyle=cols[k]; g.globalAlpha=0.85;
+      const top=y(n[k]); g.fillRect(x0+k*sw+sw*0.22, top, sw*0.56, y1-top);
+    }
+    g.globalAlpha=1;
+    const k=Math.min(4,Math.floor(pos)), f=pos-k, nv=k<4? n[k]+(n[k+1]-n[k])*Math.max(0,(f-0.6)/0.4) : n[4];
+    for(let j=0;j<6;j++){
+      const px=x0+pos*sw + Math.sin(t*5+j*2)*3, py=y(nv)-6-j*5 + Math.cos(t*4+j)*2;
+      g.fillStyle=`rgba(255,200,60,${Math.max(0,Math.min(1,(nv+3.5)/5.8))*(1-j/7)})`;
+      g.beginPath(); g.arc(px,py,2.4,0,7); g.fill();
+    }
   },
   fridge(g,w,h,t){
     const stages=[['50K',C.red],['4K',C.gold],['still',C.blue],['MXC',C.green]];
