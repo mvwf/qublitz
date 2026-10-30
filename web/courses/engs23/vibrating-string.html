@@ -1,0 +1,750 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Vibrating String — Fourier Modes &amp; the Wave Equation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --strike:#2d6fb3;
+    --bar:#12855a; --barneg:#c84b31;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;
+    line-height:1.5; padding:18px 20px 40px;}
+  h1{font-size:23px;margin:0 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  /* LaTeX-style typeset math (serif); everything else is Helvetica */
+  .eqn,.eqn i,.frac,.mvar,.eqnum{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,'Times New Roman',Times,serif}
+  .eqn-wrap{display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0 16px;position:relative}
+  .eqn{font-size:22px;display:inline-flex;align-items:center;gap:7px;color:var(--ink)}
+  .eqn i{font-style:italic}
+  .frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.04}
+  .frac .num{border-bottom:1.3px solid currentColor;padding:0 6px 1px}
+  .frac .den{padding:1px 6px 0}
+  .eqop{margin:0 3px}
+  .eqnum{position:absolute;right:4px;color:var(--muted);font-size:15px}
+  .mvar{font-style:italic}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+  .eq{font-style:italic;background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+  .wrap>.card{min-width:0}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px}
+  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+    margin:0 0 10px;font-weight:600}
+  canvas{display:block;width:100%;border-radius:8px;background:var(--panel);border:1px solid var(--line);touch-action:none}
+  .stagewrap{position:relative}
+  .inset{position:absolute;top:8px;left:8px;width:210px;background:rgba(255,255,255,0.9);
+    border:1px solid var(--line);border-radius:8px;padding:3px 5px 1px;backdrop-filter:blur(2px)}
+  .inset canvas{background:transparent;border:none;border-radius:0}
+  .insetlab{font-size:10px;color:var(--muted);letter-spacing:.02em;margin:1px 2px 0}
+  .subcanvas{margin-top:8px}
+  .cap{font-size:12px;color:var(--muted);margin:2px 0 5px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  .row.tight{gap:6px}
+  label.lbl{font-size:12.5px;color:var(--muted);min-width:fit-content}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:7px;padding:6px 11px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+  button.primary:hover{background:var(--green2);color:#fff}
+  button.active{background:var(--green);color:#fff;border-color:var(--green)}
+  button.sound{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.sound:hover{background:#a93a24;color:#fff}
+  .tog{font-size:12px;font-weight:600;padding:3px 9px;border:1.5px solid currentColor;border-radius:6px;cursor:pointer;background:#fff}
+  .tog.off{opacity:.3;text-decoration:line-through;font-weight:400}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{border:none;border-radius:0;padding:5px 10px}
+  .seg button:not(:last-child){border-right:1px solid var(--line)}
+  input[type=range]{accent-color:var(--green);vertical-align:middle}
+  .val{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink);min-width:44px;display:inline-block;text-align:right}
+  .pill{font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:20px;padding:2px 9px}
+  .ladder{display:flex;align-items:flex-end;gap:0;height:66px;border-bottom:2px solid var(--line);
+    position:relative;margin-top:6px}
+  .harm{position:absolute;bottom:0;width:2px;background:var(--green);transform:translateX(-1px)}
+  .harm span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted);white-space:nowrap}
+  .legend{font-size:12px;color:var(--muted);margin-top:4px}
+  .hint{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px dashed var(--line);
+    border-radius:8px;padding:9px 11px;margin-top:12px}
+  .hint b{color:var(--green)}
+  .muted{color:var(--muted)}
+  .flexcap{display:flex;justify-content:space-between;align-items:baseline}
+  .tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px}
+  .tag.full{background:#e3f3ea;color:var(--green)}
+  .tag.odd{background:#fdeae4;color:var(--accent)}
+  a{color:var(--green)}
+  .footer{margin-top:18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+  ol{margin:6px 0 0;padding-left:20px}
+  ol li{margin:4px 0}
+</style>
+
+<a href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
+<h1>The Vibrating String</h1>
+<p class="sub">An ideal string obeys the wave equation on 0 ≤ <span class="mvar">x</span> ≤ <span class="mvar">L</span>,
+  with both ends fixed (<span class="mvar">y</span> = 0) and wave speed <span class="mvar">v</span>. Give it a shape,
+  watch each Fourier mode oscillate at its own frequency, see what the pickup coil reads, and hear the result.</p>
+<div class="eqn-wrap">\[ \frac{\partial^{2} y}{\partial x^{2}} \;=\; \frac{1}{v^{2}}\,\frac{\partial^{2} y}{\partial t^{2}} \tag{1} \]</div>
+
+<div class="card" id="fbCard" style="margin-bottom:16px">
+  <div class="flexcap"><h2 style="margin:0">Fretboard — click a string to fret it</h2>
+    <span class="pill" id="selPill">6th · E₂ · open</span></div>
+  <canvas id="fretboard" height="150"></canvas>
+  <div class="row tight" style="margin-top:6px">
+    <label class="lbl" style="min-width:fit-content">Detune</label>
+    <input id="detune" type="range" min="-50" max="50" step="1" value="0" style="flex:1;max-width:340px">
+    <span class="val" id="detv" style="min-width:120px">0 cents · in tune</span>
+    <button id="retune">Reset tuning</button>
+    <span class="muted" style="font-size:12px">Tuning is dialed in — nudge to go flat or sharp.</span>
+  </div>
+  <p class="legend" style="margin:6px 0 0">Click a fret to play that string; click the gutter to open or mute it (×).
+    Fret several strings and they all vibrate and sound together. Low E is the bottom row, as in tab.</p>
+  <div class="row tight" id="visRow" style="margin-top:6px">
+    <span class="muted" style="font-size:12px">Isolate in the plots:</span>
+    <span id="visChips"></span>
+    <span class="muted" style="font-size:12px">(hides the string's trace only — the sound is unchanged)</span>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <h2>Initial shape (plucked, released from rest)</h2>
+  <div class="row tight" id="plkRow">
+    <label class="lbl" style="min-width:74px">Bump position</label>
+    <input id="pr" type="range" min="0.05" max="0.95" step="0.01" value="0.5" style="flex:1;max-width:360px">
+    <span class="val" id="pv">0.50</span>
+  </div>
+  <div class="row tight">
+    <button data-pre="gauss">Gaussian bump</button>
+    <button data-pre="triangle">Triangular pluck</button>
+    <button data-pre="square">Box</button>
+    <button data-pre="clear">Clear</button>
+    <span style="width:14px"></span>
+    <label class="lbl" style="min-width:fit-content">Pure mode</label>
+    <select id="puremode" style="font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:7px"></select>
+    <button id="puremodeset" class="primary">Set</button>
+    <span class="muted" style="font-size:12px">a single standing wave</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- Row 1: the string (left) and its Fourier modes (right), same size -->
+  <div class="card">
+    <div class="flexcap"><h2 style="margin:0">String — <span class="mvar">y</span>(<span class="mvar">x</span>, <span class="mvar">t</span>)</h2>
+      <span class="pill" id="timePill">t = 0.00 periods</span></div>
+    <canvas id="string" height="260"></canvas>
+    <div class="row">
+      <button id="play" class="primary">▶ Play</button>
+      <button id="reset">Reset to t = 0</button>
+      <button id="sound" class="sound">♪ Listen</button>
+      <span class="pill" id="pitchPill">f₁ = 82 Hz ≈ E2</span>
+    </div>
+    <div class="row tight">
+      <label class="lbl">Animation speed</label>
+      <input id="speed" type="range" min="0.05" max="1.2" step="0.01" value="0.3" style="flex:1">
+    </div>
+    <div class="row tight">
+      <label class="lbl">Amp gain</label>
+      <input id="gain" type="range" min="-40" max="40" step="0.5" value="0" style="flex:1">
+      <span class="val" id="gdb" style="min-width:48px">0 dB</span>
+      <span class="muted" style="font-size:12px">attenuate ← 0 dB → overdrive</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flexcap"><h2 style="margin:0">Fourier modes of the string — drag the bars</h2>
+      <span class="pill">displacement a<sub>n</sub></span></div>
+    <canvas id="bars" height="260"></canvas>
+    <p class="legend">How much of each mode <span class="mvar">n</span> is in the string's shape; bar height is the true amplitude
+      (taller = louder). The motion is the sum of these modes.</p>
+  </div>
+
+  <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
+  <div class="card">
+    <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
+      <span class="pill">position at the coil</span></div>
+    <p class="cap">Each string's contribution (its colour) and the clipped output <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>) you hear (dark), in volts. Raise the <b>Amp gain</b> (dB) to drive it into the ±4.5 V rail.</p>
+    <div id="scopePlot" style="width:100%;height:220px"></div>
+    <canvas id="scope" height="200" style="display:none"></canvas>
+    <p class="legend">The coil reads the string's position near the bridge; the gain knob drives that sum through a soft
+      clipper (tanh). The dark <b>sum</b> trace is exactly the sound. Click a name in the legend to hide that string.</p>
+  </div>
+
+  <div class="card">
+    <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal</h2>
+      <span class="pill">frequency components</span></div>
+    <p class="cap">Each string's own pickup FFT (its colour) plus the FFT of the superimposed, clipped output (dark). Raw spectra.</p>
+    <div id="fftPlot" style="width:100%;height:220px"></div>
+    <canvas id="spectrum" height="200" style="display:none"></canvas>
+    <p class="legend">Each string's FFT is one trace, with the superimposed total overlaid. Click a name in the legend to
+      isolate a string. When clean the per-string spectra add to the total; turn the gain up and the total grows extra
+      harmonics the strings never had — clipping manufactures frequencies, which is how a guitar amp makes distortion.</p>
+  </div>
+</div>
+
+<div class="hint" style="margin-top:16px">
+  <b>Exercise — find the Fourier transform hiding in the pickup</b>
+  <ol>
+    <li>Mute every string but the open low E (click the gutter ×). Set <b>Pure mode → 1</b>, press Set, then ♪ Listen.
+      One mode on the string, one line in the FFT, one pure tone. Note its frequency f₁.</li>
+    <li>Step the pure mode to 2, 3, 4 … Each single standing wave gives one spectral line at <span class="mvar">n</span>·f₁.
+      A sinusoid in time transforms to a single spike — the simplest Fourier transform there is.</li>
+    <li>Keep that single mode and slowly raise the <b>Amp gain</b> (dB). The round sine in the scope grows flat tops as it
+      hits the ±4.5 V rail. In the FFT, new peaks appear at 3f₁, 5f₁, 7f₁ … Listen: the pure tone turns into a buzzy overdrive.
+      Where did those frequencies come from if the string only has one mode?</li>
+    <li>At 0 dB the FFT peaks track the mode bars (except modes with a node at the coil). Now crank the gain — the FFT
+      sprouts harmonics the string never had. Clipping is a <i>nonlinear</i> operation; it manufactures frequencies,
+      which is exactly how a guitar amp makes distortion.</li>
+    <li>Read it off quantitatively: the labelled peaks are at integer multiples of f₁ (in Hz). Odd multiples dominate
+      for symmetric clipping — predict the next peak's frequency before you look.</li>
+    <li>Fret a second string and press Play. Each string adds its own comb of lines in its colour; the sound and its
+      FFT are the superposition. You have built a chord's spectrum from scratch.</li>
+  </ol>
+</div>
+
+<div class="footer">
+  Built for ENGS 23 · Systems, Fields &amp; Waves. Same skeleton as heat and Schrödinger:
+  separate variables → eigenfunctions from the spatial problem + boundary conditions → each mode evolves by its eigenvalue.
+  Here the eigenvalue is real-and-imaginary-free in space but gives ±iω in time, so modes oscillate instead of decay.
+  <br><br>
+  Developed with Claude (Anthropic) through extensive prompt engineering and deep knowledge of the ENGS 23 course material.
+</div>
+
+<script>
+"use strict";
+(function(){
+  // ---------- state ----------
+  const N = 20;              // number of modes shown / used
+  const M = 400;             // spatial samples on xi in [0,1]
+  const xi = Array.from({length:M+1},(_,i)=>i/M);
+  let bcL='D', bcR='D';
+  let pluckPos=0.5, cents=0, gainDb=0;    // amp gain in dB (0 dB = clean / unity)
+  const g=()=>Math.pow(10,gainDb/20);     // linear voltage gain
+  const VREF=1.80;                        // pickup sensitivity: volts per unit modal amplitude (normal pluck ~0.8 V peak)
+  const VCLIP=4.5;                        // amplifier soft-clip rail (volts)
+  const AMP_MAX=2.6;                      // full-scale amplitude for the mode bars
+  const pickupPos=0.09;   // fixed, realistic bridge pickup: ~1.7 in from the bridge on a 25.5 in scale (fraction of full scale)
+  const FREF=82.41;                 // reference pitch (low-E open) that sets the visual animation rate
+  const SCOL=['#00693e','#1f7ab0','#c84b31','#8a5cc4','#cc8800','#0f766e'];
+  const SNAME=['6·E','5·A','4·D','3·G','2·B','1·e'];
+  let played=[0,null,null,null,null,null];   // fret per string (low E .. high e, player's looking-down order); null = muted
+  const vis=[true,true,true,true,true,true];  // show/hide each string in the plots (display only; sound is unchanged)
+  const oddBC=()=> (bcL+bcR==='DN'||bcL+bcR==='ND');
+  const detuneFactor=()=> Math.pow(2,cents/1200);
+  function f1of(i){ const note=STRINGS[i].f*Math.pow(2,played[i]/12)*detuneFactor(); return oddBC()? note/2 : note; }
+  const playedList=()=> [0,1,2,3,4,5].filter(i=>played[i]!=null);
+  let coeffs = new Array(N).fill(0);   // modal amplitudes of the drawn IC (bars)
+  let modes = [];                      // [{kL, shape:[...], norm, ratio}]
+  let f1 = 220;                        // fundamental Hz
+  let playing=false, clock=0, lastTS=null, speed=0.3;
+
+  // ---------- eigenbasis (depends only on BC) ----------
+  function buildBasis(){
+    const type = bcL+bcR;
+    modes = [];
+    for(let n=0;n<=N;n++){
+      let kL=null, shape=null;
+      if(type==='DD'){ if(n===0) continue; kL=n*Math.PI; shape=xi.map(x=>Math.sin(kL*x)); }
+      else if(type==='NN'){ if(n===0){kL=0; shape=xi.map(()=>1);} else {kL=n*Math.PI; shape=xi.map(x=>Math.cos(kL*x));} }
+      else if(type==='DN'){ if(n===0) continue; kL=(2*n-1)*Math.PI/2; shape=xi.map(x=>Math.sin(kL*x)); }
+      else { /* ND */ if(n===0) continue; kL=(2*n-1)*Math.PI/2; shape=xi.map(x=>Math.cos(kL*x)); }
+      let norm=0; for(let i=0;i<=M;i++){ const w=(i===0||i===M)?0.5:1; norm+=w*shape[i]*shape[i]; } norm/=M;
+      modes.push({n,kL,shape,norm});
+      if(modes.length>=N) break;
+    }
+    const base = modes.find(m=>m.kL>0).kL;
+    modes.forEach(m=>m.ratio = m.kL>0 ? m.kL/base : 0);
+  }
+  const NOTES=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+  function noteName(f){ if(f<=0) return '';
+    const midi=Math.round(69+12*Math.log2(f/440));
+    return NOTES[((midi%12)+12)%12] + (Math.floor(midi/12)-1); }
+  function updateChord(){
+    const pl=playedList();
+    const notes=pl.map(i=>noteName(f1of(i)));
+    f1 = pl.length? Math.min(...pl.map(i=>f1of(i))) : FREF;   // lowest sounding fundamental, for the ladder label
+    document.getElementById('pitchPill').textContent = pl.length? (pl.length>1?'Chord: ':'Pitch: ')+notes.join(' ') : 'all strings muted';
+    const tab=[0,1,2,3,4,5].map(i=>played[i]==null?'×':played[i]).join(' ');
+    const sp=document.getElementById('selPill'); if(sp) sp.textContent = tab + (pl.length?('  ·  '+notes.join(' ')):'');
+    if(typeof buildVisChips==='function') buildVisChips();
+  }
+
+  // project a sampled curve onto the basis -> coeffs
+  function project(curve){
+    return modes.map(m=>{
+      let s=0; for(let i=0;i<=M;i++){ const w=(i===0||i===M)?0.5:1; s+=w*curve[i]*m.shape[i]; }
+      s/=M; return s/m.norm;
+    });
+  }
+  // reconstruct curve from current coeffs
+  function reconstruct(){
+    const y=new Array(M+1).fill(0);
+    for(let k=0;k<modes.length;k++){ const a=coeffs[k], sh=modes[k].shape; if(!a) continue;
+      for(let i=0;i<=M;i++) y[i]+=a*sh[i]; }
+    return y;
+  }
+  // Shape of string i at the current clock. Plucked (released from rest): each mode a_n cos(w_n t).
+  // Every string shares the SAME initial coeffs; only the frequencies differ, so strings of different
+  // pitch visibly oscillate at different rates. clock is in units of the reference (low-E) period.
+  function stringCurve(i){
+    const f1i=f1of(i), y=new Array(M+1).fill(0);
+    for(let k=0;k<modes.length;k++){
+      const a=coeffs[k]; if(!a) continue;
+      const osc=Math.cos(2*Math.PI*(f1i*modes[k].ratio/FREF)*clock);
+      const sh=modes[k].shape;
+      for(let q=0;q<=M;q++) y[q]+=a*osc*sh[q];
+    }
+    return y;
+  }
+
+  // ---------- presets ----------
+  function setPreset(kind){
+    const p=pluckPos;
+    if(kind==='mode1'||kind==='mode3'){
+      coeffs=new Array(modes.length).fill(0);
+      coeffs[kind==='mode1'?0:Math.min(2,modes.length-1)]=1; drawAll(); return;
+    }
+    if(kind==='clear'){ coeffs=new Array(modes.length).fill(0); drawAll(); return; }
+    let curve;
+    if(kind==='triangle') curve=xi.map(x=> x<p ? x/p : (1-x)/(1-p));
+    else if(kind==='square') curve=xi.map(x=> (Math.abs(x-p)<0.2)?1:0);
+    else /* gauss */ { const w=0.09; curve=xi.map(x=>Math.exp(-((x-p)**2)/(2*w*w))); }
+    // NOT normalized: the shape's amplitude (peak ~1 here) is kept, so plucking bigger = louder.
+    coeffs = project(curve);
+    drawAll();
+  }
+
+  // ---------- canvases ----------
+  const sc=document.getElementById('string'), sx=sc.getContext('2d');
+  const bc=document.getElementById('bars'), bx=bc.getContext('2d');
+  const scv=document.getElementById('scope'), scx=scv?scv.getContext('2d'):null;
+  const spv=document.getElementById('spectrum'), spx=spv?spv.getContext('2d'):null;
+  const scopePlot=document.getElementById('scopePlot'), fftPlot=document.getElementById('fftPlot');
+  const USE_PLOTLY = typeof window!=='undefined' && !!window.Plotly;
+  function fit(cv){ const r=cv.getBoundingClientRect(); const dpr=window.devicePixelRatio||1;
+    cv.width=r.width*dpr; cv.height=cv.height*dpr/1; cv.width=r.width*dpr; return dpr; }
+  function sizeCanvas(cv,h){ const dpr=window.devicePixelRatio||1; const w=cv.clientWidth;
+    cv.width=w*dpr; cv.height=h*dpr; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {w,h}; }
+
+  let SDIM, BDIM, SCDIM, SPDIM;
+  function layout(){ SDIM=sizeCanvas(sc,260); BDIM=sizeCanvas(bc,260);
+    if(scv) SCDIM=sizeCanvas(scv,200); if(spv) SPDIM=sizeCanvas(spv,200); }
+  function layoutFret(){ FBDIM=sizeCanvas(fb,150); }   // sized separately so drawAll()'s layout() never clears it
+
+  const AMPU=0.72; // FIXED vertical scale: a unit-amplitude (|y|=1) shape fills this fraction of the half-band (same every time, no autoscale)
+  const PADX=26;
+  const lenFrac=i=> Math.pow(2,-played[i]/12);      // vibrating length / full scale length (open = 1, higher fret = shorter)
+  const ORD=arr=> arr.slice().sort((a,b)=>b-a);     // display order top->bottom: high e on top, low E on the bottom (tab style)
+  function endGlyph(x,mid){ sx.save(); sx.strokeStyle='#9bb0a6'; sx.lineWidth=2;    // both ends fixed (Dirichlet)
+    sx.beginPath(); sx.moveTo(x,mid-9); sx.lineTo(x,mid+9); sx.stroke();
+    sx.fillStyle='#00693e'; sx.beginPath(); sx.arc(x,mid,3,0,7); sx.fill(); sx.restore(); }
+  // Draw every played string in its own band. The bridge (x=L) is shared on the right; fretting moves the
+  // left end rightward, so a fretted string is drawn SHORTER. The pickup is a fixed distance from the bridge,
+  // so its dashed line crosses each string at a different fraction of its length.
+  function drawStrings(){
+    const {w,h}=SDIM; sx.clearRect(0,0,w,h);
+    const pl=ORD(visList());
+    if(!playedList().length){ sx.fillStyle='#9bb0a6'; sx.font='13px -apple-system,sans-serif'; sx.textAlign='center';
+      sx.fillText('No strings selected — click the fretboard above to fret a string', w/2, h/2); sx.textAlign='left'; return; }
+    if(!pl.length){ sx.fillStyle='#9bb0a6'; sx.font='13px -apple-system,sans-serif'; sx.textAlign='center';
+      sx.fillText('All strings hidden — re-enable one with the chips above', w/2, h/2); sx.textAlign='left'; return; }
+    const plotW=w-2*PADX, Xnut=PADX, Xb=w-PADX, n=pl.length, bandH=h/n;
+    pl.forEach((i,idx)=>{ const mid=bandH*(idx+0.5), half=bandH/2-7, amp=half*AMPU;   // fixed scale, same every time
+      const Len=lenFrac(i), Xl=Xb-Len*plotW;
+      if(Len<0.999){ sx.strokeStyle='#d8e2dc'; sx.lineWidth=1; sx.beginPath(); sx.moveTo(Xnut,mid); sx.lineTo(Xl,mid); sx.stroke(); } // damped part behind the fret
+      sx.strokeStyle='#eef3f0'; sx.lineWidth=1; sx.beginPath(); sx.moveTo(Xl,mid); sx.lineTo(Xb,mid); sx.stroke();
+      const y=stringCurve(i);
+      sx.strokeStyle=SCOL[i]; sx.lineWidth=n>3?1.8:2.6; sx.lineJoin='round'; sx.beginPath();
+      for(let q=0;q<=M;q++){ const X=Xl+(Xb-Xl)*q/M; let Y=mid-y[q]*amp; Y=Math.max(mid-half,Math.min(mid+half,Y)); q?sx.lineTo(X,Y):sx.moveTo(X,Y); }
+      sx.stroke();
+      endGlyph(Xl,mid); endGlyph(Xb,mid);
+      sx.fillStyle=SCOL[i]; sx.font='11px -apple-system,sans-serif'; sx.textAlign='left'; sx.textBaseline='alphabetic';
+      sx.fillText(SNAME[i]+'  '+noteName(f1of(i))+(played[i]>0?'  fret '+played[i]:'  open'), Xl+4, mid-half+11);
+    });
+    // nut (far left, full scale) and bridge (right) frame the whole string; pickup is a fixed spot near the bridge
+    sx.save(); sx.strokeStyle='#cfdbd4'; sx.lineWidth=1; sx.setLineDash([2,3]);
+    sx.beginPath(); sx.moveTo(Xnut,4); sx.lineTo(Xnut,h-4); sx.stroke(); sx.restore();
+    const Xp=Xb-pickupPos*plotW;                      // pickup: fixed distance from the shared bridge
+    sx.save(); sx.strokeStyle='rgba(200,75,49,0.6)'; sx.lineWidth=1.5; sx.setLineDash([4,4]);
+    sx.beginPath(); sx.moveTo(Xp,2); sx.lineTo(Xp,h-2); sx.stroke(); sx.restore();
+    sx.font='10px -apple-system,sans-serif';
+    sx.fillStyle='#9bb0a6'; sx.textAlign='left'; sx.fillText('nut', Xnut+2, 10);
+    sx.fillStyle='#c84b31'; sx.textAlign='center'; sx.fillText('pickup', Xp, 10);
+    sx.fillStyle='#9bb0a6'; sx.textAlign='right'; sx.fillText('bridge', Xb-1, 10); sx.textAlign='left';
+  }
+  function drawLive(curve){ // single-string draw preview over that string's segment
+    const {w,h}=SDIM; sx.clearRect(0,0,w,h); const i=playedList()[0];
+    const plotW=w-2*PADX, Xb=w-PADX, Xl=Xb-lenFrac(i)*plotW, mid=h/2, half=h/2-7, amp=half*AMPU;
+    sx.strokeStyle='#eef3f0'; sx.lineWidth=1; sx.beginPath(); sx.moveTo(Xl,mid); sx.lineTo(Xb,mid); sx.stroke();
+    sx.strokeStyle='#00693e'; sx.lineWidth=2.6; sx.lineJoin='round'; sx.beginPath();
+    for(let q=0;q<=M;q++){ const X=Xl+(Xb-Xl)*q/M; let Y=mid-curve[q]*amp; Y=Math.max(mid-half,Math.min(mid+half,Y)); q?sx.lineTo(X,Y):sx.moveTo(X,Y); }
+    sx.stroke(); endGlyph(Xl,mid); endGlyph(Xb,mid);
+  }
+  // The pickup reads the string's POSITION at its location: y(x_pickup,t), summed over played strings.
+  // The pickup sits a fixed distance from the bridge, so each string is sampled at 1 - d/L_i.
+  function pickupU(i){ return Math.max(0,Math.min(1, 1 - pickupPos/lenFrac(i))); }
+  function pickupSignal(i,t){ const f1i=f1of(i), u=pickupU(i); let s=0;
+    for(let k=0;k<modes.length;k++){ const a=coeffs[k]; if(!a) continue;
+      s += a*Math.cos(2*Math.PI*f1i*modes[k].ratio*t)*Math.sin(modes[k].kL*u); }  // position at the coil
+    return s; }
+  function pickupSum(t){ let s=0; const pl=playedList(); for(const i of pl) s+=pickupSignal(i,t); return s; }
+  // Pickup output voltage, soft-clipped at the amp rail: V_out = VCLIP·tanh(g·VREF·Σ y_i / VCLIP).
+  function Vout(t){ return VCLIP*Math.tanh(g()*VREF*pickupSum(t)/VCLIP); }
+  const noteLab=i=>SNAME[i].split('·')[1];
+  const visList=()=>playedList().filter(i=>vis[i]);   // played AND shown
+  function buildVisChips(){ const el=document.getElementById('visChips'); if(!el) return; el.innerHTML='';
+    const pl=playedList();
+    if(!pl.length){ el.innerHTML='<span class="muted" style="font-size:12px">— no strings played —</span>'; return; }
+    pl.forEach(i=>{ const b=document.createElement('button'); b.type='button';
+      b.className='tog'+(vis[i]?'':' off'); b.textContent=noteLab(i); b.style.color=SCOL[i];
+      b.addEventListener('click',()=>{ vis[i]=!vis[i]; b.className='tog'+(vis[i]?'':' off');
+        drawStrings(); drawScope(); drawSpectrum(); });
+      el.appendChild(b); }); }
+  // DFT of any time-signal fn(t) over ~6 periods of the lowest note -> {freqs, amps} in volts
+  function spectrumAmps(fn, f1low, Fmax){
+    const N=640, Tspan=6/f1low; const buf=new Float64Array(N), win=new Float64Array(N); let mean=0, sumW=0;
+    for(let n=0;n<N;n++){ buf[n]=fn(Tspan*n/N); mean+=buf[n]; }
+    mean/=N; for(let n=0;n<N;n++){ const wn=0.5-0.5*Math.cos(2*Math.PI*n/(N-1)); win[n]=wn; sumW+=wn; buf[n]-=mean; }
+    const K=260, freqs=new Array(K+1), amps=new Array(K+1);
+    for(let k=0;k<=K;k++){ const f=Fmax*k/K, wom=2*Math.PI*f*Tspan/N; let re=0,im=0;
+      for(let n=0;n<N;n++){ const ph=wom*n, bw=buf[n]*win[n]; re+=bw*Math.cos(ph); im-=bw*Math.sin(ph); }
+      freqs[k]=f; amps[k]=2*Math.hypot(re,im)/sumW; }
+    return {freqs, amps};
+  }
+  // each string's own pickup voltage (linear, pre-clip); the sum is clipped at the rail (Vout)
+  const stringV=i=>(t=>g()*VREF*pickupSignal(i,t));
+  // ---- Plotly versions (interactive legend toggles); fall back to canvas when Plotly isn't loaded ----
+  function plotScope(){
+    if(!scopePlot||!window.Plotly) return; const pl=playedList();
+    if(!pl.length){ Plotly.purge(scopePlot); return; }
+    const f1low=Math.min(...pl.map(i=>f1of(i))), Np=600, Twin=3/f1low, gg=g();
+    const tms=new Array(Np+1); for(let p=0;p<=Np;p++) tms[p]=Twin*p/Np*1000;
+    const traces=[];
+    visList().forEach(i=>{ const y=new Array(Np+1); for(let p=0;p<=Np;p++) y[p]=gg*VREF*pickupSignal(i,Twin*p/Np);
+      traces.push({x:tms,y:y,mode:'lines',name:noteLab(i),line:{color:SCOL[i],width:1.3}}); });
+    const ys=new Array(Np+1); for(let p=0;p<=Np;p++) ys[p]=Vout(Twin*p/Np);
+    traces.push({x:tms,y:ys,mode:'lines',name:'sum',line:{color:'#1b2a24',width:2.4}});
+    const layout={margin:{l:52,r:12,t:6,b:38},showlegend:true,legend:{orientation:'h',y:1.18,x:0,font:{size:11}},
+      font:{family:'Helvetica,Arial,sans-serif',size:11},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdfc',
+      xaxis:{title:'t (ms)',gridcolor:'#eef3f0',zeroline:false},
+      yaxis:{title:'V_out (V)',range:[-VCLIP*1.08,VCLIP*1.08],gridcolor:'#eef3f0',zeroline:true,zerolinecolor:'#dbe6e0'},
+      shapes:[{type:'line',xref:'paper',x0:0,x1:1,y0:VCLIP,y1:VCLIP,line:{color:'#e3b8ab',width:1,dash:'dot'}},
+              {type:'line',xref:'paper',x0:0,x1:1,y0:-VCLIP,y1:-VCLIP,line:{color:'#e3b8ab',width:1,dash:'dot'}}]};
+    Plotly.react(scopePlot, traces, layout, {displayModeBar:false, responsive:true});
+  }
+  function plotFFT(){
+    if(!fftPlot||!window.Plotly) return; const pl=playedList();
+    if(!pl.length){ Plotly.purge(fftPlot); return; }
+    const f1low=Math.min(...pl.map(i=>f1of(i))), maxF1=Math.max(...pl.map(i=>f1of(i))), gg=g();
+    const Fmax=Math.min(6000, Math.max(2200, 13*maxF1));
+    const traces=[];
+    visList().forEach(i=>{ const s=spectrumAmps(stringV(i), f1low, Fmax);
+      traces.push({x:s.freqs,y:s.amps,mode:'lines',name:noteLab(i),line:{color:SCOL[i],width:1.4}}); });
+    const sum=spectrumAmps(Vout, f1low, Fmax);
+    traces.push({x:sum.freqs,y:sum.amps,mode:'lines',name:'sum',line:{color:'#1b2a24',width:2}});
+    const layout={margin:{l:58,r:12,t:6,b:38},barmode:'overlay',showlegend:true,legend:{orientation:'h',y:1.18,x:0,font:{size:11}},
+      font:{family:'Helvetica,Arial,sans-serif',size:11},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdfc',
+      xaxis:{title:'frequency (Hz)',range:[0,Fmax],gridcolor:'#eef3f0'},
+      yaxis:{title:'|V| (V)',rangemode:'tozero',gridcolor:'#eef3f0'}};
+    Plotly.react(fftPlot, traces, layout, {displayModeBar:false, responsive:true});
+  }
+  function drawScope(){ if(USE_PLOTLY) plotScope(); else scopeCanvas(); }
+  function drawSpectrum(){ if(USE_PLOTLY) plotFFT(); else spectrumCanvas(); }
+  function scopeCanvas(){
+    if(!scx||!SCDIM) return; const {w,h}=SCDIM; scx.clearRect(0,0,w,h);
+    const padx=30, pr=8, plotW=w-padx-pr, axisH=28, mid=(h-axisH)/2, unit=(mid-4)*0.92/VCLIP; // px per volt
+    scx.strokeStyle='#f1ddd6'; scx.setLineDash([3,3]); scx.lineWidth=1;
+    scx.beginPath(); scx.moveTo(padx,mid-VCLIP*unit); scx.lineTo(w-pr,mid-VCLIP*unit); scx.moveTo(padx,mid+VCLIP*unit); scx.lineTo(w-pr,mid+VCLIP*unit); scx.stroke(); scx.setLineDash([]);
+    scx.strokeStyle='#eef3f0'; scx.beginPath(); scx.moveTo(padx,mid); scx.lineTo(w-pr,mid); scx.stroke();
+    scx.strokeStyle='#dbe6e0'; scx.beginPath(); scx.moveTo(padx,h-axisH); scx.lineTo(w-pr,h-axisH); scx.stroke();
+    // voltage y-ticks
+    scx.fillStyle='#8aa'; scx.font='9px Helvetica,Arial,sans-serif'; scx.textAlign='right';
+    [VCLIP,0,-VCLIP].forEach(V=>{ const Y=mid-V*unit; scx.fillText((V>0?'+':'')+V.toFixed(1), padx-3, Y+3); });
+    scx.save(); scx.translate(9,mid); scx.rotate(-Math.PI/2); scx.textAlign='center'; scx.fillStyle='#5a6b63';
+    scx.font='italic 11px "Latin Modern Roman",Georgia,serif'; scx.fillText('V_out (V)',0,0); scx.restore();
+    const pl=playedList();
+    if(!pl.length){ scx.fillStyle='#9bb0a6'; scx.font='11px Helvetica,Arial,sans-serif'; scx.textAlign='center'; scx.fillText('no signal',(padx+w)/2,mid-4); scx.textAlign='left'; return; }
+    const f1low=Math.min(...pl.map(i=>f1of(i))), Np=700, Twin=3/f1low, gg=g();
+    { scx.globalAlpha=0.5; scx.lineWidth=1.2;
+      visList().forEach(i=>{ scx.strokeStyle=SCOL[i]; scx.beginPath();
+        for(let p=0;p<=Np;p++){ const t=Twin*p/Np, Y=mid-gg*VREF*pickupSignal(i,t)*unit, X=padx+plotW*p/Np; p?scx.lineTo(X,Y):scx.moveTo(X,Y);} scx.stroke(); });
+      scx.globalAlpha=1; }
+    scx.strokeStyle='#1b2a24'; scx.lineWidth=2; scx.lineJoin='round'; scx.beginPath();
+    for(let p=0;p<=Np;p++){ const t=Twin*p/Np, X=padx+plotW*p/Np, Y=mid-Vout(t)*unit; p?scx.lineTo(X,Y):scx.moveTo(X,Y); }
+    scx.stroke();
+    scx.fillStyle='#c4917f'; scx.font='9px Helvetica,Arial,sans-serif'; scx.textAlign='right'; scx.fillText('rail', w-pr, mid-VCLIP*unit-3);
+    legendRow(scx, pl, padx+2, 10);
+    // moving playhead while Play is running, frozen on pause
+    if(playing){ const tp=clock/FREF; let fr=((tp%Twin)+Twin)%Twin/Twin; const X=padx+plotW*fr, Vp=Vout(tp%Twin);
+      scx.strokeStyle='rgba(200,75,49,0.8)'; scx.lineWidth=1.5; scx.beginPath(); scx.moveTo(X,4); scx.lineTo(X,h-axisH); scx.stroke();
+      scx.fillStyle='#c84b31'; scx.beginPath(); scx.arc(X,mid-Vp*unit,3.5,0,7); scx.fill(); }
+    const base0=h-axisH, ms=Twin*1000;
+    scx.fillStyle='#8aa'; scx.font='10px Helvetica,Arial,sans-serif';
+    [0,0.25,0.5,0.75,1].forEach(fr=>{ const X=padx+plotW*fr;
+      scx.strokeStyle='#dbe6e0'; scx.beginPath(); scx.moveTo(X,base0); scx.lineTo(X,base0+4); scx.stroke();
+      scx.textAlign=fr===0?'left':(fr===1?'right':'center'); scx.fillText((ms*fr).toFixed(1), X, base0+14); });
+    scx.textAlign='center'; scx.fillStyle='#5a6b63'; scx.font='italic 12px "Latin Modern Roman",Georgia,"Times New Roman",serif';
+    scx.fillText('t  (ms)', (padx+w-pr)/2, h-4); scx.textAlign='left';
+  }
+  // FFT of the pickup: each string's spectrum as coloured stems (linear, pre-clip) plus the superimposed
+  // total as the dark curve (FFT of the clipped sum). They agree when clean; the total grows extra
+  // distortion harmonics once the gain clips. Volts, auto-rescaled to the peak.
+  function spectrumCanvas(){
+    if(!spx||!SPDIM) return; const {w,h}=SPDIM; spx.clearRect(0,0,w,h);
+    const padx=36, pr=8, plotW=w-padx-pr, axisH=28, base=h-axisH, plotH=base-18;
+    spx.strokeStyle='#dbe6e0'; spx.lineWidth=1; spx.beginPath(); spx.moveTo(padx,base); spx.lineTo(w-pr,base); spx.stroke();
+    const pl=playedList();
+    if(!pl.length){ spx.fillStyle='#9bb0a6'; spx.font='11px Helvetica,Arial,sans-serif'; spx.textAlign='center'; spx.fillText('no signal',(padx+w)/2,base/2); spx.textAlign='left'; return; }
+    const f1low=Math.min(...pl.map(i=>f1of(i))), maxF1=Math.max(...pl.map(i=>f1of(i))), gg=g();
+    const Fmax=Math.min(6000, Math.max(2200, 13*maxF1));
+    // each string's own FFT (linear, pre-clip) + the superimposed total (FFT of the clipped sum)
+    const curves = visList().map(i=>({i, amps:spectrumAmps(stringV(i), f1low, Fmax).amps}));
+    const sum = spectrumAmps(Vout, f1low, Fmax);
+    const K=sum.amps.length-1; let peak=1e-9;
+    for(const v of sum.amps) if(v>peak)peak=v; curves.forEach(c=>{ for(const v of c.amps) if(v>peak)peak=v; });
+    const vscale=plotH/peak, fmt=v=> v>=1? v.toFixed(2)+' V' : (v*1000).toFixed(0)+' mV';
+    // voltage y-axis
+    [0,0.5,1].forEach(fr=>{ const Y=base-plotH*fr; spx.strokeStyle='#eef3f0'; spx.beginPath(); spx.moveTo(padx,Y); spx.lineTo(w-pr,Y); spx.stroke();
+      spx.fillStyle='#8aa'; spx.font='9px Helvetica,Arial,sans-serif'; spx.textAlign='right'; spx.fillText(fmt(peak*fr), padx-3, Y+3); });
+    spx.save(); spx.translate(10,(2*base-plotH)/2); spx.rotate(-Math.PI/2); spx.textAlign='center'; spx.fillStyle='#5a6b63';
+    spx.font='italic 11px "Latin Modern Roman",Georgia,serif'; spx.fillText('|V| amplitude',0,0); spx.restore();
+    // superimposed total (dark line)
+    spx.strokeStyle='#1b2a24'; spx.lineWidth=1.8; spx.lineJoin='round'; spx.beginPath();
+    for(let k=0;k<=K;k++){ const X=padx+plotW*k/K, Y=base-sum.amps[k]*vscale; k?spx.lineTo(X,Y):spx.moveTo(X,Y); }
+    spx.stroke();
+    // each string's own raw FFT curve (coloured)
+    curves.forEach(c=>{ spx.strokeStyle=SCOL[c.i]; spx.lineWidth=1.3; spx.beginPath();
+      for(let k=0;k<=K;k++){ const X=padx+plotW*k/K, Y=base-c.amps[k]*vscale; k?spx.lineTo(X,Y):spx.moveTo(X,Y); } spx.stroke(); });
+    // legend
+    legendRow(spx, pl, padx, 10);
+    // x axis
+    spx.fillStyle='#8aa'; spx.font='10px Helvetica,Arial,sans-serif';
+    [0,0.25,0.5,0.75,1].forEach(fr=>{ const X=padx+plotW*fr;
+      spx.strokeStyle='#dbe6e0'; spx.beginPath(); spx.moveTo(X,base); spx.lineTo(X,base+4); spx.stroke();
+      spx.textAlign=fr===0?'left':(fr===1?'right':'center'); spx.fillText(Math.round(Fmax*fr), X, base+14); });
+    spx.textAlign='center'; spx.fillStyle='#5a6b63'; spx.font='italic 12px "Latin Modern Roman",Georgia,"Times New Roman",serif';
+    spx.fillText('frequency  (Hz)', (padx+w-pr)/2, h-4); spx.textAlign='left';
+  }
+  // small colour legend: string note names + "sum"
+  function legendRow(ctx, pl, x0, y){ ctx.font='9px Helvetica,Arial,sans-serif'; ctx.textAlign='left'; let lx=x0;
+    pl.forEach(i=>{ ctx.fillStyle=SCOL[i]; ctx.fillText(SNAME[i].split('·')[1], lx, y); lx+=20; });
+    if(pl.length>1){ ctx.fillStyle='#1b2a24'; ctx.fillText('sum', lx, y); } }
+
+  function drawBars(){
+    const {w,h}=BDIM; bx.clearRect(0,0,w,h);
+    const padx=8, padb=22, padt=10; const zero=(h-padb+padt)/2*0 + (h-padb);   // baseline near the bottom
+    const mid=(zero+padt)/2;
+    const n=modes.length, gap=4, bw=(w-2*padx-(n-1)*gap)/n;
+    const scale=(zero-padt)/2/AMP_MAX;        // same full-scale amplitude as the FFT panel
+    bx.strokeStyle='#dbe6e0'; bx.beginPath(); bx.moveTo(padx,mid); bx.lineTo(w-padx,mid); bx.stroke();
+    for(let k=0;k<n;k++){
+      const x=padx+k*(bw+gap); const a=coeffs[k]; const bh=a*scale;
+      bx.fillStyle = a>=0 ? '#12855a' : '#c84b31';
+      bx.fillRect(x, mid-Math.max(bh,0), bw, Math.abs(bh)||0.6);
+      if(bh<0) bx.fillRect(x, mid, bw, -bh);
+      bx.fillStyle='#9bb0a6'; bx.font='10px -apple-system,sans-serif'; bx.textAlign='center';
+      bx.fillText(k+1, x+bw/2, h-7);
+    }
+    bx.textAlign='left'; bx.fillStyle='#8aa'; bx.font='10px -apple-system,sans-serif'; bx.fillText('mode n', padx, h-7);
+  }
+
+  function drawAll(){ renderStatic(); if(!playing){ clock=0; } drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); updateTimePill(); }
+
+  function renderStatic(){ layout(); }
+  function updateTimePill(){ document.getElementById('timePill').textContent='t = '+clock.toFixed(2)+' periods'; }
+
+  // ---------- animation ----------
+  function frame(ts){
+    if(!playing) return;
+    if(lastTS==null) lastTS=ts;
+    const dt=(ts-lastTS)/1000; lastTS=ts;
+    clock += dt*speed;
+    drawStrings(); if(!USE_PLOTLY) scopeCanvas(); updateTimePill();   // canvas playhead; Plotly scope is static
+    requestAnimationFrame(frame);
+  }
+  function play(){ playing=true; lastTS=null; document.getElementById('play').textContent='❚❚ Pause';
+    requestAnimationFrame(frame); }
+  function pause(){ playing=false; document.getElementById('play').textContent='▶ Play'; }
+
+  // ---------- audio (additive synthesis at physical pitch) ----------
+  let actx=null;
+  function listen(){
+    try{
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+      if(actx.state==='suspended') actx.resume();
+    }catch(e){ console.warn('audio unavailable',e); return; }
+    try{ synth(); }catch(e){ console.error('synth failed',e); }
+  }
+  function synth(){
+    const sr=actx.sampleRate, dur=3.6, nS=Math.floor(sr*dur), nyq=0.45*sr;
+    const pl=playedList(); if(!pl.length){ console.warn('no strings selected'); return; }
+    const buf=actx.createBuffer(1,nS,sr); const ch=buf.getChannelData(0);
+    // What you hear IS the pickup signal: each mode contributes at its physical frequency f1_i*ratio
+    // with amplitude = coeff * (mode shape at the pickup). So a harmonic with a node at the coil is
+    // absent from both the spectrum and the sound. A small strum offset low->high sounds strummed.
+    const comps=[];
+    pl.forEach((i,idx)=>{ const f1i=f1of(i), u=pickupU(i), t0=idx*0.028;
+      for(let k=0;k<modes.length;k++){ const a=coeffs[k]; if(Math.abs(a)<1e-4) continue;
+        const r=modes[k].ratio, fk=f1i*r;
+        if(!isFinite(fk)||fk<20||fk>Math.min(18000,nyq)) continue;
+        const amp=a*Math.sin(modes[k].kL*u);                  // pickup reads position at the coil
+        if(Math.abs(amp)<1e-4) continue;
+        comps.push({f:fk, amp, tau:Math.max(0.35,3.0/(1+0.10*(r-1))), t0}); } });
+    if(!comps.length){ console.warn('nothing audible for this shape'); return; }
+    // gain knob (dB) into the tanh soft clipper at the amp rail: 0 dB = clean, higher = overdrive.
+    const gg=g(), atkN=Math.floor(sr*0.004), relN=Math.floor(sr*0.08);
+    for(let i=0;i<nS;i++){
+      const t=i/sr; let s=0;
+      for(const c of comps){ const td=t-c.t0; if(td<0) continue;
+        s+= c.amp*Math.sin(2*Math.PI*c.f*td)*Math.exp(-td/c.tau); }
+      let v=Math.tanh(gg*VREF*s/VCLIP);
+      const atk=i<atkN?i/atkN:1, rel=i>nS-relN?(nS-i)/relN:1;
+      ch[i]=v*atk*rel;
+    }
+    const src=actx.createBufferSource(); src.buffer=buf;
+    src.connect(actx.destination); src.start();
+  }
+
+  // ---------- interaction: draw on string ----------
+  let drawing=false, lastIdx=null;
+  function evtX(e){ const r=sc.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const i=playedList()[0], plotW=r.width-2*PADX, Xb=r.width-PADX, Xl=Xb-lenFrac(i)*plotW;
+    return Math.max(0,Math.min(1,(cx-Xl)/(Xb-Xl))); }
+  function evtY(e){ const r=sc.getBoundingClientRect(); const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const mid=r.height/2, amp=(r.height/2-6)*AMPU; return (mid-cy)/amp; }
+  let liveCurve=null;
+  function startDraw(e){ if(playedList().length!==1) return;   // drawing edits one string; use bars/presets for chords
+    e.preventDefault(); if(playing) pause(); clock=0;
+    drawing=true; liveCurve=reconstruct().slice(); lastIdx=null; moveDraw(e); }
+  function moveDraw(e){ if(!drawing) return; e.preventDefault();
+    const f=evtX(e), y=evtY(e); const idx=Math.round(f*M);
+    if(lastIdx==null) lastIdx=idx;
+    const a=Math.min(lastIdx,idx), b=Math.max(lastIdx,idx);
+    for(let i=a;i<=b;i++){ const tt=(b===a)?1:(i-a)/(b-a); liveCurve[i]= (i===idx)?y : liveCurve[lastIdx]+(y-liveCurve[lastIdx])*tt; }
+    liveCurve[idx]=y; lastIdx=idx;
+    drawLive(liveCurve); // raw preview
+  }
+  function endDraw(){ if(!drawing) return; drawing=false;
+    coeffs=project(liveCurve); drawAll(); }
+  sc.addEventListener('mousedown',startDraw); window.addEventListener('mousemove',moveDraw); window.addEventListener('mouseup',endDraw);
+  sc.addEventListener('touchstart',startDraw,{passive:false}); sc.addEventListener('touchmove',moveDraw,{passive:false}); sc.addEventListener('touchend',endDraw);
+
+  // ---------- interaction: drag bars ----------
+  let dragBar=-1;
+  function barAt(e){ const r=bc.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const padx=8, n=modes.length, gap=4, bw=(r.width-2*padx-(n-1)*gap)/n;
+    const k=Math.floor((cx-padx)/(bw+gap)); return (k>=0&&k<n)?k:-1; }
+  function barVal(e){ const r=bc.getBoundingClientRect(); const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const padb=22, padt=10, zero=r.height-padb, mid=(zero+padt)/2, scale=(zero-padt)/2/2.6; return (mid-cy)/scale; }
+  function startBar(e){ e.preventDefault(); if(playing) pause(); clock=0; dragBar=barAt(e); if(dragBar<0) return; moveBar(e); }
+  function moveBar(e){ if(dragBar<0) return; e.preventDefault();
+    let v=barVal(e); if(!isFinite(v)) v=0; coeffs[dragBar]=Math.max(-2.6,Math.min(2.6,v));
+    drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateTimePill(); }
+  function endBar(){ dragBar=-1; }
+  bc.addEventListener('mousedown',startBar); window.addEventListener('mousemove',moveBar); window.addEventListener('mouseup',endBar);
+  bc.addEventListener('touchstart',startBar,{passive:false}); bc.addEventListener('touchmove',moveBar,{passive:false}); bc.addEventListener('touchend',endBar);
+
+  // ---------- controls ----------
+  function seg(id,cb){ const box=document.getElementById(id);
+    box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      box.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active'); cb(b.dataset.v); })); }
+  document.getElementById('play').addEventListener('click',()=>{ playing?pause():play(); });
+  document.getElementById('reset').addEventListener('click',()=>{ clock=0; pause(); drawStrings(); updateTimePill(); });
+  document.getElementById('sound').addEventListener('click',listen);
+  document.getElementById('speed').addEventListener('input',e=>{ speed=+e.target.value; });
+  document.getElementById('gain').addEventListener('input',e=>{ gainDb=+e.target.value;
+    document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; drawScope(); drawSpectrum(); });
+  const L0=0.648;              // guitar scale length (25.5 in)
+  const NFRET=24;   // realistic electric-guitar neck (two octaves)
+  // standard tuning, drawn low-to-high top-to-bottom; thickness ~ string gauge
+  const STRINGS=[
+    {lab:'6 · E₂',f:82.41, th:3.4, wound:true},
+    {lab:'5 · A₂',f:110.00,th:3.0, wound:true},
+    {lab:'4 · D₃',f:146.83,th:2.5, wound:true},
+    {lab:'3 · G₃',f:196.00,th:2.0, wound:false},
+    {lab:'2 · B₃',f:246.94,th:1.5, wound:false},
+    {lab:'1 · e₄',f:329.63,th:1.1, wound:false},
+  ];
+  const fb=document.getElementById('fretboard'), fbx=fb.getContext('2d'); let FBDIM;
+  // fret n distance from nut, normalized so the LAST fret fills the board
+  const XDEN=1-Math.pow(2,-NFRET/12);
+  const xfrac=n=>(1-Math.pow(2,-n/12))/XDEN;
+  function fbGeom(){ const {w,h}=FBDIM; const left=42,right=w-14,top=12,bot=h-22;
+    return {w,h,left,right,top,bot,rowH:(bot-top)/6,
+      xpix:n=>left+(right-left)*xfrac(n), rowY:i=>top+((5-i)+0.5)*(bot-top)/6}; }  // low E on the bottom (tab order)
+
+  function drawFretboard(){
+    const g=fbGeom(); fbx.clearRect(0,0,g.w,g.h);
+    // board
+    fbx.fillStyle='#2a1c12'; fbx.fillRect(g.left,g.top,g.right-g.left,g.bot-g.top);
+    // fret wires
+    for(let n=1;n<=NFRET;n++){ const x=g.xpix(n); fbx.strokeStyle='#b9bcc4'; fbx.lineWidth=n===NFRET?2.4:1.6;
+      fbx.beginPath(); fbx.moveTo(x,g.top); fbx.lineTo(x,g.bot); fbx.stroke(); }
+    // nut
+    fbx.fillStyle='#efe9dd'; fbx.fillRect(g.left-3,g.top,3,g.bot-g.top);
+    // inlay dots: singles at 3,5,7,9,15,17,19,21; doubles at 12 and 24
+    const mid=(g.top+g.bot)/2;
+    function dot(n,y){ if(n>NFRET) return; const x=(g.xpix(n-1)+g.xpix(n))/2; fbx.fillStyle='#d9cfb8';
+      fbx.beginPath(); fbx.arc(x,y,3.6,0,7); fbx.fill(); }
+    [3,5,7,9,15,17,19,21].forEach(n=>dot(n,mid));
+    [12,24].forEach(n=>{ dot(n,g.top+(g.bot-g.top)*0.3); dot(n,g.top+(g.bot-g.top)*0.7); });
+    // strings
+    for(let i=0;i<6;i++){ const y=g.rowY(i); fbx.strokeStyle=STRINGS[i].wound?'#c9a86b':'#dcdce2';
+      fbx.lineWidth=STRINGS[i].th; fbx.beginPath(); fbx.moveTo(g.left-10,y); fbx.lineTo(g.right,y); fbx.stroke();
+      // label
+      fbx.fillStyle='#5a6b63'; fbx.font='11px -apple-system,sans-serif'; fbx.textAlign='right'; fbx.textBaseline='middle';
+      fbx.fillText(STRINGS[i].lab.split(' · ')[1], g.left-13, y); }
+    // fret numbers
+    fbx.fillStyle='#9bb0a6'; fbx.font='10px -apple-system,sans-serif'; fbx.textAlign='center'; fbx.textBaseline='top';
+    fbx.fillText('0', g.left-20, g.bot+5);
+    [3,5,7,9,12,15,17,19,21,24].forEach(n=>{ if(n>NFRET) return; const x=(g.xpix(n-1)+g.xpix(n))/2; fbx.fillText(n, x, g.bot+5); });
+    // per-string selection markers: muted = × in gutter, open = ring, fretted = green dot
+    for(let i=0;i<6;i++){ const yy=g.rowY(i), fr=played[i];
+      if(fr==null){ fbx.strokeStyle='#b0574a'; fbx.lineWidth=2; const gx=g.left-22;
+        fbx.beginPath(); fbx.moveTo(gx-4,yy-4); fbx.lineTo(gx+4,yy+4); fbx.moveTo(gx+4,yy-4); fbx.lineTo(gx-4,yy+4); fbx.stroke(); }
+      else if(fr===0){ fbx.strokeStyle='#00693e'; fbx.lineWidth=2.4; fbx.beginPath(); fbx.arc(g.left-22,yy,6,0,7); fbx.stroke(); }
+      else { const cx=(g.xpix(fr-1)+g.xpix(fr))/2; fbx.fillStyle='#00693e'; fbx.beginPath(); fbx.arc(cx,yy,7.5,0,7); fbx.fill();
+        fbx.strokeStyle='#fff'; fbx.lineWidth=2; fbx.stroke(); }
+    }
+  }
+
+  function fbPick(e){ e.preventDefault(); const g=fbGeom(); const r=fb.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    const row=Math.max(0,Math.min(5,Math.floor((cy-g.top)/g.rowH))), i=5-row;   // rows run high e (top) .. low E (bottom)
+    if(cx<g.left){ played[i]=(played[i]==null)?0:null; }                 // gutter toggles mute / open
+    else { let fr=NFRET; for(let n=1;n<=NFRET;n++){ if(cx<=g.xpix(n)){ fr=n; break; } } played[i]=fr; }
+    clock=0; if(playing) pause(); updateChord(); drawFretboard(); drawStrings(); drawScope(); drawSpectrum();
+  }
+  fb.addEventListener('mousedown',fbPick); fb.addEventListener('touchstart',fbPick,{passive:false});
+  document.getElementById('detune').addEventListener('input',e=>{ cents=+e.target.value;
+    document.getElementById('detv').textContent = cents===0?'0 cents · in tune'
+      : (cents>0?'+':'')+cents+' cents · '+(cents>0?'sharp':'flat');
+    updateChord(); drawStrings(); drawScope(); drawSpectrum(); });
+  document.getElementById('retune').addEventListener('click',()=>{ cents=0;
+    document.getElementById('detune').value=0;
+    document.getElementById('detv').textContent='0 cents · in tune'; updateChord(); drawStrings(); drawScope(); drawSpectrum(); });
+  document.getElementById('pr').addEventListener('input',e=>{ pluckPos=+e.target.value; document.getElementById('pv').textContent=pluckPos.toFixed(2); });
+  document.querySelectorAll('[data-pre]').forEach(b=>b.addEventListener('click',()=>{ if(playing) pause(); setPreset(b.dataset.pre); }));
+
+  // pure-mode selector: set the initial condition to a single mode n
+  const pmSel=document.getElementById('puremode');
+  function applyPure(){ if(playing) pause(); const n=+pmSel.value;
+    coeffs=new Array(modes.length).fill(0); coeffs[Math.min(n-1,modes.length-1)]=1; drawAll(); }
+  if(pmSel){ for(let n=1;n<=N;n++){ const o=document.createElement('option'); o.value=n; o.textContent='mode '+n; pmSel.appendChild(o); }
+    pmSel.addEventListener('change',applyPure);
+    const pb=document.getElementById('puremodeset'); if(pb) pb.addEventListener('click',applyPure); }
+
+  window.addEventListener('resize',()=>{ layout(); layoutFret(); drawFretboard(); drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); });
+
+  // ---------- init ----------
+  // Plotly present (opened in a browser) -> interactive plots; absent (Cowork sandbox) -> canvas fallback
+  if(!USE_PLOTLY){ if(scopePlot) scopePlot.style.display='none'; if(fftPlot) fftPlot.style.display='none';
+    if(scv) scv.style.display='block'; if(spv) spv.style.display='block'; }
+  layout(); layoutFret(); buildBasis(); updateChord(); drawFretboard(); setPreset('mode1');
+  console.log('[vibrating-string] ready. modes='+modes.length+' played='+JSON.stringify(played));
+})();
+</script>

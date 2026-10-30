@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fitzlab Interactive Demos</title>
+<meta name="description" content="Interactive demos from Fitzlab research and Dartmouth engineering courses.">
+<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']]},svg:{fontCache:'global'}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  a{color:var(--green)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+  /* ---------- hero ---------- */
+  header.hero{position:relative;overflow:hidden;background:linear-gradient(160deg,#00482b 0%,#00693e 55%,#12855a 100%);color:#fff}
+  #heroCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.55}
+  .hero .wrap{position:relative;padding-top:40px;padding-bottom:34px;pointer-events:none}
+  .hero .wrap *{pointer-events:auto}
+  .kicker{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;opacity:.85;margin:0 0 6px}
+  .hero h1{font-size:clamp(28px,4.4vw,42px);margin:0 0 8px;font-weight:700;letter-spacing:.005em;line-height:1.12}
+  .hero p.lede{font-size:15px;max-width:720px;margin:0 0 18px;opacity:.92}
+  .hero .hint{font-size:12px;opacity:.7;margin:0}
+  .stats{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px}
+  .stat{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:8px 14px;
+    backdrop-filter:blur(3px);min-width:110px}
+  .stat b{display:block;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .stat span{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;opacity:.85}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line)}
+  .toolbar .wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:12px;padding-bottom:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+    padding:6px 13px;cursor:pointer;transition:.12s}
+  .chip:hover{border-color:var(--green2);color:var(--green)}
+  .chip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}
+  .chip .n{opacity:.65;margin-left:4px;font-variant-numeric:tabular-nums}
+  .spacer{flex:1 1 auto}
+  .search{position:relative}
+  .search input{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 32px;
+    width:240px;max-width:100%;color:var(--ink);background:#fff}
+  .search input:focus{outline:2px solid rgba(0,105,62,.25);border-color:var(--green2)}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)}
+  @media(max-width:620px){.search,.search input{width:100%}}
+
+  /* ---------- sections & cards ---------- */
+  main{padding:8px 0 40px}
+  section.group{padding-top:26px}
+  section.group[hidden]{display:none}
+  .ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 4px}
+  .ghead h2{font-size:21px;margin:0;color:var(--green)}
+  .ghead .code{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .gdesc{color:var(--muted);font-size:13.5px;max-width:860px;margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+  .card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;
+    transition:border-color .14s, box-shadow .14s, transform .14s;min-height:300px;position:relative}
+  .card:hover,.card:focus-within{border-color:var(--green2);box-shadow:0 8px 24px rgba(0,105,62,.12);transform:translateY(-2px)}
+  .card canvas.thumb{display:block;width:100%;height:132px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .card .badge{position:absolute;top:10px;left:10px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
+    background:rgba(255,255,255,.92);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:2px 9px}
+  .card .badge.ext{left:auto;right:10px;color:var(--blue)}
+  .card .body{padding:13px 15px 15px;display:flex;flex-direction:column;flex:1}
+  .card h3{font-size:16.5px;margin:0 0 3px}
+  .eqtag{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:13px;color:var(--green);margin:0 0 7px;min-height:20px;overflow-x:auto}
+  .card p.desc{font-size:12.9px;color:var(--muted);margin:0 0 10px}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 12px}
+  .tag{font-size:11px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 7px;color:var(--muted)}
+  .actions{margin-top:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:.12s}
+  .btn:hover{border-color:var(--green2);color:var(--green)}
+  .btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn.primary:hover{background:var(--green2);color:#fff}
+  .card.soon{border-style:dashed;background:var(--panel);justify-content:center;align-items:center;text-align:center;min-height:200px;padding:20px}
+  .card.soon:hover{transform:none;box-shadow:none;border-color:var(--line)}
+  .card.soon p{color:var(--muted);font-size:13px;margin:4px 0 0;max-width:280px}
+  .empty{color:var(--muted);font-size:14px;padding:30px 0;text-align:center}
+
+  footer{border-top:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12.5px}
+  footer .wrap{padding-top:18px;padding-bottom:22px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+
+  /* ---------- viewer ---------- */
+  dialog#viewer{border:none;padding:0;width:min(1280px,96vw);height:min(900px,92vh);max-width:none;max-height:none;border-radius:12px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+  dialog#viewer::backdrop{background:rgba(10,30,20,.55);backdrop-filter:blur(2px)}
+  .vbar{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .vbar h4{margin:0;font-size:14.5px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  dialog#viewer iframe{border:0;width:100%;height:calc(100% - 50px);display:block;background:#fff}
+
+  @media (prefers-reduced-motion: reduce){ .card,.card:hover{transition:none;transform:none} html{scroll-behavior:auto} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <canvas id="heroCanvas" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <p class="kicker">Fitzlab · Thayer School of Engineering · Dartmouth</p>
+    <h1>Interactive Demos</h1>
+    <p class="lede">Hands-on browser demos from our research and teaching, covering waves, Fourier modes, spectrograms, qubits and the
+      cryogenics behind them. Everything runs in your browser. Nothing is installed and nothing is uploaded.</p>
+    <div class="stats" id="stats"></div>
+    <p class="hint">Move your cursor over the banner to pluck the field.</p>
+  </div>
+</header>
+
+<nav class="toolbar" aria-label="Filter demos">
+  <div class="wrap">
+    <div class="chips" id="chips" role="group" aria-label="Collections"></div>
+    <div class="spacer"></div>
+    <label class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Search demos, e.g. Fourier" aria-label="Search demos">
+    </label>
+  </div>
+</nav>
+
+<main class="wrap" id="main"></main>
+
+<footer>
+  <div class="wrap">
+    <span>Fitzlab, Thayer School of Engineering, Dartmouth · 15 Thayer Drive, Hanover, NH 03755</span>
+    <span><a href="https://sites.google.com/view/fitzlab/open-source" target="_blank" rel="noopener">Fitzlab Open-Source</a> ·
+      <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Source on GitHub</a></span>
+  </div>
+</footer>
+
+<dialog id="viewer" aria-labelledby="vtitle">
+  <div class="vbar">
+    <h4 id="vtitle"></h4>
+    <a class="btn" id="vnew" target="_blank" rel="noopener">Open in new tab ↗</a>
+    <button class="btn" id="vclose" aria-label="Close viewer">Close ✕</button>
+  </div>
+  <iframe id="vframe" title="Demo viewer" allow="microphone; autoplay; fullscreen"></iframe>
+</dialog>
+
+<script>
+/* ======================================================================
+   CONTENT. To add a demo, append an entry to DEMOS. To add a collection
+   (e.g. once ENGS 53 demos exist), append to GROUPS.
+   - href:     relative path to a local HTML file, or a full URL
+   - external: true for hosted apps (Streamlit etc.), which open in a new tab
+   - thumb:    name of an animated preview in THUMBS below
+   ====================================================================== */
+const GROUPS = [
+  { id:'qublitz', code:'Qublitz', title:'Learn Quantum by Playing',
+    desc:'Qublitz is the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T\\(_1\\) relaxation, T\\(_2\\) dephasing and real gates.' },
+  { id:'research', code:'Research', title:'Research Tools',
+    desc:'Tools built in the lab to run quantum hardware, released openly for anyone to use.' },
+  { id:'engs23', code:'ENGS 23', title:'Systems, Fields and Waves',
+    desc:'Intuition helpers built on the course spine of separating variables into a spatial eigenproblem \\(-\\varphi\'\'=\\lambda\\varphi\\), where each equation turns the same modes into different behavior in time.' },
+  { id:'engs53', code:'ENGS 53', title:'ENGS 53',
+    desc:'Demos for this course are on the way.' },
+];
+
+const DEMOS = [
+  { group:'qublitz', title:'QuBlitz Arena', thumb:'arena',
+    href:'qublitz/arena.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'\\(\\dot\\rho=-i[H,\\rho]+\\mathcal{D}_{T_1,T_2}[\\rho]\\)',
+    desc:'A turn-based battle game where every unit is a qubit. Charge with gates, strike before T₁ drains you, set relative phase to guard, and entangle enemies for splash damage.',
+    tags:['quantum','game','decoherence','entanglement'] },
+  { group:'qublitz', title:'Qubit Simulator', thumb:'bloch',
+    href:'qublitz/qubit-simulator.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'\\(H=\\tfrac{\\omega_q}{2}\\sigma_z+\\Omega_R\\,[I(t)\\sigma_x+Q(t)\\sigma_y]\\cos\\omega_d t\\)',
+    desc:'Find a hidden qubit by experiment. Sweep the drive to find its frequency, fit Rabi oscillations, measure T₁ from the decay, and build a Ramsey chevron to measure T₂.',
+    tags:['quantum','qubits','Rabi','Ramsey','T1'] },
+  { group:'qublitz', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
+    href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
+    eq:'\\(|\\psi\\rangle=\\cos\\tfrac{\\theta}{2}|0\\rangle+e^{i\\phi}\\sin\\tfrac{\\theta}{2}|1\\rangle\\)',
+    desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points, fridge noise and image sonification. These pages are moving to this site one by one.',
+    tags:['quantum','qubits','simulator'] },
+  { group:'research', title:'Cassini Fridge Monitor', thumb:'fridge', external:true,
+    href:'https://cassini-fitzlab.streamlit.app/', repo:'https://github.com/jussalcedoga/cassini_monitor_fitzlab',
+    eq:'',
+    desc:'Cryogenic monitoring for Bluefors dilution refrigerators, with live dashboards, real-time log tracking, pump and flow monitoring, and EM-environment estimates.',
+    tags:['cryogenics','dashboard','lab tools'] },
+
+  { group:'engs23', title:'Three Equations, One Eigenbasis', thumb:'trio',
+    href:'courses/engs23/heat-wave-schrodinger.html',
+    eq:'\\(e^{-\\lambda t}\\ \\cdot\\ \\cos\\sqrt{\\lambda}\\,t\\ \\cdot\\ e^{-i\\lambda t}\\)',
+    desc:'Give heat, wave and Schrödinger the same starting shape and the same modes, then watch one decay, one vibrate, and one disperse and revive.',
+    tags:['PDEs','eigenfunctions','quantum'] },
+  { group:'engs23', title:'The Vibrating String', thumb:'string',
+    href:'courses/engs23/vibrating-string.html',
+    eq:'\\(y(x,t)=\\sum_n a_n\\cos(\\omega_n t)\\sin\\frac{n\\pi x}{L}\\)',
+    desc:'Pluck a string, read its Fourier modes, and hear a pickup sample it at one point. Raise the gain until clipping invents harmonics.',
+    tags:['wave equation','Fourier','audio'] },
+  { group:'engs23', title:'Spectrogram Explorer', thumb:'spectro',
+    href:'courses/engs23/spectrogram.html',
+    eq:'\\(\\big|\\int w(\\tau-t)\\,s(\\tau)\\,e^{-i\\omega\\tau}\\,d\\tau\\big|^{2}\\)',
+    desc:'Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time.',
+    tags:['STFT','signals','microphone'] },
+];
+
+/* ======================================================================
+   Animated thumbnails: each draws one frame at time t (seconds).
+   ====================================================================== */
+const C = { green:'#00693e', green2:'#12855a', red:'#c84b31', blue:'#2d6fb3', grid:'#c9d6cf', muted:'#5a6b63', gold:'#d9a521' };
+const INFERNO = ['#000004','#1b0c41','#4a0c6b','#781c6d','#a52c60','#cf4446','#ed6925','#fb9b06','#f7d13d','#fcffa4'];
+
+const THUMBS = {
+  string(g,w,h,t){
+    const y0=h/2, A=h*0.32, L=w-40;
+    g.strokeStyle=C.grid; g.setLineDash([4,4]); g.lineWidth=1.2;
+    g.beginPath(); g.moveTo(20,y0); g.lineTo(w-20,y0); g.stroke(); g.setLineDash([]);
+    g.lineWidth=2.4; g.strokeStyle=C.green; g.beginPath();
+    for(let i=0;i<=120;i++){
+      const x=i/120; let y=0;
+      for(let n=1;n<=5;n++){ y+= (Math.sin(n*Math.PI*0.3)/(n*n))*Math.sin(n*Math.PI*x)*Math.cos(n*2.2*t); }
+      const px=20+x*L, py=y0-A*1.35*y;
+      i?g.lineTo(px,py):g.moveTo(px,py);
+    }
+    g.stroke();
+    g.fillStyle=C.red; [20,w-20].forEach(x=>{g.beginPath();g.arc(x,y0,3.5,0,7);g.fill();});
+    g.strokeStyle=C.blue; g.lineWidth=2; const pk=20+0.85*L; g.beginPath(); g.moveTo(pk,y0-A*1.1); g.lineTo(pk,y0+A*1.1); g.stroke();
+  },
+  trio(g,w,h,t){
+    const pw=(w-40)/3, y0=h*0.62, A=h*0.36;
+    const shape=x=>Math.exp(-((x-0.35)**2)/0.008);
+    const cols=[C.red,C.blue,C.green];
+    // precomputed sine coefficients of the bump
+    if(!THUMBS._c){ THUMBS._c=[]; for(let n=1;n<=24;n++){let s=0;for(let k=0;k<200;k++){const x=(k+.5)/200;s+=shape(x)*Math.sin(n*Math.PI*x);}THUMBS._c.push(2*s/200);} }
+    const cf=THUMBS._c, tt=(t*0.35)%3;
+    for(let p=0;p<3;p++){
+      const x0=10+p*(pw+10);
+      g.strokeStyle=C.grid; g.lineWidth=1; g.beginPath(); g.moveTo(x0,y0); g.lineTo(x0+pw,y0); g.stroke();
+      g.lineWidth=2.2; g.strokeStyle=cols[p]; g.beginPath();
+      for(let i=0;i<=80;i++){
+        const x=i/80; let re=0, im=0;
+        for(let n=1;n<=cf.length;n++){
+          const lam=(n*Math.PI)**2, s=cf[n-1]*Math.sin(n*Math.PI*x);
+          if(p===0) re+=s*Math.exp(-lam*tt*0.004);
+          else if(p===1) re+=s*Math.cos(n*Math.PI*tt*0.35);
+          else { const ph=lam*tt*0.0016; re+=s*Math.cos(ph); im-=s*Math.sin(ph); }
+        }
+        const v = p===2 ? Math.hypot(re,im) : re;
+        const px=x0+x*pw, py=y0-A*v;
+        i?g.lineTo(px,py):g.moveTo(px,py);
+      }
+      g.stroke();
+    }
+  },
+  spectro(g,w,h,t,st){
+    if(!st.buf){ st.buf=document.createElement('canvas'); st.buf.width=w; st.buf.height=h; st.x=0; st.last=0; }
+    const b=st.buf.getContext('2d'), col=4;
+    while(st.last<t){
+      st.last+=0.05;
+      const img=b.getImageData(col,0,w-col,h); b.putImageData(img,0,0);
+      const tau=st.last, f0=0.18+0.1*Math.sin(tau*0.9);
+      for(let y=0;y<h;y+=2){
+        const f=1-y/h; let e=0.08*Math.random();
+        for(let k=1;k<=4;k++){ e+= Math.exp(-((f-k*f0)**2)/0.0012)*(0.9/k)*(0.6+0.4*Math.sin(tau*3+k)); }
+        const i=Math.min(9,Math.max(0,Math.floor(e*10)));
+        b.fillStyle=INFERNO[i]; b.fillRect(w-col,y,col,2);
+      }
+    }
+    g.drawImage(st.buf,0,0,w,h);
+  },
+  bloch(g,w,h,t){
+    const cx=w/2, cy=h/2, R=h*0.38;
+    g.strokeStyle=C.grid; g.lineWidth=1.2;
+    g.beginPath(); g.arc(cx,cy,R,0,7); g.stroke();
+    g.beginPath(); g.ellipse(cx,cy,R,R*0.3,0,0,7); g.stroke();
+    g.beginPath(); g.moveTo(cx,cy-R); g.lineTo(cx,cy+R); g.stroke();
+    g.fillStyle=C.muted; g.font='11px Helvetica,Arial'; g.fillText('|0⟩',cx+5,cy-R-3); g.fillText('|1⟩',cx+5,cy+R+11);
+    const th=Math.PI*(0.5-0.45*Math.cos(t*0.7)), ph=t*1.6;
+    const X=Math.sin(th)*Math.cos(ph), Y=Math.sin(th)*Math.sin(ph), Z=Math.cos(th);
+    const px=cx+R*X, py=cy-R*(Z*0.95-Y*0.3);
+    // trail
+    g.strokeStyle='rgba(45,111,179,.35)'; g.lineWidth=1.5; g.beginPath();
+    for(let k=0;k<60;k++){ const s=t-k*0.03, a=Math.PI*(0.5-0.45*Math.cos(s*0.7)), b=s*1.6;
+      const x=cx+R*Math.sin(a)*Math.cos(b), y=cy-R*(Math.cos(a)*0.95-Math.sin(a)*Math.sin(b)*0.3); k?g.lineTo(x,y):g.moveTo(x,y); }
+    g.stroke();
+    g.strokeStyle=C.green; g.lineWidth=2.6; g.beginPath(); g.moveTo(cx,cy); g.lineTo(px,py); g.stroke();
+    g.fillStyle=C.red; g.beginPath(); g.arc(px,py,4.5,0,7); g.fill();
+  },
+  chevron(g,w,h,t){
+    const nx=48, ny=22, cw=w/nx, ch=h/ny;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
+      const d=(i/(nx-1)-0.5)*2, tau=(1-j/(ny-1))*3.2;
+      const p=0.5+0.5*Math.exp(-tau*0.45)*Math.cos(2*Math.PI*d*tau*1.3+t*0.8);
+      g.fillStyle=INFERNO[Math.max(0,Math.min(9,Math.floor(p*10)))]; g.fillRect(i*cw,j*ch,cw+0.5,ch+0.5);
+    }
+  },
+  arena(g,w,h,t){
+    g.fillStyle='#10141f'; g.fillRect(0,0,w,h);
+    const n=8, m=4, s=Math.min((w-24)/n,(h-16)/m), ox=(w-n*s)/2, oy=(h-m*s)/2;
+    for(let j=0;j<m;j++)for(let i=0;i<n;i++){ g.fillStyle=(i+j)%2?'#1a2133':'#151b2a'; g.fillRect(ox+i*s,oy+j*s,s,s); }
+    const units=[[1,0,0],[3,1,0],[0,2,0],[2,3,0],[6,0,1],[4,1,1],[7,2,1],[5,3,1]];
+    units.forEach(([i,j,side],k)=>{
+      const ph=(t*0.5+k*0.37)%3, q=Math.exp(-ph*1.4);   // charge decays like e^{-t/T1}, recharged every cycle
+      const cx=ox+(i+.5)*s, cy=oy+(j+.5)*s, base=side?'255,77,157':'47,224,208';
+      g.fillStyle=`rgba(255,90,114,${0.55*q})`; g.beginPath(); g.arc(cx,cy,s*0.46,0,7); g.fill();
+      g.fillStyle=`rgb(${base})`; g.beginPath(); g.arc(cx,cy,s*0.26,0,7); g.fill();
+      g.fillStyle='#ff5a72'; g.fillRect(cx-s*0.3,cy+s*0.33,s*0.6*q,2);
+    });
+    const a=units[1], b=units[5];      // an entangled pair
+    g.strokeStyle=`rgba(217,165,33,${0.5+0.4*Math.sin(t*3)})`; g.setLineDash([3,3]); g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(ox+(a[0]+.5)*s,oy+(a[1]+.5)*s); g.lineTo(ox+(b[0]+.5)*s,oy+(b[1]+.5)*s); g.stroke(); g.setLineDash([]);
+  },
+  fridge(g,w,h,t){
+    const stages=[['50K',C.red],['4K',C.gold],['still',C.blue],['MXC',C.green]];
+    const x0=36, x1=w-12, y0=12, y1=h-14;
+    g.strokeStyle=C.grid; g.lineWidth=1; for(let k=0;k<4;k++){const y=y0+k*(y1-y0)/3; g.beginPath(); g.moveTo(x0,y); g.lineTo(x1,y); g.stroke();}
+    g.font='10px Helvetica,Arial';
+    stages.forEach(([lab,col],s)=>{
+      g.strokeStyle=col; g.lineWidth=2; g.beginPath();
+      for(let i=0;i<=100;i++){
+        const u=i/100, tm=u*6+t*0.6;
+        const cool=1/(1+Math.exp((u-0.25-s*0.12)*14));
+        const base=(s+0.6)/4.6, v=base+ (1-base)*cool*0.85 + 0.012*Math.sin(tm*7+s)+0.008*Math.sin(tm*13);
+        const px=x0+u*(x1-x0), py=y1-(1-v)*(y1-y0)*0.92;
+        i?g.lineTo(px,py):g.moveTo(px,py);
+      }
+      g.stroke();
+      g.fillStyle=col; g.fillText(lab,4,y1-((1-((s+0.6)/4.6))*(y1-y0)*0.92)+4);
+    });
+    const sx=x0+((t*0.12)%1)*(x1-x0); g.strokeStyle='rgba(27,42,36,.25)'; g.beginPath(); g.moveTo(sx,y0); g.lineTo(sx,y1); g.stroke();
+  },
+};
+
+/* ======================================================================
+   Rendering
+   ====================================================================== */
+const $=s=>document.querySelector(s);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let active='all', query='';
+
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function cardHTML(d,i){
+  const local=!d.external;
+  return `<article class="card" data-i="${i}">
+    <canvas class="thumb" data-thumb="${d.thumb}" aria-hidden="true"></canvas>
+    <span class="badge">${esc(GROUPS.find(g=>g.id===d.group).code)}</span>
+    ${d.external?'<span class="badge ext">Web app</span>':''}
+    <div class="body">
+      <h3>${esc(d.title)}</h3>
+      <p class="eqtag">${d.eq||''}</p>
+      <p class="desc">${esc(d.desc)}</p>
+      <div class="tags">${(d.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+      <div class="actions">
+        ${local
+          ? `<button class="btn primary" data-open="${i}">Try it ▸</button><a class="btn" href="${d.href}" target="_blank" rel="noopener">New tab ↗</a>`
+          : `<a class="btn primary" href="${d.href}" target="_blank" rel="noopener">Launch app ↗</a>`}
+        ${d.repo?`<a class="btn" href="${d.repo}" target="_blank" rel="noopener">Code</a>`:''}
+      </div>
+    </div>
+  </article>`;
+}
+
+function render(){
+  const q=query.trim().toLowerCase();
+  const match=d=>!q || [d.title,d.desc,...(d.tags||[]),GROUPS.find(g=>g.id===d.group).code].join(' ').toLowerCase().includes(q);
+  let shown=0;
+  $('#main').innerHTML = GROUPS.map(g=>{
+    if(active!=='all' && active!==g.id) return '';
+    const items=DEMOS.map((d,i)=>[d,i]).filter(([d])=>d.group===g.id && match(d));
+    if(!items.length && q) return '';
+    shown+=items.length;
+    const cards = items.length ? items.map(([d,i])=>cardHTML(d,i)).join('')
+      : `<div class="card soon"><strong>Coming soon</strong><p>New demos for ${esc(g.code)} will appear here.</p></div>`;
+    return `<section class="group" id="${g.id}">
+      <div class="ghead"><span class="code">${esc(g.code)}</span><h2>${esc(g.title)}</h2></div>
+      <p class="gdesc">${g.desc}</p>
+      <div class="grid">${cards}</div></section>`;
+  }).join('') || '';
+  if(!shown && q) $('#main').innerHTML=`<p class="empty">No demos match “${esc(query)}”.</p>`;
+  if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([$('#main')]).catch(()=>{});
+  setupThumbs();
+}
+
+function renderChips(){
+  const opts=[{id:'all',code:'All'},...GROUPS];
+  $('#chips').innerHTML=opts.map(o=>{
+    const n=o.id==='all'?DEMOS.length:DEMOS.filter(d=>d.group===o.id).length;
+    return `<button class="chip" data-g="${o.id}" aria-pressed="${o.id===active}">${esc(o.code)}<span class="n">${n}</span></button>`;
+  }).join('');
+}
+
+function renderStats(){
+  const local=DEMOS.filter(d=>!d.external).length, ext=DEMOS.length-local, courses=GROUPS.filter(g=>g.id.startsWith('engs')).length;
+  $('#stats').innerHTML=[[DEMOS.length,'demos'],[local,'in-browser'],[ext,'web apps'],[courses,'courses']]
+    .map(([b,s])=>`<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+}
+
+/* ---------- thumbnails: animate only what's on screen ---------- */
+let thumbs=[], io;
+function setupThumbs(){
+  io && io.disconnect();
+  thumbs=[...document.querySelectorAll('canvas.thumb')].map(cv=>{
+    const r=cv.getBoundingClientRect(), dpr=Math.min(2,devicePixelRatio||1);
+    cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+    return {cv, g:cv.getContext('2d'), dpr, w:r.width, h:r.height, fn:THUMBS[cv.dataset.thumb], st:{}, vis:false, hover:false};
+  });
+  io=new IntersectionObserver(es=>es.forEach(e=>{ const T=thumbs.find(x=>x.cv===e.target); if(T) T.vis=e.isIntersecting; }));
+  thumbs.forEach(T=>{ io.observe(T.cv); drawThumb(T,1.2); });
+}
+function drawThumb(T,t){
+  if(!T.fn) return;
+  T.g.setTransform(T.dpr,0,0,T.dpr,0,0); T.g.clearRect(0,0,T.w,T.h); T.fn(T.g,T.w,T.h,t,T.st);
+}
+
+/* ---------- hero: a 2D membrane the cursor can pluck ---------- */
+const hero=$('#heroCanvas'), hg=hero.getContext('2d');
+const N=64; let M, u, v, hw, hh, mouse=null;
+function sizeHero(){
+  const r=hero.getBoundingClientRect(); hw=r.width; hh=r.height;
+  hero.width=Math.round(hw); hero.height=Math.round(hh);
+  M=Math.max(8,Math.round(N*hh/hw)); u=new Float32Array(N*M); v=new Float32Array(N*M);
+}
+function heroStep(){
+  if(mouse){ const i=Math.floor(mouse.x/hw*N), j=Math.floor(mouse.y/hh*M);
+    for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const ii=i+a,jj=j+b; if(ii>0&&ii<N-1&&jj>0&&jj<M-1) u[jj*N+ii]+=0.35*Math.exp(-(a*a+b*b)/2);} }
+  for(let s=0;s<2;s++){
+    for(let j=1;j<M-1;j++)for(let i=1;i<N-1;i++){ const k=j*N+i;
+      v[k]+=0.25*(u[k-1]+u[k+1]+u[k-N]+u[k+N]-4*u[k]); v[k]*=0.996; }
+    for(let k=0;k<u.length;k++) u[k]+=v[k];
+  }
+}
+function heroDraw(t){
+  hg.clearRect(0,0,hw,hh);
+  const dx=hw/(N-1), rows=Math.min(M,22), step=(M-1)/(rows-1);
+  hg.lineWidth=1;
+  for(let r=0;r<rows;r++){
+    const j=Math.round(r*step), base=j/(M-1)*hh;
+    hg.strokeStyle=`rgba(255,255,255,${0.10+0.18*(r/rows)})`;
+    hg.beginPath();
+    for(let i=0;i<N;i++){
+      const amb=4*Math.sin(i*0.18+t*0.8+j*0.3)*Math.sin(t*0.3+j*0.1);
+      const y=base+amb-u[j*N+i]*14;
+      i?hg.lineTo(i*dx,y):hg.moveTo(i*dx,y);
+    }
+    hg.stroke();
+  }
+}
+hero.parentElement.addEventListener('pointermove',e=>{const r=hero.getBoundingClientRect(); mouse={x:e.clientX-r.left,y:e.clientY-r.top};});
+hero.parentElement.addEventListener('pointerleave',()=>mouse=null);
+
+/* ---------- main loop ---------- */
+let t0=performance.now();
+function loop(now){
+  const t=(now-t0)/1000;
+  heroStep(); heroDraw(t);
+  thumbs.forEach(T=>{ if(T.vis) drawThumb(T,t); });
+  requestAnimationFrame(loop);
+}
+
+/* ---------- viewer ---------- */
+const dlg=$('#viewer');
+function openDemo(i){
+  const d=DEMOS[i];
+  $('#vtitle').textContent=d.title; $('#vnew').href=d.href; $('#vframe').src=d.href;
+  dlg.showModal(); history.replaceState(null,'','#demo='+encodeURIComponent(d.href));
+}
+function closeDemo(){ dlg.close(); }
+dlg.addEventListener('close',()=>{ $('#vframe').src='about:blank'; history.replaceState(null,'',location.pathname+location.search); });
+$('#vclose').onclick=closeDemo;
+dlg.addEventListener('click',e=>{ if(e.target===dlg) closeDemo(); });
+
+/* ---------- events ---------- */
+$('#chips').addEventListener('click',e=>{ const b=e.target.closest('.chip'); if(!b) return;
+  active=b.dataset.g; renderChips(); render(); });
+$('#q').addEventListener('input',e=>{ query=e.target.value; render(); });
+$('#main').addEventListener('click',e=>{ const b=e.target.closest('[data-open]'); if(b) openDemo(+b.dataset.open); });
+let rz; addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ sizeHero(); setupThumbs(); },150); });
+
+/* ---------- boot ---------- */
+renderStats(); renderChips(); sizeHero(); render();
+const deep=decodeURIComponent((location.hash.match(/demo=([^&]+)/)||[])[1]||'');
+if(deep){ const i=DEMOS.findIndex(d=>d.href===deep); if(i>=0) openDemo(i); }
+if(reduceMotion){ heroDraw(0); thumbs.forEach(T=>drawThumb(T,1.2)); }
+else requestAnimationFrame(loop);
+</script>
+</body>
+</html>
