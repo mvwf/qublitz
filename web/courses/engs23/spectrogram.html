@@ -44,7 +44,7 @@
 
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>Spectrogram Explorer</h1>
-<p class="sub">Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws
+<p class="sub" id="intro">Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws
 magnitude in decibels on an <i>inferno</i> color scale, frequency versus time. Press play to hear it and a white playhead tracks the audio. You can also stream your microphone live and
 watch the spectrum scroll past. Everything runs locally in the browser and nothing is uploaded.</p>
 
@@ -67,7 +67,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
     <button id="arLoadUrl">Add</button>
   </div>
   <div class="row" style="margin-top:0">
-    <span class="hint">The Recordings list has a bundled gong plus a few archive.org clips (Bach Goldberg is public-domain CC0; the 78&nbsp;rpm items are from the Internet Archive Great 78 Project). A custom link needs a host that allows cross-origin reads, which archive.org does.</span>
+    <span class="hint">The Recordings list has a bundled gong, four test signals generated in the page, and a few archive.org clips (Bach Goldberg is public-domain CC0; the 78&nbsp;rpm items are from the Internet Archive Great 78 Project). A custom link needs a host that allows cross-origin reads, which archive.org does.</span>
   </div>
   <div class="row">
     <label class="lbl">Microphone</label>
@@ -95,6 +95,8 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
       <option value="lin" selected>Linear</option>
       <option value="log">Logarithmic</option>
     </select>
+    <span class="spacer"></span>
+    <button id="copyLink" title="Copy a link that reopens the page with this recording and these settings">Copy link</button>
   </div>
   <div class="row">
     <label class="lbl" for="fmax">Max frequency</label>
@@ -106,7 +108,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="specCard">
   <h2>Spectrogram</h2>
   <div class="stagewrap">
     <canvas id="spec"></canvas>
@@ -115,7 +117,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
   <div class="status" id="status">Select a recording to begin.</div>
 </div>
 
-<div class="card">
+<div class="card" id="lineCard">
   <h2>Instantaneous spectrum — the live FFT window</h2>
   <canvas id="line"></canvas>
   <div class="status" id="lstatus">The current FFT frame: live from the microphone, or tracking the playhead while a file plays.</div>
@@ -133,6 +135,7 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('offlineHint').hidden = true;
 }
 </script>
+<script src="../../shared/pagekit.js"></script>
 <script>
 "use strict";
 
@@ -203,6 +206,7 @@ function toMono(buf){
 }
 
 async function loadEntry(entry){
+  if(entry.synth){ loadSynth(entry); return; }
   if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
   status("Decoding "+entry.name+" …");
   $("btnPlay").disabled=true;
@@ -219,6 +223,45 @@ async function loadEntry(entry){
   }catch(e){
     status("Could not decode this file ("+e.message+"). Try wav or mp3.");
   }
+}
+
+/* ---------- test signals, generated here (the same ones the lab manual's Python script writes) ---------- */
+const TEST_SIGNALS=[
+  {key:"tones",  name:"Test: two tones, 1000 + 1050 Hz", synth:"tones"},
+  {key:"clicks", name:"Test: two clicks, 20 ms apart",   synth:"clicks"},
+  {key:"chirp",  name:"Test: chirp from 200 Hz rising at 800 Hz/s", synth:"chirp"},
+  {key:"alias",  name:"Test: 5 kHz then 7 kHz, sampled at 8 kHz",   synth:"alias"},
+];
+function synthSignal(kind){
+  const fs = kind==="alias" ? 8000 : 44100, n=2*fs, x=new Float32Array(n), TAU=2*Math.PI;
+  for(let i=0;i<n;i++){ const t=i/fs;
+    if(kind==="tones") x[i]=Math.sin(TAU*1000*t)+Math.sin(TAU*1050*t);
+    else if(kind==="chirp") x[i]=Math.sin(TAU*(200*t+400*t*t));          // f(t) = 200 + 800 t
+    else if(kind==="alias") x[i]=Math.sin(TAU*(t<1?5000:7000)*t); }
+  if(kind==="clicks"){ x[fs/2]=1; x[fs/2+Math.round(0.020*fs)]=1; }
+  let pk=0; for(const v of x) pk=Math.max(pk,Math.abs(v));
+  for(let i=0;i<n;i++) x[i]*=0.9/pk;
+  return {fs,x};
+}
+function wavURL(x,fs){   // 16-bit mono WAV, so the generated signal can be played
+  const n=x.length, b=new ArrayBuffer(44+2*n), v=new DataView(b);
+  const str=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  str(0,"RIFF"); v.setUint32(4,36+2*n,true); str(8,"WAVE"); str(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true);
+  v.setUint16(22,1,true); v.setUint32(24,fs,true); v.setUint32(28,2*fs,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  str(36,"data"); v.setUint32(40,2*n,true);
+  for(let i=0;i<n;i++) v.setInt16(44+2*i,Math.max(-32768,Math.min(32767,Math.round(x[i]*32767))),true);
+  return URL.createObjectURL(new Blob([b],{type:"audio/wav"}));
+}
+function loadSynth(entry){
+  const {fs,x}=synthSignal(entry.synth);
+  if(!entry.src) entry.src=wavURL(x,fs);
+  audio.src=entry.src;
+  mono=x; sampleRate=fs; duration=x.length/fs;
+  const nyq=Math.round(fs/2);
+  $("fmax").max=nyq; if(+$("fmax").value>nyq) $("fmax").value=nyq;
+  $("fmaxLbl").textContent=(+$("fmax").value)+" Hz";
+  recompute();
+  $("btnPlay").disabled=false;
 }
 
 /* ---------- STFT ---------- */
@@ -680,7 +723,7 @@ async function resolveArchiveUrl(id){
   return "https://archive.org/download/"+encodeURIComponent(id)+"/"+pick.name.split("/").map(encodeURIComponent).join("/");
 }
 async function selectEntry(i){ const e=entries[i]; if(!e) return; stopLive();
-  if(e.src){ loadEntry(e); return; }
+  if(e.src || e.synth){ loadEntry(e); return; }
   if(e.archiveId){ $("btnPlay").disabled=true; status("Fetching “"+e.name+"” from archive.org …");
     try{ e.src=await resolveArchiveUrl(e.archiveId); loadEntry(e); }
     catch(err){ status("Could not load this item ("+err.message+")."); } }
@@ -698,18 +741,91 @@ $("arUrl").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault
 
 /* ---------- init ---------- */
 const DEFAULT_ARCHIVE=[
-  {name:"Bach — Goldberg Variations · piano (CC0)", archiveId:"The_Open_Goldberg_Variations-11823"},
-  {name:"Tailleferre — Flute & strings sonata", archiveId:"78_sonate-pour-flute-instruments-a-cordes_quintette-instrumental-de-paris-mm-le-roy_gbia0067534"},
-  {name:"Mozart — Magic Flute Overture · orchestra", archiveId:"78_-part-one-the-magic-flute-overture_wolfgang-amadeus-mozart_gbia0262536a"},
-  {name:"Mozart — Queen of the Night · soprano", archiveId:"78_il-flauto-magico-aria-della-regina-magic-flute-air-of-the-queen-act-2_maria-gal_gbia0153078a"}
+  {key:"bach", name:"Bach — Goldberg Variations · piano (CC0)", archiveId:"The_Open_Goldberg_Variations-11823"},
+  {key:"tailleferre", name:"Tailleferre — Flute & strings sonata", archiveId:"78_sonate-pour-flute-instruments-a-cordes_quintette-instrumental-de-paris-mm-le-roy_gbia0067534"},
+  {key:"overture", name:"Mozart — Magic Flute Overture · orchestra", archiveId:"78_-part-one-the-magic-flute-overture_wolfgang-amadeus-mozart_gbia0262536a"},
+  {key:"queen", name:"Mozart — Queen of the Night · soprano", archiveId:"78_il-flauto-magico-aria-della-regina-magic-flute-air-of-the-queen-act-2_maria-gal_gbia0153078a"}
 ];
-entries=BUNDLED.concat(DEFAULT_ARCHIVE);
+if(BUNDLED[0]) BUNDLED[0].key="gong";
+entries=BUNDLED.concat(TEST_SIGNALS, DEFAULT_ARCHIVE);
 refreshSelect();
 sizeCanvas();
 sizeLine();
 $("fmaxLbl").textContent=(+$("fmax").value)+" Hz";
 $("drangeLbl").textContent=(+$("drange").value)+" dB";
-// auto-load the bundled sample if present
-if(entries.length && !entries[0].src.startsWith("__")){ loadEntry(entries[0]); }
-else status("Upload a file or load a folder to begin.");
+/* ---------- shareable state: ?rec=<key>&N=&scale=&fmax=&dr= ---------- */
+const FFTS=["512","1024","2048","4096","8192"];
+function shareQuery(){
+  const q=new URLSearchParams(), e=entries[+$("fileSel").value];
+  if(e && e.key) q.set("rec",e.key);
+  q.set("N",$("fftSel").value);
+  if($("scaleSel").value!=="lin") q.set("scale",$("scaleSel").value);
+  q.set("fmax",$("fmax").value); q.set("dr",$("drange").value);
+  return q.toString();
+}
+function readQuery(){
+  const P=PageKit.params(), st={};
+  const rec=P.str("rec",entries.map(e=>e.key).filter(Boolean)); if(rec) st.rec=rec;
+  const N=P.str("N",FFTS); if(N) st.N=+N;
+  const sc=P.str("scale",["lin","log"]); if(sc) st.scale=sc;
+  const fm=P.num("fmax",1000,22050); if(fm!=null) st.fmax=fm;
+  const dr=P.num("dr",30,120); if(dr!=null) st.dr=dr;
+  return st;
+}
+// Apply any subset of {rec, N, scale, fmax, dr}; loads the recording if it changed.
+function applyState(st){
+  if(live.on) stopLive();
+  if(!audio.paused) audio.pause();
+  if(st.N) $("fftSel").value=String(st.N);
+  if(st.scale) $("scaleSel").value=st.scale;
+  if(st.fmax!=null){ $("fmax").value=st.fmax; $("fmaxLbl").textContent=(+$("fmax").value)+" Hz"; }
+  if(st.dr!=null){ $("drange").value=st.dr; $("drangeLbl").textContent=(+$("drange").value)+" dB"; }
+  const i=st.rec ? entries.findIndex(e=>e.key===st.rec) : -1;
+  if(i>=0 && (i!==+$("fileSel").value || !mono)){ $("fileSel").value=i; audio.currentTime=0; selectEntry(i); }
+  else if(mono) recompute();
+}
+$("copyLink").addEventListener("click",e=>PageKit.copyLink(e.target,"courses/engs23/spectrogram.html",shareQuery()));
+
+/* ---------- guided predictions (?guided=1) ---------- */
+const GUIDED=[
+  { title:"A gong is not a string",
+    setup:{rec:"gong",N:8192,scale:"lin",fmax:1500,dr:80}, cover:["#specCard","#lineCard"],
+    intro:"A guitar string's partials are a harmonic series: f, 2f, 3f, … The gong is a struck metal plate, a 2-D surface.",
+    ask:"Are the gong's partials whole-number multiples of its lowest one?",
+    choices:["Yes, a harmonic series","No, the ratios are not integers"], answer:1,
+    explain:"The strongest partials sit near 105, 255, 322, 428, 536 and 721 Hz: ratios 1, 2.42, 3.06, 4.06, 5.08, 6.83. The 2.42 and 6.83 are far from any integer. A plate's modes are set by a 2-D eigenvalue problem, whose eigenvalues are not integer multiples of each other, which is why a gong sounds clangorous rather than pitched. Notice also that the 255 Hz partial gets <i>louder</i> for a moment after the strike.",
+    try:"Press ▶ Play to hear it." },
+  { title:"Two tones 50 Hz apart",
+    setup:{rec:"tones",N:512,scale:"lin",fmax:2000,dr:80}, reveal:{N:4096}, cover:["#specCard","#lineCard"],
+    intro:"The signal is 1000 Hz plus 1050 Hz, sampled at 44.1 kHz. A window of N samples gives frequency bins f<sub>s</sub>/N apart, and the Hann window smears each line over about ±2 bins.",
+    ask:"What is the smallest window that shows two separate lines?",
+    choices:["512","1024","2048","4096","8192"], answer:3,
+    explain:"The bins are 86, 43, 21.5, 10.8 and 5.4 Hz wide. At 2048 the tones are only 2.3 bins apart: their Hann main lobes overlap, and the dip between them comes and goes from frame to frame (2 to 20 dB, depending on the tones' relative phase). At 4096 they are 4.6 bins apart and the dip is at least 35 dB deep in every frame. That window is 93 ms long: resolving Δf takes a time of order 1/Δf, here 20 ms, times a few.",
+    try:"Step through the window sizes and watch the line split." },
+  { title:"Two clicks 20 ms apart",
+    setup:{rec:"clicks",N:8192,scale:"lin",fmax:22050,dr:80}, reveal:{N:512}, cover:["#specCard","#lineCard"],
+    ask:"Two clicks, 20 ms apart. What is the <i>largest</i> window that still shows them as two events?",
+    choices:["512","1024","2048","4096","8192"], answer:0,
+    explain:"A window of 512 samples lasts 11.6 ms, shorter than the gap, so each click lands in its own frames. At 1024 (23 ms) every window that sees one click also sees the other, and they merge into one smeared stripe. Put this next to the last step: separating 50 Hz needs a window of several times 20 ms, separating 20 ms needs one shorter than 20 ms. No single window does both. That is the time–frequency uncertainty Δt · Δf ≳ 1." },
+  { title:"Reading a chirp",
+    setup:{rec:"chirp",N:2048,scale:"lin",fmax:3000,dr:80}, cover:["#specCard","#lineCard"],
+    intro:"The signal is sin(2π(200 t + 400 t²)).",
+    ask:"What frequency does the spectrogram show at t = 1 s?",
+    answer:1000, tol:30, unit:"Hz",
+    explain:"Frequency is the rate of change of phase over 2π: f(t) = d/dt (200 t + 400 t²) = 200 + 800 t, which is 1000 Hz at 1 s. Reading 600 Hz (200 + 400) is the common slip: the 400 multiplies t², so the sweep rate is 800 Hz/s, the straight line you see." },
+  { title:"Too fast to sample",
+    setup:{rec:"alias",N:2048,scale:"lin",fmax:4000,dr:80}, cover:["#specCard","#lineCard"],
+    intro:"This file is sampled at f<sub>s</sub> = 8000 Hz, so nothing above the Nyquist frequency of 4000 Hz can be represented. For the first second the source was a 5 kHz tone.",
+    ask:"At what frequency does the 5 kHz tone appear?",
+    answer:3000, tol:60, unit:"Hz",
+    explain:"Sampled at 8 kHz, a 5 kHz sine gives exactly the same samples as a 3 kHz one, since cos(2π·5000·k/8000) = cos(2π·3000·k/8000). The tone folds to |f − f<sub>s</sub>| = 3 kHz. In the second half the 7 kHz tone folds to 1 kHz. Real recorders filter out everything above Nyquist before sampling for this reason." },
+];
+function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:$("specCard"), key:"spectrogram" }); }
+
+{ const st=readQuery();
+  if(PageKit.wantsGuided()) startGuided();
+  else if(Object.keys(st).length) applyState(Object.assign({rec:"gong"}, st));
+  else if(entries.length && entries[0].src && !entries[0].src.startsWith("__")) loadEntry(entries[0]);   // auto-load the bundled sample
+  else status("Upload a file or load a folder to begin.");
+  if(!PageKit.wantsGuided()) PageKit.guidedEntry($("intro"), startGuided); }
 </script>

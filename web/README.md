@@ -10,6 +10,7 @@ web/
   courses/engs23/       ENGS 23 intuition helpers
   qublitz/              Qublitz pages ported from Streamlit
                         (arena.html is copied in from pages/_assets/ at build time)
+  shared/pagekit.js     copy-link and guided-mode helpers used by the ENGS 23 pages
   vendor/               third-party libraries served with the site (Plotly, MIT license)
 ```
 
@@ -28,6 +29,25 @@ drops a version and the pages run offline. Plotly comes from the npm package
 Preview locally with `python3 -m http.server -d web` and open http://localhost:8000.
 Opening `web/index.html` directly also works. Only the Arena card needs the built
 site, because its file is copied in at build time.
+
+## Shareable links and guided mode
+
+Every demo with a lab manual has a **Copy link** button that encodes its settings in the URL,
+so a handout can say "open this setup" instead of listing slider values:
+
+| Page | Parameters |
+|---|---|
+| `courses/engs23/heat-wave-schrodinger.html` | `s` preset, `N` modes, `t` time, `r` Schrödinger rate, `x0` bump center, `re`/`im` edited coefficients |
+| `courses/engs23/vibrating-string.html` | `fr` frets low E→high e (`x` = muted), `shape` + `p` or `a` coefficients, `c` cents, `g` gain dB, `sense=pos` |
+| `courses/engs23/spectrogram.html` | `rec` (gong, tones, clicks, chirp, alias, or an archive key), `N`, `scale`, `fmax`, `dr` |
+| `qublitz/qubit-simulator.html` | `qubit` code (+ `assigned=1`), or `free=ωq GHz,Ω_R MHz,T1 ns,T2 ns` |
+| `qublitz/fridge-noise.html`, `qublitz/ep-tpd.html` | everything on the page |
+
+Adding `?guided=1` to an ENGS 23 page opens predict-then-reveal checkpoints: each step sets
+the page up, hides the plots that would give the answer away, asks for a prediction, and
+only then shows the result and the explanation. The steps are the `GUIDED` array in each
+page; `PageKit.guided` in `shared/pagekit.js` runs them. Every answer in them was checked
+against the page itself.
 
 ## Qubit Simulator engine
 
