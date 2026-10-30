@@ -74,9 +74,24 @@ python scripts/make_ep_reference.py
 node web/qublitz/tests/ep-engine.test.js
 ```
 
+## Sonify Images
+
+`qublitz/sonify-engine.js` ports the signal path of `pages/Sonify.py` and
+`utils/sound_to_image.py`; `qublitz/sonify.html` is its page. `qublitz/tests/sonify-engine.test.js`
+(run in CI) checks it against `qublitz/tests/sonify-reference.json`, written by
+`scripts/make_sonify_reference.py`. The gallery lives in `qublitz/sonify-images.js`, generated
+from `sonify_images/` (grayscale PNGs plus small color previews, as data URIs so the offline
+download includes them). After changing `sonify_images/`, regenerate it:
+
+```
+python scripts/make_sonify_images.py
+python scripts/make_sonify_reference.py
+node web/qublitz/tests/sonify-engine.test.js
+```
+
 ## Offline download
 
-The Qubit Simulator, the Fridge Noise Explorer, the EP/TPD explorer and the three ENGS 23 demos each offer a single-file download
+The Qubit Simulator, the Fridge Noise Explorer, the EP/TPD explorer, Sonify and the three ENGS 23 demos each offer a single-file download
 (`<page>-offline.html`, next to the page) that runs from disk in any browser with no network. The deploy workflow builds it with
 `scripts/build_standalone.py`, which inlines the page's local scripts (Plotly and the engine)
 (if any) and fails if anything is still loaded from the network. The Spectrogram Explorer's
