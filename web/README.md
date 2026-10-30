@@ -63,8 +63,8 @@ node web/qublitz/tests/fridge-engine.test.js
 
 ## Offline download
 
-The Qubit Simulator offers a single-file download (`qublitz/qubit-simulator-offline.html`)
-that runs from disk in any browser with no network. The deploy workflow builds it with
+The Qubit Simulator and the Fridge Noise Explorer each offer a single-file download
+(`qublitz/<page>-offline.html`) that runs from disk in any browser with no network. The deploy workflow builds it with
 `scripts/build_standalone.py`, which inlines the page's local scripts (Plotly and the engine)
 and fails if anything is still loaded from the network. To build it yourself:
 

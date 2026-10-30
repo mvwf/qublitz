@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fridge Noise Explorer — Qublitz</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
-<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'}};</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" async></script>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these two scripts into a single downloadable file. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
 <script src="fridge-engine.js"></script>
 <style>
   :root{
@@ -15,6 +15,7 @@
     --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none !important}
   body{margin:0;background:#fff;color:var(--ink);
     font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
   .page{max-width:1180px;margin:0 auto}
@@ -76,6 +77,9 @@
   .val{font-variant-numeric:tabular-nums;font-size:12.5px}
   details summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
   .math p{font-size:13.5px;margin:8px 0}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;margin:8px 0 8px 18px;overflow-x:auto}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 2px}
+  .frac>span:first-child{border-bottom:1px solid currentColor;padding:0 3px}
   table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
   th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
@@ -86,7 +90,7 @@
 </head>
 <body>
 <div class="page">
-<a class="back" href="../index.html#research">&larr; All demos</a>
+<a class="back" id="back" href="../index.html#research">&larr; All demos</a>
 <h1>❄️ Dilution Refrigerator Noise Explorer</h1>
 <p class="sub">A drive line carries room-temperature thermal noise down into the fridge. Each attenuator absorbs part of
   the noise coming in and adds back its own thermal noise at that stage's temperature. Change the stage temperatures and
@@ -118,21 +122,22 @@
   </div>
 
   <details class="card math"><summary>Math used in this page</summary>
-    <p>For a mode at frequency \(f\) and temperature \(T\), the mean thermal photon number is</p>
-    \[\bar n(T,f)=\frac{1}{\exp\!\left(\frac{hf}{k_{\mathrm B}T}\right)-1}.\]
-    <p>Each stage has a physical temperature \(T_i\) and an attenuation \(A_i\) in dB, which is linear attenuation
-      \(L_i=10^{A_i/10}\). The attenuator is a thermal beam splitter at \(T_i\): it passes \(1/L_i\) of the incoming noise
-      \(\bar n_{\text{in}}\) and adds its own thermal noise for the rest,</p>
-    \[\bar n_{\text{out}}=\frac{\bar n_{\text{in}}}{L_i}+\left(1-\frac{1}{L_i}\right)\bar n(T_i,f).\]
-    <p>The output of stage \(i\) is the input to stage \(i+1\), and the line starts with thermal noise at the top stage's
-      temperature. The <b>effective temperature</b> \(T_{\text{eff}}\) is the temperature whose thermal occupation equals
-      \(\bar n_{\text{eff}}\):</p>
-    \[\bar n_{\text{eff}}(f)=\frac{1}{\exp\!\left(\frac{hf}{k_{\mathrm B}T_{\text{eff}}}\right)-1},\]
+    <p>For a mode at frequency <i>f</i> and temperature <i>T</i>, the mean thermal photon number is</p>
+    <div class="eq"><i>n̄</i>(<i>T</i>, <i>f</i>) = <span class="frac"><span>1</span><span>exp(<i>hf</i> / <i>k</i><sub>B</sub><i>T</i>) − 1</span></span></div>
+    <p>Each stage has a physical temperature <i>T<sub>i</sub></i> and an attenuation <i>A<sub>i</sub></i> in dB, which is linear attenuation
+      <i>L<sub>i</sub></i> = 10<sup><i>A<sub>i</sub></i>/10</sup>. The attenuator is a thermal beam splitter at <i>T<sub>i</sub></i>: it passes
+      1/<i>L<sub>i</sub></i> of the incoming noise <i>n̄</i><sub>in</sub> and adds its own thermal noise for the rest,</p>
+    <div class="eq"><i>n̄</i><sub>out</sub> = <span class="frac"><span><i>n̄</i><sub>in</sub></span><span><i>L<sub>i</sub></i></span></span>
+      + (1 − <span class="frac"><span>1</span><span><i>L<sub>i</sub></i></span></span>) <i>n̄</i>(<i>T<sub>i</sub></i>, <i>f</i>)</div>
+    <p>The output of stage <i>i</i> is the input to stage <i>i</i>+1, and the line starts with thermal noise at the top stage's
+      temperature. The <b>effective temperature</b> <i>T</i><sub>eff</sub> is the temperature whose thermal occupation equals
+      <i>n̄</i><sub>eff</sub>:</p>
+    <div class="eq"><i>n̄</i><sub>eff</sub>(<i>f</i>) = <span class="frac"><span>1</span><span>exp(<i>hf</i> / <i>k</i><sub>B</sub><i>T</i><sub>eff</sub>) − 1</span></span></div>
     <p>and the <b>noise reduction versus room temperature</b> is
-      \(10\log_{10}\big(\bar n_{\text{room}}(f)/\bar n_{\text{eff}}(f)\big)\).</p>
+      10 log<sub>10</sub>(<i>n̄</i><sub>room</sub>(<i>f</i>) / <i>n̄</i><sub>eff</sub>(<i>f</i>)).</p>
     <p>The drive power at each stage is the generator power minus the attenuation so far, and the cable insertion loss is
       taken off at the MXC. The cable loss only affects the drive, not the noise, and attenuation does not depend on
-      frequency. The drive photon flux is \(P/hf\).</p>
+      frequency. The drive photon flux is <i>P</i>/<i>hf</i>.</p>
   </details>
 </div>
 
@@ -159,6 +164,8 @@
     <h2>Share</h2>
     <p class="hint" style="margin-top:0">The link keeps every setting on this page.</p>
     <div class="row" style="margin-bottom:0"><button id="copyLink">Copy link</button><button id="reset">Reset</button></div>
+    <p class="hint" id="offlineHint"><a id="dlOffline" href="fridge-noise-offline.html" download="qublitz-fridge-noise-explorer.html">Download this explorer</a>
+      as a single HTML file that runs offline in any browser.</p>
   </div>
   <p class="hint">This model was mainly developed by <a href="https://www.linkedin.com/in/jussalcedoga/" target="_blank" rel="noopener">Juan S. Salcedo-Gallo</a>.
     It is also available as part of <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Qublitz</a>, and contributions are welcome.</p>
@@ -170,6 +177,12 @@
 'use strict';
 const F = window.FridgeEngine;
 const $ = s => document.querySelector(s);
+
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// has no neighbouring pages, so its links point at the published site instead.
+const SITE = 'https://mvwf.github.io/qublitz/';
+const STANDALONE = !!window.QUBLITZ_STANDALONE;
+if (STANDALONE) { $('#back').href = SITE + '#research'; $('#offlineHint').hidden = true; }
 
 const STAGES = [
   { name:'300 K (Room)', short:'300 K', T:300,  A:0,  mK:false, c:'#c84b31' },
@@ -333,7 +346,7 @@ function render(){
       <td>${a.P.toFixed(1)}</td><td>${sci(a.perUs)}</td></tr>`).join('') + '</tbody>';
 
   drawPlot();
-  history.replaceState(null, '', toQuery(st) + location.hash);
+  try { history.replaceState(null, '', toQuery(st) + location.hash); } catch (e) {}   // can throw for file:// pages
 }
 
 /* ---------- events ---------- */
@@ -360,7 +373,7 @@ $('#plotTabs').addEventListener('click', e=>{
 $('#logY').addEventListener('change', e=>{ logPref[plotId] = e.target.checked; drawPlot(); });
 $('#reset').addEventListener('click', ()=>{ writeState(structuredClone(DEFAULTS)); render(); });
 $('#copyLink').addEventListener('click', async e=>{
-  const b = e.target, url = location.href;
+  const b = e.target, url = STANDALONE ? SITE + 'qublitz/fridge-noise.html' + location.search : location.href;
   try { await navigator.clipboard.writeText(url); b.textContent = 'Copied'; }
   catch { prompt('Copy this link:', url); }
   setTimeout(()=>{ b.textContent = 'Copy link'; }, 1400);
