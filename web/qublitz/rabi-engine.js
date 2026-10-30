@@ -104,6 +104,36 @@
     { th: Math.PI / 2, ph: -Math.PI / 2, name: '|−i⟩', ket: '(|0⟩ − i|1⟩)/√2' },
     { th: Math.PI, ph: 0, name: '|1⟩', ket: 'the excited state' },
   ];
+  const POLES = { 0: { th: 0, ph: 0, name: '|0⟩', ket: 'the ground state' }, 1: NAMED[4] };
+
+  /* ---------------- quantum gates ----------------
+   * Single-qubit gates as rotations of the Bloch vector (up to a global phase): a gate exp(−iα n·σ/2) turns
+   * r by α about n, the same sense as dr/dt = ω × r. These are the true, lab-frame gates; circuits apply them
+   * to |0⟩ and put a ring at every intermediate state. */
+  const R2 = Math.SQRT1_2;
+  const GATES = {
+    X: { label: 'X', axis: [1, 0, 0], angle: Math.PI, what: 'a half turn about x' },
+    Y: { label: 'Y', axis: [0, 1, 0], angle: Math.PI, what: 'a half turn about y' },
+    Z: { label: 'Z', axis: [0, 0, 1], angle: Math.PI, what: 'a half turn about z' },
+    H: { label: 'H', axis: [R2, 0, R2], angle: Math.PI, what: 'a half turn about the axis halfway between x and z' },
+    S: { label: 'S', axis: [0, 0, 1], angle: Math.PI / 2, what: 'a quarter turn about z' },
+    T: { label: 'T', axis: [0, 0, 1], angle: Math.PI / 4, what: 'an eighth of a turn about z' },
+    SX: { label: '√X', axis: [1, 0, 0], angle: Math.PI / 2, what: 'a quarter turn about x' },
+    SY: { label: '√Y', axis: [0, 1, 0], angle: Math.PI / 2, what: 'a quarter turn about y' },
+    RX4: { label: 'Rx(π/4)', axis: [1, 0, 0], angle: Math.PI / 4, what: 'an eighth of a turn about x' },
+    RY3: { label: 'Ry(π/3)', axis: [0, 1, 0], angle: Math.PI / 3, what: 'a sixth of a turn about y' },
+  };
+  const applyGate = (r, k) => unit(rotate(r, GATES[k].axis.map(c => c * GATES[k].angle), 1));
+  // Points along the rotation a gate makes, from r (for drawing its path on the sphere).
+  const gateArc = (r, k, n = 24) => Array.from({ length: n + 1 }, (_, i) => rotate(r, GATES[k].axis.map(c => c * GATES[k].angle * i / n), 1));
+  const KETS = [[[0, 0, 1], '|0⟩'], [[0, 0, -1], '|1⟩'], [[1, 0, 0], '|+⟩'], [[-1, 0, 0], '|−⟩'], [[0, 1, 0], '|+i⟩'], [[0, -1, 0], '|−i⟩']];
+  // A short name for a pure state: one of the six cardinal states, or its amplitudes cos(θ/2)|0⟩ + e^{iφ} sin(θ/2)|1⟩.
+  function stateName(r) {
+    for (const [v, n] of KETS) if (dot(r, v) > 0.9995) return n;
+    const a = toAngles(r), c = Math.cos(a.th / 2).toFixed(2), sn = Math.sin(a.th / 2).toFixed(2);
+    const ph = Math.round(((a.ph / D2R) % 360 + 360) % 360);
+    return `${c}|0⟩ + ${ph ? `e^{i${ph}°}` : ''}${sn}|1⟩`;
+  }
 
   /* Quiz gates: two rings at the same longitude, and the prompt describes one of them. Rings at one
    * longitude differ only in θ, so every question is about the polar angle. Each maker takes a seeded
@@ -198,6 +228,27 @@
   // X, a π pulse about the axis pointing at your longitude, reflects the state through the equator;
   // √X, a π/2 pulse about the axis across your meridian, turns it a quarter turn toward the far pole.
   const gateTheta = (kind, th) => kind === 'X' ? Math.PI - th : th < Math.PI / 2 ? th + Math.PI / 2 : th - Math.PI / 2;
+  /* Circuits: levels that are real gate sequences. Each gate is applied to the state left by the ones before
+   * (starting from |0⟩), and the ring for it sits at the resulting state. Between gates the qubit precesses
+   * freely, which only turns φ, so each ring waits at the first arrival where your longitude matches its state's;
+   * a state at a pole is a band that can be reached anywhere. `gap` is the shortest spacing in degrees. */
+  const CIRCUITS = [
+    { id: 'c-hs', title: 'Hadamard and phase', circuit: ['X', 'H', 'S', 'S', 'H'], delta: 0.5, gap: 55,
+      brief: 'X flips |0⟩ to |1⟩. H turns |1⟩ into |−⟩ on the equator, two S gates walk it round to |+⟩, and a last H takes it home to |0⟩. Each ring is the state after its gate.',
+      learn: 'H swaps the z axis with the x axis, so it turns |0⟩/|1⟩ into |+⟩/|−⟩ and back. S is a quarter turn about z: it changes only the phase. That is why H·S·S·H took |1⟩ to |0⟩: S·S = Z, and H·Z·H = X.' },
+    { id: 'c-t', title: 'T is an eighth', circuit: ['H', 'T', 'T', 'T', 'T', 'T', 'T'], delta: 0.45, gap: 40,
+      brief: 'After H puts the qubit on the equator, each T gate turns its phase by 45°. Follow the circuit around the equator, one eighth of a turn at a time.',
+      learn: 'T = √S is an eighth of a turn about z. It is the gate that makes a gate set universal: with H and T you can approximate any single-qubit gate as closely as you like.' },
+    { id: 'c-sqrt', title: 'Square roots', circuit: ['SX', 'SX', 'SY', 'SY', 'SY'], delta: 0.45, gap: 55,
+      brief: '√X is a quarter turn about x and √Y a quarter turn about y. Two of either make a full X or Y. Watch where each quarter turn sends you.',
+      learn: 'Two √X gates make an X: |0⟩ → |−i⟩ → |1⟩. Then √Y, a quarter turn about a different axis, took |1⟩ on to |−⟩, |0⟩ and |+⟩: rotations about different axes take different routes, and they do not commute.' },
+    { id: 'c-pauli', title: 'Pauli tour', circuit: ['H', 'Y', 'Z', 'SY', 'X', 'Y'], delta: 0.6, gap: 55,
+      brief: 'The Pauli gates X, Y and Z are half turns about the three axes. A state on an axis is left alone by the half turn about that axis.',
+      learn: 'A Pauli half turn flips every state except those on its own axis, which are its eigenstates: X leaves |+⟩ alone, Z leaves |0⟩ alone. Y·Z took |−⟩ to |+⟩ and on, a half turn at a time.' },
+    { id: 'c-mix', title: 'Off the axes', circuit: ['RY3', 'S', 'H', 'SX', 'S', 'RY3'], delta: 0.5, gap: 50,
+      brief: 'A circuit whose states are off the cardinal points, starting with Ry(π/3), a sixth of a turn. The next gate and its path are drawn on the sphere: follow the arc.',
+      learn: 'Most states a circuit visits are not |0⟩, |1⟩ or |±⟩: they are general superpositions cos(θ/2)|0⟩ + e^{iφ} sin(θ/2)|1⟩. Every one is a point on the sphere, and every gate is a rotation that moves it.' },
+  ];
   const isGood = o => o.type === 'ring' || o.type === 'power';   // things to collect, which obstacles never cover
 
   /* ---------------- the world ----------------
@@ -226,13 +277,16 @@
       this.score = 0; this.combo = 0; this.rings = 0; this.perfects = 0; this.jumps = 0; this.hits = 0;
       this.hearts = P.HEARTS; this.grace = 0; this.over = false;
       this.measures = 0; this.measWins = 0; this.gates = 0; this.snap = false;
+      this.ph0 = 0; this.cr = null; this.ca = 0; this.stepCount = 0; this.circuitLog = [];
+      this.circuitMode = !!opts.circuit && !opts.mission;      // endless random circuit
+      if (this.circuitMode) { this.cr = [0, 0, 1]; this.r = fromAngles(8 * D2R, 0); this.mode = opts.mode === 'pilot' ? 'pilot' : 'auto'; }
       this.quizRight = 0; this.quizWrong = 0; this.closes = 0; this.powers = 0; this.blocked = 0; this.stage = 0;
       this.shield = false; this.slowT = 0; this.slowK = 1; this.purcellT = 0;
       this.mission = null; this.cleared = false;
-      const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
+      const m = opts.mission && (MISSIONS.find(x => x.id === opts.mission) || CIRCUITS.find(x => x.id === opts.mission));
       if (m) {
-        this.mission = m; this.mode = m.mode; this.decay = !!m.decay; this.hearts = m.hearts ?? P.HEARTS;
-        this.r = fromAngles(m.start * D2R, 0);
+        this.mission = m; this.mode = m.mode || 'auto'; this.decay = !!m.decay; this.hearts = m.hearts ?? P.HEARTS;
+        this.r = fromAngles((m.start ?? 8) * D2R, 0);
         this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id);
         this.script(m);
       }
@@ -316,6 +370,7 @@
       return Math.max(22 * D2R, Math.min(158 * D2R, th));
     }
     generate() {
+      if (this.circuitMode) return this.nextCircuitGate();
       const R = this.rand, lvl = this.level, rr = this.ringRadius, s0 = this.nextS;
       const roll = R(), kind = this.segment++ < 2 ? 'rings' : roll < 0.22 + 0.25 * lvl ? 'pillar' : roll < 0.34 + 0.25 * lvl ? 'named'
         : roll < 0.44 + 0.25 * lvl ? 'quiz' : roll < 0.5 + 0.25 * lvl ? 'measure' : 'rings';
@@ -376,6 +431,7 @@
     }
     // Queue a mission's items (see MISSIONS); nothing else is generated.
     script(m) {
+      if (m.circuit) return this.scriptCircuit(m);
       const R = rng('mission:' + m.id), lead = P.SPAWN - P.HOME, rr = (m.ring ?? 12) * D2R;
       let last = 0; this.total = 0;
       for (const it of m.items) {
@@ -390,13 +446,58 @@
         else if (k === 'n') {
           const n = NAMED.find(x => x.name === it[2]), o = { type: 'ring', named: n, th: n.th, rad: rr * 1.2, bonus: true, fallback: Math.min(n.th, d(150)) };
           if (n.th >= Math.PI - 1e-9) this.push(a, Object.assign(o, { life: it[3] }));
-          else { a += ((n.ph - a) % TAU2 + TAU2) % TAU2; this.push(a - lead, o); }
+          else { a += ((n.ph - this.ph0 - a) % TAU2 + TAU2) % TAU2; this.push(a - lead, o); }
         }
         if (k === 'r' || k === 'q' || k === 'n') this.total++;
         last = Math.max(last, a);
       }
       this.endS = last + 25 * D2R; this.nextS = Infinity;
       this.queue.sort((x, y) => x.cs - y.cs);
+    }
+    // The circuit's rings, queued in order. The course is turned so the first ring comes soon: the qubit
+    // starts at longitude ph0, and course position a then corresponds to longitude a + ph0.
+    scriptCircuit(m) {
+      const first = applyGate([0, 0, 1], m.circuit[0]), st = toAngles(first);
+      this.ph0 = st.th < 1e-3 || st.th > Math.PI - 1e-3 ? 0 : st.ph - 60 * D2R;
+      this.r = fromAngles((m.start ?? 8) * D2R, this.ph0); this.camPh = wrap(this.ph0 - P.HOME);
+      this.cr = [0, 0, 1]; this.ca = 0; this.total = 0;
+      for (const k of m.circuit) { this.circuitRing(k, m.gap * D2R, (m.ring ?? 12) * D2R); this.total++; }
+      this.endS = this.ca + 25 * D2R; this.nextS = Infinity;
+      this.queue.sort((x, y) => x.cs - y.cs);
+    }
+    // Where the ring after gate k would go: the first course position ≥ ca + gap at which the qubit's longitude
+    // matches the new state's (any position, for a state at a pole).
+    circuitArrival(r, gap) {
+      const st = toAngles(r), a = this.ca + gap;
+      return st.th < 1e-3 || st.th > Math.PI - 1e-3 ? a : a + ((st.ph - this.ph0 - a) % TAU2 + TAU2) % TAU2;
+    }
+    // Apply gate k to the circuit's state and queue the ring for the result.
+    circuitRing(k, gap, rr) {
+      const from = this.cr, r = applyGate(from, k), st = toAngles(r), a = this.circuitArrival(r, gap);
+      const o = { type: 'ring', rad: rr, step: ++this.stepCount, gate: k, from, to: r, label: stateName(r), th: st.th };
+      if (st.th < 1e-3 || st.th > Math.PI - 1e-3) {
+        // a pole is a band that shows up a little before its turn and lasts until just after it
+        const D = this.delta || 0.5;
+        this.push(a - 0.6 * gap, Object.assign(o, { named: POLES[st.th < 1 ? 0 : 1], fallback: Math.PI / 2, life: 0.98 * gap / D }));
+      } else this.push(a - (P.SPAWN - P.HOME), Object.assign(o, { fixedPh: st.ph }));
+      this.circuitLog.push(o);
+      this.cr = r; this.ca = a;
+      return a;
+    }
+    // Endless random circuit: pick a gate that changes the state and does not leave a long wait for its ring.
+    nextCircuitGate() {
+      const R = this.rand, pool = ['H', 'H', 'S', 'T', 'T', 'X', 'Y', 'Z', 'SX', 'SY', 'RX4', 'RY3'], gap = (55 - 15 * this.level) * D2R;
+      let best = null, bestWait = Infinity;
+      for (let i = 0; i < 10; i++) {
+        const k = pool[Math.floor(R() * pool.length)], r = applyGate(this.cr, k);
+        if (angle(r, this.cr) < 1e-3) continue;
+        const wait = this.circuitArrival(r, gap) - this.ca - gap;
+        if (wait < bestWait) { best = k; bestWait = wait; }
+        if (wait <= 150 * D2R) break;
+      }
+      const a = this.circuitRing(best || 'X', gap, this.ringRadius);
+      this.nextS = a - (P.SPAWN - P.HOME) + 1e-6;
+      if (this.circuitLog.length > 40) this.circuitLog.shift();
     }
     stars() {
       const f = this.total ? this.rings / this.total : 1;
@@ -410,11 +511,14 @@
       }
     }
     place(o, late) {
+      if (o.fixedPh != null) {   // a circuit ring, at its state's own longitude
+        Object.assign(o, { ph: o.fixedPh, v: fromAngles(o.th, o.fixedPh) }); this.objects.push(o); this.unblock(o); return;
+      }
       if (o.named) {
         const n = o.named;
-        if (n.th >= Math.PI - 1e-9) {                   // |1⟩ is at the pole: it is "everywhere" along the top
-          if (this.objects.some(x => x.pole)) { o = { type: 'ring', th: o.fallback, rad: this.ringRadius }; }
-          else { Object.assign(o, { name: n.name, ket: n.ket, ph: 0, v: [0, 0, -1], pole: true, born: this.t }); this.objects.push(o); this.unblock(o); return; }
+        if (n.th >= Math.PI - 1e-9 || n.th <= 1e-9) {   // a pole is a single point, "everywhere" along the map's edge
+          if (this.objects.some(x => x.pole && !x.done)) { o = { type: 'ring', th: o.fallback, rad: this.ringRadius }; }
+          else { Object.assign(o, { name: n.name, ket: n.ket, ph: 0, v: [0, 0, n.th < 1 ? 1 : -1], pole: true, born: this.t }); this.objects.push(o); this.unblock(o); return; }
         } else {
           const ahead = this.rel(n.ph);
           if (ahead > 40 * D2R) { Object.assign(o, { name: n.name, ket: n.ket, ph: n.ph, v: fromAngles(n.th, n.ph) }); this.objects.push(o); this.unblock(o); return; }
@@ -498,6 +602,7 @@
     measure(o, ev) {
       const p1 = (1 - this.r[2]) / 2, one = this.measRand() < p1;
       this.r = fromAngles(one ? Math.PI - 1e-4 : 1e-4, toAngles(this.r).ph);
+      this.amp.a = 0; this.amp.x = 0; this.amp.y = 0;   // the readout interrupts the drive: the qubit sits where it landed
       this.measures++;
       const win = (one ? 1 : 0) === o.want, pts = win ? 400 * Math.max(1, this.combo) : 0;
       if (win) { this.measWins++; this.score += pts; }
@@ -517,14 +622,18 @@
         const rel = this.rel(o.ph);
         const gone = o.pole ? this.t - o.born > (o.life ?? 8) : rel < P.DESPAWN && rel > -Math.PI + 0.2;
         if (gone && o.type === 'ring' && !o.done && o.quiz) { if (o.correct) { this.combo = 0; ev.push({ type: 'quizmiss', q: o.quiz }); } }
-        else if (gone && o.type === 'ring' && !o.done && !o.bonus) { this.combo = 0; ev.push({ type: 'miss', o }); }
+        else if (gone && o.type === 'ring' && !o.done && !o.bonus) {
+          this.combo = 0; o.missed = true;
+          if (this.circuitMode) { this.hearts--; this.hits++; }   // in a random circuit, each missed gate costs coherence
+          ev.push({ type: 'miss', o, heart: this.circuitMode });
+        }
         return !gone;
       });
     }
   }
 
   const api = { P, D2R, dot, cross, norm, unit, fromAngles, toAngles, wrap, rotate, liftRate, liftAxis, fidelity, angle,
-    meridianDist, rng, NAMED, QUIZ, MISSIONS, gateTheta, World };
+    meridianDist, rng, NAMED, QUIZ, MISSIONS, CIRCUITS, GATES, applyGate, gateArc, stateName, gateTheta, World };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RabiEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
