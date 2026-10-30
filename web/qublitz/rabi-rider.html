@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rabi Rider — fly a qubit around the Bloch sphere</title>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+    --night:#0b1220; --night2:#131d33;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  .page{max-width:1240px;margin:0 auto;padding:18px 20px 44px}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700}
+  h1 span{font-weight:400;color:var(--muted);font-size:17px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:920px}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  button.primary:hover{background:var(--green2);color:#fff}
+
+  .game{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}
+  @media(max-width:900px){.game{grid-template-columns:1fr}}
+  .stage{position:relative;border-radius:12px;overflow:hidden;background:var(--night);aspect-ratio:16/9;
+    touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 8px 30px rgba(11,18,32,.25)}
+  .stage canvas{display:block;width:100%;height:100%}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;text-align:center;
+    background:rgba(8,13,25,.82);color:#e8eef7;padding:18px;overflow:auto}
+  .overlay>:first-child{margin-top:auto} .overlay>:last-child{margin-bottom:auto}   /* centered, but scrolls from the top when tall */
+  .overlay[hidden]{display:none}
+  .overlay h2{margin:0 0 2px;font-size:34px;letter-spacing:.02em;color:#fff}
+  .overlay h2 small{display:block;font-size:13px;font-weight:400;color:#9fb2cc;letter-spacing:.04em;margin-top:2px}
+  .overlay p{max-width:620px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
+  .overlay .modes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0 4px}
+  .overlay .modes button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;
+    padding:10px 16px;min-width:190px;text-align:left}
+  .overlay .modes button b{display:block;font-size:15px}
+  .overlay .modes button span{font-size:12px;color:#9fb2cc}
+  .overlay .modes button[aria-pressed=true]{border-color:#ffd166;background:rgba(255,209,102,.12)}
+  .overlay .opts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center;font-size:13px;color:#c7d3e6;margin:6px 0}
+  .overlay .opts select,.overlay .opts input[type=text]{font:inherit;font-size:13px;border-radius:6px;border:1px solid rgba(255,255,255,.25);
+    background:rgba(255,255,255,.08);color:#fff;padding:4px 7px}
+  .overlay .opts select option{color:#000}
+  .overlay .go{font-size:16px;padding:10px 26px;margin-top:10px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  .overlay .go:hover{background:#ffe08a;color:#1b1300}
+  .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .overlay .row button:not(.go){background:transparent;color:#e8eef7;border-color:rgba(255,255,255,.3)}
+  .overlay .row .go{margin-top:0}
+  .overlay .big{font-size:52px;font-weight:800;color:#ffd166;line-height:1;margin:6px 0}
+  .overlay .stats{display:grid;grid-template-columns:repeat(4,auto);gap:4px 18px;font-size:13px;color:#c7d3e6;margin:8px 0}
+  .overlay .stats b{display:block;font-size:18px;color:#fff}
+  .overlay .best{font-size:12.5px;color:#9fb2cc}
+  .overlay kbd{font:12px ui-monospace,Menlo,Consolas,monospace;border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:0 5px}
+
+  .side{display:flex;flex-direction:column;gap:10px}
+  .panel{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+  .panel h3{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+  #sphere{display:block;width:100%;aspect-ratio:1;border-radius:8px;background:var(--night)}
+  .readout{font-size:12.5px;font-variant-numeric:tabular-nums;display:grid;grid-template-columns:auto 1fr;gap:1px 10px}
+  .readout span{color:var(--muted)}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pad button{padding:9px 4px;font-weight:700;font-size:14px;touch-action:none;position:relative;background:var(--panel)}
+  .pad button.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .pad button i{display:block;font-style:normal;font-size:11px;font-weight:400;color:var(--muted);min-height:15px}
+  .pad button.on i{color:#d9f2e6}
+  .holdbtn{width:100%;padding:14px;font-size:15px;font-weight:700;touch-action:none;background:var(--panel)}
+  .holdbtn.on{background:var(--green);color:#fff}
+  .keys{font-size:12px;color:var(--muted)}
+  .keys kbd{font:11.5px ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:0 4px;background:var(--panel);color:var(--ink)}
+  [hidden]{display:none !important}
+  @media(max-width:600px){
+    .stage{aspect-ratio:1/1}
+    .overlay{padding:12px}
+    .overlay h2{font-size:24px} .overlay p{font-size:12.5px;margin:6px auto}
+    .overlay .modes{gap:6px;margin:8px 0 2px} .overlay .modes button{min-width:0;flex:1 1 130px;padding:7px 10px}
+    .overlay .big{font-size:40px} .overlay .stats{grid-template-columns:repeat(2,auto)}
+    #autoPanel,#pilotPanel{order:-1}
+    #menu>h2{order:0} #menu .modes{order:1} #play{order:2;margin-top:4px} #howto{order:3} #menu .opts{order:4} #challengeNote,#menuBest{order:5}
+    #sphere{max-width:240px;margin:0 auto}
+  }
+
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px 12px;margin-top:16px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .card p,.card li{font-size:13.5px;max-width:960px}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto}
+  table.lift{border-collapse:collapse;font-size:13px;margin:8px 0}
+  table.lift td,table.lift th{border-bottom:1px solid var(--line);padding:4px 12px;text-align:left}
+  .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  .dl[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="page">
+<a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
+<h1>🌀 Rabi Rider <span>a Bloch-sphere flying game</span></h1>
+<p class="sub">Your qubit flies across a map of the Bloch sphere: longitude φ runs left to right, and the polar angle runs from
+  |0⟩ at the top to |1⟩ at the bottom. The detuning keeps it precessing about z, which is the scrolling. You steer with the drive,
+  rotating the state about x, y and z, to pass through rings (target states) and dodge noise. Part of
+  <a id="labLink" href="qubit-simulator.html">Qublitz</a>, where the same rotations show up as Rabi and Ramsey experiments.</p>
+
+<div class="game">
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Game: the qubit's path on a map of the Bloch sphere"></canvas>
+
+    <div class="overlay" id="menu">
+      <h2>Rabi Rider<small>STEER A QUBIT THROUGH ITS STATE SPACE</small></h2>
+      <div class="modes" role="group" aria-label="Mode">
+        <button data-mode="auto" aria-pressed="true"><b>Autopilot</b><span>one button: hold to climb</span></button>
+        <button data-mode="pilot" aria-pressed="false"><b>Pilot</b><span>drive about X, Y and Z yourself</span></button>
+      </div>
+      <p id="howto"></p>
+      <div class="opts">
+        <label><input type="checkbox" id="optDecay" checked> T₁ decay (quantum jumps)</label>
+        <label>Course <select id="optCourse"><option value="random">random</option><option value="daily">today's course</option><option value="custom">custom seed…</option></select></label>
+        <input type="text" id="optSeed" placeholder="seed, e.g. ENGS53" size="12" hidden>
+        <label><input type="checkbox" id="optSound" checked> sound</label>
+      </div>
+      <button class="go" id="play">Play ▶</button>
+      <p class="best" id="menuBest"></p>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <h2 id="overTitle">Decohered!</h2>
+      <div class="big" id="overScore">0</div>
+      <div class="stats" id="overStats"></div>
+      <p class="best" id="overBest"></p>
+      <p id="overTip"></p>
+      <div class="row">
+        <button class="go" id="again">Play again ▶</button>
+        <button id="toMenu">Menu</button>
+        <button id="challenge" title="Copy a link to this exact course, to race a friend or a class">Copy challenge link</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="paused" hidden>
+      <h2>Paused</h2>
+      <p>Press <kbd>P</kbd> or <kbd>Esc</kbd>, or tap to keep flying.</p>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="panel">
+      <h3>On the Bloch sphere</h3>
+      <canvas id="sphere" aria-label="The qubit's Bloch vector, the drive axis and the next target"></canvas>
+    </div>
+    <div class="panel">
+      <h3>State</h3>
+      <div class="readout" id="readout"></div>
+    </div>
+    <div class="panel" id="autoPanel">
+      <h3>Drive</h3>
+      <button class="holdbtn" id="holdBtn">Hold to climb toward |0⟩</button>
+      <p class="keys">Hold <kbd>Space</kbd>, <kbd>↑</kbd>, or press anywhere on the game. Let go and the drive flips phase by π.
+        <kbd>P</kbd> pauses.</p>
+    </div>
+    <div class="panel" id="pilotPanel" hidden>
+      <h3>Drive axes <span style="text-transform:none;letter-spacing:0;font-weight:400">— arrows show what each does here</span></h3>
+      <div class="pad" id="pad">
+        <button data-ax="x" data-s="1">+X<i></i></button><button data-ax="y" data-s="1">+Y<i></i></button><button data-ax="z" data-s="1">+Z<i>faster ▶</i></button>
+        <button data-ax="x" data-s="-1">−X<i></i></button><button data-ax="y" data-s="-1">−Y<i></i></button><button data-ax="z" data-s="-1">−Z<i>◀ slower</i></button>
+      </div>
+      <p class="keys">Hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd>; add <kbd>Shift</kbd> for the negative axis. <kbd>P</kbd> pauses.</p>
+    </div>
+  </aside>
+</div>
+
+<div class="card">
+  <h2>The physics in the game</h2>
+  <p>In the frame rotating with the drive, a qubit driven at Rabi rate Ω with phase α and detuned by Δ has</p>
+  <div class="eq">H = (ħ/2)[Δ σ<sub>z</sub> + Ω (cos α σ<sub>x</sub> + sin α σ<sub>y</sub>)],&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = (Ω cos α, Ω sin α, Δ)</div>
+  <p>so the Bloch vector <b>r</b> precesses about <b>ω</b>. The Δ part turns it about z at a steady rate: that is why the map scrolls.
+    A drive about an axis in the equator changes the polar angle at</p>
+  <div class="eq">dθ/dt = −Ω sin(φ − α)</div>
+  <p>which depends on where you are. The same +X drive moves you <i>up</i> on one side of the sphere and <i>down</i> on the other:</p>
+  <table class="lift"><tr><th>Axis</th><th>pushes toward |0⟩ (up) near</th><th>pushes toward |1⟩ (down) near</th></tr>
+    <tr><td>+X</td><td>+y (φ = 90°)</td><td>−y (φ = 270°)</td></tr>
+    <tr><td>+Y</td><td>−x (φ = 180°)</td><td>+x (φ = 0°)</td></tr>
+    <tr><td>−X</td><td>−y</td><td>+y</td></tr>
+    <tr><td>−Y</td><td>+x</td><td>−x</td></tr></table>
+  <p><b>Autopilot</b> locks the drive phase to α = φ ± 90°, the axis perpendicular to your meridian, so the drive only changes θ.
+    Holding uses the phase that climbs, letting go adds π. <b>Pilot</b> mode gives you the four equatorial axes and Z (extra precession)
+    and leaves the choice to you. The drive amplitude ramps with a 0.16 s time constant, like a real bandwidth-limited pulse.</p>
+  <p><b>Rings</b> are target pure states. You collect one when the state fidelity |⟨target|ψ⟩|² = (1 + <b>r</b>·<b>t</b>)/2 is
+    high enough, about 0.99; a dead-center pass scores a perfect. Named rings sit at their real places on the sphere:
+    |+⟩ at +x, |+i⟩ at +y, |−⟩ at −x, |−i⟩ at −y, and |1⟩ along the whole bottom edge, because a pole is a single point
+    that the map stretches into a line. The same stretching makes pillars flare out near the poles: every meridian meets every
+    other one there, so a pillar that reaches a pole covers it entirely.</p>
+  <p><b>T₁ decay</b> is modeled the way a continuously watched qubit behaves. While no photon is detected, the state stays pure
+    and slides toward |0⟩ at dθ/dt = −(γ/2) sin θ. A photon is detected with probability γ P(|1⟩) per unit time, and the state jumps
+    to |0⟩. Averaged over many runs this is ordinary exponential decay, e<sup>−t/T₁</sup>. In game time T₁ = 14 s; on a real
+    transmon it is closer to 100 µs.</p>
+</div>
+<p class="dl" id="offlineHint"><a href="rabi-rider-offline.html" download="qublitz-rabi-rider.html">Download the game</a>
+  as a single HTML file that runs offline in any browser.</p>
+</div>
+
+<script src="../shared/pagekit.js"></script>
+<script src="rabi-engine.js"></script>
+<script>
+'use strict';
+const E = window.RabiEngine, D2R = E.D2R;
+const $ = s => document.querySelector(s);
+const SITE = 'https://mvwf.github.io/qublitz/';
+const STANDALONE = !!window.QUBLITZ_STANDALONE;
+if (STANDALONE) { $('#back').href = SITE + '#labs'; $('#labLink').href = SITE + 'qublitz/qubit-simulator.html'; $('#offlineHint').hidden = true; }
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
+
+/* ---------------- settings: URL, then remembered choices ---------------- */
+const P0 = PageKit.params();
+const S = {
+  mode: P0.str('mode', ['auto', 'pilot']) || store.get('rabi:mode', 'auto'),
+  decay: P0.has('t1') ? P0.raw.get('t1') !== '0' : store.get('rabi:decay', true),
+  course: P0.has('seed') ? 'custom' : store.get('rabi:course', 'random'),
+  seed: P0.raw.get('seed') || store.get('rabi:seed', ''),
+  sound: store.get('rabi:sound', true),
+};
+const HOWTO = {
+  auto: 'Hold <kbd>Space</kbd> (or press and hold the game) and the drive rotates your qubit toward |0⟩. Let go and the drive flips ' +
+    'phase by π, sending it toward |1⟩. Fly through the rings, which are target states, and dodge the noise clouds and pillars.',
+  pilot: 'Hold <kbd>X</kbd>, <kbd>Y</kbd> or <kbd>Z</kbd> to rotate about that axis, with <kbd>Shift</kbd> for the negative one. ' +
+    'Which axis lifts you depends on where you are: +X pushes you toward |0⟩ on the +y side of the sphere and toward |1⟩ on the −y side. ' +
+    'The arrows on the drive pad show what each axis does right now.',
+};
+function seedFor() {
+  if (S.course === 'daily') { const d = new Date(); return `day-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+  if (S.course === 'custom' && S.seed.trim()) return S.seed.trim().slice(0, 40);
+  return 'r' + Math.random().toString(36).slice(2, 8);
+}
+const bestKey = (seed) => `rabi:best:${S.mode}:${S.decay ? 1 : 0}` + (S.course === 'random' ? '' : ':' + seed);
+
+function syncMenu() {
+  document.querySelectorAll('#menu .modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+  $('#howto').innerHTML = HOWTO[S.mode];
+  $('#optDecay').checked = S.decay; $('#optCourse').value = S.course; $('#optSeed').value = S.seed;
+  $('#optSeed').hidden = S.course !== 'custom'; $('#optSound').checked = S.sound;
+  const b = store.get(bestKey(S.course === 'random' ? '' : seedFor()), 0);
+  $('#menuBest').textContent = b ? `Best ${S.mode === 'auto' ? 'Autopilot' : 'Pilot'} score${S.decay ? '' : ' without decay'}${S.course === 'random' ? '' : ' on this course'}: ${b}` : '';
+  $('#autoPanel').hidden = S.mode !== 'auto'; $('#pilotPanel').hidden = S.mode !== 'pilot';
+}
+document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('rabi:mode', S.mode); syncMenu(); }));
+$('#optDecay').addEventListener('change', e => { S.decay = e.target.checked; store.set('rabi:decay', S.decay); syncMenu(); });
+$('#optCourse').addEventListener('change', e => { S.course = e.target.value; store.set('rabi:course', S.course); syncMenu(); if (S.course === 'custom') $('#optSeed').focus(); });
+$('#optSeed').addEventListener('input', e => { S.seed = e.target.value; store.set('rabi:seed', S.seed); syncMenu(); });
+$('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rabi:sound', S.sound); });
+
+/* ---------------- canvas geometry ---------------- */
+const cv = $('#cv'), g = cv.getContext('2d'), sc = $('#sphere'), sg = sc.getContext('2d');
+let W = 960, H = 540, DPR = 1;
+let L = -112 * D2R, R = 128 * D2R;             // visible longitudes, relative to the camera
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect(); W = Math.max(320, r.width); H = Math.max(180, r.height);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  const s = sc.getBoundingClientRect(); sc.width = Math.round(s.width * DPR); sc.height = Math.round(s.width * DPR);
+  // show 240° of longitude on a wide screen and less on a narrow one, keeping the qubit 30% from the left
+  const span = Math.max(150, Math.min(240, 240 * (W / H) / (16 / 9))) * D2R;
+  L = E.P.HOME - 0.3 * span; R = L + span;
+}
+const X = rel => W * (rel - L) / (R - L);
+const Y = th => 18 + (H - 36) * th / Math.PI;    // |0⟩ at the top, |1⟩ at the bottom, small margins
+const KX = () => W / (R - L), KY = () => (H - 36) / Math.PI;
+
+/* ---------------- input ---------------- */
+const keys = new Set();
+let pointerHold = false, padHold = { x: 0, y: 0, z: 0 };
+function input() {
+  if (S.mode === 'auto') return { hold: pointerHold || keys.has(' ') || keys.has('arrowup') || keys.has('w') };
+  const neg = keys.has('shift') ? -1 : 1, k = a => keys.has(a) ? neg : 0;
+  return { x: k('x') || padHold.x, y: k('y') || padHold.y, z: k('z') || padHold.z };
+}
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (phase !== 'play' && (k === ' ' || k === 'enter') && !e.target.closest('input,select,textarea,button')) {
+    e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || performance.now() - overAt > 900) start(); return;
+  }
+  if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
+  if (phase === 'play' && [' ', 'arrowup', 'x', 'y', 'z', 'w'].includes(k)) e.preventDefault();
+  keys.add(k === 'shift' ? 'shift' : k); if (e.shiftKey) keys.add('shift');
+});
+addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys.delete(k); if (!e.shiftKey) keys.delete('shift'); });
+addEventListener('blur', () => { keys.clear(); pointerHold = false; if (phase === 'play') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pause(); });
+const stage = $('#stage');
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('.overlay')) { if (phase === 'paused') resume(); return; }
+  pointerHold = true; stage.setPointerCapture(e.pointerId);
+});
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => stage.addEventListener(t, () => { pointerHold = false; }));
+const holdBtn = $('#holdBtn');
+holdBtn.addEventListener('pointerdown', e => { pointerHold = true; holdBtn.setPointerCapture(e.pointerId); holdBtn.classList.add('on'); if (phase !== 'play') start(); });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => holdBtn.addEventListener(t, () => { pointerHold = false; holdBtn.classList.remove('on'); }));
+document.querySelectorAll('#pad button').forEach(b => {
+  const ax = b.dataset.ax, s = +b.dataset.s;
+  b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); padHold[ax] = s; b.classList.add('on'); if (phase !== 'play') start(); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { if (padHold[ax] === s) padHold[ax] = 0; b.classList.remove('on'); }));
+});
+
+/* ---------------- audio: a few synthesized blips ---------------- */
+let actx = null;
+function tone(f0, f1, dur, type = 'sine', vol = 0.12, when = 0) {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime + when, o = actx.createOscillator(), a = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    a.gain.setValueAtTime(vol, t); a.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(a).connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) { /* audio unavailable */ }
+}
+function noise(dur, vol = 0.18) {
+  if (!S.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const n = Math.floor(actx.sampleRate * dur), b = actx.createBuffer(1, n, actx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 2;
+    const s = actx.createBufferSource(), f = actx.createBiquadFilter(), a = actx.createGain();
+    s.buffer = b; f.type = 'lowpass'; f.frequency.value = 900; a.gain.value = vol;
+    s.connect(f).connect(a).connect(actx.destination); s.start();
+  } catch (e) { /* audio unavailable */ }
+}
+const SND = {
+  ring: (combo, perfect) => { const f = 523 * Math.pow(2, Math.min(combo, 12) / 12); tone(f, f * 1.01, 0.12, 'triangle', 0.13); tone(f * 1.5, f * 1.5, 0.16, 'sine', 0.08, 0.06); if (perfect) tone(f * 3, f * 3.2, 0.2, 'sine', 0.05, 0.1); },
+  hit: () => { noise(0.35); tone(160, 60, 0.35, 'sawtooth', 0.08); },
+  jump: () => tone(1400, 260, 0.35, 'sine', 0.1),
+  miss: () => tone(220, 180, 0.12, 'square', 0.03),
+  over: () => { tone(330, 110, 0.7, 'triangle', 0.12); tone(247, 82, 0.9, 'sine', 0.08, 0.12); },
+};
+
+/* ---------------- game state ---------------- */
+let world = null, phase = 'menu', seed = '', fx = [], texts = [], trail = [], shake = 0, flash = 0, hintT = 0, lastEvent = '', overAt = 0;
+const STEP = 1 / 120;
+function start() {
+  seed = seedFor();
+  world = new E.World({ seed, mode: S.mode, decay: S.decay });
+  fx = []; texts = []; trail = []; shake = 0; flash = 0; hintT = 4.5; lastEvent = '';
+  phase = 'play'; $('#menu').hidden = true; $('#over').hidden = true; $('#paused').hidden = true;
+  acc = 0; last = performance.now();
+}
+function pause() { phase = 'paused'; $('#paused').hidden = false; }
+function resume() { phase = 'play'; $('#paused').hidden = true; last = performance.now(); }
+$('#play').addEventListener('click', start);
+$('#again').addEventListener('click', start);
+$('#toMenu').addEventListener('click', () => { phase = 'menu'; $('#over').hidden = true; $('#menu').hidden = false; syncMenu(); });
+$('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html',
+  new URLSearchParams({ seed, mode: S.mode, t1: S.decay ? 1 : 0 }).toString()));
+
+function gameOver() {
+  phase = 'over'; overAt = performance.now();
+  const w = world, score = Math.round(w.score), key = bestKey(seed), prev = store.get(key, 0);
+  if (score > prev) store.set(key, score);
+  $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
+  $('#overScore').textContent = score;
+  $('#overStats').innerHTML = [[w.rings, 'rings'], [w.perfects, 'perfect'], [w.jumps, 'quantum jumps'], [w.t.toFixed(0) + ' s', 'flight']]
+    .map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
+  $('#overBest').textContent = `Best ${Math.max(score, prev)}` + (S.course === 'random' ? '' : ` on course “${seed}”`);
+  $('#overTip').innerHTML = tipFor(w);
+  setTimeout(() => { if (phase === 'over') $('#over').hidden = false; }, 650);
+}
+function tipFor(w) {
+  if (lastEvent === 'pillar' ) return 'A pillar that reaches a pole covers the whole pole: every meridian passes through it. Go around, not over.';
+  if (S.mode === 'pilot' && w.rings < 4) return 'Tip: +X lifts you toward |0⟩ only on the +y half of the sphere. Watch the arrows on the drive pad as φ turns.';
+  if (S.decay && w.jumps > 2) return 'Each quantum jump was a detected photon. The higher you fly (closer to |1⟩), the more often it happens: the jump rate is γ·P(|1⟩).';
+  if (S.mode === 'auto' && w.t > 40) return 'Ready for the real thing? Try Pilot mode, where you choose the drive axis yourself.';
+  return 'Short, early presses beat long ones: the drive takes about 0.16 s to ramp up or flip.';
+}
+
+/* ---------------- effects ---------------- */
+function burst(ph, th, color, n = 18, speed = 0.7) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = speed * (0.4 + Math.random());
+    fx.push({ ph, th, vph: Math.cos(a) * v, vth: Math.sin(a) * v, life: 0.7 + Math.random() * 0.4, t: 0, color }); }
+}
+function say(ph, th, text, color = '#ffd166', size = 15) { texts.push({ ph, th, text, color, size, t: 0 }); }
+function handle(ev) {
+  const a = world.angles;
+  for (const e of ev) {
+    if (e.type === 'ring') {
+      const o = e.o; burst(o.ph, o.v ? E.toAngles(o.v).th : a.th, o.bonus ? '#7ef9ff' : '#ffd166', o.bonus ? 30 : 18);
+      say(a.ph, a.th - 0.12, `+${e.pts}${e.combo > 1 ? '  ×' + e.combo : ''}`, '#ffd166');
+      if (e.perfect) say(a.ph, a.th - 0.25, 'PERFECT', '#7ef9ff', 13);
+      if (o.name) say(a.ph, a.th + 0.2, `${o.name} = ${o.ket}`, '#7ef9ff', 14);
+      SND.ring(e.combo, e.perfect);
+    } else if (e.type === 'hit') {
+      lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; SND.hit();
+      say(a.ph, a.th - 0.2, e.o.type === 'cloud' ? 'noise! −1 coherence' : 'pillar! −1 coherence', '#ff8fa0', 13);
+    } else if (e.type === 'jump') {
+      lastEvent = 'jump'; texts.push({ photon: true, ph: a.ph, th: a.th, t: 0 });
+      say(a.ph, 0.25, 'photon detected → jump to |0⟩', '#ffe66d', 13); SND.jump(); trail = [];
+    } else if (e.type === 'heal') {
+      say(a.ph, a.th + 0.3, '10 rings: +1 coherence ♥', '#ff8fa0', 14); tone(660, 990, 0.25, 'sine', 0.1);
+    } else if (e.type === 'miss') {
+      if (e.o.v) say(e.o.ph, E.toAngles(e.o.v).th, 'missed', 'rgba(200,210,230,.6)', 12); SND.miss();
+    } else if (e.type === 'over') { SND.over(); gameOver(); }
+  }
+}
+
+/* ---------------- drawing: the map ---------------- */
+const LONG_NAMES = { 0: '+x', 90: '+y', 180: '−x', 270: '−y' };
+function drawGrid(w) {
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#16233d'); grd.addColorStop(0.5, '#0d1628'); grd.addColorStop(1, '#1d1530');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  g.lineWidth = 1; g.font = '11px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let k = 0; k < 8; k++) {
+    const rel = w.rel(k * 45 * D2R); if (rel < L - 0.1 || rel > R + 0.1) continue;
+    const x = X(rel), main = k % 2 === 0;
+    g.strokeStyle = main ? 'rgba(160,190,230,.20)' : 'rgba(160,190,230,.08)';
+    g.beginPath(); g.moveTo(x, Y(0)); g.lineTo(x, Y(Math.PI)); g.stroke();
+    if (main) { g.fillStyle = 'rgba(190,210,240,.7)'; g.fillText(LONG_NAMES[k * 45], x, 3); }
+  }
+  for (const th of [45, 90, 135]) {
+    g.strokeStyle = th === 90 ? 'rgba(160,190,230,.22)' : 'rgba(160,190,230,.08)';
+    g.setLineDash(th === 90 ? [6, 6] : []); g.beginPath(); g.moveTo(0, Y(th * D2R)); g.lineTo(W, Y(th * D2R)); g.stroke(); g.setLineDash([]);
+  }
+  g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillStyle = 'rgba(190,210,240,.75)'; g.font = '600 13px Helvetica,Arial';
+  g.fillText('|0⟩', 8, Y(0) + 2); g.fillText('|1⟩', 8, Y(Math.PI) - 2);
+  g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.45)'; g.fillText('equator', 8, Y(Math.PI / 2) - 9);
+}
+// Boundary of a spherical cap (center c, angular radius rad) on the map.
+function capPath(o, w) {
+  const c = o.v, ref = Math.abs(c[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
+  const u = E.unit(E.cross(c, ref)), v = E.cross(c, u), relc = w.rel(o.ph);
+  g.beginPath();
+  for (let i = 0; i <= 40; i++) {
+    const s = i / 40 * Math.PI * 2, cr = Math.cos(o.rad), sr = Math.sin(o.rad);
+    const p = [0, 1, 2].map(j => cr * c[j] + sr * (Math.cos(s) * u[j] + Math.sin(s) * v[j]));
+    const a = E.toAngles(p), x = X(relc + E.wrap(a.ph - o.ph)), y = Y(a.th);
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.closePath();
+}
+function drawCloud(o, w, t) {
+  const relc = w.rel(o.ph); if (relc < L - 0.6 || relc > R + 0.6) return;
+  capPath(o, w);
+  const x = X(relc), y = Y(E.toAngles(o.v).th), r = o.rad * KY();
+  const grd = g.createRadialGradient(x, y, r * 0.1, x, y, r * 1.6);
+  grd.addColorStop(0, 'rgba(255,70,120,.75)'); grd.addColorStop(1, 'rgba(120,40,160,.25)');
+  g.fillStyle = grd; g.fill(); g.strokeStyle = 'rgba(255,120,160,.8)'; g.lineWidth = 1.5; g.stroke();
+  // static: flickering specks inside, like a two-level-system defect
+  g.save(); g.clip(); g.fillStyle = 'rgba(255,220,235,.55)';
+  for (let i = 0; i < 14; i++) { const a = (i * 2.4 + t * (3 + i % 3)) % (Math.PI * 2), d = r * (0.2 + 0.75 * ((i * 0.37 + t * 0.9) % 1));
+    g.fillRect(x + Math.cos(a) * d * KX() / KY(), y + Math.sin(a) * d, 2, 2); }
+  g.restore();
+}
+function drawPillar(o, w) {
+  const relc = w.rel(o.ph); if (relc < L - 1.6 || relc > R + 1.6) return;
+  const n = 48, pts = [];
+  for (let i = 0; i <= n; i++) {
+    const th = o.th0 + (o.th1 - o.th0) * i / n, s = Math.sin(th);
+    const hw = s <= Math.sin(o.w) ? 3 : Math.asin(Math.min(1, Math.sin(o.w) / s));   // flares toward a pole
+    pts.push([th, hw]);
+  }
+  g.beginPath();
+  pts.forEach(([th, hw], i) => { const x = X(relc + Math.min(hw, 3)); i ? g.lineTo(x, Y(th)) : g.moveTo(x, Y(th)); });
+  for (let i = pts.length - 1; i >= 0; i--) { const [th, hw] = pts[i]; g.lineTo(X(relc - Math.min(hw, 3)), Y(th)); }
+  g.closePath();
+  const grd = g.createLinearGradient(X(relc - o.w), 0, X(relc + o.w), 0);
+  grd.addColorStop(0, 'rgba(255,90,114,.35)'); grd.addColorStop(0.5, 'rgba(255,90,114,.8)'); grd.addColorStop(1, 'rgba(255,90,114,.35)');
+  g.fillStyle = grd; g.fill(); g.strokeStyle = 'rgba(255,150,170,.9)'; g.lineWidth = 1.5; g.stroke();
+}
+function drawRing(o, w, t) {
+  if (o.done) return;
+  if (o.pole) {   // |1⟩: a band along the bottom edge
+    const y = Y(Math.PI - o.rad), pulse = 0.5 + 0.5 * Math.sin(t * 6);
+    const grd = g.createLinearGradient(0, y, 0, Y(Math.PI));
+    grd.addColorStop(0, 'rgba(126,249,255,0)'); grd.addColorStop(1, `rgba(126,249,255,${0.35 + 0.25 * pulse})`);
+    g.fillStyle = grd; g.fillRect(0, y, W, Y(Math.PI) - y + 18);
+    g.fillStyle = '#7ef9ff'; g.font = '700 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
+    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, 8 - (w.t - o.born)).toFixed(0)} s`, W / 2, y - 2);
+    return;
+  }
+  const rel = w.rel(o.ph); if (rel < L - 0.3 || rel > R + 0.3) return;
+  const th = E.toAngles(o.v).th, x = X(rel), y = Y(th);
+  const rx = Math.asin(Math.min(1, Math.sin(o.rad) / Math.max(0.05, Math.sin(th)))) * KX(), ry = o.rad * KY();
+  const col = o.bonus ? '126,249,255' : '255,209,102';
+  g.lineWidth = 7; g.strokeStyle = `rgba(${col},.18)`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 3; g.strokeStyle = `rgba(${col},${0.85 + 0.15 * Math.sin(t * 5 + o.ph)})`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 1; g.strokeStyle = `rgba(${col},.35)`; g.beginPath(); g.ellipse(x, y, rx / 3, ry / 3, 0, 0, Math.PI * 2); g.stroke();
+  if (o.name) { g.fillStyle = `rgb(${col})`; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(o.name, x, y - ry - 4); }
+}
+function drawShip(w, t) {
+  const a = w.angles, x = X(w.rel(a.ph)), y = Y(a.th);
+  // trail, in sphere coordinates so it scrolls with the map
+  g.lineCap = 'round';
+  for (let i = 1; i < trail.length; i++) {
+    const p = trail[i - 1], q = trail[i], x0 = X(w.rel(p.ph)), x1 = X(w.rel(q.ph));
+    if (Math.abs(x1 - x0) > W / 4) continue;            // a pole crossing jumps across the map
+    g.strokeStyle = `rgba(160,220,255,${0.5 * i / trail.length})`; g.lineWidth = 3 * i / trail.length + 0.5;
+    g.beginPath(); g.moveTo(x0, Y(p.th)); g.lineTo(x1, Y(q.th)); g.stroke();
+  }
+  // thrust: the drive's push on θ (up = toward |0⟩)
+  const up = S.mode === 'auto' ? -w.amp.a : (w.amp.x * Math.sin(a.ph) - w.amp.y * Math.cos(a.ph));
+  if (Math.abs(up) > 0.05) {
+    const dir = up > 0 ? 1 : -1, len = 10 + 14 * Math.abs(up) * (0.8 + 0.2 * Math.sin(t * 40));
+    const grd = g.createLinearGradient(x, y, x, y + dir * len);
+    grd.addColorStop(0, 'rgba(255,200,90,.9)'); grd.addColorStop(1, 'rgba(255,90,40,0)');
+    g.fillStyle = grd; g.beginPath(); g.moveTo(x - 5, y + dir * 4); g.lineTo(x + 5, y + dir * 4); g.lineTo(x, y + dir * len); g.closePath(); g.fill();
+  }
+  if (S.mode === 'pilot' && Math.abs(w.amp.z) > 0.05) {
+    const dir = w.amp.z > 0 ? -1 : 1, len = 8 + 10 * Math.abs(w.amp.z);
+    g.fillStyle = 'rgba(126,249,255,.6)'; g.beginPath(); g.moveTo(x + dir * 4, y - 4); g.lineTo(x + dir * 4, y + 4); g.lineTo(x + dir * len, y); g.closePath(); g.fill();
+  }
+  const blink = w.grace > 0 && Math.floor(t * 14) % 2 === 0;
+  if (!blink) {
+    const glow = g.createRadialGradient(x, y, 0, x, y, 18);
+    glow.addColorStop(0, 'rgba(200,240,255,.9)'); glow.addColorStop(1, 'rgba(120,200,255,0)');
+    g.fillStyle = glow; g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
+  }
+}
+function drawFx(w, dt) {
+  for (const p of fx) {
+    p.t += dt; p.ph += p.vph * dt; p.th += p.vth * dt;
+    const k = 1 - p.t / p.life; if (k <= 0) continue;
+    g.fillStyle = p.color; g.globalAlpha = k; g.fillRect(X(w.rel(p.ph)) - 2, Y(p.th) - 2, 4, 4);
+  }
+  g.globalAlpha = 1; fx = fx.filter(p => p.t < p.life);
+  for (const s of texts) {
+    s.t += dt;
+    if (s.photon) {   // a wavy photon leaving the qubit
+      const k = s.t / 0.9; if (k > 1) continue;
+      const x0 = X(w.rel(s.ph)), y0 = Y(s.th);
+      g.strokeStyle = `rgba(255,230,109,${1 - k})`; g.lineWidth = 2; g.beginPath();
+      for (let i = 0; i <= 30; i++) { const d = i / 30 * 160 * k; g.lineTo(x0 + d * 0.8, y0 - d * 0.6 + 5 * Math.sin(i * 1.3 - s.t * 30)); }
+      g.stroke(); continue;
+    }
+    const k = s.t / 1.3; if (k > 1) continue;
+    g.globalAlpha = Math.min(1, 2 * (1 - k)); g.fillStyle = s.color; g.font = `700 ${s.size}px Helvetica,Arial`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.text, X(w.rel(s.ph)), Y(s.th) - 30 * k);
+  }
+  g.globalAlpha = 1; texts = texts.filter(s => s.t < (s.photon ? 0.9 : 1.3));
+}
+function drawHUD(w) {
+  g.textBaseline = 'top'; g.textAlign = 'left';
+  g.fillStyle = '#fff'; g.font = '800 26px Helvetica,Arial'; g.fillText(Math.round(w.score), 40, 18);
+  if (w.combo > 1) { g.fillStyle = '#ffd166'; g.font = '700 14px Helvetica,Arial'; g.fillText(`combo ×${w.combo}`, 42, 48); }
+  g.textAlign = 'right'; g.font = '20px Helvetica,Arial';
+  let hearts = ''; for (let i = 0; i < E.P.HEARTS; i++) hearts += i < w.hearts ? '♥' : '♡';
+  g.fillStyle = '#ff6b85'; g.fillText(hearts, W - 14, 16);
+  g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.6)'; g.fillText('coherence', W - 14, 40);
+  g.textBaseline = 'bottom'; g.fillText(`Δ = ${w.delta.toFixed(2)} rad/s   ·   ${w.t.toFixed(0)} s   ·   course ${seed}`, W - 14, H - 6);
+  if (hintT > 0) {
+    g.globalAlpha = Math.min(1, hintT); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '600 15px Helvetica,Arial';
+    const narrow = W < 600;
+    g.fillText(S.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
+      : (narrow ? 'Hold the axis buttons to rotate' : 'Hold X, Y or Z to rotate · Shift for the negative axis'), W / 2, H - 34);
+    g.globalAlpha = 1;
+  }
+}
+
+/* ---------------- drawing: the Bloch sphere inset ---------------- */
+function drawSphere(w) {
+  const Wd = sc.width / DPR, c = Wd / 2, Rs = Wd * 0.36;
+  sg.setTransform(DPR, 0, 0, DPR, 0, 0); sg.clearRect(0, 0, Wd, Wd);
+  sg.fillStyle = '#0b1220'; sg.fillRect(0, 0, Wd, Wd);
+  // view from the side the qubit is on, a little above the equator
+  const az = w ? w.camPh + E.P.HOME - 1.1 : 0.5, el = 0.32;   // seen from 63° behind the qubit's longitude
+  const P = v => { const xr = v[0] * Math.cos(-az) - v[1] * Math.sin(-az), yr = v[0] * Math.sin(-az) + v[1] * Math.cos(-az);
+    // after rotating, +x points at the viewer
+    return { x: c + Rs * yr, y: c - Rs * (v[2] * Math.cos(el) - xr * Math.sin(el)), front: xr * Math.cos(el) + v[2] * Math.sin(el) }; };
+  sg.strokeStyle = 'rgba(160,190,230,.35)'; sg.lineWidth = 1;
+  sg.beginPath(); sg.arc(c, c, Rs, 0, Math.PI * 2); sg.stroke();
+  const ring = (f, dash) => { sg.setLineDash(dash); sg.beginPath(); for (let i = 0; i <= 64; i++) { const p = P(f(i / 64 * Math.PI * 2)); i ? sg.lineTo(p.x, p.y) : sg.moveTo(p.x, p.y); } sg.stroke(); sg.setLineDash([]); };
+  ring(s => [Math.cos(s), Math.sin(s), 0], [3, 3]);
+  ring(s => [-Math.sin(az) * Math.sin(s), Math.cos(az) * Math.sin(s), Math.cos(s)], []);   // the meridian facing us
+  sg.font = '11px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+  for (const [v, lab] of [[[0, 0, 1], '|0⟩'], [[0, 0, -1], '|1⟩'], [[1, 0, 0], '+x'], [[0, 1, 0], '+y'], [[-1, 0, 0], '−x'], [[0, -1, 0], '−y']]) {
+    const p = P(v.map(t => t * 1.18)); sg.fillStyle = `rgba(190,210,240,${p.front < -0.2 && lab[0] !== '|' ? 0.35 : 0.85})`; sg.fillText(lab, p.x, p.y);
+  }
+  if (!w) return;
+  // trail
+  sg.strokeStyle = 'rgba(160,220,255,.5)'; sg.lineWidth = 1.5; sg.beginPath();
+  trail.forEach((q, i) => { const p = P(E.fromAngles(q.th, q.ph)); i ? sg.lineTo(p.x, p.y) : sg.moveTo(p.x, p.y); }); sg.stroke();
+  // next ring target
+  const nxt = nextRing(w);
+  if (nxt) { const p = P(nxt.v); sg.strokeStyle = nxt.bonus ? '#7ef9ff' : '#ffd166'; sg.lineWidth = 2; sg.beginPath(); sg.arc(p.x, p.y, 5, 0, Math.PI * 2); sg.stroke(); }
+  // drive axis (in the equatorial plane), drawn as an arrow from the center
+  const om = w.omega(), dlen = Math.hypot(om[0], om[1]);
+  if (dlen > 0.05 * E.P.OMEGA) {
+    const p = P([om[0] / E.P.OMEGA, om[1] / E.P.OMEGA, 0]);
+    sg.strokeStyle = '#ffb347'; sg.lineWidth = 2.5; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(p.x, p.y); sg.stroke();
+    sg.fillStyle = '#ffb347'; sg.beginPath(); sg.arc(p.x, p.y, 3, 0, Math.PI * 2); sg.fill();
+  }
+  // the Bloch vector
+  const p = P(w.r);
+  sg.strokeStyle = '#fff'; sg.lineWidth = 2.5; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(p.x, p.y); sg.stroke();
+  sg.fillStyle = '#7fd3ff'; sg.beginPath(); sg.arc(p.x, p.y, 5, 0, Math.PI * 2); sg.fill();
+  sg.textAlign = 'left'; sg.textBaseline = 'bottom'; sg.fillStyle = 'rgba(190,210,240,.7)'; sg.font = '10.5px Helvetica,Arial';
+  sg.fillText('white: state · orange: drive axis', 6, Wd - 4);
+}
+function nextRing(w) {
+  const me = w.rel(w.angles.ph);
+  return w.objects.filter(o => o.type === 'ring' && !o.done && (o.pole || w.rel(o.ph) > me - 0.05))
+    .sort((a, b) => (a.pole ? 9 : w.rel(a.ph)) - (b.pole ? 9 : w.rel(b.ph)))[0];
+}
+
+/* ---------------- side readouts (10 Hz) ---------------- */
+const AXIS_NAMES = ['+X', '+Y', '−X', '−Y'];
+function updateSide(w) {
+  const a = w.angles, deg = v => (v / D2R).toFixed(0) + '°', nxt = nextRing(w);
+  const om = w.omega(), dmag = Math.hypot(om[0], om[1]) / E.P.OMEGA;
+  let axis = '—';
+  if (dmag > 0.05) { const al = Math.atan2(om[1], om[0]), k = ((Math.round(al / (Math.PI / 2)) % 4) + 4) % 4;
+    axis = `${(((al / D2R) % 360 + 360) % 360).toFixed(0)}° (≈ ${AXIS_NAMES[k]})`; }
+  $('#readout').innerHTML = [
+    ['θ, φ', `${deg(a.th)}, ${deg((a.ph + 2 * Math.PI) % (2 * Math.PI))}`],
+    ['P(|1⟩)', (Math.sin(a.th / 2) ** 2).toFixed(3)],
+    ['drive axis', axis],
+    ['next ring', nxt ? (nxt.name || `θ = ${deg(E.toAngles(nxt.v).th)}`) : '—'],
+    ['fidelity to it', nxt ? E.fidelity(w.r, nxt.v).toFixed(3) : '—'],
+    ['T₁ decay', S.decay ? `on (T₁ = ${(1 / E.P.GAMMA).toFixed(0)} s)` : 'off'],
+  ].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('');
+  if (S.mode === 'pilot') {
+    // what each equatorial axis does to θ right now: up (toward |0⟩) at rate Ω sin(φ − α)
+    document.querySelectorAll('#pad button').forEach(b => {
+      if (b.dataset.ax === 'z') return;
+      const al = (b.dataset.ax === 'x' ? 0 : Math.PI / 2) + (b.dataset.s === '-1' ? Math.PI : 0), up = Math.sin(a.ph - al);
+      b.querySelector('i').textContent = Math.abs(up) < 0.2 ? '· sideways' : (up > 0 ? '▲ up' : '▼ down') + (Math.abs(up) > 0.8 ? '' : ' (weak)');
+    });
+  }
+}
+
+/* ---------------- main loop ---------------- */
+let acc = 0, last = performance.now(), sideT = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (phase === 'play' && world) {
+    acc += dt;
+    const inp = input();
+    while (acc >= STEP) {
+      acc -= STEP; const ev = world.step(inp, STEP);
+      if ((trail.length === 0 || world.t - trail[trail.length - 1].t > 0.02)) { const a = world.angles; trail.push({ th: a.th, ph: a.ph, t: world.t }); if (trail.length > 60) trail.shift(); }
+      if (ev.length) handle(ev);
+      if (phase !== 'play') break;
+    }
+    hintT = Math.max(0, hintT - dt);
+  }
+  render(dt, now / 1000);
+  sideT -= dt; if (sideT <= 0 && world) { updateSide(world); sideT = 0.1; }
+  requestAnimationFrame(frame);
+}
+function render(dt, t) {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (shake > 0) { shake -= dt; g.translate((Math.random() - 0.5) * 10 * shake / 0.35, (Math.random() - 0.5) * 10 * shake / 0.35); }
+  const w = world || demoWorld();
+  drawGrid(w);
+  for (const o of w.objects) if (o.type === 'pillar') drawPillar(o, w);
+  for (const o of w.objects) if (o.type === 'cloud') drawCloud(o, w, t);
+  for (const o of w.objects) if (o.type === 'ring') drawRing(o, w, t);
+  if (world) { drawShip(w, t); drawFx(w, phase === 'play' ? dt : 0); drawHUD(w); }
+  if (flash > 0) { flash -= dt; g.fillStyle = `rgba(255,60,90,${flash})`; g.fillRect(-20, -20, W + 40, H + 40); }
+  drawSphere(world);
+}
+// Behind the menu: a course scrolling by on its own.
+let demo = null;
+function demoWorld() {
+  if (!demo) { demo = new E.World({ seed: 'menu', decay: false }); demo.hearts = 1e9; }
+  for (let i = 0; i < 2; i++) demo.step({ hold: Math.sin(demo.t * 1.3) > 0 }, 1 / 120);
+  return demo;
+}
+
+addEventListener('resize', resize);
+resize(); syncMenu();
+if (P0.has('seed')) $('#menuBest').insertAdjacentHTML('beforebegin', `<p id="challengeNote" style="color:#ffd166;margin:4px 0 0">Challenge course: <b>${PageKit.params().raw.get('seed').replace(/[<>&"]/g, '')}</b></p>`);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
