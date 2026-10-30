@@ -155,18 +155,18 @@
    - thumb:    name of an animated preview in THUMBS below
    ====================================================================== */
 const GROUPS = [
-  { id:'games', code:'Quantum Games', title:'Learn Quantum by Playing',
-    desc:'Games from Qublitz, the lab\'s open educational platform for quantum engineering. Every mechanic runs on the same single-qubit Lindblad physics, with T<sub>1</sub> relaxation, T<sub>2</sub> dephasing and real gates.' },
-  { id:'labs', code:'Virtual Quantum Labs', title:'Run the Experiment',
-    desc:'Simulated qubit experiments with realistic noise. Find a hidden qubit, calibrate its drive and measure its coherence the way a real lab does.' },
+  { id:'labs', code:'Virtual Qubit Labs', title:'Learn Quantum by Playing',
+    desc:'Qublitz is the lab\'s open educational platform for quantum engineering. Play it as a game or run it as an experiment: every page runs on the same single-qubit Lindblad physics, with T<sub>1</sub> relaxation, T<sub>2</sub> dephasing and real gates.' },
   { id:'research', code:'Research', title:'Research Tools',
     desc:'Tools built in the lab to run quantum hardware, released openly for anyone to use.' },
   { id:'engs23', code:'ENGS 23', title:'Systems, Fields and Waves',
     desc:'Intuition helpers built on the course spine of separating variables into a spatial eigenproblem <span class="math">&minus;<i>&phi;</i>&Prime; = <i>&lambda;&phi;</i></span>, where each equation turns the same modes into different behavior in time.' },
+  { id:'fun', code:'Fun', title:'Just for Fun',
+    desc:'Playful side projects from the lab: hear what an image, a gravitational wave or the ocean\'s Bloop sounds like.' },
 ];
 
 const DEMOS = [
-  { group:'games', title:'QuBlitz Arena', thumb:'arena',
+  { group:'labs', title:'QuBlitz Arena', thumb:'arena',
     href:'qublitz/arena.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>&rho;&#775;</i> = &minus;<i>i</i>[<i>H</i>, <i>&rho;</i>] + <i>D</i><sub><i>T</i>&#8321;,<i>T</i>&#8322;</sub>[<i>&rho;</i>]',
     desc:'A turn-based battle game where every unit is a qubit. Charge with gates, strike before T₁ drains you, set relative phase to guard, and entangle enemies for splash damage.',
@@ -179,13 +179,18 @@ const DEMOS = [
   { group:'labs', title:'Qublitz Qubit Lab', thumb:'chevron', external:true,
     href:'https://qublitz-qubit-lab.streamlit.app/', repo:'https://github.com/mvwf/qublitz',
     eq:'|<i>&psi;</i>&rang; = cos<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|0&rang; + <i>e</i><sup><i>i&phi;</i></sup> sin<span class="fr"><span><i>&theta;</i></span><span>2</span></span>|1&rang;',
-    desc:'The rest of the Streamlit suite: measurement, IQ mixing, exceptional points and image sonification. These pages are moving to this site one by one.',
+    desc:'The rest of the Streamlit suite, including measurement and IQ mixing. These pages are moving to this site one by one.',
     tags:['quantum','qubits','simulator'] },
   { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
     href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>n&#772;</i><sub>out</sub> = <span class="fr"><span><i>n&#772;</i><sub>in</sub></span><span><i>L</i></span></span> + (1 &minus; <span class="fr"><span>1</span><span><i>L</i></span></span>) <i>n&#772;</i>(<i>T<sub>i</sub></i>, <i>f</i>)',
     desc:'Follow room-temperature noise down a dilution fridge drive line. Set each stage\'s temperature and attenuation and see how many thermal photons reach the qubit.',
     tags:['cryogenics','thermal noise','microwave'] },
+  { group:'research', title:'Exceptional Points & TPDs', thumb:'ep',
+    href:'qublitz/ep-tpd.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'<i>K&#772;</i><sub>2</sub> = <span class="fr"><span><i>&Delta;</i><sub>f</sub><sup>2</sup> + <i>&Delta;</i><sub>&kappa;</sub><sup>2</sup> + |<i>&Delta;</i><sub>&lambda;</sub>|<sup>2</sup> + 4</span><span>2|<i>&Delta;</i><sub>&lambda;</sub>|<sup>2</sup></span></span>',
+    desc:'Map where exceptional points and transmission-peak degeneracies sit in a tunable magnon-photon dimer, and watch them separate as the coupling phase and damping change.',
+    tags:['exceptional points','non-Hermitian','magnonics'] },
   { group:'research', title:'Cassini Fridge Monitor', thumb:'fridge', external:true,
     href:'https://cassini-fitzlab.streamlit.app/', repo:'https://github.com/jussalcedoga/cassini_monitor_fitzlab',
     eq:'',
@@ -207,6 +212,11 @@ const DEMOS = [
     eq:'|&int; <i>w</i>(<i>&tau;</i> &minus; <i>t</i>) <i>s</i>(<i>&tau;</i>) <i>e</i><sup>&minus;<i>i&omega;&tau;</i></sup> <i>d&tau;</i>|<sup>2</sup>',
     desc:'Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time.',
     tags:['STFT','signals','microphone'] },
+  { group:'fun', title:'Sonify Images', thumb:'sonify',
+    href:'qublitz/sonify.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'<i>s</i>(<i>t</i>) = <i>I</i><sub>row</sub>(<i>t</i>) cos(2&pi;<i>f</i><sub>mod</sub><i>t</i>)',
+    desc:'Turn the rows of an image into sound: brightness becomes amplitude on a carrier tone. Try the Mona Lisa, a gravitational-wave chirp or your own picture.',
+    tags:['sonification','audio','Fourier'] },
 ];
 
 /* ======================================================================
@@ -333,6 +343,36 @@ const THUMBS = {
       g.fillStyle=`rgba(255,200,60,${Math.max(0,Math.min(1,(nv+3.5)/5.8))*(1-j/7)})`;
       g.beginPath(); g.arc(px,py,2.4,0,7); g.fill();
     }
+  },
+  ep(g,w,h,t){
+    // eigenvalues |Im λ±| (dashed) split at the EP, transmission peaks ν± (purple) at the TPD; both drift with the coupling
+    const x0=12, x1=w-12, ym=h/2, A=h/2-16, W=x1-x0;
+    const xe=x0+W*(0.28+0.1*Math.sin(t*0.6)), xt=xe+W*(0.22+0.06*Math.sin(t*0.9+1));
+    g.strokeStyle=C.grid; g.lineWidth=1; g.beginPath(); g.moveTo(x0,ym); g.lineTo(x1,ym); g.stroke();
+    const branch=(xs,amp,col,dash)=>{
+      g.strokeStyle=col; g.lineWidth=2.4; g.setLineDash(dash);
+      for(const s of [1,-1]){ g.beginPath();
+        for(let x=x0;x<=x1;x+=2){ const d=Math.max(0,(x-xs)/W); g.lineTo(x, ym-s*A*Math.min(1,amp*Math.sqrt(d))); }
+        g.stroke(); }
+      g.setLineDash([]);
+    };
+    branch(xe,1.35,'#1b2a24',[5,4]);
+    branch(xt,1.15,'#7b2d8e',[]);
+    g.fillStyle=C.red; g.beginPath(); g.arc(xe,ym,4,0,7); g.fill();
+    g.strokeStyle='#19b8c9'; g.lineWidth=2.2; g.beginPath(); g.arc(xt,ym,5,0,7); g.stroke();
+  },
+  sonify(g,w,h,t){
+    // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone
+    const cols=48, rows=6, x0=10, x1=w-10, y0=10, sh=(h-20)*0.45, cw=(x1-x0)/cols, rh=sh/rows;
+    const px=(c,r)=>0.5+0.45*Math.sin(c*0.31+r*0.9)*Math.cos(c*0.07-r*0.5);
+    const sel=Math.floor(t*0.5)%rows;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const v=Math.round(px(c,r)*235); g.fillStyle=`rgb(${v},${v},${v})`; g.fillRect(x0+c*cw,y0+r*rh,cw+0.6,rh+0.6); }
+    g.strokeStyle=C.red; g.lineWidth=1.5; g.setLineDash([4,3]); g.beginPath(); g.moveTo(x0,y0+(sel+0.5)*rh); g.lineTo(x1,y0+(sel+0.5)*rh); g.stroke(); g.setLineDash([]);
+    const ym=y0+sh+(h-y0-sh)/2+2, A=(h-y0-sh)/2-6, head=x0+((t*0.35)%1)*(x1-x0);
+    g.strokeStyle=C.green; g.lineWidth=1.4; g.beginPath();
+    for(let x=x0;x<=x1;x+=1){ const env=px((x-x0)/cw,sel); g.lineTo(x, ym-A*env*Math.cos((x-x0)*0.55)); }
+    g.stroke();
+    g.strokeStyle=C.muted; g.lineWidth=1; g.beginPath(); g.moveTo(head,ym-A-2); g.lineTo(head,ym+A+2); g.stroke();
   },
   fridge(g,w,h,t){
     const stages=[['50K',C.red],['4K',C.gold],['still',C.blue],['MXC',C.green]];
