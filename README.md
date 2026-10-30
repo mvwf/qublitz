@@ -1,5 +1,13 @@
 # QuBlitz Virtual Qubit Simulator
-Welcome! 
+
+### ▶ Open the interactive demos: **[mvwf.github.io/qublitz](https://mvwf.github.io/qublitz/)**
+
+Everything runs in the browser, with nothing to install. Link straight to the site, or to any demo on it, for
+example [Qubit Simulator](https://mvwf.github.io/qublitz/qublitz/qubit-simulator.html) or
+[Rabi Rider](https://mvwf.github.io/qublitz/qublitz/rabi-rider.html). Pages embedded in another site (such as a Google
+Site) show an "Open the full page ↗" button at the top.
+
+Welcome!
 ## Table of Contents
 - [Overview](#overview)
 - [Installation](#installation)

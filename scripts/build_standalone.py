@@ -9,9 +9,12 @@ Usage (from the repo root):
     python scripts/build_standalone.py web/qublitz/qubit-simulator.html out.html
     python scripts/build_standalone.py web/courses/engs23/spectrogram.html out.html
 """
+import json
 import os
 import re
 import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SCRIPT_TAG = re.compile(r'<script src="([^"]+)"></script>')
 REMOTE = re.compile(r'<(?:script|link)\b[^>]*\b(?:src|href)="(?:https?:)?//', re.IGNORECASE)
@@ -38,7 +41,10 @@ def main(page, out):
     first = SCRIPT_TAG.search(html) or re.search(r"<script\b", html)
     if not first:
         sys.exit(f"build_standalone: no <script> in {page}")
-    html = html[:first.start()] + MARKER + html[first.start():]
+    # the page's path on the site (relative to web/), for the "Open the full page" link
+    path = os.path.relpath(os.path.abspath(page), os.path.join(ROOT, "web")).replace(os.sep, "/")
+    marker = MARKER + f"<script>window.QUBLITZ_PATH = {json.dumps(path)};</script>\n"
+    html = html[:first.start()] + marker + html[first.start():]
     html = SCRIPT_TAG.sub(lambda m: inline(m, base), html)
     if REMOTE.search(html):
         sys.exit(f"build_standalone: {page} still loads a remote script or stylesheet")
