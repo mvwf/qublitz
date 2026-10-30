@@ -37,10 +37,12 @@
   .status{font-size:12.5px;color:var(--muted);margin:6px 2px 0;min-height:17px}
   .hint{font-size:12px;color:var(--muted)}
   .spacer{flex:1 1 auto}
+  .dl{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .dl[hidden]{display:none}
   code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
 </style>
 
-<a href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
+<a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>Spectrogram Explorer</h1>
 <p class="sub">Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws
 magnitude in decibels on an <i>inferno</i> color scale, frequency versus time. Press play to hear it and a white playhead tracks the audio. You can also stream your microphone live and
@@ -119,6 +121,18 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
   <div class="status" id="lstatus">The current FFT frame: live from the microphone, or tracking the playhead while a file plays.</div>
 </div>
 
+<p class="dl" id="offlineHint"><a href="spectrogram-offline.html" download="engs23-spectrogram.html">Download this explorer</a>
+  as a single HTML file that runs offline in any browser. Offline, the bundled gong, your own files and the
+  microphone all work; the archive.org recordings need an internet connection.</p>
+
+<script>
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// runs from disk, so the back link goes to the live site and the download link is hidden.
+if (window.QUBLITZ_STANDALONE) {
+  document.getElementById('back').href = 'https://mvwf.github.io/qublitz/#engs23';
+  document.getElementById('offlineHint').hidden = true;
+}
+</script>
 <script>
 "use strict";
 
