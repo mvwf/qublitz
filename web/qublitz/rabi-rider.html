@@ -59,6 +59,34 @@
   .overlay .stats b{display:block;font-size:18px;color:#fff}
   .overlay .best{font-size:12.5px;color:#9fb2cc}
   .overlay kbd{font:12px ui-monospace,Menlo,Consolas,monospace;border:1px solid rgba(255,255,255,.35);border-radius:4px;padding:0 5px}
+  .overlay .missions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(660px,100%);margin:10px 0}
+  .overlay .missions button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 10px;text-align:left}
+  .overlay .missions button:hover:not(:disabled){border-color:#ffd166}
+  .overlay .missions button b{display:block;font-size:14px}
+  .overlay .missions button span{display:block;font-size:13px;color:#ffd166;letter-spacing:.12em}
+  .overlay .missions button span i,.overlay .best i{font-style:normal;color:rgba(255,255,255,.2)}
+  .overlay .missions button small{font-size:11px;color:#9fb2cc}
+  .overlay .missions button:disabled{opacity:.42;cursor:not-allowed}
+  .overlay .stars{font-size:40px;letter-spacing:.12em;color:#ffd166;line-height:1;margin:6px 0 0}
+  .overlay .stars i{font-style:normal;color:rgba(255,255,255,.2)}
+  .overlay .learn{max-width:640px;text-align:left;background:rgba(126,249,255,.08);border:1px solid rgba(126,249,255,.3);border-radius:10px;
+    padding:8px 12px;font-size:13px;color:#d8f6ff;margin:8px auto}
+  .overlay .learn b{color:#7ef9ff}
+  .overlay .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;width:min(700px,100%);margin:10px 0;text-align:left}
+  .overlay .badges div{border:1px solid rgba(255,255,255,.15);border-radius:9px;padding:7px 9px;font-size:11.5px;color:#9fb2cc}
+  .overlay .badges div b{display:block;color:#fff;font-size:13px}
+  .overlay .badges div.no{opacity:.4;filter:grayscale(1)}
+  .overlay .linkrow{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:13px;margin-top:4px}
+  .overlay .linkrow button{background:none;border:0;color:#9fd8ff;text-decoration:underline;padding:2px}
+  .note{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);width:max-content;max-width:min(640px,92%);background:rgba(8,13,25,.88);
+    border:1px solid rgba(126,249,255,.4);color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:7px 12px;text-align:center;
+    pointer-events:none;transition:opacity .4s}
+  .note b{color:#7ef9ff}
+  .note.bad{border-color:rgba(255,120,160,.55)} .note.bad b{color:#ff8fa0}
+  .note.fade{opacity:0}
+  .toast{position:absolute;top:10px;left:50%;transform:translate(-50%,-160%);background:#ffd166;color:#1b1300;font-weight:700;font-size:13px;
+    border-radius:999px;padding:6px 14px;transition:transform .35s,opacity .35s;opacity:0;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  .toast.on{transform:translate(-50%,0);opacity:1}
 
   .side{display:flex;flex-direction:column;gap:10px}
   .panel{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
@@ -82,6 +110,8 @@
     .overlay h2{font-size:24px} .overlay p{font-size:12.5px;margin:6px auto}
     .overlay .modes{gap:6px;margin:8px 0 2px} .overlay .modes button{min-width:0;flex:1 1 130px;padding:7px 10px}
     .overlay .big{font-size:40px} .overlay .stats{grid-template-columns:repeat(2,auto)}
+    .overlay .missions{grid-template-columns:repeat(2,minmax(0,1fr))} .overlay .learn{font-size:12px}
+    .note{font-size:12px;bottom:18px}
     #autoPanel,#pilotPanel{order:-1}
     #menu>h2{order:0} #menu .modes{order:1} #play{order:2;margin-top:4px} #howto{order:3} #menu .opts{order:4} #challengeNote,#menuBest{order:5}
     #sphere{max-width:240px;margin:0 auto}
@@ -95,6 +125,7 @@
   table.lift{border-collapse:collapse;font-size:13px;margin:8px 0}
   table.lift td,table.lift th{border-bottom:1px solid var(--line);padding:4px 12px;text-align:left}
   .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  .card code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
   .dl[hidden]{display:none}
 </style>
 </head>
@@ -116,6 +147,7 @@
       <div class="modes" role="group" aria-label="Mode">
         <button data-mode="auto" aria-pressed="true"><b>Autopilot</b><span>one button: hold to climb</span></button>
         <button data-mode="pilot" aria-pressed="false"><b>Pilot</b><span>drive about X, Y and Z yourself</span></button>
+        <button id="missionsBtn"><b>Missions</b><span id="missionsSub">9 short lessons, with stars to earn</span></button>
       </div>
       <p id="howto"></p>
       <div class="opts">
@@ -126,20 +158,48 @@
       </div>
       <button class="go" id="play">Play ▶</button>
       <p class="best" id="menuBest"></p>
+      <div class="linkrow"><button id="badgesBtn">🏅 Badges</button></div>
+    </div>
+
+    <div class="overlay" id="missionsOv" hidden>
+      <h2>Missions<small>NINE SHORT LESSONS IN STEERING A QUBIT</small></h2>
+      <div class="missions" id="missionGrid"></div>
+      <div class="row"><button id="missionsBack">Back</button></div>
+    </div>
+
+    <div class="overlay" id="brief" hidden>
+      <h2 id="briefTitle"></h2>
+      <p class="best" id="briefMeta"></p>
+      <p id="briefText"></p>
+      <div class="row"><button class="go" id="briefGo">Start ▶</button><button id="briefBack">Missions</button></div>
+    </div>
+
+    <div class="overlay" id="badgesOv" hidden>
+      <h2>Badges<small id="badgeCount"></small></h2>
+      <div class="badges" id="badgeGrid"></div>
+      <div class="row"><button id="badgesBack">Back</button></div>
     </div>
 
     <div class="overlay" id="over" hidden>
       <h2 id="overTitle">Decohered!</h2>
+      <div class="stars" id="overStars" hidden></div>
       <div class="big" id="overScore">0</div>
       <div class="stats" id="overStats"></div>
       <p class="best" id="overBest"></p>
+      <div class="learn" id="overLearn" hidden></div>
       <p id="overTip"></p>
       <div class="row">
+        <button class="go" id="nextMission" hidden>Next mission ▶</button>
         <button class="go" id="again">Play again ▶</button>
+        <button id="toMissions" hidden>Missions</button>
         <button id="toMenu">Menu</button>
         <button id="challenge" title="Copy a link to this exact course, to race a friend or a class">Copy challenge link</button>
       </div>
+      <p class="best" id="overNext"></p>
     </div>
+
+    <div class="note fade" id="note"></div>
+    <div class="toast" id="toast" role="status"></div>
 
     <div class="overlay" id="paused" hidden>
       <h2>Paused</h2>
@@ -198,6 +258,18 @@
     and slides toward |0⟩ at dθ/dt = −(γ/2) sin θ. A photon is detected with probability γ P(|1⟩) per unit time, and the state jumps
     to |0⟩. Averaged over many runs this is ordinary exponential decay, e<sup>−t/T₁</sup>. In game time T₁ = 14 s; on a real
     transmon it is closer to 100 µs.</p>
+  <p><b>Quiz gates</b> are two purple rings at the same longitude, so they differ only in θ, and the question picks one of them
+    by its measurement statistics. The Born rule gives P(|1⟩) = sin²(θ/2) and P(|0⟩) = cos²(θ/2), so ⟨σ<sub>z</sub>⟩ = cos θ. Probability
+    is not proportional to height: P(|1⟩) = ¼ sits at θ = 60°, not 45°. A pulse of area A tilts the Bloch vector by A, while the
+    angle that appears in the ket cos(θ/2)|0⟩ + e<sup>iφ</sup> sin(θ/2)|1⟩ is half of it, which is the trap in the pulse questions.</p>
+  <p><b>Power-ups</b> are named after real tools. <b>π</b>, a spin echo: a π pulse in the middle of a sequence flips the qubit so
+    that slow noise cancels itself; in the game it absorbs one hit. <b>Δ↓</b>, recalibration: moving the drive closer to the qubit
+    frequency shrinks the detuning Δ, so the precession (the scrolling) slows for 6 s. <b>T₁↑</b>, a Purcell filter: it keeps the qubit
+    from leaking energy into its readout line, so there are no quantum jumps for 10 s.</p>
+  <p><b>Missions</b> are nine short scripted courses, one idea each: Rabi rotations, the π pulse, the equator and its named states,
+    the Born rule, how the drive axis matters, noise, the lab tricks above, quantum jumps, and a final exam. A link with
+    <code>?mission=pi</code> (or <code>flight</code>, <code>equator</code>, <code>born</code>, <code>axes</code>, <code>noise</code>,
+    <code>tools</code>, <code>jumps</code>, <code>exam</code>) opens one directly, which is handy for a class.</p>
 </div>
 <p class="dl" id="offlineHint"><a href="rabi-rider-offline.html" download="qublitz-rabi-rider.html">Download the game</a>
   as a single HTML file that runs offline in any browser.</p>
@@ -237,18 +309,113 @@ function seedFor() {
   if (S.course === 'custom' && S.seed.trim()) return S.seed.trim().slice(0, 40);
   return 'r' + Math.random().toString(36).slice(2, 8);
 }
+/* ---------------- progress: mission stars, badges ---------------- */
+const MISSIONS = E.MISSIONS;
+const mstars = () => store.get('rabi:mstars', {});
+const unlocked = i => i === 0 || (mstars()[MISSIONS[i - 1].id] || 0) > 0;
+const starStr = n => '★'.repeat(n) + '<i>' + '★'.repeat(3 - n) + '</i>';
+let namedSeen = new Set(store.get('rabi:named', []));
+const BADGES = [
+  { id: 'liftoff', icon: '🚀', name: 'Lift-off', desc: 'Fly for 20 s.', test: w => w.t >= 20 },
+  { id: 'combo', icon: '🔥', name: 'Fully coherent', desc: 'Reach a ×10 combo.', test: w => w.combo >= 10 },
+  { id: 'perfect', icon: '🎯', name: 'Dead center', desc: '5 perfect passes in one flight.', test: w => w.perfects >= 5 },
+  { id: 'cardinal', icon: '🧭', name: 'Cardinal points', desc: 'Collect |+⟩, |−⟩, |+i⟩, |−i⟩ and |1⟩ (over any flights).', test: () => namedSeen.size >= 5 },
+  { id: 'born', icon: '🎓', name: 'Born rule', desc: 'Answer 5 quiz gates right in one flight.', test: w => w.quizRight >= 5 },
+  { id: 'close', icon: '😅', name: 'Close shave', desc: '5 close calls in one flight.', test: w => w.closes >= 5 },
+  { id: 'jumps', icon: '⚡', name: 'Watched pot', desc: 'Keep flying through 5 quantum jumps.', test: w => w.jumps >= 5 },
+  { id: 'echo', icon: '🛡️', name: 'Echo chamber', desc: 'Let a spin echo absorb a hit.', test: w => w.blocked >= 1 },
+  { id: 'long', icon: '⏳', name: 'Long-lived', desc: 'Fly 120 s in one flight.', test: w => w.t >= 120 },
+  { id: 'score', icon: '💯', name: 'High scorer', desc: 'Score 25 000 in one flight.', test: w => w.score >= 25000 },
+  { id: 'ace', icon: '✈️', name: 'Ace pilot', desc: '40 rings in one Pilot flight.', test: w => w.mode === 'pilot' && w.rings >= 40 },
+  { id: 'daily', icon: '📅', name: 'Daily flyer', desc: "Score 2 000 on today's course.", test: w => !w.mission && S.course === 'daily' && w.score >= 2000 },
+  { id: 'graduate', icon: '🏅', name: 'Graduate', desc: 'Clear every mission.', test: () => MISSIONS.every(m => mstars()[m.id] > 0) },
+  { id: 'fullmarks', icon: '⭐', name: 'Full marks', desc: 'Three stars on every mission.', test: () => MISSIONS.every(m => mstars()[m.id] === 3) },
+];
+const badgesHave = () => new Set(store.get('rabi:badges', []));
+// The stage banners in the endless game each come with one of these.
+const FACTS = [
+  'A real qubit precesses billions of times a second. Here Δ is a tenth to a quarter of a turn per second, slow enough to steer.',
+  'Only the two poles give a certain answer when you measure in the |0⟩/|1⟩ basis. Every other state is a gamble set by sin²(θ/2).',
+  'Opposite points on the sphere are orthogonal states: |+⟩ and |−⟩ can be told apart perfectly, even though both have P(|1⟩) = ½.',
+  'Every point on the surface is a pure state. Decoherence pulls states inside the sphere, toward the mixed states at its center.',
+  'Turning the Bloch vector by a full 2π brings it back, but multiplies the state by −1: a global phase no measurement can see.',
+  'A ring accepts you when the fidelity (1 + r·t)/2 to its target is above about 0.99, a typical bar for a good single-qubit gate.',
+  'The transmons simulated in Qublitz run near 5 GHz, in a dilution refrigerator at about 10 mK.',
+  'I. I. Rabi first drove these oscillations in 1938, flipping nuclear spins in a molecular beam, decades before anyone said "qubit".',
+];
+const POWER = {
+  echo: { glyph: 'π', color: '#9fd8ff', label: 'spin echo: next hit blocked',
+    note: '<b>Spin echo.</b> A π pulse halfway through a sequence flips the qubit, so slow noise undoes itself. Here it absorbs your next hit.' },
+  calib: { glyph: 'Δ↓', color: '#b8f28c', label: 'recalibrated: Δ drops',
+    note: '<b>Recalibrated.</b> The drive moved closer to the qubit frequency, so the detuning Δ, and with it the scrolling, drops for 6 s.' },
+  purcell: { glyph: 'T₁↑', color: '#ffcf7a', label: 'Purcell filter: no jumps',
+    note: '<b>Purcell filter.</b> It stops the qubit leaking photons into its readout line: no quantum jumps for 10 s, so skim near |1⟩.' },
+};
 const bestKey = (seed) => `rabi:best:${S.mode}:${S.decay ? 1 : 0}` + (S.course === 'random' ? '' : ':' + seed);
 
 function syncMenu() {
-  document.querySelectorAll('#menu .modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
+  document.querySelectorAll('#menu .modes button[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
   $('#howto').innerHTML = HOWTO[S.mode];
   $('#optDecay').checked = S.decay; $('#optCourse').value = S.course; $('#optSeed').value = S.seed;
   $('#optSeed').hidden = S.course !== 'custom'; $('#optSound').checked = S.sound;
   const b = store.get(bestKey(S.course === 'random' ? '' : seedFor()), 0);
   $('#menuBest').textContent = b ? `Best ${S.mode === 'auto' ? 'Autopilot' : 'Pilot'} score${S.decay ? '' : ' without decay'}${S.course === 'random' ? '' : ' on this course'}: ${b}` : '';
-  $('#autoPanel').hidden = S.mode !== 'auto'; $('#pilotPanel').hidden = S.mode !== 'pilot';
+  setPanels(S.mode);
+  const ms = mstars(), got = MISSIONS.reduce((n, m) => n + (ms[m.id] || 0), 0);
+  $('#missionsSub').textContent = got ? `★ ${got} / ${3 * MISSIONS.length} stars earned` : `${MISSIONS.length} short lessons, with stars to earn`;
+  $('#badgesBtn').textContent = `🏅 Badges ${badgesHave().size} / ${BADGES.length}`;
 }
-document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('rabi:mode', S.mode); syncMenu(); }));
+function setPanels(mode) { $('#autoPanel').hidden = mode !== 'auto'; $('#pilotPanel').hidden = mode !== 'pilot'; }
+const OVERLAYS = ['#menu', '#missionsOv', '#brief', '#badgesOv', '#over', '#paused'];
+function show(id) { OVERLAYS.forEach(o => { $(o).hidden = o !== id; }); }
+
+/* ---------------- missions and badges screens ---------------- */
+function openMissions() {
+  phase = 'missions'; show('#missionsOv');
+  const ms = mstars();
+  $('#missionGrid').innerHTML = MISSIONS.map((m, i) => `<button data-i="${i}"${unlocked(i) ? '' : ' disabled title="Clear the mission before it first"'}>` +
+    `<small>${unlocked(i) ? '' : '🔒 '}${i + 1} · ${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'}${m.decay ? ' · T₁' : ''}</small><b>${m.title}</b><span>${starStr(ms[m.id] || 0)}</span></button>`).join('');
+  $('#missionGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => openBrief(+b.dataset.i)));
+}
+function openBrief(i) {
+  mission = MISSIONS[i]; phase = 'brief'; show('#brief');
+  const m = mission, best = mstars()[m.id] || 0;
+  $('#briefTitle').innerHTML = `${i + 1}. ${m.title}<small>MISSION ${i + 1} OF ${MISSIONS.length}</small>`;
+  $('#briefMeta').innerHTML = `${m.mode === 'pilot' ? 'Pilot' : 'Autopilot'} · ${m.decay ? 'T₁ decay on' : 'no decay'} · ${m.hearts ?? E.P.HEARTS} ♥` +
+    (best ? ` · best <span style="color:#ffd166">${starStr(best)}</span>` : '');
+  $('#briefText').innerHTML = m.brief;
+  setPanels(m.mode);
+}
+function openBadges() {
+  phase = 'badges'; show('#badgesOv');
+  const have = badgesHave();
+  $('#badgeCount').textContent = `${have.size} OF ${BADGES.length} EARNED`;
+  $('#badgeGrid').innerHTML = BADGES.map(b => `<div class="${have.has(b.id) ? '' : 'no'}"><b>${b.icon} ${b.name}</b>${b.desc}</div>`).join('');
+}
+function checkBadges(w) {
+  const have = badgesHave(); let changed = false;
+  for (const b of BADGES) if (!have.has(b.id) && b.test(w)) { have.add(b.id); changed = true; toast(`${b.icon} Badge: ${b.name}`); }
+  if (changed) store.set('rabi:badges', [...have]);
+}
+let toasts = [], toastBusy = false;
+function toast(text) {
+  toasts.push(text); if (toastBusy) return;
+  const next = () => {
+    const t = toasts.shift(); if (!t) { toastBusy = false; return; }
+    toastBusy = true; const el = $('#toast'); el.textContent = t; el.classList.add('on'); tone(880, 1320, 0.18, 'sine', 0.08); tone(1320, 1760, 0.2, 'sine', 0.06, 0.12);
+    setTimeout(() => { el.classList.remove('on'); setTimeout(next, 400); }, 2400);
+  };
+  next();
+}
+let noteT = 0;
+function note(html, bad = false, secs = 6) { const el = $('#note'); el.innerHTML = html; el.className = 'note' + (bad ? ' bad' : ''); noteT = secs; }
+$('#missionsBtn').addEventListener('click', openMissions);
+$('#missionsBack').addEventListener('click', () => { mission = null; phase = 'menu'; show('#menu'); syncMenu(); });
+$('#briefBack').addEventListener('click', openMissions);
+$('#briefGo').addEventListener('click', () => start());
+$('#badgesBtn').addEventListener('click', openBadges);
+$('#badgesBack').addEventListener('click', () => { phase = 'menu'; show('#menu'); syncMenu(); });
+document.querySelectorAll('#menu .modes button[data-mode]').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('rabi:mode', S.mode); syncMenu(); }));
 $('#optDecay').addEventListener('change', e => { S.decay = e.target.checked; store.set('rabi:decay', S.decay); syncMenu(); });
 $('#optCourse').addEventListener('change', e => { S.course = e.target.value; store.set('rabi:course', S.course); syncMenu(); if (S.course === 'custom') $('#optSeed').focus(); });
 $('#optSeed').addEventListener('input', e => { S.seed = e.target.value; store.set('rabi:seed', S.seed); syncMenu(); });
@@ -275,14 +442,15 @@ const KX = () => W / (R - L), KY = () => (H - 36) / Math.PI;
 const keys = new Set();
 let pointerHold = false, padHold = { x: 0, y: 0, z: 0 };
 function input() {
-  if (S.mode === 'auto') return { hold: pointerHold || keys.has(' ') || keys.has('arrowup') || keys.has('w') };
+  if (world.mode === 'auto') return { hold: pointerHold || keys.has(' ') || keys.has('arrowup') || keys.has('w') };
   const neg = keys.has('shift') ? -1 : 1, k = a => keys.has(a) ? neg : 0;
   return { x: k('x') || padHold.x, y: k('y') || padHold.y, z: k('z') || padHold.z };
 }
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (phase !== 'play' && (k === ' ' || k === 'enter') && !e.target.closest('input,select,textarea,button')) {
-    e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || performance.now() - overAt > 900) start(); return;
+    if (phase === 'missions' || phase === 'badges') return;
+    e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu' || phase === 'brief' || performance.now() - overAt > 900) start(); return;
   }
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
   if (phase === 'play' && [' ', 'arrowup', 'x', 'y', 'z', 'w'].includes(k)) e.preventDefault();
@@ -298,11 +466,12 @@ stage.addEventListener('pointerdown', e => {
 });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => stage.addEventListener(t, () => { pointerHold = false; }));
 const holdBtn = $('#holdBtn');
-holdBtn.addEventListener('pointerdown', e => { pointerHold = true; holdBtn.setPointerCapture(e.pointerId); holdBtn.classList.add('on'); if (phase !== 'play') start(); });
+const canQuickStart = () => phase === 'menu' || phase === 'brief';
+holdBtn.addEventListener('pointerdown', e => { pointerHold = true; holdBtn.setPointerCapture(e.pointerId); holdBtn.classList.add('on'); if (canQuickStart()) start(); });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => holdBtn.addEventListener(t, () => { pointerHold = false; holdBtn.classList.remove('on'); }));
 document.querySelectorAll('#pad button').forEach(b => {
   const ax = b.dataset.ax, s = +b.dataset.s;
-  b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); padHold[ax] = s; b.classList.add('on'); if (phase !== 'play') start(); });
+  b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); padHold[ax] = s; b.classList.add('on'); if (canQuickStart()) start(); });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { if (padHold[ax] === s) padHold[ax] = 0; b.classList.remove('on'); }));
 });
 
@@ -336,43 +505,81 @@ const SND = {
   jump: () => tone(1400, 260, 0.35, 'sine', 0.1),
   miss: () => tone(220, 180, 0.12, 'square', 0.03),
   over: () => { tone(330, 110, 0.7, 'triangle', 0.12); tone(247, 82, 0.9, 'sine', 0.08, 0.12); },
+  arp: (f0, steps, gap = 0.07, vol = 0.1) => steps.forEach((k, i) => { const f = f0 * Math.pow(2, k / 12); tone(f, f * 1.003, 0.18, 'triangle', vol, i * gap); }),
+  right: () => SND.arp(523, [0, 4, 7, 12], 0.06),
+  wrong: () => { tone(220, 150, 0.25, 'square', 0.05); tone(208, 140, 0.3, 'square', 0.04, 0.12); },
+  power: () => tone(420, 1700, 0.32, 'sine', 0.1),
+  block: () => { tone(1250, 900, 0.25, 'triangle', 0.1); tone(1900, 1500, 0.3, 'sine', 0.05, 0.05); },
+  close: () => noise(0.14, 0.07),
+  stage: () => SND.arp(392, [0, 4, 7, 12], 0.09, 0.09),
+  clear: () => SND.arp(523, [0, 4, 7, 12, 16, 19, 24], 0.08),
 };
 
 /* ---------------- game state ---------------- */
-let world = null, phase = 'menu', seed = '', fx = [], texts = [], trail = [], shake = 0, flash = 0, hintT = 0, lastEvent = '', overAt = 0;
+let world = null, mission = null, phase = 'menu', seed = '', fx = [], texts = [], trail = [], shake = 0, flash = 0, hintT = 0, lastEvent = '', overAt = 0;
+let banner = null, badgeT = 0;
 const STEP = 1 / 120;
 function start() {
-  seed = seedFor();
-  world = new E.World({ seed, mode: S.mode, decay: S.decay });
-  fx = []; texts = []; trail = []; shake = 0; flash = 0; hintT = 4.5; lastEvent = '';
-  phase = 'play'; $('#menu').hidden = true; $('#over').hidden = true; $('#paused').hidden = true;
+  if (mission) { seed = 'mission:' + mission.id; world = new E.World({ mission: mission.id }); }
+  else { seed = seedFor(); world = new E.World({ seed, mode: S.mode, decay: S.decay }); }
+  fx = []; texts = []; trail = []; shake = 0; flash = 0; hintT = mission ? 3 : 4.5; lastEvent = ''; banner = null; noteT = 0;
+  if (mission) banner = { text: mission.title.toUpperCase(), t: 0 };
+  setPanels(world.mode);
+  phase = 'play'; show(null);
   acc = 0; last = performance.now();
 }
 function pause() { phase = 'paused'; $('#paused').hidden = false; }
 function resume() { phase = 'play'; $('#paused').hidden = true; last = performance.now(); }
-$('#play').addEventListener('click', start);
+$('#play').addEventListener('click', () => { mission = null; start(); });
 $('#again').addEventListener('click', start);
-$('#toMenu').addEventListener('click', () => { phase = 'menu'; $('#over').hidden = true; $('#menu').hidden = false; syncMenu(); });
+$('#nextMission').addEventListener('click', () => openBrief(MISSIONS.indexOf(mission) + 1));
+$('#toMissions').addEventListener('click', openMissions);
+$('#toMenu').addEventListener('click', () => { mission = null; phase = 'menu'; show('#menu'); syncMenu(); });
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html',
-  new URLSearchParams({ seed, mode: S.mode, t1: S.decay ? 1 : 0 }).toString()));
+  new URLSearchParams(mission ? { mission: mission.id } : { seed, mode: S.mode, t1: S.decay ? 1 : 0 }).toString()));
 
-function gameOver() {
+// clear is the mission's 'clear' event (with its stars), or null when the qubit ran out of hearts.
+function gameOver(clear) {
   phase = 'over'; overAt = performance.now();
-  const w = world, score = Math.round(w.score), key = bestKey(seed), prev = store.get(key, 0);
-  if (score > prev) store.set(key, score);
-  $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
+  const w = world, score = Math.round(w.score), stat = (v, l) => `<div><b>${v}</b>${l}</div>`;
+  const i = MISSIONS.indexOf(mission), next = mission && clear && i + 1 < MISSIONS.length;
   $('#overScore').textContent = score;
-  $('#overStats').innerHTML = [[w.rings, 'rings'], [w.perfects, 'perfect'], [w.jumps, 'quantum jumps'], [w.t.toFixed(0) + ' s', 'flight']]
-    .map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
-  $('#overBest').textContent = `Best ${Math.max(score, prev)}` + (S.course === 'random' ? '' : ` on course “${seed}”`);
-  $('#overTip').innerHTML = tipFor(w);
-  setTimeout(() => { if (phase === 'over') $('#over').hidden = false; }, 650);
+  if (mission) {
+    const ms = mstars(), prev = ms[mission.id] || 0, st = clear ? clear.stars : 0;
+    if (st > prev) { ms[mission.id] = st; store.set('rabi:mstars', ms); }
+    $('#overTitle').textContent = !clear ? 'Decohered!' : st === 3 ? 'Perfect mission!' : 'Mission cleared!';
+    $('#overStars').hidden = !clear; $('#overStars').innerHTML = starStr(st);
+    $('#overStats').innerHTML = stat(`${w.rings}/${w.total}`, 'rings') + stat(w.hits, 'hits') +
+      (w.quizRight + w.quizWrong ? stat(`${w.quizRight}/${w.quizRight + w.quizWrong}`, 'quiz') : stat(w.perfects, 'perfect')) + stat(w.t.toFixed(0) + ' s', 'flight');
+    $('#overBest').innerHTML = prev ? `Best: <span style="color:#ffd166">${starStr(Math.max(st, prev))}</span>` : '';
+    $('#overLearn').hidden = !clear; $('#overLearn').innerHTML = `<b>What you just did.</b> ${mission.learn}`;
+    $('#overTip').innerHTML = !clear ? tipFor(w) : st < 3 ? `Three stars: ${mission.three ? `at least ${Math.round(mission.three * 100)} % of the rings` : 'every ring'} and no hits.` : '';
+    $('#again').textContent = clear ? 'Retry ▶' : 'Try again ▶';
+    $('#challenge').textContent = 'Copy mission link';
+  } else {
+    const key = bestKey(seed), prev = store.get(key, 0);
+    if (score > prev) store.set(key, score);
+    $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
+    $('#overStars').hidden = true; $('#overLearn').hidden = true;
+    $('#overStats').innerHTML = stat(w.rings, 'rings') + stat(w.perfects, 'perfect') + stat(w.quizRight, 'quiz right') + stat(w.t.toFixed(0) + ' s', 'flight');
+    $('#overBest').textContent = `Best ${Math.max(score, prev)}` + (S.course === 'random' ? '' : ` on course “${seed}”`);
+    $('#overTip').innerHTML = tipFor(w);
+    $('#again').textContent = 'Play again ▶';
+    $('#challenge').textContent = 'Copy challenge link';
+  }
+  $('#nextMission').hidden = !next; $('#again').classList.toggle('go', !next); $('#toMissions').hidden = !mission;
+  checkBadges(w);
+  const todo = BADGES.find(b => !badgesHave().has(b.id));
+  $('#overNext').textContent = todo ? `Next badge: ${todo.icon} ${todo.name}: ${todo.desc}` : 'Every badge earned. Respect.';
+  noteT = Math.min(noteT, 0.4);
+  setTimeout(() => { if (phase === 'over') show('#over'); }, 650);
 }
 function tipFor(w) {
+  if (lastEvent === 'quiz') return 'Watch the P(|1⟩) readout in the State panel as you fly: it is sin²(θ/2), which changes fastest near the equator.';
   if (lastEvent === 'pillar' ) return 'A pillar that reaches a pole covers the whole pole: every meridian passes through it. Go around, not over.';
-  if (S.mode === 'pilot' && w.rings < 4) return 'Tip: +X lifts you toward |0⟩ only on the +y half of the sphere. Watch the arrows on the drive pad as φ turns.';
-  if (S.decay && w.jumps > 2) return 'Each quantum jump was a detected photon. The higher you fly (closer to |1⟩), the more often it happens: the jump rate is γ·P(|1⟩).';
-  if (S.mode === 'auto' && w.t > 40) return 'Ready for the real thing? Try Pilot mode, where you choose the drive axis yourself.';
+  if (w.mode === 'pilot' && w.rings < 4) return 'Tip: +X lifts you toward |0⟩ only on the +y half of the sphere. Watch the arrows on the drive pad as φ turns.';
+  if (w.decay && w.jumps > 2) return 'Each quantum jump was a detected photon. The higher you fly (closer to |1⟩), the more often it happens: the jump rate is γ·P(|1⟩).';
+  if (!w.mission && w.mode === 'auto' && w.t > 40) return 'Ready for the real thing? Try Pilot mode, where you choose the drive axis yourself.';
   return 'Short, early presses beat long ones: the drive takes about 0.16 s to ramp up or flip.';
 }
 
@@ -389,8 +596,27 @@ function handle(ev) {
       const o = e.o; burst(o.ph, o.v ? E.toAngles(o.v).th : a.th, o.bonus ? '#7ef9ff' : '#ffd166', o.bonus ? 30 : 18);
       say(a.ph, a.th - 0.12, `+${e.pts}${e.combo > 1 ? '  ×' + e.combo : ''}`, '#ffd166');
       if (e.perfect) say(a.ph, a.th - 0.25, 'PERFECT', '#7ef9ff', 13);
-      if (o.name) say(a.ph, a.th + 0.2, `${o.name} = ${o.ket}`, '#7ef9ff', 14);
+      if (o.name) {
+        say(a.ph, a.th + 0.2, `${o.name} = ${o.ket}`, '#7ef9ff', 14);
+        if (!namedSeen.has(o.name)) { namedSeen.add(o.name); store.set('rabi:named', [...namedSeen]); }
+      }
       SND.ring(e.combo, e.perfect);
+    } else if (e.type === 'quiz') {
+      burst(a.ph, a.th, e.correct ? '#c9a7ff' : '#ff8fa0', 26);
+      if (e.correct) { say(a.ph, a.th - 0.12, `✓ +${e.pts}${e.combo > 1 ? '  ×' + e.combo : ''}`, '#c9a7ff'); note(`<b>Correct!</b> ${e.q.why}`); SND.right(); }
+      else { lastEvent = 'quiz'; say(a.ph, a.th - 0.12, '✗ not that state', '#ff8fa0', 14); note(`<b>Not that one.</b> ${e.q.why}`, true); SND.wrong(); }
+    } else if (e.type === 'quizmiss') {
+      lastEvent = 'quiz'; note(`<b>Missed the quiz gate.</b> ${e.q.why}`, true); SND.miss();
+    } else if (e.type === 'power') {
+      const pw = POWER[e.kind]; burst(a.ph, a.th, pw.color, 24); say(a.ph, a.th - 0.2, pw.label, pw.color, 13); note(pw.note); SND.power();
+    } else if (e.type === 'block') {
+      burst(a.ph, a.th, '#9fd8ff', 26, 1); say(a.ph, a.th - 0.2, 'echo! the hit is refocused', '#9fd8ff', 13); SND.block();
+    } else if (e.type === 'close') {
+      say(a.ph, a.th + 0.22, `close call +${e.pts}`, '#ffb3c4', 12); SND.close();
+    } else if (e.type === 'stage') {
+      banner = { text: `STAGE ${e.n}`, t: 0 }; note(`<b>Stage ${e.n}: Δ keeps rising.</b> ${FACTS[(e.n - 2) % FACTS.length]}`, false, 8); SND.stage();
+    } else if (e.type === 'clear') {
+      SND.clear(); gameOver(e);
     } else if (e.type === 'hit') {
       lastEvent = e.o.type; burst(a.ph, a.th, '#ff5a72', 26, 1); shake = reduceMotion ? 0 : 0.35; flash = 0.25; SND.hit();
       say(a.ph, a.th - 0.2, e.o.type === 'cloud' ? 'noise! −1 coherence' : 'pillar! −1 coherence', '#ff8fa0', 13);
@@ -401,7 +627,7 @@ function handle(ev) {
       say(a.ph, a.th + 0.3, '10 rings: +1 coherence ♥', '#ff8fa0', 14); tone(660, 990, 0.25, 'sine', 0.1);
     } else if (e.type === 'miss') {
       if (e.o.v) say(e.o.ph, E.toAngles(e.o.v).th, 'missed', 'rgba(200,210,230,.6)', 12); SND.miss();
-    } else if (e.type === 'over') { SND.over(); gameOver(); }
+    } else if (e.type === 'over') { SND.over(); gameOver(null); }
   }
 }
 
@@ -477,17 +703,30 @@ function drawRing(o, w, t) {
     grd.addColorStop(0, 'rgba(126,249,255,0)'); grd.addColorStop(1, `rgba(126,249,255,${0.35 + 0.25 * pulse})`);
     g.fillStyle = grd; g.fillRect(0, y, W, Y(Math.PI) - y + 18);
     g.fillStyle = '#7ef9ff'; g.font = '700 13px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom';
-    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, 8 - (w.t - o.born)).toFixed(0)} s`, W / 2, y - 2);
+    g.fillText(`|1⟩ bonus: dive to the bottom! ${Math.max(0, (o.life ?? 8) - (w.t - o.born)).toFixed(0)} s`, W / 2, y - 2);
     return;
   }
   const rel = w.rel(o.ph); if (rel < L - 0.3 || rel > R + 0.3) return;
   const th = E.toAngles(o.v).th, x = X(rel), y = Y(th);
   const rx = Math.asin(Math.min(1, Math.sin(o.rad) / Math.max(0.05, Math.sin(th)))) * KX(), ry = o.rad * KY();
-  const col = o.bonus ? '126,249,255' : '255,209,102';
+  const col = o.quiz ? '201,167,255' : o.bonus ? '126,249,255' : '255,209,102';
   g.lineWidth = 7; g.strokeStyle = `rgba(${col},.18)`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 3; g.strokeStyle = `rgba(${col},${0.85 + 0.15 * Math.sin(t * 5 + o.ph)})`; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 1; g.strokeStyle = `rgba(${col},.35)`; g.beginPath(); g.ellipse(x, y, rx / 3, ry / 3, 0, 0, Math.PI * 2); g.stroke();
-  if (o.name) { g.fillStyle = `rgb(${col})`; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(o.name, x, y - ry - 4); }
+  const label = o.name || (o.quiz && '?');
+  if (label) { g.fillStyle = `rgb(${col})`; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(label, x, y - ry - 4); }
+}
+function drawPower(o, w, t) {
+  if (o.done) return;
+  const rel = w.rel(o.ph); if (rel < L - 0.3 || rel > R + 0.3) return;
+  const pw = POWER[o.kind], x = X(rel), y = Y(E.toAngles(o.v).th), r = o.rad * KY() * (1 + 0.08 * Math.sin(t * 6));
+  const glow = g.createRadialGradient(x, y, r * 0.3, x, y, r * 1.7);
+  glow.addColorStop(0, pw.color); glow.addColorStop(1, 'rgba(0,0,0,0)');
+  g.globalAlpha = 0.45; g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 1.7, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+  g.fillStyle = 'rgba(11,18,32,.85)'; g.strokeStyle = pw.color; g.lineWidth = 2;
+  g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.fillStyle = pw.color; g.font = `700 ${Math.max(10, Math.min(15, r * 0.9))}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(pw.glyph, x, y + 1);
 }
 function drawShip(w, t) {
   const a = w.angles, x = X(w.rel(a.ph)), y = Y(a.th);
@@ -500,16 +739,24 @@ function drawShip(w, t) {
     g.beginPath(); g.moveTo(x0, Y(p.th)); g.lineTo(x1, Y(q.th)); g.stroke();
   }
   // thrust: the drive's push on θ (up = toward |0⟩)
-  const up = S.mode === 'auto' ? -w.amp.a : (w.amp.x * Math.sin(a.ph) - w.amp.y * Math.cos(a.ph));
+  const up = w.mode === 'auto' ? -w.amp.a : (w.amp.x * Math.sin(a.ph) - w.amp.y * Math.cos(a.ph));
   if (Math.abs(up) > 0.05) {
     const dir = up > 0 ? 1 : -1, len = 10 + 14 * Math.abs(up) * (0.8 + 0.2 * Math.sin(t * 40));
     const grd = g.createLinearGradient(x, y, x, y + dir * len);
     grd.addColorStop(0, 'rgba(255,200,90,.9)'); grd.addColorStop(1, 'rgba(255,90,40,0)');
     g.fillStyle = grd; g.beginPath(); g.moveTo(x - 5, y + dir * 4); g.lineTo(x + 5, y + dir * 4); g.lineTo(x, y + dir * len); g.closePath(); g.fill();
   }
-  if (S.mode === 'pilot' && Math.abs(w.amp.z) > 0.05) {
+  if (w.mode === 'pilot' && Math.abs(w.amp.z) > 0.05) {
     const dir = w.amp.z > 0 ? -1 : 1, len = 8 + 10 * Math.abs(w.amp.z);
     g.fillStyle = 'rgba(126,249,255,.6)'; g.beginPath(); g.moveTo(x + dir * 4, y - 4); g.lineTo(x + dir * 4, y + 4); g.lineTo(x + dir * len, y); g.closePath(); g.fill();
+  }
+  if (w.shield) {   // the spin echo, waiting to take a hit
+    g.strokeStyle = `rgba(159,216,255,${0.6 + 0.3 * Math.sin(t * 8)})`; g.lineWidth = 2;
+    g.beginPath(); g.arc(x, y, 14, 0, Math.PI * 2); g.stroke();
+  }
+  if (w.purcellT > 0) {
+    g.strokeStyle = 'rgba(255,207,122,.7)'; g.lineWidth = 1.5; g.setLineDash([3, 4]);
+    g.beginPath(); g.arc(x, y, 19, t * 2, t * 2 + Math.PI * 2 * w.purcellT / E.P.PURCELL); g.stroke(); g.setLineDash([]);
   }
   const blink = w.grace > 0 && Math.floor(t * 14) % 2 === 0;
   if (!blink) {
@@ -549,11 +796,41 @@ function drawHUD(w) {
   let hearts = ''; for (let i = 0; i < E.P.HEARTS; i++) hearts += i < w.hearts ? '♥' : '♡';
   g.fillStyle = '#ff6b85'; g.fillText(hearts, W - 14, 16);
   g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.6)'; g.fillText('coherence', W - 14, 40);
-  g.textBaseline = 'bottom'; g.fillText(`Δ = ${w.delta.toFixed(2)} rad/s   ·   ${w.t.toFixed(0)} s   ·   course ${seed}`, W - 14, H - 6);
+  // active power-ups under the hearts
+  const active = [w.shield && ['π shield ready', POWER.echo.color], w.slowT > 0 && [`Δ↓ ${w.slowT.toFixed(0)} s`, POWER.calib.color],
+    w.purcellT > 0 && [`T₁↑ no jumps ${w.purcellT.toFixed(0)} s`, POWER.purcell.color]].filter(Boolean);
+  g.font = '600 12px Helvetica,Arial';
+  active.forEach(([txt, c], i) => { g.fillStyle = c; g.fillText(txt, W - 14, 58 + 16 * i); });
+  g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.6)';
+  g.textBaseline = 'bottom';
+  g.fillText(`Δ = ${w.delta.toFixed(2)} rad/s   ·   ${w.t.toFixed(0)} s   ·   ` + (w.mission ? `${w.mission.title}: ring ${w.rings} of ${w.total}` : `course ${seed}`), W - 14, H - 6);
+  if (w.mission) {   // progress through the mission
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3);
+    g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * Math.min(1, Math.max(0, w.s / w.endS)), 3);
+  }
+  // the question of the quiz gate ahead
+  const quiz = w.objects.find(o => o.quiz && !o.done);
+  if (quiz) {
+    const txt = `QUIZ · fly through  ${quiz.quiz.prompt}`;
+    g.font = '700 15px Helvetica,Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const tw = g.measureText(txt).width + 26, pulse = 0.75 + 0.25 * Math.sin(performance.now() / 160);
+    g.fillStyle = 'rgba(40,20,70,.85)'; g.strokeStyle = `rgba(201,167,255,${pulse})`; g.lineWidth = 2;
+    g.beginPath(); g.roundRect ? g.roundRect(W / 2 - tw / 2, 20, tw, 30, 15) : g.rect(W / 2 - tw / 2, 20, tw, 30); g.fill(); g.stroke();
+    g.fillStyle = '#e6d8ff'; g.fillText(txt, W / 2, 36);
+  }
+  // a stage or mission title, big for a moment
+  if (banner) {
+    const k = banner.t / 2.4;
+    if (k < 1) {
+      g.globalAlpha = Math.min(1, 3 * (1 - k)); g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#ffd166'; g.font = `800 ${W < 600 ? 26 : 38}px Helvetica,Arial`; g.fillText(banner.text, W / 2, H * 0.36 - 12 * k);
+      g.globalAlpha = 1;
+    } else banner = null;
+  }
   if (hintT > 0) {
     g.globalAlpha = Math.min(1, hintT); g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '600 15px Helvetica,Arial';
     const narrow = W < 600;
-    g.fillText(S.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
+    g.fillText(w.mode === 'auto' ? (narrow ? 'Press and hold to climb' : 'Hold SPACE (or press the game) to climb toward |0⟩')
       : (narrow ? 'Hold the axis buttons to rotate' : 'Hold X, Y or Z to rotate · Shift for the negative axis'), W / 2, H - 34);
     g.globalAlpha = 1;
   }
@@ -584,7 +861,12 @@ function drawSphere(w) {
   trail.forEach((q, i) => { const p = P(E.fromAngles(q.th, q.ph)); i ? sg.lineTo(p.x, p.y) : sg.moveTo(p.x, p.y); }); sg.stroke();
   // next ring target
   const nxt = nextRing(w);
-  if (nxt) { const p = P(nxt.v); sg.strokeStyle = nxt.bonus ? '#7ef9ff' : '#ffd166'; sg.lineWidth = 2; sg.beginPath(); sg.arc(p.x, p.y, 5, 0, Math.PI * 2); sg.stroke(); }
+  // a quiz gate shows both of its rings, so the inset does not give the answer away
+  const marks = nxt && nxt.quiz ? w.objects.filter(o => o.quiz === nxt.quiz) : nxt ? [nxt] : [];
+  for (const o of marks) {
+    const p = P(o.v); sg.strokeStyle = o.quiz ? '#c9a7ff' : o.bonus ? '#7ef9ff' : '#ffd166'; sg.lineWidth = 2;
+    sg.beginPath(); sg.arc(p.x, p.y, 5, 0, Math.PI * 2); sg.stroke();
+  }
   // drive axis (in the equatorial plane), drawn as an arrow from the center
   const om = w.omega(), dlen = Math.hypot(om[0], om[1]);
   if (dlen > 0.05 * E.P.OMEGA) {
@@ -617,11 +899,11 @@ function updateSide(w) {
     ['θ, φ', `${deg(a.th)}, ${deg((a.ph + 2 * Math.PI) % (2 * Math.PI))}`],
     ['P(|1⟩)', (Math.sin(a.th / 2) ** 2).toFixed(3)],
     ['drive axis', axis],
-    ['next ring', nxt ? (nxt.name || `θ = ${deg(E.toAngles(nxt.v).th)}`) : '—'],
-    ['fidelity to it', nxt ? E.fidelity(w.r, nxt.v).toFixed(3) : '—'],
-    ['T₁ decay', S.decay ? `on (T₁ = ${(1 / E.P.GAMMA).toFixed(0)} s)` : 'off'],
+    ['next ring', nxt ? (nxt.quiz ? `quiz: ${nxt.quiz.prompt}` : nxt.name || `θ = ${deg(E.toAngles(nxt.v).th)}`) : '—'],
+    ['fidelity to it', nxt && !nxt.quiz ? E.fidelity(w.r, nxt.v).toFixed(3) : '—'],
+    ['T₁ decay', !w.decay ? 'off' : w.purcellT > 0 ? 'paused (Purcell filter)' : `on (T₁ = ${(1 / (w.mission?.gamma ?? E.P.GAMMA)).toFixed(0)} s)`],
   ].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join('');
-  if (S.mode === 'pilot') {
+  if (w.mode === 'pilot') {
     // what each equatorial axis does to θ right now: up (toward |0⟩) at rate Ω sin(φ − α)
     document.querySelectorAll('#pad button').forEach(b => {
       if (b.dataset.ax === 'z') return;
@@ -645,7 +927,10 @@ function frame(now) {
       if (phase !== 'play') break;
     }
     hintT = Math.max(0, hintT - dt);
+    if (banner) banner.t += dt;
+    badgeT -= dt; if (badgeT <= 0) { checkBadges(world); badgeT = 0.25; }
   }
+  if (noteT > 0 && phase !== 'paused') { noteT -= dt; if (noteT <= 0) $('#note').classList.add('fade'); }
   render(dt, now / 1000);
   sideT -= dt; if (sideT <= 0 && world) { updateSide(world); sideT = 0.1; }
   requestAnimationFrame(frame);
@@ -658,6 +943,8 @@ function render(dt, t) {
   for (const o of w.objects) if (o.type === 'pillar') drawPillar(o, w);
   for (const o of w.objects) if (o.type === 'cloud') drawCloud(o, w, t);
   for (const o of w.objects) if (o.type === 'ring') drawRing(o, w, t);
+  for (const o of w.objects) if (o.type === 'power') drawPower(o, w, t);
+  if (world && w.slowK < 0.98) { g.fillStyle = `rgba(110,190,255,${0.1 * (1 - w.slowK) / (1 - E.P.SLOW_FACTOR)})`; g.fillRect(0, 0, W, H); }
   if (world) { drawShip(w, t); drawFx(w, phase === 'play' ? dt : 0); drawHUD(w); }
   if (flash > 0) { flash -= dt; g.fillStyle = `rgba(255,60,90,${flash})`; g.fillRect(-20, -20, W + 40, H + 40); }
   drawSphere(world);
@@ -672,6 +959,8 @@ function demoWorld() {
 
 addEventListener('resize', resize);
 resize(); syncMenu();
+const linked = MISSIONS.findIndex(m => m.id === P0.raw.get('mission'));
+if (linked >= 0) openBrief(linked);   // a mission link opens its briefing, even if it is not unlocked yet
 if (P0.has('seed')) $('#menuBest').insertAdjacentHTML('beforebegin', `<p id="challengeNote" style="color:#ffd166;margin:4px 0 0">Challenge course: <b>${PageKit.params().raw.get('seed').replace(/[<>&"]/g, '')}</b></p>`);
 requestAnimationFrame(frame);
 </script>

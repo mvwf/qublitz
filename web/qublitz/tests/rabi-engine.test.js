@@ -122,5 +122,54 @@ const close = (a, b, tol) => Math.abs(a - b) <= tol;
   check('no ring sits on a cloud or a pillar', overlaps === 0, `${overlaps} overlaps among ${rings} rings`);
 }
 
+// ---- quiz gates: the right ring has the state the prompt describes ----
+{
+  const R = E.rng('quiz'); let bad = 0, n = 0, minSep = Infinity;
+  for (let i = 0; i < 400; i++) {
+    const k = i % E.QUIZ.length, q = E.QUIZ[k](R), p1 = Math.sin(q.th / 2) ** 2, num = +q.prompt.replace('−', '-').match(/= (-?[\d.]+)/)?.[1];
+    const ok = k === 0 ? close(p1, num, 1e-9) : k === 1 ? close(1 - p1, num, 1e-9) : k === 2 ? close(Math.cos(q.th), num, 1e-9)
+      : close(q.th, (({ 'π/3': 60, 'π/2': 90, '2π/3': 120, '3π/4': 135 })[q.prompt.match(/a (\S+) pulse/)[1]]) * D2R, 1e-9);
+    if (!ok) bad++; n++;
+    minSep = Math.min(minSep, Math.abs(q.th - q.wrong));
+    if (Math.min(q.th, q.wrong) < 22 * D2R || Math.max(q.th, q.wrong) > 158 * D2R) bad++;
+  }
+  check('every quiz answer matches its prompt (Born rule, ⟨σz⟩ = cos θ, pulse area)', bad === 0, `${bad} bad of ${n}`);
+  check('the two rings of a quiz gate are at least 30° apart', minSep >= 30 * D2R - 1e-9, `${(minSep / D2R).toFixed(1)}°`);
+}
+
+// ---- power-ups: spin echo blocks a hit, recalibration lowers Δ, a Purcell filter stops jumps ----
+{
+  const w = new E.World({ seed: 'pw', decay: false }); w.spawn = () => {};
+  w.shield = true; w.objects = [{ type: 'cloud', th: w.angles.th, ph: w.angles.ph, v: w.r.slice(), rad: 0.2 }];
+  const ev = w.step({ hold: false }, 1 / 120).map(e => e.type);
+  check('a spin echo takes the hit instead of a heart', ev.includes('block') && w.hearts === E.P.HEARTS && !w.shield);
+  const v = new E.World({ seed: 'pw2', decay: false }); v.spawn = () => {};
+  const d0 = v.delta; v.slowT = E.P.SLOW; for (let i = 0; i < 240; i++) v.step({ hold: false }, 1 / 120);
+  check('recalibration lowers Δ toward SLOW_FACTOR of its value', v.delta < d0 * (E.P.SLOW_FACTOR + 0.05), `${(v.delta / d0).toFixed(3)}`);
+  const u = new E.World({ seed: 'pw3', decay: true }); u.spawn = () => {}; u.jumpRand = () => 0;   // would jump at once
+  u.purcellT = 5; u.r = fromAngles(2.5, 0); u.step({ hold: false }, 1 / 120);
+  check('no quantum jumps under a Purcell filter', u.jumps === 0);
+}
+
+// ---- missions: each can be cleared with every ring, by a bot that chases the next target ----
+{
+  const drive = w => {
+    const pole = w.objects.find(o => o.pole && !o.done), me = w.rel(w.angles.ph);
+    const c = w.objects.filter(o => (o.type === 'ring' || o.type === 'power') && !o.done && !o.pole && !(o.quiz && !o.correct) && w.rel(o.ph) > me - 0.05)
+      .sort((a, b) => w.rel(a.ph) - w.rel(b.ph));
+    const err = (pole ? Math.PI : c[0] ? toAngles(c[0].v).th : Math.PI / 2) - w.angles.th;
+    if (w.mode === 'auto') return { hold: err < 0.02 + 0.12 * w.amp.a };
+    const ph = w.angles.ph, k = Math.sign(err) * Math.min(1, Math.abs(err) * 4);
+    return { x: -Math.sin(ph) * k, y: Math.cos(ph) * k };
+  };
+  const short = [];
+  for (const m of E.MISSIONS) {
+    const w = new E.World({ mission: m.id }); w.hearts = 1e9; let cleared = false;
+    for (let i = 0; i < 120 * 120 && !w.over; i++) for (const e of w.step(drive(w), 1 / 120)) if (e.type === 'clear') cleared = true;
+    if (!cleared || w.rings < Math.ceil((m.three ?? 1) * w.total)) short.push(`${m.id} ${w.rings}/${w.total}`);
+  }
+  check('every mission can be finished with its 3-star share of the rings', short.length === 0, short.join(', '));
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
