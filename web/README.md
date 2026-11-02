@@ -40,7 +40,7 @@ so a handout can say "open this setup" instead of listing slider values:
 |---|---|
 | `courses/engs23/heat-wave-schrodinger.html` | `s` preset, `N` modes, `t` time, `r` Schrödinger rate, `x0` bump center, `re`/`im` edited coefficients |
 | `courses/engs23/vibrating-string.html` | `fr` frets low E→high e (`x` = muted), `shape` + `p` or `a` coefficients, `c` cents, `g` gain dB, `sense=pos` |
-| `courses/engs23/drum-head.html` | `sel` modes as m n digit pairs (`10,11,20`), or `hit=ρ,θ,w` + `kind=strike\|press`; `view=top`, `sand=1`, `a` cm, `T` N/m, `s` kg/m², `pick=ρ,θ°` pickup, `sense=vel` |
+| `courses/engs23/drum-head.html` | `sel` modes as m n digit pairs (`10,11,20`) with optional `amp` amplitudes (`1,-0.5,0.3`), or `hit=ρ,θ,w` + `kind=strike\|press`; `view=top`, `sand=1`, `a` cm, `T` N/m, `s` kg/m², `pick=ρ,θ°` pickup, `sense=vel` |
 | `courses/engs23/spectrogram.html` | `rec` (gong, tones, clicks, chirp, alias, or an archive key), `N`, `scale`, `fmax`, `dr` |
 | `qublitz/qubit-simulator.html` | `qubit` code (+ `assigned=1`), or `free=ωq GHz,Ω_R MHz,T1 ns,T2 ns` |
 | `qublitz/fridge-noise.html`, `qublitz/ep-tpd.html` | everything on the page |
