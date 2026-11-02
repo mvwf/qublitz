@@ -77,7 +77,6 @@
   .ctrl button{padding:14px 6px;font-size:16px;font-weight:700;background:var(--panel);touch-action:none}
   .ctrl button small{display:block;font-size:11.5px;font-weight:400;color:var(--muted)}
   .ctrl button.on{background:var(--green);color:#fff;border-color:var(--green)} .ctrl button.on small{color:#d9f2e6}
-  .ctrl #btnZm,.ctrl #btnZp{padding:8px 6px;font-size:14px}
   .keys{font-size:12px;color:var(--muted);margin:6px 0 0}
   .keys kbd{border-color:var(--line);background:var(--panel);color:var(--ink)}
   .ket{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:17px;margin:0 0 6px}
@@ -105,10 +104,11 @@
 <p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
   excited state |1⟩ at the top, so height is energy, with P(1) = sin²(θ/2) in between. The course scrolls past in time. The drive is
   exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and only <b>T₁ decay</b>
-  acts, and it always pulls the qubit down to |0⟩, like gravity. You fly an <b>ensemble</b>: each faint ghost is one run of the same
-  experiment, all driven by the same pulse, and each decays in its own random quantum jump. The big marker is their mean, the
-  density matrix; aim it through the rings, because the share of runs that succeed is the ensemble's fidelity with the ring's
-  state. Decoherence spreads the runs and makes that harder; a green reset starts a fresh shot. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
+  acts, and it always pulls the qubit down to |0⟩, like gravity. You fly an <b>ensemble</b> of 240 runs of the same experiment, all
+  driven by the same pulse; each emits its photon and drops to |0⟩ at its own random moment, and the faint ghosts show 12 of them.
+  The big marker is their mean, the density matrix; aim it through the rings, because the share of runs that succeed is the
+  ensemble's fidelity with the ring's state. Decay spreads the runs and makes that harder; a green reset starts a fresh shot, and
+  cyan <b>T₁+</b> chips are real fixes that make the qubit decay more slowly. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
   <a id="copterLink" href="qubit-copter.html">🚁 Qubit Copter</a>; to run the same pulses as an experiment, open the
   <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
 
@@ -117,7 +117,7 @@
     <canvas id="cv" aria-label="Game: the qubit's height θ over time, with rings to fly through"></canvas>
 
     <div class="overlay" id="menu">
-      <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN</small></h2>
+      <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN · GRAB T₁+ TO FIGHT BACK</small></h2>
       <p>Missions teach one idea each. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
@@ -126,10 +126,8 @@
         <label>T₁ <select id="optT1" aria-label="Difficulty: the qubit's T₁">
           <option value="easy">12 s · easy</option><option value="normal" selected>6 s · normal</option>
           <option value="hard">3 s · hard</option><option value="expert">1.5 s · expert</option></select></label>
-        <label>runs <select id="optN" aria-label="How many runs of the experiment (ghosts) to fly at once">
-          <option value="1">1 (single shot)</option><option value="6">6</option><option value="12" selected>12</option><option value="24">24</option></select></label>
-        <label>phase flips <select id="optPhi" aria-label="Dephasing: how often a run's phase flips">
-          <option value="0">off</option><option value="2" selected>T_φ = 2T₁</option><option value="1">T_φ = T₁</option></select></label>
+        <label>ghosts <select id="optN" aria-label="Fly one run, or an ensemble of 240 runs with this many drawn as ghosts">
+          <option value="1">1 run (single shot)</option><option value="6">6 of 240 runs</option><option value="12" selected>12 of 240 runs</option><option value="24">24 of 240 runs</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <p class="best" id="menuBest"></p>
@@ -166,6 +164,7 @@
       <button class="stagebtn" id="freeEnsemble" title="Many runs at once, one drive for all">Ensemble</button>
       <button class="stagebtn" id="freeMeasure" title="Measure σz in every run (no reset, so you see the collapse)">Measure</button>
       <button class="stagebtn" id="freeReset" title="Reset every run to |0⟩">Reset to |0⟩</button>
+      <button class="stagebtn" id="freePower" title="Upgrade the chip: T₁ 35 % longer (up to 4×)">T₁+</button>
     </div>
     <div class="note fade" id="note"></div>
   </div>
@@ -176,11 +175,13 @@
       <div class="ctrl">
         <button id="btnUp">▲<small>toward |1⟩</small></button>
         <button id="btnDown">▼<small>toward |0⟩</small></button>
-        <button id="btnZm">⟲ −Z<small>turn the phase</small></button>
-        <button id="btnZp">+Z ⟳<small>turn the phase</small></button>
       </div>
-      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>←</kbd>/<kbd>A</kbd> −Z · <kbd>→</kbd>/<kbd>D</kbd> +Z · <kbd>P</kbd> pause.
-        Let go and the drive is off; decoherence pulls the runs down to |0⟩ and flips their phases. Z turns every run about z: the height stays, but which way the next ▲ turns each run changes.</p>
+      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>P</kbd> pause.
+        Let go and the drive is off; T₁ pulls the runs down to |0⟩.</p>
+    </div>
+    <div class="panel">
+      <h3>The chip</h3>
+      <div id="chip" style="font-size:12.5px;color:var(--muted)">T₁+ chips you collect are listed here.</div>
     </div>
     <div class="panel">
       <h3>On the Bloch sphere</h3>
@@ -212,25 +213,29 @@
     <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
     state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
     learns the state, and the superposition is gone.
-    <b>Decoherence is quantum jumps only</b>; between them a run does not move unless you drive it. <b>T₁</b> is always on, as for a real
-    qubit: at the rate 1/T₁ the environment checks the run's energy and leaves it in |0⟩. It finds |1⟩ with probability P(1), and then the
-    run emits a photon (the yellow wave), so photons leave at the rate P(1)/T₁, most often near |1⟩, just as a photon counter would see.
-    Averaged over runs this gives exactly P(1) ∝ e<sup>−t/T₁</sup>, and it also costs coherence at the rate 1/T₁. <b>Phase flips</b>
-    (dephasing) turn a run by π about z at the rate 1/(2T<sub>φ</sub>): same height, other side of the circle, so the shared drive turns
-    it the wrong way. Together the coherence lasts T₂ with 1/T₂ = 1/T₁ + 1/T<sub>φ</sub>. The <b>Z</b> control turns every run's phase
-    at once, which is how you bring the mean back onto the circle the drive works on. The difficulty is T₁:
-    12, 6, 3 or 1.5 s (4 s in One qubit, one photon and 5 s in Jumps in the crowd), only a few π pulses long so you can see it happen; a transmon's T₁ of about
-    100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
+    <b>Decoherence here is T₁ alone</b>, energy loss, always on as for a real qubit. Each run follows it the way a photon counter
+    would see it: at the rate P(1)/T₁ the run emits a photon (the yellow wave) and is left in |0⟩, a quantum jump, most often from near
+    |1⟩. Between photons a superposition slides slowly down toward |0⟩, dθ/dt = −sin θ/(2T₁): watching and seeing no photon is itself
+    evidence that the run is lower. |1⟩ itself does not slide; it waits, then jumps. Averaged over runs this is exactly the T₁ master equation:
+    P(1) ∝ e<sup>−t/T₁</sup>, and the sideways part of the mean (the coherence) fades half as fast, as e<sup>−t/2T₁</sup>.
+    The difficulty is T₁: 12, 6, 3 or 1.5 s (4 s in One qubit, one photon, 5 s in Jumps in the crowd, 2.5 s in Build a better qubit),
+    only a few π pulses long so you can see it happen; a transmon's T₁ of about 100 µs lasts thousands of 20 ns π pulses. Keeping a
+    qubit excited means fighting decay, which is why fast gates matter.</p>
+  <p><b>T₁+ chips</b> each make T₁ 35 % longer, up to four times where it started, and each is named for a real fix: a Purcell filter
+    on the readout line, infrared and magnetic shielding, cleaner surfaces, tantalum films and better packaging. Each closes one place
+    the qubit's energy can leak to, and together, over 25 years, fixes like these took transmon T₁ from nanoseconds to hundreds of
+    microseconds. The game's 35 % per chip is for play; the real gains came one paper at a time.</p>
   <p><b>The ghosts.</b> An experiment is many runs of the same pulse sequence, and its result is an average over them. The game flies
-    up to 24 runs at once with one drive. Each run is a pure state that jumps on its own; their average Bloch vector r̄ is the density
+    240 runs at once with one drive and draws a few of them. Each run is a pure state that jumps on its own (their photon times are
+    stratified, so the 240 between them spread their jumps evenly and the mean follows the master equation to within about a degree); their average Bloch vector r̄ is the density
     matrix, ρ = ½(1 + r̄·σ), with |r̄| = 1 while they agree and less once decoherence has thrown some off (a mixed state). A ring is a
     test for its target state |t⟩: each run passes with probability |⟨t|ψ⟩|², so the share that pass is the fidelity
     F̄ = ⟨t|ρ|t⟩ = (1 + r̄·t̂)/2. That is linear in r̄, so aiming the mean is the best any single pulse can do, and it is capped at
     (1 + |r̄|)/2: once the runs spread, no aim gets most of them through. A ring counts at F̄ ≥ 70 %.
     Measurement gates read every run and then <b>reset</b> it to |0⟩ (a π pulse conditioned on its own outcome, as labs do); green
     reset curtains start a fresh shot. Noise clouds measure the runs that touch them.</p>
-  <p><b>Left out, on purpose:</b> detuning, so nothing precesses unless you hold Z; slow noise that would turn every run's phase a
-    little (here dephasing is whole π flips, one simple way to unravel it); and readout imperfections: every measurement
+  <p><b>Left out, on purpose:</b> detuning, so nothing precesses; pure dephasing (noise that scrambles a run's phase without taking
+    its energy), so the only decay is T₁; heating out of |0⟩, since the fridge is taken as cold; and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
     number of measurements.</p>
 </div>
@@ -258,8 +263,6 @@ if (!E.P.T1[S.level]) S.level = 'normal';
 if (![1, 6, 12, 24].includes(S.N)) S.N = E.P.GHOSTS;
 $('#optSound').checked = S.sound; $('#optT1').value = S.level; $('#optN').value = S.N;
 $('#optN').addEventListener('change', e => { S.N = +e.target.value; store.set('rider2:n', S.N); });
-S.phi = store.get('rider2:phi', 2); if (![0, 1, 2].includes(S.phi)) S.phi = 2; $('#optPhi').value = S.phi;
-$('#optPhi').addEventListener('change', e => { S.phi = +e.target.value; store.set('rider2:phi', S.phi); });
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rider2:sound', S.sound); });
 $('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider2:t1', S.level); });
 
@@ -280,16 +283,15 @@ const X = t => nowX() + (t - world.t) * pxs();
 
 /* ---------------- input: ▲/▼ keys, buttons, or the top/bottom half of the game; ▲ is toward |1⟩ (up) ---------------- */
 const keys = new Set(); let touch = 0;   // touch: −1 top half (▲), +1 bottom half (▼)
-const held = { up: false, down: false, zp: false, zm: false };
+const held = { up: false, down: false };
 function input() {
   const up = keys.has('arrowup') || keys.has('w') || held.up || touch < 0, down = keys.has('arrowdown') || keys.has('s') || held.down || touch > 0;
-  const zPlus = keys.has('arrowright') || keys.has('d') || held.zp, zMinus = keys.has('arrowleft') || keys.has('a') || held.zm;
-  return { up, down, toOne: up, toZero: down, zPlus, zMinus };
+  return { up, down, toOne: up, toZero: down };
 }
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.target.closest('input,select,textarea')) return;
-  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+  if (['arrowup', 'arrowdown', ' '].includes(k)) e.preventDefault();
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
   if ((k === ' ' || k === 'enter') && !e.target.closest('button,a')) {
     if (phase === 'paused') resume(); else if (phase === 'brief') $('#briefGo').click();
@@ -299,7 +301,7 @@ addEventListener('keydown', e => {
   keys.add(k);
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-addEventListener('blur', () => { keys.clear(); touch = 0; held.up = held.down = held.zp = held.zm = false; if (phase === 'play') pause(); });
+addEventListener('blur', () => { keys.clear(); touch = 0; held.up = held.down = false; if (phase === 'play') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pause(); });
 const stage = $('#stage');
 const touchAt = e => { const b = stage.getBoundingClientRect(); touch = e.clientY - b.top < b.height / 2 ? -1 : 1; };
@@ -310,7 +312,7 @@ stage.addEventListener('pointerdown', e => {
 });
 stage.addEventListener('pointermove', e => { if (touch) touchAt(e); });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => stage.addEventListener(t, () => { touch = 0; }));
-for (const [id, k] of [['#btnUp', 'up'], ['#btnDown', 'down'], ['#btnZp', 'zp'], ['#btnZm', 'zm']]) {
+for (const [id, k] of [['#btnUp', 'up'], ['#btnDown', 'down']]) {
   const b = $(id);
   b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); held[k] = true; });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { held[k] = false; }));
@@ -335,6 +337,7 @@ const SND = {
   jump: () => tone(900, 300, 0.25, 'sine', 0.08),
   measure: one => { tone(one ? 330 : 660, one ? 330 : 660, 0.25, 'triangle', 0.1); },
   gate: () => { tone(440, 880, 0.18, 'triangle', 0.1); },
+  power: () => { [660, 880, 1175, 1568].forEach((f, i) => tone(f, f * 1.01, 0.12, 'triangle', 0.08, i * 0.05)); },
   clear: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.18, 'triangle', 0.1, i * 0.09)); },
   over: () => { tone(330, 110, 0.7, 'triangle', 0.12); tone(247, 82, 0.9, 'sine', 0.08, 0.12); },
 };
@@ -368,18 +371,18 @@ $('#nextMission').addEventListener('click', () => { const i = E.MISSIONS.indexOf
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html', 'seed=' + encodeURIComponent(seed)));
 function toMenu() { syncMenu(); show('#menu'); if (typeof syncStageButtons === 'function') syncStageButtons(); }
 let freeplay = false;
+// N is the number of ghosts drawn: 1 flies a single run; otherwise the ensemble is E.P.RUNS runs and N of them are drawn
 function newWorld(m, N, extra = {}) {
-  const T1 = (m && m.T1) || E.P.T1[S.level];
-  return new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], Tphi: S.phi ? S.phi * T1 : Infinity, ghosts: N, ...extra });
+  return new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], ghosts: N === 1 ? 1 : E.P.RUNS, shown: N, ...extra });
 }
 function start(m, again) {
   current = m; freeplay = false;
   seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
   world = newWorld(m, S.N);
-  photons = [];
+  photons = []; syncChip();
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
   if (m) note(m.brief, 6);
-  else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
+  else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go, but cyan <b>T₁+</b> chips make your qubit last longer.`, 5);
 }
 function pause() { show('#paused'); syncStageButtons(); }
 function resume() { show(null); last = performance.now(); syncStageButtons(); }
@@ -392,10 +395,11 @@ function startFree(N) {
     const m = prev.r, n = Math.hypot(...m);
     world.r = prev.N === 1 ? prev.ghosts[0].r : n > 0.05 ? m.map(v => v / n) : [0, 0, 1];
   } else world.r = [0, 0, 1];
-  photons = []; hist = []; pops = []; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
+  if (prev && prev.T1 < Infinity) { world.T1 = prev.T1; world.T1start = prev.T1start; world.upgrades = prev.upgrades; }
+  photons = []; hist = []; pops = []; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons(); syncChip();
   note(N === 1
-    ? '<b>Free play, single shot.</b> One run of the experiment. Hold ▲ and ▼, ←/→ for Z. Sit near |1⟩ and wait for the photon: the qubit jumps to |0⟩ all at once, at a random moment.'
-    : `<b>Free play, ensemble of ${N}.</b> The same pulses on ${N} runs. Each jumps and flips on its own, so the mean (the big marker) shrinks: that mean is what an experiment measures.`, 7);
+    ? '<b>Free play, single shot.</b> One run of the experiment. Hold ▲ and ▼. Sit at |1⟩ and wait for the photon: the qubit jumps to |0⟩ all at once, at a random moment. On the equator, watch it slide down slowly between photons.'
+    : `<b>Free play, ensemble of ${world.N}</b> (${world.shown} drawn). The same pulses on every run. Each emits its photon at its own moment, so the mean (the big marker) shrinks: that mean is what an experiment measures. Try <b>T₁+</b>.`, 7);
 }
 function syncStageButtons() {
   $('#menuBtn').hidden = !(phase === 'play' && world && !world.over);
@@ -413,6 +417,15 @@ $('#freeSingle').addEventListener('click', () => { if (world.N !== 1) startFree(
 $('#freeEnsemble').addEventListener('click', () => { if (world.N === 1) startFree(S.N > 1 ? S.N : E.P.GHOSTS); });
 $('#freeMeasure').addEventListener('click', () => { const ev = []; world.measure({ want: 1 }, ev); handle(ev); });
 $('#freeReset').addEventListener('click', () => { const ev = []; world.reset({}, ev); handle(ev); });
+$('#freePower').addEventListener('click', () => { const ev = []; world.power({ th: world.theta }, ev); handle(ev); });
+// the chip panel: T₁ now, and the upgrades collected
+function syncChip() {
+  const w = world; if (!w) return;
+  const ups = E.UPGRADES.slice(0, Math.min(w.upgrades, E.UPGRADES.length));
+  $('#chip').innerHTML = !w.decay ? 'No decay in this run.'
+    : `<b style="color:var(--green);font-size:15px">T₁ = ${w.T1} s</b>${w.T1 > w.T1start ? ` (from ${w.T1start} s)` : ''}`
+      + (ups.length ? '<br>' + ups.map(u => '✓ ' + u.name).join('<br>') : '<br>No upgrades yet: fly the mean through a cyan T₁+ chip.');
+}
 function note(html, secs = 4) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
 // pops that arrive together are stacked, not drawn on top of each other
 function pop(text, color = '#ffd166') { const k = pops.filter(p => world.t - p.t < 0.6).length; pops.push({ t: world.t, th: world.theta, text, color, k }); }
@@ -425,6 +438,8 @@ const TIPS = [
   'Aim the mean, not the leaders: the share of runs that pass a ring is F̄ = (1 + r̄·t̂)/2, which only the mean decides.',
   'When the ghosts are spread out, no aim can pass a ring: F̄ is at most (1 + |r̄|)/2. Hold on until the next reset.',
   'Near a measurement gate, fly close to the outcome it pays for: P(1) = sin²(θ/2).',
+  'Grab the cyan T₁+ chips: a longer T₁ keeps the runs together, so the mean stays long and more of them pass.',
+  'On the equator the runs slide down even without a photon; at |1⟩ they wait and then jump. Both are T₁.',
 ];
 function finish(ev) {
   overAt = performance.now();
@@ -444,7 +459,7 @@ function finish(ev) {
     $('#overBest').textContent = `Best ${Math.max(score, prev)} · course ${seed}`;
   }
   if (current) $('#overBest').textContent = '';
-  $('#overStats').innerHTML = [[`${w.rings}${current ? '/' + w.total : ''}`, 'rings'], [w.perfects, 'perfect'], [w.jumps, 'jumps'], [w.t.toFixed(0) + ' s', 'time']]
+  $('#overStats').innerHTML = [[`${w.rings}${current ? '/' + w.total : ''}`, 'rings'], [w.perfects, 'perfect'], [w.decay ? w.T1 + ' s' : '∞', 'final T₁'], [w.t.toFixed(0) + ' s', 'time']]
     .map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
   $('#overTip').textContent = current && w.cleared ? '' : 'Tip: ' + TIPS[Math.floor(Math.random() * TIPS.length)];
   setTimeout(() => { if (phase === 'play') show('#over'); }, w.cleared ? 400 : 700);
@@ -466,18 +481,21 @@ function handle(ev) {
       note(world.N > 1
         ? `<b>Measured: ${e.ones} of ${e.N} runs read 1</b> (P(1) was ${e.p1.toFixed(2)}). Each run got one definite answer, and the share of 1s is P(1). Then every run was reset to |0⟩.${e.win ? ` +${e.pts}` : ''}`
         : `<b>Measured ${e.one ? '1' : '0'}.</b> P(1) was ${e.p1.toFixed(2)}, so this was ${e.p1 > 0.85 || e.p1 < 0.15 ? 'almost certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a weighted coin'}. Then the qubit was reset to |0⟩.${e.win ? ` +${e.pts}` : ''}`, 5);
+    } else if (e.type === 'power') { SND.power(); pop(`T₁ ${e.from} → ${e.to} s`, '#5ff2ff'); syncChip();
+      note(`<b>${e.up.name}!</b> T₁ ${e.from} → ${e.to} s${e.maxed ? ' (as good as this chip gets)' : ''}. ${e.up.fact}`, 7);
     } else if (e.type === 'token') { SND.gate(); pop('X'); note(`<b>X gate:</b> a π turn about x. θ went from ${(e.from / D2R).toFixed(0)}° to ${(e.to / D2R).toFixed(0)}°.`, 3); }
     else if (e.type === 'close') pop(`close +${e.pts}`, '#9fd2ff');
     else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
     else if (e.type === 'hit') { SND.hit(); if (e.heart) flash = 0.35;
       if (world.N === 1) note(`<b>Noise!</b> The environment measured your qubit: P(1) was ${e.p1.toFixed(2)}, and it collapsed to |${e.one ? 1 : 0}⟩. That cost a heart.`, 4);
       else if (e.heart || world.hits === 0) note(`<b>Noise!</b> The environment measured ${e.n > 1 ? e.n + ' runs, and each' : '1 run, and it'} collapsed to |0⟩ or |1⟩.${e.heart ? ' It reached half of them: that cost a heart.' : ''}`, 4); }
-    else if (e.type === 'jump') { SND.jump(); e.photons.forEach(ph => shootPhoton(ph.th));
-      if (world.jumps === e.n) note(world.N > 1
-        ? '<b>A photon!</b> One run was found in |1⟩, emitted its photon and fell to |0⟩; the others did not, so the runs now disagree and the mean marker shrinks. Photons leave at the rate P(1)/T₁: most often from runs near |1⟩. Averaged, that is T₁ decay.'
-        : '<b>A photon!</b> The qubit emitted it and fell to |0⟩: a quantum jump. Photons leave at the rate P(1)/T₁, highest near |1⟩.', 6); }
-    else if (e.type === 'flip') { pop(e.n > 1 ? e.n + ' phase flips' : 'phase flip', '#ffb066');
-      if (world.flips === e.n) note('<b>Phase flip.</b> Dephasing turned a run by π about z: same height, other side of the circle (orange). The shared drive now turns it the wrong way. Its rate is 1/(2T_φ); averaged, it shrinks the mean like T₁ does.', 6); }
+    else if (e.type === 'jump') {
+      // only the drawn runs get a photon on screen (240 at once would be a blizzard)
+      const seen = e.photons.filter(ph => ph.shown); if (!seen.length) continue;
+      SND.jump(); seen.forEach(ph => shootPhoton(ph.th));
+      if (!world._photonSeen) { world._photonSeen = true; note(world.N > 1
+        ? '<b>A photon!</b> One run emitted its photon and fell to |0⟩; the others did not, so the runs now disagree and the mean shrinks a little. Photons leave at the rate P(1)/T₁: most often from runs near |1⟩. Averaged over all the runs, that is smooth T₁ decay.'
+        : '<b>A photon!</b> The qubit emitted it and fell to |0⟩: a quantum jump. Photons leave at the rate P(1)/T₁, highest near |1⟩.', 6); } }
     else if (e.type === 'reset') { tone(520, 780, 0.15, 'triangle', 0.06); pop('reset', '#8ff0b0');
       if (!world._resetSeen) { world._resetSeen = true; note('<b>Reset.</b> Every run is back in |0⟩: a new shot of the experiment, and the ensemble is pure again. Real experiments repeat short shots like this, because decoherence builds up within each one.', 6); } }
     else if (e.type === 'clear') { SND.clear(); finish(e); }
@@ -527,6 +545,14 @@ function draw(t) {
       g.fillText('MEASURE', x, 12); g.fillText(`pays for |${o.want}⟩`, x, H - 10);
       // the Born-rule odds if it came now
       g.font = '11px Helvetica,Arial'; g.fillText(`P(${o.want}) now ${(o.want ? w.p1 : 1 - w.p1).toFixed(2)}`, x, Y(o.want ? Math.PI : 0) + (o.want ? 18 : -18));
+    } else if (o.type === 'token' && o.kind === 'T1') {
+      if (o.done) continue;
+      // a T₁+ chip: a small square die with pins, pulsing
+      const y = Y(o.th), s = 11 + 1.5 * Math.sin(t * 6), glow = g.createRadialGradient(x, y, 2, x, y, 30);
+      glow.addColorStop(0, 'rgba(95,242,255,.55)'); glow.addColorStop(1, 'rgba(95,242,255,0)'); g.fillStyle = glow; g.beginPath(); g.arc(x, y, 30, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#5ff2ff'; g.lineWidth = 2; for (const k of [-0.5, 0, 0.5]) { g.beginPath(); g.moveTo(x - s - 4, y + k * s); g.lineTo(x + s + 4, y + k * s); g.moveTo(x + k * s, y - s - 4); g.lineTo(x + k * s, y + s + 4); g.stroke(); }
+      g.fillStyle = '#0b3340'; g.beginPath(); g.roundRect(x - s, y - s, 2 * s, 2 * s, 3); g.fill(); g.stroke();
+      g.fillStyle = '#5ff2ff'; g.font = '800 11px Helvetica,Arial'; g.textAlign = 'center'; g.fillText('T₁+', x, y + 1);
     } else if (o.type === 'token') {
       if (o.done) continue;
       const y = Y(o.th), y2 = Y(Math.PI - o.th);
@@ -561,12 +587,12 @@ function draw(t) {
   if (w.N > 1) {
     const ths = w.thetas();
     g.strokeStyle = 'rgba(200,230,255,.16)'; g.lineWidth = 1;
-    for (let k = 0; k < w.N; k++) { g.beginPath(); let prev = null;
+    for (let k = 0; k < w.shown; k++) { g.beginPath(); let prev = null;
       hist.forEach((h, i) => { const v = h.ths && h.ths[k]; if (v == null) return; const x = X(h.t);
         if (prev == null || Math.abs(v - prev) > 0.5) g.moveTo(x, Y(v)); else g.lineTo(x, Y(v)); prev = v; });
       g.stroke(); }
     const m = w.r;   // a run whose phase points away from the mean's is turned the other way by the drive: draw it orange
-    w.ghosts.forEach((gh, k) => { const away = gh.r[0] * m[0] + gh.r[1] * m[1] < -1e-6;
+    w.ghosts.slice(0, w.shown).forEach((gh, k) => { const away = gh.r[0] * m[0] + gh.r[1] * m[1] < -1e-6;
       g.fillStyle = away ? 'rgba(255,170,90,.9)' : 'rgba(220,240,255,.55)'; g.beginPath(); g.arc(nx, Y(ths[k]), away ? 3.5 : 3, 0, Math.PI * 2); g.fill(); });
   }
   g.strokeStyle = 'rgba(160,220,255,.85)'; g.lineWidth = 2.5; g.beginPath();
@@ -578,7 +604,7 @@ function draw(t) {
     const R = 8 + 12 * pur, glow = g.createRadialGradient(nx, y, 0, nx, y, R); glow.addColorStop(0, `rgba(200,240,255,${0.45 + 0.5 * pur})`); glow.addColorStop(1, 'rgba(120,200,255,0)');
     g.fillStyle = glow; g.beginPath(); g.arc(nx, y, R, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(nx, y, 3 + 3 * pur, 0, Math.PI * 2); g.fill();
     if (w.N > 1) { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 1.5; g.beginPath(); g.arc(nx, y, 9, 0, Math.PI * 2); g.stroke();
-      g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.textAlign = 'right'; g.fillText(`mean · |r̄| = ${pur.toFixed(2)}`, nx - 14, y - 12); }
+      g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.textAlign = 'right'; g.fillText(`mean of ${w.N} · |r̄| = ${pur.toFixed(2)}`, nx - 14, y - 12); }
   }
   if (w.driving) {
     const dir = w.amp > 0 ? -1 : 1; g.fillStyle = '#ffb347'; g.beginPath();   // on screen: toward |1⟩ is up (−y)
@@ -602,7 +628,7 @@ function draw(t) {
   if (w.free) {
     g.textAlign = 'left'; g.textBaseline = 'top'; g.font = '700 13px Helvetica,Arial'; g.fillStyle = '#ffd166';
     g.fillText(w.N === 1 ? 'Free play · single shot' : `Free play · ensemble of ${w.N}`, 92, 6);
-    g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`${w.photons} photon${w.photons === 1 ? '' : 's'} · ${w.flips} phase flip${w.flips === 1 ? '' : 's'}`, 92, 23);
+    g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`${w.photons} photon${w.photons === 1 ? '' : 's'}${w.N > 1 ? ` from ${w.N} runs` : ''}`, 92, 23);
   } else {
   g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.font = '800 22px Helvetica,Arial'; g.fillText(Math.round(w.score), 96, 6);
   if (w.combo > 1) { g.fillStyle = '#ffd166'; g.font = '700 12px Helvetica,Arial'; g.fillText(`combo ×${w.combo}`, 98, 31); }
@@ -611,7 +637,8 @@ function draw(t) {
   }
   g.textBaseline = 'middle';
   if (w.mission) { const f = Math.min(1, w.t / w.endT); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * f, 3); }
-  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`T₁ = ${w.T1} s` + (w.Tphi < Infinity ? ` · T_φ = ${w.Tphi} s` : ''), W / 2, 8);
+  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; if (w.T1 > w.T1start) { g.fillStyle = '#5ff2ff'; g.font = '700 12px Helvetica,Arial'; }
+  g.fillText(w.decay ? `T₁ = ${w.T1} s` + (w.upgrades ? ` · ${'▲'.repeat(Math.min(w.upgrades, 6))}` : '') : 'no decay', W / 2, 8);
   if (flash > 0) { g.fillStyle = `rgba(255,60,90,${flash * 0.6})`; g.fillRect(0, 0, W, H); }
 }
 
@@ -651,14 +678,14 @@ function drawSphere() {
   sg.strokeStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.35)'; sg.lineWidth = sgn ? 3 : 1.5; sg.beginPath(); sg.moveTo(a.x, a.y); sg.lineTo(b.x, b.y); sg.stroke();
   const tip = sgn < 0 ? a : b; sg.fillStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.5)'; sg.fillText(sgn < 0 ? '−x' : '+x', tip.x + (sgn < 0 ? -10 : 10), tip.y + 8);
   // each run on the sphere (all pure, on the surface), and their mean: shorter than 1 once they disagree (a mixed state)
-  if (w && w.N > 1) { sg.fillStyle = 'rgba(0,105,62,.35)'; for (const gh of w.ghosts) { const q = SP(gh.r); sg.beginPath(); sg.arc(q.x, q.y, 2.5, 0, Math.PI * 2); sg.fill(); } }
+  if (w && w.N > 1) { sg.fillStyle = 'rgba(0,105,62,.35)'; for (const gh of w.ghosts.slice(0, w.shown)) { const q = SP(gh.r); sg.beginPath(); sg.arc(q.x, q.y, 2.5, 0, Math.PI * 2); sg.fill(); } }
   const s = SP(r);
   sg.strokeStyle = '#00693e'; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
   sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
   $('#driveText').innerHTML = !w ? 'The orange circle is the path a turn about x keeps the state on.'
     : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
-      : w.zamp ? `<b>Turning about z</b>: every run's phase turns, at ${E.P.OMEGA_Z} rad/s; heights stay put.`
-      : `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only decoherence acts: jumps to |0⟩ (T₁ = ${w.T1} s)${w.Tphi < Infinity ? ` and phase flips (T_φ = ${w.Tphi} s)` : ''}.`;
+      : w.decay ? `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only T₁ = ${w.T1} s acts: photons, each a jump to |0⟩, and between them a slow slide toward |0⟩.`
+      : 'Drive off: no rotation and, in the frame of a resonant drive, no precession.';
 }
 const ketOf = r => { const th = E.thetaOf(r), c = Math.cos(th / 2), s = Math.sin(th / 2);
   return s < 0.005 ? '|0⟩' : c < 0.005 ? (r[1] > 0 ? 'i|1⟩' : '−i|1⟩') : `${c.toFixed(2)}|0⟩ ${r[1] > 0 ? '+' : '−'} i·${s.toFixed(2)}|1⟩`; };
@@ -675,7 +702,6 @@ function drawState() {
   $('#bP0').style.width = (100 * (1 - p1)) + '%'; $('#bP1').style.width = (100 * p1) + '%';
   $('#nP0').textContent = (1 - p1).toFixed(2); $('#nP1').textContent = p1.toFixed(2);
   const inp = phase === 'play' ? input() : {}; $('#btnUp').classList.toggle('on', !!inp.up); $('#btnDown').classList.toggle('on', !!inp.down);
-  $('#btnZp').classList.toggle('on', !!inp.zPlus); $('#btnZm').classList.toggle('on', !!inp.zMinus);
 }
 
 /* ---------------- main loop ---------------- */

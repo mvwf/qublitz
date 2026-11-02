@@ -52,9 +52,14 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
 // ---- watched T₁ ----
 {
   const g = 1 / E.P.T1.normal, T = 3;
-  const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.ghosts[0].jump = () => 1; w.r = E.onCircle(2.0);
+  const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.ghosts[0].thr = Infinity; w.r = E.onCircle(2.0);
   for (let i = 0; i < T * 120; i++) w.step({}, DT);
-  check('between jumps nothing moves: no drift, decoherence is jumps only', close(w.theta, 2.0, 1e-12), `${w.theta.toFixed(5)}`);
+  const want = 2 * Math.atan(Math.tan(1.0) * Math.exp(-g * T / 2));
+  check('between photons a superposition slides toward |0⟩: tan(θ/2) ∝ e^{−t/2T₁}', close(w.theta, want, 1e-9), `${w.theta.toFixed(5)} vs ${want.toFixed(5)}`);
+  check('and stays on the same side of the circle (no phase change)', Math.abs(w.r[0]) < 1e-12 && w.r[1] < 0);
+  const top = bare({ seed: 'top', T1: E.P.T1.normal }); top.ghosts[0].thr = Infinity; top.r = [0, 0, -1];
+  for (let i = 0; i < T * 120; i++) top.step({}, DT);
+  check('|1⟩ does not slide: it waits, then jumps', top.r[2] === -1);
 
   const N = 3000, ts = [0.5, 1, 2], sums = ts.map(() => 0);
   for (let k = 0; k < N; k++) {
@@ -68,20 +73,52 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
   });
 }
 
-// ---- jumps: photons leave at the rate P₁/T₁; phase flips dephase; the Z control turns the phase only ----
+// ---- jumps: photons leave at the rate P₁/T₁; T₁ alone costs coherence at half the rate of energy ----
 {
   const N = 3000, T1 = 4, w = new E.World({ seed: 'photons', T1, ghosts: N }); w.objects = []; w.generate = () => {}; w.r = E.onCircle(120 * D2R);
   let photons = 0; for (let i = 0; i < 12; i++) for (const e of w.step({}, DT)) if (e.type === 'jump') photons += e.n;
   const want = N * 0.75 * (1 - Math.exp(-12 * DT / T1)), sd = Math.sqrt(want);
   check('photons leave at the rate P₁/T₁ (3000 runs at θ = 120° for 0.1 s)', Math.abs(photons - want) < 3 * sd, `${photons} vs ${want.toFixed(0)}`);
-  const Tphi = 3, d = new E.World({ seed: 'dephase', T1: 6, Tphi, ghosts: 4000 }); d.objects = []; d.generate = () => {}; d.r = E.onCircle(Math.PI / 2);
+  const d = new E.World({ seed: 'coherence', T1: 2, ghosts: 4000 }); d.objects = []; d.generate = () => {}; d.r = E.onCircle(Math.PI / 2);
   for (let i = 0; i < 120; i++) d.step({}, DT);
-  const perp = Math.hypot(d.r[0], d.r[1]), wantPerp = Math.exp(-1 / 6 - 1 / Tphi);
-  check('coherence decays as e^{−t/T₁ − t/T_φ} (1/T₂ = 1/T₁ + 1/T_φ)', Math.abs(perp - wantPerp) < 0.03, `${perp.toFixed(3)} vs ${wantPerp.toFixed(3)}`);
-  const f = bare({ seed: 'flip', Tphi: 0.01 }); f.r = E.onCircle(60 * D2R); f.ghosts[0].phase = () => 0; f.step({}, DT);
-  check('a phase flip keeps the height and moves the run to the other side of the circle', close(f.theta, 60 * D2R, 1e-9) && f.r[1] > 0.8);
-  const z = bare({ seed: 'z' }); z.r = E.onCircle(60 * D2R); for (let i = 0; i < 120; i++) z.step({ zPlus: true }, DT);
-  check('the Z control turns the phase, not the height', close(z.theta, 60 * D2R, 1e-9) && Math.abs(Math.atan2(z.r[1], z.r[0]) + Math.PI / 2) > 0.5);
+  const perp = Math.hypot(d.r[0], d.r[1]), wantPerp = Math.exp(-1 / 4);
+  check('coherence decays as e^{−t/2T₁}, half as fast as P₁ (T₁ only, no extra dephasing)', Math.abs(perp - wantPerp) < 0.02, `${perp.toFixed(3)} vs ${wantPerp.toFixed(3)}`);
+  check('and P₁ as ½ e^{−t/T₁}', Math.abs(d.p1 - 0.5 * Math.exp(-0.5)) < 0.015, `${d.p1.toFixed(3)} vs ${(0.5 * Math.exp(-0.5)).toFixed(3)}`);
+  check('the course does not take a Z input any more (drive about x only)', E.P.OMEGA_Z === undefined);
+}
+
+// ---- the mean is the average of many runs, so one jump barely moves it ----
+{
+  const steps = n => { const w = new E.World({ seed: 'smooth', T1: E.P.T1.normal, ghosts: n }); w.objects = []; w.generate = () => {}; w.r = E.onCircle(140 * D2R);
+    let big = 0, prev = w.theta; for (let i = 0; i < 10 * 120; i++) { w.step({}, DT); big = Math.max(big, Math.abs(w.theta - prev)); prev = w.theta; } return big / D2R; };
+  const many = steps(E.P.RUNS), few = steps(12);
+  check(`with ${E.P.RUNS} runs the mean never moves more than 1° in a step (12 runs: ${few.toFixed(1)}°)`, many < 1, `${many.toFixed(2)}°`);
+  // the mean follows the T₁ master equation: z → 1 as e^(−t/T₁), the coherence as e^(−t/2T₁)
+  for (const seed of ['m1', 'm2', 'm3']) {
+    const v = new E.World({ seed, T1: 6 }); v.objects = []; v.generate = () => {}; v.r = E.onCircle(140 * D2R); let dev = 0;
+    for (let i = 1; i <= 10 * 120; i++) { v.step({}, DT); const t = i * DT, z = 1 - (1 - Math.cos(140 * D2R)) * Math.exp(-t / 6), y = -Math.sin(140 * D2R) * Math.exp(-t / 12);
+      dev = Math.max(dev, Math.abs(v.theta - Math.acos(z / Math.hypot(y, z)))); }
+    check(`the mean of ${E.P.RUNS} runs stays within 2° of the master equation for 10 s (seed ${seed})`, dev < 2 * D2R, `${(dev / D2R).toFixed(2)}°`);
+  }
+  const w = new E.World({ seed: 'n' });
+  check(`the ensemble runs ${E.P.RUNS} and draws ${E.P.GHOSTS} of them`, w.N === E.P.RUNS && w.shown === E.P.GHOSTS && w.thetas().length === E.P.GHOSTS);
+}
+
+// ---- T₁+ tokens: each lengthens T₁ by T1_UP, up to T1_MAX times the start ----
+{
+  const w = bare({ seed: 'pow', T1: 3 }); w.r = E.onCircle(90 * D2R); w.ghosts[0].thr = Infinity;
+  const got = [];
+  for (let k = 0; k < 8; k++) { const ev = []; w.objects = []; w.meet(w.t, ev); w.power({}, ev); got.push(ev[0].to); }
+  check('a T₁+ token lengthens T₁ by 35 %', close(got[0], 4.1, 1e-9), got.slice(0, 3).join(' → ') + ' s');
+  check('T₁ stops at four times where it started', Math.max(...got) === 12 && got[7] === 12, got.join(', '));
+  const t = bare({ seed: 'pick', T1: 3 }); t.r = E.onCircle(90 * D2R); t.objects = [{ type: 'token', kind: 'T1', t: 0.05, th: 100 * D2R }];
+  const ev = []; for (let i = 0; i < 12; i++) ev.push(...t.step({}, DT));
+  check('flying the mean through a T₁+ token collects it', ev.some(e => e.type === 'power') && t.T1 > 3, `T₁ = ${t.T1} s`);
+  const c = new E.World({ seed: 'course', T1: 3 }); c.hearts = 1e9; let n = 0, seen = new Set();
+  for (let i = 0; i < 200 * 120; i++) { c.step({}, DT); for (const o of c.objects) if (o.kind === 'T1' && !seen.has(o)) { seen.add(o); n++; } }
+  check('the endless course offers a few T₁+ tokens', n >= 3 && n <= 6, `${n} in 200 s`);
+  const nd = new E.World({ seed: 'course', T1: Infinity }); for (let i = 0; i < 60 * 120; i++) nd.step({}, DT);
+  check('and none when there is no decay to fight', !nd.objects.some(o => o.kind === 'T1'));
 }
 
 // ---- free play: no course, no hearts lost, never over; missions can fix the number of runs ----

@@ -15,20 +15,20 @@
  * Holding a drive on is a Rabi oscillation: P(1) = sin²(Ωt/2). The drive amplitude follows its target with time
  * constant TAU, like a bandwidth-limited pulse.
  *
- * The game flies an ensemble of N runs of the same experiment (the ghosts), all driven by the same pulse; a target counts
+ * The game flies an ensemble of N runs of the same experiment (P.RUNS = 240 by default), all driven by the same pulse, and draws a
+ * few of them (opts.shown, P.GHOSTS = 12) as ghosts. The mean is the average over all N, so one run's jump moves it by only 1/N
+ * and it follows the smooth curve an experiment would measure. A target counts
  * when the mean points through it and the ensemble's fidelity with it, F̄ = (1 + r̄·t̂)/2 (the share of runs that would pass a
  * test for the target), is at least F_PASS. F̄ is linear in r̄, so aiming the mean is the best strategy, and decoherence
  * (runs that jumped) shortens r̄ and caps F̄. The ensemble's average Bloch vector r̄ is the density matrix, ρ = (1 + r̄·σ)/2.
  *
- * Decoherence is quantum jumps only; between jumps a run's state does not move unless you drive it.
- *   T₁ (always on; T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests): at the rate 1/T₁ the
- *     environment measures the run's energy and leaves it in |0⟩. It finds |1⟩ with probability P₁, and then a photon
- *     is emitted, so photons leave at the rate P₁/T₁ as a photon counter would see. Averaged over runs, P₁ decays
- *     exactly as e^(−t/T₁), and coherence as e^(−t/T₁).
- *   Dephasing (opts.Tphi, Infinity = off): at the rate 1/(2T_φ) a run's phase flips, a π turn about z, (x, y, z) →
- *     (−x, −y, z). Its height is unchanged, but the shared drive now turns it the other way. Averaged, coherence decays
- *     by a further e^(−t/T_φ). Together 1/T₂ = 1/T₁ + 1/T_φ.
- * A Z control (input zPlus / zMinus) turns every run about z at OMEGA_Z: it changes the phase, not the height.
+ * Decoherence is T₁ only (energy loss, amplitude damping; no extra dephasing), always on: T₁ sets the difficulty, and
+ * opts.T1 = Infinity turns it off, for tests. Each run is the standard photon-counting unravelling of amplitude damping:
+ *   a jump: at the rate P₁/T₁ (P₁ = sin²(θ/2)) the run emits a photon and is left in |0⟩;
+ *   between photons: seeing no photon is evidence the run is lower, so tan(θ/2) shrinks as e^(−t/2T₁), i.e.
+ *     dθ/dt = −sin θ/(2T₁). |1⟩ and |0⟩ do not move (sin θ = 0): |1⟩ waits and then jumps; superpositions slide down.
+ * Averaged over runs this is exactly the T₁ master equation: P₁ decays as e^(−t/T₁) and the coherence (x, y) as e^(−t/2T₁).
+ * T₁+ tokens (power-ups) multiply T₁ by T1_UP, up to T1_MAX times its starting value: each is a real way labs lengthen T₁.
  *
  * Hitting noise costs a heart, and the noise measures the qubit: stray coupling to the environment acts as an
  * unwanted measurement of σz, so the state collapses to |1⟩ with probability P₁ and to |0⟩ otherwise (decoherence
@@ -73,9 +73,12 @@
     OMEGA: 1.6,          // Rabi rate Ω [rad/s]: a π pulse takes about 2 s (slow enough to aim with human reflexes)
     TAU: 0.1,            // drive amplitude time constant [s]
     EASE: 10 * D2R,      // the drive eases off this close to the pole it is pushing toward
-    T1: { easy: 12, normal: 6, hard: 3, expert: 1.5 },
-    OMEGA_Z: 1.6,        // rate of the Z control [rad/s]   // T₁ [s] for each difficulty: 6, 3, 1.5 and ¾ π pulse
-    GHOSTS: 12,          // runs of the experiment flown at once, all by the same drive
+    T1: { easy: 12, normal: 6, hard: 3, expert: 1.5 },   // T₁ [s] for each difficulty
+        RUNS: 240,           // runs of the experiment flown at once, all by the same drive; the mean is their average
+    GHOSTS: 12,          // of which this many are drawn (the ghosts)
+    T1_UP: 1.35,         // a T₁+ token multiplies T₁ by this
+    T1_MAX: 4,           // up to this many times the starting T₁
+    POWER: 13 * D2R,     // pickup half-height of a T₁+ token
     F_PASS: 0.7,        // a target counts when the ensemble's fidelity with it is at least this (and the mean points through it)
     F_PERFECT: 0.95,     // and is a perfect above this
     SHOT: 8,             // s: the endless run resets every run to |0⟩ about this often, starting a new shot of the experiment
@@ -95,6 +98,16 @@
   // A Bloch vector on the y–z circle at polar angle th, on the −y side (where +X pushes θ up) or the +y side.
   const onCircle = (th, side = -1) => [0, side * Math.sin(th), Math.cos(th)];
   const thetaOf = r => Math.acos(Math.max(-1, Math.min(1, r[2])));
+
+  /* T₁+ tokens, in the order they are collected: each is a real way to make a qubit lose its energy more slowly. */
+  const UPGRADES = [
+    { name: 'Purcell filter', fact: 'The readout resonator is a window to the outside: a qubit can leak its photon through it. A Purcell filter blocks the qubit\'s frequency and keeps the photon in.' },
+    { name: 'Infrared shielding', fact: 'Stray infrared light breaks Cooper pairs in the superconductor, and the broken pairs (quasiparticles) soak up the qubit\'s energy. Light-tight, blackened shields stop it.' },
+    { name: 'Cleaner surfaces', fact: 'Tiny defects in the oxides on the chip (two-level systems) absorb energy at the qubit\'s frequency. Better cleaning and etching removes many of them.' },
+    { name: 'Tantalum films', fact: 'Changing the superconductor from niobium or aluminium to tantalum, whose oxide holds fewer lossy defects, pushed transmon T₁ from about 100 µs to about 300 µs.' },
+    { name: 'Magnetic shielding', fact: 'Trapped magnetic flux makes vortices in the film, and vortices dissipate energy. A mu-metal can around the chip keeps Earth\'s field out while it cools down.' },
+    { name: 'Better packaging', fact: 'The box holding the chip has resonances of its own. Moving them far from the qubit\'s frequency removes one more place for its photon to go.' },
+  ];
 
   /* Quiz gates: two rings at the same moment, and the prompt describes one of them. Each maker takes a seeded
    * generator and returns the right θ, a tempting wrong θ, and the explanation shown afterward. */
@@ -120,6 +133,7 @@
    *   ['r', t, θ]            ring (a target state)        ['c', t, θ, half-height°, half-width s]   noise cloud
    *   ['q', t, k]            quiz gate QUIZ[k]             ['m', t, want]   measurement gate paying for outcome want (0 or 1)
    *   ['x', t, θ]            X gate token                  ['z', t]         reset every run to |0⟩ (a new shot)
+   *   ['u', t, θ]            T₁+ token (a power-up)
    * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
  * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
@@ -132,7 +146,7 @@
       learn: 'A qubit in |1⟩ does not decay a little at a time. It stays put and then, at a random moment you cannot predict, emits one photon and is in |0⟩. The rate is fixed, 1/T₁ (times P(1), the chance it is found excited), so a jump in the next second is as likely now as it was a minute ago. T₁ is the average wait. Next: what many runs of this look like together.',
       items: [['r', 2.5, 160], ['r', 5, 170], ['r', 7.5, 160], ['r', 10, 170], ['r', 12.5, 155], ['r', 15, 170], ['r', 17.5, 160], ['r', 20, 170]] },
     { id: 'ensemble', title: 'Many runs', start: 90,
-      brief: 'An experiment repeats the same pulses many times, and each run jumps at its own moment. Now you fly 12 runs at once (the ghosts), with one drive for all of them. The big marker is their mean, the density matrix. Aim the mean through each ring: it counts when the share of runs that would pass a test for the ring\'s state, the fidelity, is at least 70 %.',
+      brief: 'An experiment repeats the same pulses many times, and each run jumps at its own moment. Now you fly 240 runs at once, with one drive for all of them; the faint ghosts are a few of them. The big marker is their mean, the density matrix. Aim the mean through each ring: it counts when the share of runs that would pass a test for the ring\'s state, the fidelity, is at least 70 %.',
       learn: 'Every run felt the same pulse, but each jumped at its own random moment, so the runs drifted apart and the mean shrank. You cannot steer one run at a time, and you cannot see them in a real experiment: what you measure is the average. Aiming the mean is the best a single pulse can do, and it gets the most runs through.',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
@@ -153,41 +167,45 @@
       learn: 'Measurement is not a rotation. Each run gives one definite answer with the Born-rule odds and stays there, so the fraction of 1s across the runs is P(1). Afterwards the ghosts sit at both poles, and one pulse turns them oppositely; a π/2 pulse takes both groups to the equator.',
       items: [['r', 3, 60], ['m', 5.5, 0], ['r', 8, 90], ['m', 10.5, 1], ['r', 13, 100], ['m', 15.5, 1], ['r', 18, 80], ['m', 20.5, 0], ['r', 23, 90]] },
     { id: 'gates', title: 'The X gate', start: 30,
-      brief: 'X tokens apply the X gate at once: a π pulse, done for you. It takes θ to 180° − θ, mirroring you through the equator. Some rings come too fast to fly to: grab the X first.',
+      brief: 'X tokens apply the X gate at once: a π pulse, done for you. It takes θ to 180° − θ, mirroring you through the equator. Some rings come too fast to fly to: grab the X first. Green resets start each try from |0⟩.',
       learn: 'A gate is a fast, calibrated pulse. X is a π rotation about x, so it swaps |0⟩ and |1⟩ and maps every height θ to 180° − θ.',
-      items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
-        ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
+      items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['z', 5.3], ['r', 6.5, 45], ['x', 7.5, 45], ['r', 8.1, 135], ['z', 8.8], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
+        ['z', 12.3], ['x', 13.2, 0], ['r', 13.8, 180], ['r', 15.6, 150], ['x', 16.6, 150], ['r', 17.2, 30], ['r', 19, 90]] },
     { id: 'jumps', title: 'Jumps in the crowd', start: 0, T1: 5, three: 0.6,
       brief: 'A short T₁ here (5 s, whatever the difficulty). The green curtains reset every ghost to |0⟩, a fresh shot. Watch the ghosts: each one falls to |0⟩ in a sudden jump at its own random moment, and the higher it was, the likelier a photon flies out. Jumps cost no hearts, but a ghost that jumped has to be brought back up.',
-      learn: 'T₁ and the jumps are the same thing seen two ways. Each run is left in |0⟩ at a random moment (rate 1/T₁), emitting a photon if it was found in |1⟩, and does not move in between. Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the big marker shows it.',
+      learn: 'T₁ and the jumps are the same thing seen two ways. Each run emits its photon and drops to |0⟩ at a random moment, at the rate P(1)/T₁; between photons a superposition slides slowly down, because not seeing a photon is itself evidence that the run is lower. Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the big marker shows it.',
       items: [['r', 2, 100], ['r', 3.5, 125], ['z', 4.5], ['r', 6.5, 110], ['r', 8, 130], ['z', 9], ['r', 11, 120], ['r', 12.5, 100], ['z', 13.5],
         ['r', 15.5, 130], ['r', 17, 110]] },
+    { id: 'upgrade', title: 'Build a better qubit', start: 0, T1: 2.5, three: 0.6,
+      brief: 'This chip is bad: T₁ = 2.5 s, barely longer than a π pulse, so runs near |1⟩ keep jumping down. Fly the mean through the cyan <b>T₁+</b> chips: each one is a real fix that labs use, and each makes T₁ 35 % longer. The rings high up get easier with every upgrade.',
+      learn: 'T₁ is not a law of nature: it is set by everywhere the qubit\'s energy can go, and engineers close those exits one by one. Real transmons went from nanoseconds in 1999 to hundreds of microseconds today. A longer T₁ lets the runs stay together for longer, so the mean stays long and more experiments succeed.',
+      items: [['u', 1.6, 60], ['r', 3, 100], ['u', 4.3, 120], ['z', 5.2], ['u', 6.6, 90], ['r', 8, 130], ['z', 9], ['u', 10.4, 100], ['r', 12, 145],
+        ['u', 13.3, 155], ['r', 14.8, 165], ['z', 15.8], ['r', 18, 150], ['r', 20, 165]] },
     { id: 'exam', title: 'Final exam', start: 90,
-      brief: 'Everything at once: rings, noise, quiz gates, a measurement and X tokens.',
+      brief: 'Everything at once: rings, noise, quiz gates, a measurement, a T₁+ chip and X tokens.',
       learn: 'You drove a qubit with real resonant pulses, read probabilities off the Bloch sphere, used a gate, and watched a measurement collapse the state. That is the toolkit behind every single-qubit experiment.',
       items: [['r', 3, 90], ['c', 4.5, 40, 20, 0.5], ['r', 6, 130], ['q', 9, 0], ['r', 11.5, 90], ['m', 14, 1], ['r', 16.5, 90], ['c', 18, 140, 22, 0.5],
-        ['r', 19.5, 60], ['x', 20.5, 60], ['r', 21.1, 120], ['q', 24, 2], ['r', 26.5, 90]] },
+        ['u', 19.5, 60], ['r', 21, 60], ['x', 22, 60], ['r', 22.6, 120], ['q', 25.5, 2], ['r', 28, 90]] },
   ];
   const isGood = o => o.type === 'ring' || o.type === 'token';   // things to collect, which clouds never cover
 
   /* ---------------- the world ----------------
-   * opts: { free (free play: no course, never over), seed, T1 [s] (default P.T1.normal; Infinity for no decay), Tphi [s] (dephasing; default Infinity = none),
-   *         ghosts (default P.GHOSTS; 1 for a single run), mission: id };
+   * opts: { free (free play: no course, never over), seed, T1 [s] (default P.T1.normal; Infinity for no decay),
+   *         ghosts (runs simulated; default P.RUNS; 1 for a single run), shown (runs drawn as ghosts; default P.GHOSTS), mission: id };
    * a mission's own T1 overrides opts.T1.
    * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
    * (or a wrong quiz answer) costs one, and every STREAK_HEAL targets in a row restores one.
    * step(input, dt): input = { toOne, toZero } (booleans). Each step returns a list of events: ring, miss, quiz, quizmiss,
-   * token, measure, close, heal, hit, jump, clear (a mission finished) and over.
+   * token, power (a T₁+ token), measure, close, heal, hit, jump, clear (a mission finished) and over.
    * Objects carry a time t; the course scrolls in time, and an object is met when the clock reaches it. */
   class World {
     constructor(opts = {}) {
       this.T1 = opts.T1 ?? P.T1.normal;
+      this.upgrades = 0; this.powerPlanned = 0;         // T₁+ tokens collected, and placed on the endless course
       this.noReset = !!opts.noReset;
       this.free = !!opts.free;                          // free play: no course, no hearts, no end
-      this.Tphi = opts.Tphi ?? Infinity;
-      this.zamp = 0;                                    // the Z control: −1 … +1
-      this.flips = 0; this.photons = 0;
-      this.N = Math.max(1, Math.round(opts.ghosts ?? P.GHOSTS));
+      this.photons = 0;
+      this.N = Math.max(1, Math.round(opts.ghosts ?? P.RUNS));
       this.rand = rng('course:' + (opts.seed ?? 'random'));
       this.t = 0; this.amp = 0;                         // amp: −1 drives toward |0⟩, +1 toward |1⟩
       this.objects = []; this.nextT = 2.5; this.walk = 90 * D2R; this.lastReset = 0;
@@ -197,15 +215,24 @@
       this.mission = null; this.cleared = false; this.total = 0;
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
       if (m && m.ghosts) this.N = m.ghosts;              // a mission can fix the number of runs
+      this.shown = Math.min(this.N, Math.max(1, Math.round(opts.shown ?? P.GHOSTS)));
       // each ghost is one run of the experiment, with its own photon detections and measurement outcomes
       const tag = m ? 'mission:' + m.id : String(opts.seed ?? 'random');
       this.ghosts = Array.from({ length: this.N }, (_, i) => ({
-        r: onCircle(90 * D2R), jump: rng(`jumps:${tag}:${i}`), meas: rng(`measure:${tag}:${i}`), noise: rng(`noise:${tag}:${i}`),
-        phase: rng(`phase:${tag}:${i}`) }));
+        r: onCircle(90 * D2R), jump: rng(`jumps:${tag}:${i}`), meas: rng(`measure:${tag}:${i}`), noise: rng(`noise:${tag}:${i}`) }));
+      // Photon times, stratified: each run waits until its integrated jump rate ∫P₁/T₁ dt passes −ln u, a fresh uniform u for
+      // each photon. Any one run's u is uniform and independent of its last one, so every run is a correct random trajectory;
+      // across runs the k-th u's are spread evenly over (0, 1) (strata, offset by a shift shared at each k), so the share of
+      // runs that have jumped follows e^(−t/T₁) closely and the mean does not wander off the master equation.
+      const perm = this.ghosts.map((_, i) => i), PR = rng(`strata:${tag}`);
+      for (let i = perm.length - 1; i > 0; i--) { const j = Math.floor(PR() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+      this.shifts = [0]; this.shiftR = rng(`shift:${tag}`);
+      this.ghosts.forEach((gh, i) => { gh.u0 = (perm[i] + gh.jump()) / this.N; gh.k = 0; gh.acc = 0; gh.thr = -Math.log(1 - gh.u0); });
       if (m) {
-        this.mission = m; if (m.T1) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
+        this.mission = m; if (m.T1 && this.T1 < Infinity) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.script(m);
       } else if (!this.free) this.generate();
+      this.T1start = this.T1;
     }
     get decay() { return this.T1 < Infinity; }
     get level() { return Math.min(1, this.t / P.LEVEL_TIME); }
@@ -226,8 +253,9 @@
       if (n > 1e-6) this._dir = Math.acos(Math.max(-1, Math.min(1, m[2] / n)));
       return this._dir ?? Math.PI / 2;
     }
-    thetas() { return this.ghosts.map(g => thetaOf(g.r)); }
-    get driving() { const w = this.omega(); return Math.abs(w[0]) > 0.02 * P.OMEGA || Math.abs(w[2]) > 0.02 * P.OMEGA_Z; }
+    // the heights of the runs drawn as ghosts
+    thetas() { const out = []; for (let i = 0; i < this.shown; i++) out.push(thetaOf(this.ghosts[i].r)); return out; }
+    get driving() { return Math.abs(this.omega()[0]) > 0.02 * P.OMEGA; }
     // The drive about x, one pulse for every run: its sign follows the side of the circle the ensemble mean is on, so +amp
     // pushes the mean toward |1⟩, and it eases off within EASE of the pole it is pushing toward. Once the runs disagree the
     // mean is shorter than 1 (a mixed state) and a pulse moves it less; split evenly between |0⟩ and |1⟩, it is zero and no
@@ -235,7 +263,7 @@
     omega() {
       const th = this.meanTheta, side = this.r[1] <= 0 ? 1 : -1;   // ease by P̄(1), so a nearly mixed ensemble can still be driven
       const ease = Math.min(1, (this.amp > 0 ? Math.PI - th : th) / P.EASE);
-      return [P.OMEGA * this.amp * side * ease, 0, P.OMEGA_Z * this.zamp];
+      return [P.OMEGA * this.amp * side * ease, 0, 0];
     }
     // +1 for a +X drive, −1 for −X, 0 when off: the pulse the game is playing for you.
     get driveSign() { const w = this.omega()[0]; return Math.abs(w) < 0.02 * P.OMEGA ? 0 : Math.sign(w); }
@@ -246,27 +274,30 @@
       const want = (input.toOne ? 1 : 0) - (input.toZero ? 1 : 0);
       this.amp += (want - this.amp) * (1 - Math.exp(-dt / P.TAU));
       if (Math.abs(this.amp) < 1e-3 && !want) this.amp = 0;
-      const wz = (input.zPlus ? 1 : 0) - (input.zMinus ? 1 : 0);
-      this.zamp += (wz - this.zamp) * (1 - Math.exp(-dt / P.TAU));
-      if (Math.abs(this.zamp) < 1e-3 && !wz) this.zamp = 0;
-      const w = this.omega(), photons = [], flips = [];
+      const w = this.omega(), photons = [], shrink = this.decay ? Math.exp(-dt / (2 * this.T1)) : 1;
       this.ghosts.forEach((gh, i) => {
         let r = rotate(gh.r, w, dt);
-        // T₁, run by run: at the rate 1/T₁ the environment leaves the run in |0⟩ (a jump; no drift in between). It found
-        // |1⟩, and a photon left, with probability P₁.
-        if (this.decay && gh.jump() < dt / this.T1) {
-          if (gh.jump() < (1 - r[2]) / 2) photons.push({ i, th: thetaOf(r) });
-          r = [0, 0, 1];
+        if (this.decay) {
+          gh.acc += (1 - r[2]) / 2 * dt / this.T1;
+          if (gh.acc >= gh.thr) {
+            // a photon: at the rate P₁/T₁ the run gives up its energy and is left in |0⟩
+            photons.push({ i, th: thetaOf(r), shown: i < this.shown }); r = [0, 0, 1];
+            gh.k++; gh.acc = 0; gh.thr = -Math.log(1 - this.nextU(gh));
+          } else {
+            // no photon: tan(θ/2) shrinks by e^(−dt/2T₁) at fixed φ (|0⟩ and |1⟩ stay put)
+            const th = thetaOf(r), rho = Math.hypot(r[0], r[1]);
+            if (rho > 1e-12) {
+              const t2 = 2 * Math.atan2(Math.sin(th / 2) * shrink, Math.cos(th / 2)), s2 = Math.sin(t2) / rho;
+              r = [r[0] * s2, r[1] * s2, Math.cos(t2)];
+            }
+          }
         }
-        // dephasing: at the rate 1/(2T_φ) a phase flip, a π turn about z
-        if (this.Tphi < Infinity && gh.phase() < dt / (2 * this.Tphi)) { if (Math.hypot(r[0], r[1]) > 0.05) flips.push({ i, th: thetaOf(r) }); r = [-r[0], -r[1], r[2]]; }
         gh.r = unit(r);
       });
       if (photons.length) {
         this.jumps += photons.length; this.photons += photons.length; ev.push({ type: 'jump', n: photons.length, photons });
         if (this.N === 1) { this.combo = 0; this.grace = Math.max(this.grace, P.GRACE); }
       }
-      if (flips.length) { this.flips += flips.length; ev.push({ type: 'flip', n: flips.length, flips }); }
       const t0 = this.t; this.t += dt;
       this.score += 2 * dt;
       this.grace = Math.max(0, this.grace - dt);
@@ -278,6 +309,8 @@
       return ev;
     }
 
+    // The uniform u for a run's next photon: its stratum, moved by a shift shared by every run at that photon count.
+    nextU(gh) { while (this.shifts.length <= gh.k) this.shifts.push(this.shiftR()); const u = (gh.u0 + this.shifts[gh.k]) % 1; return Math.min(u, 1 - 1e-12); }
     // How many runs are within rad of θ (shown on the page; the score uses the fidelity below).
     count(th, rad) { let n = 0; for (const g of this.ghosts) if (Math.abs(thetaOf(g.r) - th) < rad) n++; return n; }
     // The ensemble's fidelity with the target state at height th: F̄ = ⟨t|ρ|t⟩ = (1 + r̄·t̂)/2, the average of the runs'
@@ -321,7 +354,7 @@
         o.done = true;
         if (o.type === 'gate') this.measure(o, ev);
         else if (o.type === 'reset') this.reset(o, ev);
-        else if (o.type === 'token') { if (Math.abs(th - o.th) < P.TOKEN) this.applyX(o, ev); }
+        else if (o.type === 'token') { if (o.kind === 'T1') { if (Math.abs(th - o.th) < P.POWER) this.power(o, ev); } else if (Math.abs(th - o.th) < P.TOKEN) this.applyX(o, ev); }
         else if (o.quiz) this.answer(o, ev);
         else {
           const n = this.count(o.th, o.rad), off = Math.abs(th - o.th), F = this.fidelity(o.th);
@@ -375,6 +408,13 @@
       const from = this.theta; for (const g of this.ghosts) g.r = unit(rotate(g.r, [Math.PI, 0, 0], 1)); this.gates++; this.score += 50;
       ev.push({ type: 'token', o, from, to: this.theta });
     }
+    // A T₁+ token: T₁ grows by T1_UP (up to T1_MAX times where it started), so the runs stay together longer.
+    power(o, ev) {
+      const from = this.T1, up = UPGRADES[this.upgrades % UPGRADES.length];
+      if (this.decay) this.T1 = Math.min(this.T1start * P.T1_MAX, Math.round(this.T1 * P.T1_UP * 10) / 10);
+      this.upgrades++; const pts = 150 * Math.max(1, this.combo); this.score += pts;
+      ev.push({ type: 'power', o, from, to: this.T1, up, pts, maxed: this.T1 >= this.T1start * P.T1_MAX - 1e-9 });
+    }
     stars() {
       const f = this.total ? this.rings / this.total : 1;
       return f >= (this.mission.three ?? 0.9) - 1e-9 && this.hits === 0 ? 3 : f >= 0.7 ? 2 : 1;
@@ -395,6 +435,7 @@
         else if (k === 'm') this.add({ type: 'gate', t, want: it[2] });
         else if (k === 'x') this.add({ type: 'token', t, th: d(it[2]), kind: 'X' });
         else if (k === 'z') this.add({ type: 'reset', t });
+        else if (k === 'u') this.add({ type: 'token', t, th: d(it[2]), kind: 'T1' });
         last = Math.max(last, t);
       }
       this.endT = last + 1.5;
@@ -434,6 +475,10 @@
           const t = this.nextT + this.reach(0, 0, lvl) + 0.3, th = clamp(this.walk), to = Math.PI - th;
           this.add({ type: 'token', t, th, kind: 'X' }); this.walk = to; this.nextT = t + 0.6;
           this.add({ type: 'ring', t: this.nextT, th: to, rad: rr });
+        } else if (this.nextT > 6 && roll < 0.36 + 0.06 * lvl && this.decay && this.powerPlanned < 6) {
+          // a T₁+ token near the path (at most six: enough to reach T1_MAX)
+          const th = clamp(this.walk + (R() * 2 - 1) * 35 * D2R), t = this.nextT + this.reach(this.walk, th, lvl) + 0.2;
+          this.add({ type: 'token', t, th, kind: 'T1' }); this.powerPlanned++; this.walk = th; this.nextT = t;
         } else {
           // a run of rings on a random walk, with clouds beside the path
           const n = 2 + Math.floor(R() * 3);
@@ -457,7 +502,7 @@
   }
 
   const api = { P, D2R, dot, cross, norm, unit, fromAngles, toAngles, wrap, rotate, fidelity, angle, rng, onCircle, thetaOf,
-    QUIZ, MISSIONS, World };
+    QUIZ, MISSIONS, UPGRADES, World };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RabiEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
