@@ -208,6 +208,11 @@ const DEMOS = [
     eq:'<i>y</i>(<i>x</i>, <i>t</i>) = &Sigma;<sub><i>n</i></sub> <i>a<sub>n</sub></i> cos(&omega;<sub><i>n</i></sub><i>t</i>) sin<span class="fr"><span><i>n&pi;x</i></span><span><i>L</i></span></span>',
     desc:'Pluck a string, read its Fourier modes, and hear a pickup sample it at one point. Raise the gain until clipping invents harmonics.',
     tags:['wave equation','Fourier','audio'] },
+  { group:'engs23', title:'The Drum Head', thumb:'drum', hidden:true,
+    href:'courses/engs23/drum-head.html',
+    eq:'<i>z</i> = <i>J<sub>n</sub></i>(<i>k<sub>mn</sub>r</i>/<i>a</i>) cos <i>n</i>&theta; cos(2&pi;&nu;<sub><i>mn</i></sub><i>t</i>)',
+    desc:'The circular membrane of Boas ch. 13 §6. Watch Bessel normal modes oscillate side by side on one clock at their inharmonic frequencies, strike the head and see which modes ring, and hear why a drum is less musical than a string.',
+    tags:['wave equation','Bessel','audio'] },
   { group:'engs23', title:'Spectrogram Explorer', thumb:'spectro',
     href:'courses/engs23/spectrogram.html',
     eq:'|&int; <i>w</i>(<i>&tau;</i> &minus; <i>t</i>) <i>s</i>(<i>&tau;</i>) <i>e</i><sup>&minus;<i>i&omega;&tau;</i></sup> <i>d&tau;</i>|<sup>2</sup>',
@@ -244,6 +249,20 @@ const THUMBS = {
     g.stroke();
     g.fillStyle=C.red; [20,w-20].forEach(x=>{g.beginPath();g.arc(x,y0,3.5,0,7);g.fill();});
     g.strokeStyle=C.blue; g.lineWidth=2; const pk=20+0.85*L; g.beginPath(); g.moveTo(pk,y0-A*1.1); g.lineTo(pk,y0+A*1.1); g.stroke();
+  },
+  drum(g,w,h,t){
+    // (1,1) and (1,2) together, seen from above at an angle; J_1 and J_2 from their power series
+    const J=(n,x)=>{ let s=0, term=Math.pow(x/2,n)/(n===2?2:1); for(let k=0;k<20;k++){ s+=term; term*=-(x*x/4)/((k+1)*(k+1+n)); } return s; };
+    const cx=w/2, cy=h/2+4, R=Math.min(w*0.36,h*0.9), sy=0.42;
+    g.fillStyle='#dfe7e2'; g.beginPath(); g.ellipse(cx,cy+10,R,R*sy,0,0,7); g.fill();
+    for(let i=11;i>=0;i--) for(let j=0;j<48;j++){
+      const r=(i+0.5)/12, th=2*Math.PI*(j+0.5)/48;
+      const z=J(1,3.8317*r)*Math.cos(th)*Math.cos(1.6*t)/0.582+0.6*J(2,5.1356*r)*Math.cos(2*th-0.6)*Math.cos(1.6*2.136/1.593*t)/0.486;
+      const a=Math.min(1,Math.abs(z)), c=z>0?[200,75,49]:[45,111,179];
+      g.fillStyle='rgb('+(240+(c[0]-240)*a|0)+','+(244+(c[1]-244)*a|0)+','+(241+(c[2]-241)*a|0)+')';
+      g.beginPath(); g.ellipse(cx,cy,R*(i+1)/12,R*sy*(i+1)/12,0,th-0.07,th+0.07); g.lineTo(cx,cy); g.fill();
+    }
+    g.strokeStyle='#4a5852'; g.lineWidth=2; g.beginPath(); g.ellipse(cx,cy,R,R*sy,0,0,7); g.stroke();
   },
   trio(g,w,h,t){
     const pw=(w-40)/3, y0=h*0.62, A=h*0.36;

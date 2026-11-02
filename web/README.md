@@ -39,6 +39,7 @@ so a handout can say "open this setup" instead of listing slider values:
 |---|---|
 | `courses/engs23/heat-wave-schrodinger.html` | `s` preset, `N` modes, `t` time, `r` Schrödinger rate, `x0` bump center, `re`/`im` edited coefficients |
 | `courses/engs23/vibrating-string.html` | `fr` frets low E→high e (`x` = muted), `shape` + `p` or `a` coefficients, `c` cents, `g` gain dB, `sense=pos` |
+| `courses/engs23/drum-head.html` | `sel` modes as m n digit pairs (`10,11,20`), or `hit=ρ,θ,w` + `kind=strike\|press`; `view=top`, `sand=1`, `a` cm, `T` N/m, `s` kg/m² |
 | `courses/engs23/spectrogram.html` | `rec` (gong, tones, clicks, chirp, alias, or an archive key), `N`, `scale`, `fmax`, `dr` |
 | `qublitz/qubit-simulator.html` | `qubit` code (+ `assigned=1`), or `free=ωq GHz,Ω_R MHz,T1 ns,T2 ns` |
 | `qublitz/fridge-noise.html`, `qublitz/ep-tpd.html` | everything on the page |
@@ -48,6 +49,16 @@ the page up, hides the plots that would give the answer away, asks for a predict
 only then shows the result and the explanation. The steps are the `GUIDED` array in each
 page; `PageKit.guided` in `shared/pagekit.js` runs them. Every answer in them was checked
 against the page itself.
+
+## Drum Head engine
+
+`courses/engs23/drum-engine.js` holds the circular-membrane math of Boas ch. 13 §6 (Bessel functions,
+the zeros k<sub>mn</sub>, projection of a strike onto the modes). `courses/engs23/tests/drum-engine.test.js`
+(run in CI) checks it against Abramowitz & Stegun and against the PDE itself:
+
+```
+node web/courses/engs23/tests/drum-engine.test.js
+```
 
 ## Qubit Simulator engine
 
