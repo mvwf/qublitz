@@ -193,6 +193,17 @@
       isolate a string. When clean the per-string spectra add to the total; turn the gain up and the total grows extra
       harmonics the strings never had — clipping manufactures frequencies, which is how a guitar amp makes distortion.</p>
   </div>
+
+  <div class="card" id="liveCard" style="grid-column:1/-1">
+    <div class="flexcap"><h2 style="margin:0">Live spectrogram — running while ♪ Listen plays</h2>
+      <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
+    <canvas id="lspec" height="230"></canvas>
+    <canvas id="lline" height="170" class="subcanvas"></canvas>
+    <p class="legend">The same short-time FFT as the Spectrogram Explorer, run on the amp's output as you hear it: each new column is
+      the spectrum of the last 8192 samples. Each harmonic is a horizontal line at <span class="mvar">n</span>·f₁, evenly spaced, and the
+      high ones fade first. The ticks on the right and the dashed lines below mark <span class="mvar">n</span>·f₁ for every played string
+      (its colour). Turn up the gain and listen again: clipping paints new lines between them.</p>
+  </div>
 </div>
 
 <div class="hint" style="margin-top:16px">
@@ -235,6 +246,7 @@ if (window.QUBLITZ_STANDALONE) {
 }
 </script>
 <script src="../../shared/pagekit.js"></script>
+<script src="../../shared/livespec.js"></script>
 <script>
 "use strict";
 (function(){
@@ -293,6 +305,7 @@ if (window.QUBLITZ_STANDALONE) {
     const tab=[0,1,2,3,4,5].map(i=>played[i]==null?'×':played[i]).join(' ');
     const sp=document.getElementById('selPill'); if(sp) sp.textContent = tab + (pl.length?('  ·  '+notes.join(' ')):'');
     if(typeof buildVisChips==='function') buildVisChips();
+    live.redraw();   // the predicted lines follow the chord (live is created before anything calls this)
   }
 
   // project a sampled curve onto the basis -> coeffs
@@ -600,6 +613,13 @@ if (window.QUBLITZ_STANDALONE) {
 
   // ---------- audio (additive synthesis at physical pitch) ----------
   let actx=null;
+  // live spectrogram of the sound; the markers are n·f1 of every played string, in its colour
+  const liveFmax=()=>{ const pl=playedList(); return pl.length? Math.min(6000, Math.max(2200, 13*Math.max(...pl.map(i=>f1of(i))))) : 2200; };
+  const live=LiveSpec.create({spec:document.getElementById('lspec'), line:document.getElementById('lline'), fmax:liveFmax,
+    markers:()=>{ const out=[], F=liveFmax(), pl=playedList();
+      pl.forEach((i,idx)=>{ const f1i=f1of(i);
+        modes.forEach(md=>{ const f=f1i*md.ratio; if(f>0 && f<=F) out.push({f, color:SCOL[i], label: idx===0? (Math.round(md.ratio*100)/100)+'×' : ''}); }); });
+      return out; }});
   function listen(){
     try{
       actx=actx||new (window.AudioContext||window.webkitAudioContext)();
@@ -634,7 +654,7 @@ if (window.QUBLITZ_STANDALONE) {
       ch[i]=v*atk*rel;
     }
     const src=actx.createBufferSource(); src.buffer=buf;
-    src.connect(actx.destination); src.start();
+    src.connect(live.input(actx)); src.start();
   }
 
   // ---------- interaction: draw on string ----------
@@ -779,7 +799,7 @@ if (window.QUBLITZ_STANDALONE) {
     pmSel.addEventListener('change',applyPure);
     const pb=document.getElementById('puremodeset'); if(pb) pb.addEventListener('click',applyPure); }
 
-  window.addEventListener('resize',()=>{ layout(); layoutFret(); drawFretboard(); drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); });
+  window.addEventListener('resize',()=>{ layout(); layoutFret(); drawFretboard(); drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); live.redraw(); });
 
   // ---------- init ----------
   // Plotly present (opened in a browser) -> interactive plots; absent (Cowork sandbox) -> canvas fallback
