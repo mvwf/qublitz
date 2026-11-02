@@ -18,7 +18,11 @@
  * when neither feed is on. The level scale is fixed for sound (dBFS); the silent feed is scaled so its loudest
  * line sits near the top of the scale.
  *
- * LiveSpec.fft(re, im) is the radix-2 FFT the pages also use for their static spectra.
+ * Both plots also show the mean frequency ⟨f⟩ = Σ f·P(f) / Σ P(f), the power-weighted average (the centre of mass
+ * of the power spectrum P = |X|², over 0..fmax): a white trace across the spectrogram and a line on the spectrum.
+ *
+ * LiveSpec.fft(re, im) is the radix-2 FFT the pages also use for their static spectra, and
+ * LiveSpec.meanFrequency(freqs, amps) is ⟨f⟩ for a spectrum given as amplitudes.
  */
 (function (root) {
   'use strict';
@@ -56,6 +60,14 @@
     }
   }
 
+  // ⟨f⟩ = Σ f a² / Σ a² for a spectrum given as frequencies and amplitudes (NaN when it is empty)
+  function meanFrequency(freqs, amps) {
+    let num = 0, den = 0;
+    for (let i = 0; i < amps.length; i++) { const p = amps[i] * amps[i]; num += freqs[i] * p; den += p; }
+    return den > 0 ? num / den : NaN;
+  }
+  const fmtHz = f => f >= 1000 ? (f / 1000).toFixed(2) + ' kHz' : Math.round(f) + ' Hz';
+
   function niceStep(fmax) { const raw = fmax / 6, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p;
     return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; }
 
@@ -90,6 +102,15 @@
         off = o;
       }
     }
+    function frameMean(fr) {
+      if (fr.mean !== undefined) return fr.mean;
+      const fmax = fmaxOf(); let num = 0, den = 0;
+      for (let k = 1; k < fr.db.length && k * fr.binHz <= fmax; k++) {
+        if (fr.db[k] <= FLOOR) continue;
+        const p = Math.pow(10, fr.db[k] / 10); num += k * fr.binHz * p; den += p;
+      }
+      return (fr.mean = den > 0 ? num / den : NaN);
+    }
     const dbAt = (fr, f) => { let b = Math.round(f / fr.binHz); if (b > fr.db.length - 1) b = fr.db.length - 1; return fr.db[b]; };
 
     // The silent feed: FFT (Hann) of NSIG samples of the page's signal, sampled at about 2.6·fmax.
@@ -123,7 +144,9 @@
       ctx.fillText('← earlier        time        now →', m.l + g.pw / 2, m.t + g.ph + 6 * d);
       // which feed is on
       const tag = feed === 'sound' ? '♪ what you hear' : running() ? 'live signal, silent (press ♪ to hear it)' : 'press ♪ to hear it';
-      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillText(tag, m.l + 6 * d, m.t + 5 * d);
+      const mf = held ? frameMean(held) : NaN;
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText(tag + (mf > 0 ? '   ·   white trace: mean frequency ⟨f⟩ = ' + fmtHz(mf) : ''), m.l + 6 * d, m.t + 5 * d);
       // predicted frequencies as ticks on the right edge
       markersOf().forEach(k => { if (k.f > fmax) return; const y = m.t + (1 - k.f / fmax) * g.ph;
         ctx.strokeStyle = k.color || '#9bd'; ctx.lineWidth = 2 * d; ctx.beginPath();
@@ -159,6 +182,12 @@
       for (let ox = 0; ox <= pw; ox++) { const y = fy(dbAt(held, ox / pw * fmax)); ox ? ctx.lineTo(m.l + ox, y) : ctx.moveTo(m.l + ox, y); }
       ctx.strokeStyle = '#00693e'; ctx.lineWidth = 1.6 * d; ctx.lineJoin = 'round'; ctx.stroke();
       ctx.lineTo(m.l + pw, m.t + ph); ctx.lineTo(m.l, m.t + ph); ctx.closePath(); ctx.fillStyle = 'rgba(0,105,62,0.10)'; ctx.fill();
+      const mf = frameMean(held);
+      if (mf > 0 && mf <= fmax) { const x = fx(mf);
+        ctx.strokeStyle = '#1b2a24'; ctx.lineWidth = 1.5 * d; ctx.beginPath(); ctx.moveTo(x, m.t + 12 * d); ctx.lineTo(x, m.t + ph); ctx.stroke();
+        ctx.fillStyle = '#1b2a24'; ctx.font = 'bold ' + (11 * d) + 'px Helvetica, Arial, sans-serif'; ctx.textBaseline = 'top';
+        ctx.textAlign = x > m.l + pw * 0.75 ? 'right' : 'left';
+        ctx.fillText('⟨f⟩ = ' + fmtHz(mf), x + (x > m.l + pw * 0.75 ? -5 : 5) * d, m.t + 14 * d); }
     }
 
     // scroll left by k pixels and paint frame fr into the k new columns at the right
@@ -171,6 +200,8 @@
         col.data[4 * y] = rgb[0]; col.data[4 * y + 1] = rgb[1]; col.data[4 * y + 2] = rgb[2]; col.data[4 * y + 3] = 255;
       }
       for (let j = 1; j <= k; j++) c.putImageData(col, g.pw - j, 0);
+      const mf = frameMean(fr);   // the ⟨f⟩ trace, painted into the image so it scrolls with it
+      if (mf > 0 && mf <= fmax) { c.fillStyle = 'rgba(255,255,255,0.95)'; c.fillRect(g.pw - k, Math.round((1 - mf / fmax) * (g.ph - 1)) - 1, k, 2); }
     }
 
     function loop(ts) {
@@ -212,7 +243,7 @@
     return { input, redraw, clear };
   }
 
-  const api = { create, inferno, fft };
+  const api = { create, inferno, fft, meanFrequency };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.LiveSpec = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
