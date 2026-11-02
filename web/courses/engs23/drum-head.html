@@ -115,8 +115,19 @@
       <input id="mw" type="range" min="0.04" max="0.3" step="0.01" value="0.08" style="width:110px">
       <span class="val" id="mwv" style="min-width:44px">0.08 a</span>
     </div>
+    <div class="row tight">
+      <label class="lbl">Pickup at <span class="mvar">r</span></label>
+      <input id="pkr" type="range" min="0" max="0.95" step="0.01" value="0" style="width:110px">
+      <span class="val" id="pkrv" style="min-width:44px">0.00 a</span>
+      <label class="lbl">θ</label>
+      <input id="pkt" type="range" min="0" max="360" step="1" value="0" style="width:110px">
+      <span class="val" id="pktv" style="min-width:34px">0°</span>
+      <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:3px 5px">
+        <option value="pos" selected>senses position</option><option value="vel">senses velocity</option></select>
+    </div>
     <p class="legend" id="drumLegend">Height and colour are the displacement (red up, blue down). Drag to turn the drum. With
-      <b>Selected modes</b> the head shows the sum of the modes picked on the right; click the head to strike it instead.</p>
+      <b>Selected modes</b> the head shows the sum of the modes picked on the right; click the head to strike it instead.
+      The green square is the pickup: it reads the head at that one point, and that is what you hear.</p>
   </div>
 
   <div class="card" id="tilesCard">
@@ -156,6 +167,38 @@
       grid line and the string repeats each period. Here only the fundamental is.</p>
   </div>
 
+  <div class="card" id="scopeCard">
+    <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
+      <span class="pill" id="pickPill">pickup at the centre</span></div>
+    <canvas id="scope" height="200"></canvas>
+    <p class="legend">The head's displacement (or velocity) at the pickup, over the last four fundamental periods of the animation
+      clock, with time in milliseconds for the drum set below. The dark curve is the sum; with <b>Selected modes</b> each mode's own
+      contribution is drawn faintly in its colour. Mode (<span class="mvar">m</span>,<span class="mvar">n</span>) reaches the pickup with weight
+      <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span><sub>p</sub>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ<sub>p</sub>,
+      so at the centre, where <span class="mvar">J<sub>n</sub></span>(0) = 0 for every <span class="mvar">n</span> ≥ 1, only the <span class="mvar">n</span> = 0 modes are heard.</p>
+  </div>
+
+  <div class="card" id="pfftCard">
+    <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal</h2>
+      <span class="pill">frequency components</span></div>
+    <canvas id="pfft" height="200"></canvas>
+    <p class="legend">The Fourier transform of the pickup signal (64 fundamental periods, Hann window), in units of the signal.
+      Each peak is one normal mode, at ν<sub><span class="mvar">mn</span></sub> = <span class="mvar">k<sub>mn</sub>v</span>/(2π<span class="mvar">a</span>); the
+      dotted lines are the string's harmonics <span class="mvar">n</span>ν<sub>10</sub> for comparison. A selected mode the pickup cannot hear is
+      marked ✕. Move the pickup off the centre and the <span class="mvar">n</span> ≥ 1 peaks appear.</p>
+  </div>
+
+  <div class="card full" id="liveCard">
+    <div class="flexcap"><h2 style="margin:0">Live spectrogram — running while ♪ plays</h2>
+      <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
+    <canvas id="lspec" height="230"></canvas>
+    <canvas id="lline" height="170" style="margin-top:8px"></canvas>
+    <p class="legend">The same short-time FFT as the Spectrogram Explorer, run on the sound as it plays: each new column is the
+      spectrum of the last 8192 samples. Every mode is a horizontal line that fades as the sound decays (the decay is added for
+      listening; the ideal membrane rings forever). The ticks on the right and the dashed lines below are the predicted
+      ν<sub><span class="mvar">mn</span></sub>. Play <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b> and compare the line spacing.</p>
+  </div>
+
   <div class="card" id="ladderCard">
     <div class="flexcap"><h2 style="margin:0">Frequencies: drum against string</h2>
       <span class="pill">ν / ν<sub>fundamental</sub></span></div>
@@ -181,9 +224,9 @@
       <button id="listenDrum" class="sound">♪ Drum</button>
       <button id="listenString">♪ Same partials, made harmonic</button>
     </div>
-    <p class="legend">The defaults are a 14-inch tom with a 0.19 mm Mylar head (σ ≈ 0.26 kg/m²). <b>♪ Drum</b> plays what the head on
-      the left is doing: the selected modes at equal loudness, or after a strike every mode with its share of the energy, each at its
-      ν<sub><span class="mvar">mn</span></sub>. <b>♪ Same partials, made harmonic</b> keeps those loudnesses but moves the <span class="mvar">j</span>-th lowest partial to
+    <p class="legend">The defaults are a 14-inch tom with a 0.19 mm Mylar head (σ ≈ 0.26 kg/m²). <b>♪ Drum</b> plays the pickup
+      signal: every mode the pickup can hear, at its ν<sub><span class="mvar">mn</span></sub> and with the amplitude it has at the pickup.
+      <b>♪ Same partials, made harmonic</b> keeps those loudnesses but moves the <span class="mvar">j</span>-th lowest partial to
       <span class="mvar">j</span>ν<sub>10</sub>, as a string would have it. The ideal membrane of (6.1) never stops ringing; the sound alone gets a
       decay so it can end. A real drum's air loading and stiff head shift these ratios (timpani are tuned to make a few of them nearly
       harmonic); (6.1) leaves both out.</p>
@@ -227,6 +270,7 @@ if (window.QUBLITZ_STANDALONE) {
 }
 </script>
 <script src="../../shared/pagekit.js"></script>
+<script src="../../shared/livespec.js"></script>
 <script src="drum-engine.js"></script>
 <script>
 "use strict";
@@ -249,6 +293,7 @@ if (window.QUBLITZ_STANDALONE) {
   let clock=0, playing=!window.matchMedia('(prefers-reduced-motion: reduce)').matches, lastTS=null, speed=0.4, win=3;
   let cam={az:-0.62, el:0.6};
   let phys={a:0.178, T:2000, s:0.26};
+  let pickup={rho:0, theta:0}, senseVel=false;   // pickup position (ρ = r/a, θ in radians) and what it senses
 
   // The selected modes as a state: each a pure cos nθ mode scaled to unit peak height, released from rest.
   function selState(){
@@ -417,6 +462,7 @@ if (window.QUBLITZ_STANDALONE) {
   function layout(){
     DR=sizeCanvas($('drum'),380); TL=sizeCanvas($('tiles'),380); RC=sizeCanvas($('race'),230);
     TR=sizeCanvas($('traces'),190); LD=sizeCanvas($('ladder'),190);
+    SC=sizeCanvas($('scope'),200); PF=sizeCanvas($('pfft'),200);
   }
 
   let lastDrumCam=null;
@@ -433,6 +479,8 @@ if (window.QUBLITZ_STANDALONE) {
         grains.forEach(([x,y])=>{ project(C,x,y,D.displacement(modes,st,Math.hypot(x,y),Math.atan2(y,x),clock)*ZH/zMax,tmp); g.fillRect(tmp[0]-0.6,tmp[1]-0.6,1.3,1.3); }); }
       if(strikeAt && src==='strike'){ project(C,strikeAt.rho*Math.cos(strikeAt.theta),strikeAt.rho*Math.sin(strikeAt.theta),0,tmp3);
         g.strokeStyle='#1b2a24'; g.lineWidth=1.2; g.beginPath(); g.arc(tmp3[0],tmp3[1],4,0,7); g.stroke(); }
+      { const px=pickup.rho*Math.cos(pickup.theta), py=pickup.rho*Math.sin(pickup.theta);
+        project(C,px,py,D.displacement(modes,st,pickup.rho,pickup.theta,clock)*ZH/zMax,tmp3); pickupMarker(g,tmp3[0],tmp3[1]); }
     } else {
       renderTop(st,clock,zMax);
       const S=Math.min(w,h)-28, x0=(w-S)/2, y0=(h-S)/2;
@@ -441,6 +489,7 @@ if (window.QUBLITZ_STANDALONE) {
       if(sand){ g.fillStyle='rgba(120,92,48,0.9)'; grains.forEach(([x,y])=>g.fillRect(x0+(x+1)/2*S-0.7,y0+(1-y)/2*S-0.7,1.4,1.4)); }
       if(strikeAt && src==='strike'){ g.strokeStyle='#1b2a24'; g.lineWidth=1.2; g.beginPath();
         g.arc(x0+(strikeAt.rho*Math.cos(strikeAt.theta)+1)/2*S, y0+(1-strikeAt.rho*Math.sin(strikeAt.theta))/2*S, 4,0,7); g.stroke(); }
+      pickupMarker(g, x0+(pickup.rho*Math.cos(pickup.theta)+1)/2*S, y0+(1-pickup.rho*Math.sin(pickup.theta))/2*S);
       // θ = 0 marker and scale
       g.fillStyle='#8a9a92'; g.font='11px Helvetica,Arial,sans-serif'; g.textAlign='left';
       g.fillText('θ = 0 →', x0+S+4>w-40? w-46 : x0+S+4, y0+S/2+4);
@@ -591,11 +640,101 @@ if (window.QUBLITZ_STANDALONE) {
     fillTable();
   }
 
-  function drawAll(){ drawDrum(); drawTiles(); drawRace(); drawTraces(); drawLadder(); }
+  // ---------- pickup ----------
+  // Mode md reaches the pickup as a cos ωt + b sin ωt (t in fundamental periods), with
+  // a = J_n(kρ_p)(Ac cos nθ_p + As sin nθ_p) and b likewise from the B's. A velocity pickup reads d/dt, divided by
+  // the fundamental's 2π so that the units stay comparable: (a, b) → ratio·(b, −a).
+  function pickupComps(){
+    const st=curState(), out=[];
+    modes.forEach((md,i)=>{ const q=st[i]; if(!isActive(q)) return;
+      const R=D.radial(md,pickup.rho), cn=Math.cos(md.n*pickup.theta), sn=Math.sin(md.n*pickup.theta);
+      let a=R*(q.Ac*cn+q.As*sn), b=R*(q.Bc*cn+q.Bs*sn);
+      if(senseVel){ const r=md.ratio; [a,b]=[r*b,-r*a]; }
+      out.push({md,a,b,amp:Math.hypot(a,b)}); });
+    return out;
+  }
+  const pickSig=(comps,t)=>{ let s=0; for(const c of comps) s+=c.a*Math.cos(c.md.omega*t)+c.b*Math.sin(c.md.omega*t); return s; };
+  const f10Hz=()=>D.frequencyHz(modes[0],phys.a,phys.T,phys.s);
+  function pickupMarker(g,X,Y){ g.save(); g.strokeStyle='#fff'; g.lineWidth=3; g.strokeRect(X-5,Y-5,10,10);
+    g.strokeStyle='#00693e'; g.lineWidth=2; g.strokeRect(X-5,Y-5,10,10); g.restore(); }
+
+  let SC, PF;
+  function drawScope(){
+    const {w,h,g}=SC; g.clearRect(0,0,w,h);
+    const comps=pickupComps(), L=50, Rr=10, top=10, bot=h-30, mid=(top+bot)/2, W=4, t1=clock, t0=clock-W;
+    const bound=comps.reduce((s,c)=>s+c.amp,0), A=(bot-top)/2*0.92/(bound||1);
+    const X=t=>L+(t-t0)/W*(w-L-Rr), T10ms=1000/f10Hz();
+    g.font='10.5px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillStyle='#8a9a92';
+    for(let k=Math.max(0,Math.ceil(t0));k<=t1;k++){ const x=X(k); g.strokeStyle='#e4ede8'; g.beginPath(); g.moveTo(x,top); g.lineTo(x,bot); g.stroke();
+      g.fillText((k*T10ms).toFixed(1), x, bot+12); }
+    g.fillText('t (ms)', (L+w-Rr)/2, h-4);
+    g.strokeStyle='#dbe6e0'; g.beginPath(); g.moveTo(L,mid); g.lineTo(w-Rr,mid); g.stroke();
+    g.textAlign='left'; g.fillText(senseVel?'velocity at the pickup':'displacement at the pickup', L+4, top+8);
+    if(!bound){ g.fillStyle='#8a9a92'; g.textAlign='center'; g.font='12.5px Helvetica,Arial,sans-serif';
+      g.fillText(curState().some(isActive)?'Silent: every mode on the head has a node at the pickup':'No signal', (L+w)/2, mid-8); return; }
+    const NS=Math.ceil(w-L), path=(fn)=>{ g.beginPath(); let on=false;
+      for(let q=0;q<=NS;q++){ const t=t0+W*q/NS; if(t<0) continue; const y=mid-A*fn(t); on?g.lineTo(X(t),y):g.moveTo(X(t),y); on=true; } g.stroke(); };
+    if(src==='modes') comps.forEach(c=>{ const si=sel.findIndex(([m,n])=>m===c.md.m&&n===c.md.n); if(si<0||!c.amp) return;
+      g.strokeStyle=SCOL[si]; g.globalAlpha=0.45; g.lineWidth=1.2; path(t=>c.a*Math.cos(c.md.omega*t)+c.b*Math.sin(c.md.omega*t)); g.globalAlpha=1; });
+    g.strokeStyle='#1b2a24'; g.lineWidth=2; path(t=>pickSig(comps,t));
+    g.fillStyle='#00693e'; g.beginPath(); g.arc(X(t1),mid-A*pickSig(comps,t1),3.5,0,7); g.fill();
+  }
+
+  // FFT of the ideal (undamped) pickup signal: 4096 samples over 64 T10, Hann window, in units of the signal
+  let pfftCache={key:null};
+  function pickupSpectrum(comps){
+    const key=JSON.stringify([src,sel,strikeAt,pickup,senseVel]);
+    if(pfftCache.key===key) return pfftCache;
+    const N=4096, span=64, re=new Float64Array(N), im=new Float64Array(N); let sw=0;
+    for(let i=0;i<N;i++){ const w=0.5-0.5*Math.cos(2*Math.PI*i/N); re[i]=w*pickSig(comps,span*i/N); sw+=w; }
+    LiveSpec.fft(re,im);
+    const mag=new Float64Array(N/2); for(let k=0;k<N/2;k++) mag[k]=2*Math.hypot(re[k],im[k])/sw;
+    pfftCache={key,mag,dr:1/span};   // bin k is at k/span fundamental frequencies
+    return pfftCache;
+  }
+  function drawPFFT(){
+    const {w,h,g}=PF; g.clearRect(0,0,w,h);
+    const comps=pickupComps(), L=50, Rr=10, top=22, bot=h-30, RM=8, f10=f10Hz();
+    const X=r=>L+r/RM*(w-L-Rr);
+    g.font='10.5px Helvetica,Arial,sans-serif'; g.textAlign='center';
+    for(let k=0;k<=RM;k++){ const x=X(k); g.strokeStyle='#e4ede8'; g.setLineDash(k?[2,3]:[]); g.beginPath(); g.moveTo(x,top); g.lineTo(x,bot); g.stroke(); g.setLineDash([]);
+      g.fillStyle='#8a9a92'; g.textAlign=k===RM?'right':'center'; g.fillText(Math.round(k*f10), x, bot+12); }
+    g.textAlign='center'; g.fillText('frequency (Hz)', (L+w-Rr)/2, h-4);
+    g.strokeStyle='#c9d6cf'; g.beginPath(); g.moveTo(L,bot); g.lineTo(w-Rr,bot); g.stroke();
+    if(!comps.some(c=>c.amp)){ g.fillStyle='#8a9a92'; g.font='12.5px Helvetica,Arial,sans-serif';
+      g.fillText('No signal at the pickup', (L+w)/2, (top+bot)/2); }
+    const S=pickupSpectrum(comps); let pk=0;
+    for(let k=0;k*S.dr<=RM;k++) pk=Math.max(pk,S.mag[k]);
+    if(pk>0){
+      g.strokeStyle='#00693e'; g.lineWidth=1.6; g.lineJoin='round'; g.beginPath();
+      for(let k=0;k*S.dr<=RM;k++){ const x=X(k*S.dr), y=bot-(bot-top)*S.mag[k]/pk; k?g.lineTo(x,y):g.moveTo(x,y); }
+      g.stroke();
+      g.fillStyle='#8a9a92'; g.textAlign='right'; g.fillText(pk.toPrecision(2), L-4, top+4); g.fillText('0', L-4, bot);
+    }
+    // label the modes: selected ones always (✕ if silent), after a strike the loud ones
+    const maxAmp=Math.max(1e-12,...comps.map(c=>c.amp)); let lastX=-1e9;
+    const labs = src==='modes'
+      ? sel.map(([m,n],si)=>{ const c=comps.find(q=>q.md.m===m&&q.md.n===n); return {md:modeAt(m,n), amp:c?c.amp:0, col:SCOL[si]}; })
+      : comps.filter(c=>c.amp>0.08*maxAmp).map(c=>({md:c.md, amp:c.amp, col:'#1b2a24'}));
+    labs.sort((a,b)=>a.md.ratio-b.md.ratio).forEach(o=>{ if(o.md.ratio>RM) return; const x=X(o.md.ratio), silent=o.amp<1e-6*maxAmp||!pk;
+      g.fillStyle=silent?'#9bb0a6':o.col; g.textAlign='center'; g.font='10.5px Helvetica,Arial,sans-serif';
+      const y=silent? bot-8 : bot-(bot-top)*o.amp/pk-6;
+      if(x-lastX>26){ g.fillText((silent?'✕ ':'')+'('+o.md.m+','+o.md.n+')', x, Math.max(top-6,y)); lastX=x; } });
+  }
+
+  // live spectrogram of whatever ♪ plays
+  const live=LiveSpec.create({spec:$('lspec'), line:$('lline'),
+    fmax:()=>Math.min(8000,Math.max(1000,Math.ceil(6.5*f10Hz()/100)*100)),
+    markers:()=>{ const comps=pickupComps(), mx=Math.max(1e-12,...comps.map(c=>c.amp)), f10=f10Hz();
+      return comps.filter(c=>c.amp>0.02*mx).map(c=>{ const si=sel.findIndex(([m,n])=>m===c.md.m&&n===c.md.n);
+        return {f:c.md.ratio*f10, label:'('+c.md.m+','+c.md.n+')', color: src==='modes'&&si>=0? SCOL[si] : '#7fa8c9'}; }); }});
+
+  function drawAll(){ drawDrum(); drawTiles(); drawRace(); drawTraces(); drawScope(); drawPFFT(); drawLadder(); }
 
   // ---------- sound ----------
   let actx=null, voice=null;
-  // partials: [{ratio, amp}]; each rings at ratio·ν10 with a decay that is shorter for higher partials
+  // partials: [{ratio, amp, phase}]; each rings as amp·cos(2π·ratio·ν10·t − phase), with a decay that is shorter
+  // for higher partials (added for listening: the ideal membrane never stops)
   function playPartials(parts){
     if(!parts.length) return;
     actx=actx||new (window.AudioContext||window.webkitAudioContext)();
@@ -604,17 +743,16 @@ if (window.QUBLITZ_STANDALONE) {
     const buf=actx.createBuffer(1,N,sr), x=buf.getChannelData(0);
     parts.forEach(p=>{ const f=p.ratio*f10; if(f>=sr*0.45 || !p.amp) return;
       const tau=0.9*Math.pow(f10/f,0.6), w=2*Math.PI*f/sr, dk=Math.exp(-1/(tau*sr));
-      let e=p.amp; for(let i=0;i<N;i++){ x[i]+=e*Math.sin(w*i); e*=dk; } });
+      const ph=p.phase||0; let e=p.amp; for(let i=0;i<N;i++){ x[i]+=e*Math.cos(w*i-ph); e*=dk; } });
     let pk=0; for(let i=0;i<N;i++) pk=Math.max(pk,Math.abs(x[i]));
     const att=Math.floor(0.003*sr);
     for(let i=0;i<N;i++){ x[i]*=0.35/(pk||1); if(i<att) x[i]*=i/att; if(i>N-400) x[i]*=(N-i)/400; }
     if(voice) try{ voice.stop(); }catch(e){}
-    voice=actx.createBufferSource(); voice.buffer=buf; voice.connect(actx.destination); voice.start();
+    voice=actx.createBufferSource(); voice.buffer=buf; voice.connect(live.input(actx)); voice.start();
   }
+  // what the pickup reads, one partial per mode: a cos ωt + b sin ωt = amp·cos(ωt − phase)
   function drumPartials(){
-    if(src==='strike'){ const E=modes.map((md,i)=>D.modeEnergy(md,strikeState[i]));
-      return modes.map((md,i)=>({ratio:md.ratio, amp:Math.sqrt(E[i])})).filter(p=>p.amp>0); }
-    return sel.map(([m,n])=>({ratio:modeAt(m,n).ratio, amp:1}));
+    return pickupComps().filter(c=>c.amp>1e-9).map(c=>({ratio:c.md.ratio, amp:c.amp, phase:Math.atan2(c.b,c.a)}));
   }
   function harmonicPartials(){
     return drumPartials().sort((a,b)=>a.ratio-b.ratio).map((p,j)=>({ratio:j+1, amp:p.amp}));
@@ -650,6 +788,13 @@ if (window.QUBLITZ_STANDALONE) {
   $('sync').addEventListener('click',()=>{ clock=0; drawAll(); });
   $('speed').addEventListener('input',e=>{ speed=+e.target.value; $('speedv').textContent=speed.toFixed(2)+' T₁₀ per second'; });
   $('win').addEventListener('input',e=>{ win=+e.target.value; $('winv').textContent=win+' T₁₀'; drawTraces(); });
+  function setPickup(rho,deg){ pickup={rho, theta:deg*Math.PI/180};
+    $('pkr').value=rho; $('pkt').value=deg; $('pkrv').textContent=rho.toFixed(2)+' a'; $('pktv').textContent=Math.round(deg)+'°';
+    $('pickPill').textContent= rho? 'pickup at r = '+rho.toFixed(2)+' a, θ = '+Math.round(deg)+'°' : 'pickup at the centre';
+    if(!playing) drawAll(); }
+  $('pkr').addEventListener('input',e=>setPickup(+e.target.value, +$('pkt').value));
+  $('pkt').addEventListener('input',e=>setPickup(+$('pkr').value, +e.target.value));
+  $('sense').addEventListener('change',e=>{ senseVel=e.target.value==='vel'; if(!playing) drawAll(); });
   $('mw').addEventListener('input',e=>{ malletW=+e.target.value; $('mwv').textContent=malletW.toFixed(2)+' a'; });
   $('mw').addEventListener('change',()=>{ if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
   $('listen').addEventListener('click',()=>playPartials(drumPartials()));
@@ -659,7 +804,7 @@ if (window.QUBLITZ_STANDALONE) {
   $('selFig').addEventListener('click',()=>setSel([[1,0],[2,0],[1,1],[2,1]]));
   $('selRadial').addEventListener('click',()=>setSel([[1,0],[2,0],[3,0],[4,0]]));
   $('selClear').addEventListener('click',()=>setSel([]));
-  [['pa','a',0.01],['pT','T',1],['ps','s',1]].forEach(([id,key,f])=>$(id).addEventListener('input',e=>{ phys[key]=+e.target.value*f; updatePhys(); drawDrum(); }));
+  [['pa','a',0.01],['pT','T',1],['ps','s',1]].forEach(([id,key,f])=>$(id).addEventListener('input',e=>{ phys[key]=+e.target.value*f; updatePhys(); drawDrum(); drawScope(); drawPFFT(); live.redraw(); }));
 
   $('tiles').addEventListener('click',e=>{
     if(!tileGeo) return; const r=$('tiles').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=tileGeo;
@@ -687,7 +832,7 @@ if (window.QUBLITZ_STANDALONE) {
     doStrike(rho, Math.atan2(y,x), kind, malletW);
   });
 
-  window.addEventListener('resize',()=>{ layout(); mainMesh.camKey=''; miniMesh.camKey=''; drawAll(); });
+  window.addEventListener('resize',()=>{ layout(); mainMesh.camKey=''; miniMesh.camKey=''; drawAll(); live.redraw(); });
 
   /* ---------- shareable state ----------
      ?sel=10,11,12,20 (m then n) | ?hit=ρ,θ,w&kind=strike|press ; view=top ; sand=1 ; a (cm), T (N/m), s (kg/m²) */
@@ -700,6 +845,8 @@ if (window.QUBLITZ_STANDALONE) {
     if(Math.abs(phys.a-0.178)>1e-9) q.set('a',+(phys.a*100).toFixed(1));
     if(phys.T!==2000) q.set('T',phys.T);
     if(phys.s!==0.26) q.set('s',phys.s);
+    if(pickup.rho) q.set('pick',pickup.rho+','+Math.round(pickup.theta*180/Math.PI));
+    if(senseVel) q.set('sense','vel');
     return q.toString();
   }
   function readQuery(){
@@ -713,6 +860,8 @@ if (window.QUBLITZ_STANDALONE) {
     const a=P.num('a',5,40); if(a!=null) st.a=a;
     const T=P.num('T',200,8000); if(T!=null) st.T=T;
     const ss=P.num('s',0.05,1); if(ss!=null) st.s=ss;
+    const pk=P.list('pick',2); if(pk && pk[0]>=0 && pk[0]<=0.95 && pk[1]>=0 && pk[1]<=360) st.pick=pk;
+    const se=P.str('sense',['pos','vel']); if(se) st.sense=se;
     return st;
   }
   function applyState(st){
@@ -723,6 +872,8 @@ if (window.QUBLITZ_STANDALONE) {
     if(st.T!=null){ phys.T=st.T; $('pT').value=st.T; }
     if(st.s!=null){ phys.s=st.s; $('ps').value=st.s; }
     if(st.kind){ kind=st.kind; setSeg('kindSeg','kind',kind); }
+    if(st.pick) setPickup(st.pick[0], st.pick[1]);
+    if(st.sense){ senseVel=st.sense==='vel'; $('sense').value=st.sense; }
     updatePhys();
     if(st.hit){ malletW=st.hit[2]; $('mw').value=malletW; $('mwv').textContent=malletW.toFixed(2)+' a';
       strikeAt={rho:st.hit[0],theta:st.hit[1],kind,w:malletW}; strikeState=D.strike(modes,st.hit[0],st.hit[1],malletW,kind);
