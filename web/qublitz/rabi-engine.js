@@ -7,16 +7,18 @@
  *
  *   H = (ħΩ/2) a σx,   dr/dt = ω × r,   ω = (Ω a, 0, 0),
  *
- * and there is no precession: the state moves only while you drive it. A drive about x keeps r in the y–z
- * plane, so the state is fixed by θ alone and the game draws it as a height, |0⟩ at the top and |1⟩ at the
- * bottom, while the course scrolls past in time. You ask for up or down; the game picks the drive's sign
- * (+X or −X) that turns the state that way, which is a choice of drive phase (0 or π), and eases the drive
- * off as the state reaches a pole. Holding a drive on is a Rabi oscillation: P(1) = sin²(Ωt/2).
- * The drive amplitude follows its target with time constant TAU, like a bandwidth-limited pulse.
+ * and there is no precession: the drive is the only thing that turns the state. A drive about x keeps r in the
+ * y–z plane, so the state is fixed by θ alone and the game draws it as a height while the course scrolls past
+ * in time; the page puts |0⟩ (the ground state) at the bottom and |1⟩ (excited) at the top, so height is energy.
+ * You ask for |1⟩ or |0⟩ (input { toOne, toZero }); the game picks the drive's sign (+X or −X) that turns the
+ * state that way, which is a choice of drive phase (0 or π), and eases the drive off as the state reaches a pole.
+ * Holding a drive on is a Rabi oscillation: P(1) = sin²(Ωt/2). The drive amplitude follows its target with time
+ * constant TAU, like a bandwidth-limited pulse.
  *
- * T₁ decay (when on) is a watched qubit (a quantum trajectory): while no photon is detected the state stays
- * pure and slides toward |0⟩ at dθ/dt = −(γ/2) sinθ, and a photon is detected with probability γ·P₁·dt per
- * step, which resets the state to |0⟩ (a quantum jump). Averaged over runs this is ordinary T₁ decay.
+ * T₁ decay is always on (T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests). The qubit is
+ * watched (a quantum trajectory): while no photon is detected the state stays pure and slides toward |0⟩ at
+ * dθ/dt = −(γ/2) sinθ, γ = 1/T₁, and a photon is detected with probability γ·P₁·dt per step, which resets the
+ * state to |0⟩ (a quantum jump). Averaged over runs this is ordinary T₁ decay, P₁ ∝ e^(−t/T₁).
  *
  * Hitting noise costs a heart, and the noise measures the qubit: stray coupling to the environment acts as an
  * unwanted measurement of σz, so the state collapses to |1⟩ with probability P₁ and to |0⟩ otherwise (decoherence
@@ -61,7 +63,7 @@
     OMEGA: 1.6,          // Rabi rate Ω [rad/s]: a π pulse takes about 2 s (slow enough to aim with human reflexes)
     TAU: 0.1,            // drive amplitude time constant [s]
     EASE: 10 * D2R,      // the drive eases off this close to the pole it is pushing toward
-    GAMMA: 1 / 14,       // T₁ decay rate γ = 1/T₁ [1/s], when decay is on
+    T1: { easy: 20, normal: 10, hard: 5, expert: 2.5 },   // T₁ [s] for each difficulty: 10, 5, 2.5 and 1.3 π pulses
     HEARTS: 3,           // in a mission, where only noise costs a heart
     ENDLESS_HEARTS: 5,   // in the endless run, where a missed target costs one too
     STREAK_HEAL: 3,      // and every 3 targets in a row restores one
@@ -90,10 +92,10 @@
         why: `P(1) = sin²(θ/2), so P(1) = ${p} sits at θ = ${fmtDeg(th)}. The other ring had P(1) = ${fmtNum(1 - p)}.` }; },
     R => { const p = pick(R, [0.1, 0.25, 0.75, 0.9]), th = 2 * Math.acos(Math.sqrt(p));
       return { prompt: `P(0) = ${p}`, th, wrong: Math.PI - th,
-        why: `P(0) = cos²(θ/2), so P(0) = ${p} sits at θ = ${fmtDeg(th)}. The closer to |0⟩ at the top, the likelier a 0.` }; },
+        why: `P(0) = cos²(θ/2), so P(0) = ${p} sits at θ = ${fmtDeg(th)}. The closer to |0⟩ at the bottom, the likelier a 0.` }; },
     R => { const z = pick(R, [0.8, 0.5, -0.5, -0.8]), th = Math.acos(z);
       return { prompt: `⟨σz⟩ = ${fmtNum(z)}`, th, wrong: Math.PI - th,
-        why: `⟨σz⟩ = cos θ = P(0) − P(1): +1 at the top, −1 at the bottom. So ⟨σz⟩ = ${fmtNum(z)} is at θ = ${fmtDeg(th)}.` }; },
+        why: `⟨σz⟩ = cos θ = P(0) − P(1): +1 at |0⟩ (the bottom), −1 at |1⟩ (the top). So ⟨σz⟩ = ${fmtNum(z)} is at θ = ${fmtDeg(th)}.` }; },
     R => { const [deg, name] = pick(R, [[60, 'π/3'], [90, 'π/2'], [120, '2π/3'], [135, '3π/4']]), th = deg * D2R;
       return { prompt: `|0⟩ after a ${name} pulse`, th, wrong: th / 2,
         why: `A pulse of area ${name} turns the Bloch vector by ${deg}°, so θ = ${deg}°. Half of that, ${deg / 2}°, is the angle in the ket cos(θ/2)|0⟩ − i sin(θ/2)|1⟩.` }; },
@@ -103,18 +105,19 @@
    *   ['r', t, θ]            ring (a target state)        ['c', t, θ, half-height°, half-width s]   noise cloud
    *   ['q', t, k]            quiz gate QUIZ[k]             ['m', t, want]   measurement gate paying for outcome want (0 or 1)
    *   ['x', t, θ]            X gate token
-   * Stars: 3 for every ring with no hits (or a `three` share of the rings, where luck is involved), 2 for 70 %, 1 for finishing. */
+   * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
+ * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
     { id: 'flight', title: 'Flight school', start: 90,
-      brief: 'Hold <b>▼</b> to drive the qubit toward |1⟩ and <b>▲</b> to drive it toward |0⟩. Let go and it stays put: the drive is off. Fly through every ring.',
-      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing changes: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
+      brief: 'Hold <b>▲</b> to drive the qubit up toward |1⟩ and <b>▼</b> to drive it down toward |0⟩. Let go and the drive is off: then only T₁ decay acts, pulling the qubit down toward |0⟩, slowly or all at once in a quantum jump. Fly through every ring.',
+      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off the only motion is T₁ decay, down toward the ground state |0⟩: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
-      brief: 'A π pulse turns |0⟩ all the way to |1⟩. Hold <b>▼</b> to dive to the ring at the bottom, then <b>▲</b> back to the top.',
-      learn: 'At this Rabi rate (Ω = 1.6 rad/s) a π pulse takes π/Ω ≈ 2 s, which is how long each dive took. A constant drive would carry the state through |1⟩ and back to |0⟩, P(1) = sin²(Ωt/2): one Rabi oscillation. The game stops you at |1⟩ and reverses the drive when you press ▲, so your down-and-up traced the same P(1) curve. On a real transmon a π pulse typically takes 10–50 ns.',
+      brief: 'A π pulse turns |0⟩ all the way to |1⟩. Hold <b>▲</b> to climb to the ring at the top, then <b>▼</b> back down to the bottom.',
+      learn: 'At this Rabi rate (Ω = 1.6 rad/s) a π pulse takes π/Ω ≈ 2 s, which is how long each climb took. A constant drive would carry the state through |1⟩ and back to |0⟩, P(1) = sin²(Ωt/2): one Rabi oscillation. The game stops you at |1⟩ and reverses the drive when you press ▼, so your up-and-down traced the same P(1) curve. On a real transmon a π pulse typically takes 10–50 ns.',
       items: [['r', 3, 0], ['r', 6, 180], ['r', 9.5, 0], ['r', 12.5, 180], ['r', 16, 0], ['r', 19, 180], ['r', 22.5, 0]] },
     { id: 'equator', title: 'Superposition', start: 0,
-      brief: 'The middle line is the equator: P(1) = ½, an equal superposition. That takes a π/2 pulse, half a dive. Stay on it between the noise clouds.',
+      brief: 'The middle line is the equator: P(1) = ½, an equal superposition. That takes a π/2 pulse, half a climb. Stay on it between the noise clouds.',
       learn: 'On the equator a measurement gives 0 or 1 with even odds, yet the state is not a coin that has already landed: one more π/2 pulse takes it to |1⟩ with certainty.',
       items: [['r', 3.5, 90], ['c', 5, 40, 18, 0.5], ['c', 5, 140, 18, 0.5], ['r', 6.5, 90], ['c', 8, 42, 17, 0.6], ['c', 8, 138, 17, 0.6],
         ['r', 9.5, 90], ['r', 12, 0], ['r', 14.5, 90], ['c', 16, 40, 18, 0.5], ['c', 16, 140, 18, 0.5], ['r', 17.5, 90]] },
@@ -131,8 +134,8 @@
       learn: 'A gate is a fast, calibrated pulse. X is a π rotation about x, so it swaps |0⟩ and |1⟩ and maps every height θ to 180° − θ.',
       items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
         ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
-    { id: 'jumps', title: 'Quantum jumps', start: 90, decay: true, gamma: 1 / 6, three: 0.8,
-      brief: 'T₁ decay is on, and strong. Now the qubit drifts up toward |0⟩ by itself, and the closer you fly to |1⟩, the more often it jumps straight back to |0⟩. Jumps cost no hearts.',
+    { id: 'jumps', title: 'Quantum jumps', start: 90, T1: 6, three: 0.8,
+      brief: 'A short T₁ here (6 s, whatever the difficulty). The qubit slides down toward |0⟩ by itself, and the closer you fly to |1⟩ at the top, the more often it jumps straight down to |0⟩. Jumps cost no hearts.',
       learn: 'The jump rate is γ·P(1). Between jumps the state still drifts toward |0⟩, because not seeing a photon is information too. With the drive off, averaging many flights gives plain exponential decay, P(1) ∝ e^(−t/T₁).',
       items: [['r', 3, 120], ['r', 5, 145], ['r', 7, 150], ['r', 9, 140], ['r', 11, 150], ['r', 13, 135], ['r', 15, 150], ['r', 17, 145], ['r', 19, 150], ['r', 21, 140]] },
     { id: 'exam', title: 'Final exam', start: 90,
@@ -144,15 +147,15 @@
   const isGood = o => o.type === 'ring' || o.type === 'token';   // things to collect, which clouds never cover
 
   /* ---------------- the world ----------------
-   * opts: { seed, decay: bool, mission: id }
+   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), mission: id }; a mission's own T1 overrides opts.T1.
    * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
    * (or a wrong quiz answer) costs one, and every STREAK_HEAL targets in a row restores one.
-   * step(input, dt): input = { up, down } (booleans). Each step returns a list of events: ring, miss, quiz, quizmiss,
+   * step(input, dt): input = { toOne, toZero } (booleans). Each step returns a list of events: ring, miss, quiz, quizmiss,
    * token, measure, close, heal, hit, jump, clear (a mission finished) and over.
    * Objects carry a time t; the course scrolls in time, and an object is met when the clock reaches it. */
   class World {
     constructor(opts = {}) {
-      this.decay = !!opts.decay;
+      this.T1 = opts.T1 ?? P.T1.normal;
       this.rand = rng('course:' + (opts.seed ?? 'random'));
       this.jumpRand = rng('jumps:' + (opts.seed ?? 'random'));
       this.noiseRand = rng('noise:' + (opts.seed ?? 'random'));
@@ -166,11 +169,12 @@
       this.mission = null; this.cleared = false; this.total = 0;
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
       if (m) {
-        this.mission = m; this.decay = !!m.decay; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
+        this.mission = m; if (m.T1) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id); this.noiseRand = rng('noise:mission:' + m.id);
         this.script(m);
       } else this.generate();
     }
+    get decay() { return this.T1 < Infinity; }
     get level() { return Math.min(1, this.t / P.LEVEL_TIME); }
     get ringRadius() { return P.RING0 + (P.RING_MIN - P.RING0) * this.level; }
     get theta() { return thetaOf(this.r); }
@@ -189,13 +193,13 @@
     step(input, dt) {
       const ev = [];
       if (this.over) return ev;
-      const want = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+      const want = (input.toOne ? 1 : 0) - (input.toZero ? 1 : 0);
       this.amp += (want - this.amp) * (1 - Math.exp(-dt / P.TAU));
       if (Math.abs(this.amp) < 1e-3 && !want) this.amp = 0;
       this.r = rotate(this.r, this.omega(), dt);
       // watched T₁: a jump to |0⟩ with probability γ P₁ dt, otherwise the no-jump drift toward |0⟩
       if (this.decay) {
-        const g = this.mission?.gamma ?? P.GAMMA, z = this.r[2];
+        const g = 1 / this.T1, z = this.r[2];
         if (this.jumpRand() < g * (1 - z) / 2 * dt) {
           this.r = [0, 0, 1]; this.jumps++; this.combo = 0; this.grace = Math.max(this.grace, P.GRACE);
           ev.push({ type: 'jump' });
@@ -289,7 +293,7 @@
     }
     stars() {
       const f = this.total ? this.rings / this.total : 1;
-      return f >= (this.mission.three ?? 1) - 1e-9 && this.hits === 0 ? 3 : f >= 0.7 ? 2 : 1;
+      return f >= (this.mission.three ?? 0.9) - 1e-9 && this.hits === 0 ? 3 : f >= 0.7 ? 2 : 1;
     }
 
     /* ---------------- course ---------------- */

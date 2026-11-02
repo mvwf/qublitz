@@ -11,7 +11,9 @@ function check(label, ok, detail) {
 const { D2R, fromAngles, toAngles, rotate } = E;
 const close = (a, b, tol) => Math.abs(a - b) <= tol;
 const DT = 1 / 120;
-const bare = opts => { const w = new E.World(opts); w.objects = []; w.generate = () => {}; return w; };
+// a world with no course; decay off unless the test asks for a T1
+const bare = opts => { const w = new E.World({ T1: Infinity, ...opts }); w.objects = []; w.generate = () => {}; return w; };
+const ONE = { toOne: true }, ZERO = { toZero: true };
 
 // ---- rotation sense: dr/dt = ω × r, with |0⟩ at z = +1 ----
 {
@@ -32,16 +34,16 @@ const bare = opts => { const w = new E.World(opts); w.objects = []; w.generate =
 {
   for (const side of [-1, 1]) {
     const w = bare({ seed: 's' }); w.r = E.onCircle(1.2, side); w.amp = 1;
-    const a = w.theta; w.step({ down: true }, DT);
-    check(`▼ raises θ at Ω (state on the ${side < 0 ? '−' : '+'}y side, drive ${w.driveSign > 0 ? '+X' : '−X'})`, close((w.theta - a) / DT, E.P.OMEGA, 0.02));
-    w.amp = -1; const b = w.theta; w.step({ up: true }, DT);
-    check(`▲ lowers θ at Ω (${side < 0 ? '−' : '+'}y side)`, close((w.theta - b) / DT, -E.P.OMEGA, 0.02));
+    const a = w.theta; w.step(ONE, DT);
+    check(`toward |1⟩ raises θ at Ω (state on the ${side < 0 ? '−' : '+'}y side, drive ${w.driveSign > 0 ? '+X' : '−X'})`, close((w.theta - a) / DT, E.P.OMEGA, 0.02));
+    w.amp = -1; const b = w.theta; w.step(ZERO, DT);
+    check(`toward |0⟩ lowers θ at Ω (${side < 0 ? '−' : '+'}y side)`, close((w.theta - b) / DT, -E.P.OMEGA, 0.02));
     check('the state stays on the y–z circle (drive about x only)', Math.abs(w.r[0]) < 1e-12);
   }
   // a dive: |0⟩ to |1⟩ by holding ▼, settling without overshoot, in about a π pulse (plus the ramp and ease)
   const w = bare({ seed: 'dive' }); w.r = [0, 0, 1]; let t = 0, max = 0;
-  while (t < 4) { w.step({ down: true }, DT); t += DT; max = Math.max(max, w.theta); if (w.theta > Math.PI - 0.5 * D2R && !w.tArr) w.tArr = t; }
-  check('holding ▼ from |0⟩ reaches |1⟩ and stays there', w.theta > Math.PI - 1 * D2R && max <= Math.PI + 1e-9, `θ = ${(w.theta / D2R).toFixed(2)}°`);
+  while (t < 4) { w.step(ONE, DT); t += DT; max = Math.max(max, w.theta); if (w.theta > Math.PI - 0.5 * D2R && !w.tArr) w.tArr = t; }
+  check('holding toward |1⟩ from |0⟩ reaches |1⟩ and stays there (no decay)', w.theta > Math.PI - 1 * D2R && max <= Math.PI + 1e-9, `θ = ${(w.theta / D2R).toFixed(2)}°`);
   check('the dive takes about a π pulse, π/Ω ≈ 1.3 s', w.tArr > Math.PI / E.P.OMEGA && w.tArr < Math.PI / E.P.OMEGA + 0.6, `${w.tArr.toFixed(2)} s`);
   for (let i = 0; i < 240; i++) w.step({}, DT);
   check('after letting go the drive is off', !w.driving && w.amp === 0);
@@ -49,17 +51,16 @@ const bare = opts => { const w = new E.World(opts); w.objects = []; w.generate =
 
 // ---- watched T₁ ----
 {
-  const g = E.P.GAMMA, T = 3;
-  const w = bare({ seed: 'nojump', decay: true }); w.jumpRand = () => 1; w.r = E.onCircle(2.0);
+  const g = 1 / E.P.T1.normal, T = 3;
+  const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.jumpRand = () => 1; w.r = E.onCircle(2.0);
   for (let i = 0; i < T * 120; i++) w.step({}, DT);
   const want = 2 * Math.atan(Math.tan(1.0) * Math.exp(-g * T / 2));
   check('no-jump trajectory slides toward |0⟩ as tan(θ/2) e^{−γt/2}', close(w.theta, want, 1e-4), `${w.theta.toFixed(5)} vs ${want.toFixed(5)}`);
   check('the no-jump state stays pure (unit Bloch vector)', close(E.norm(w.r), 1, 1e-12));
 
-  const g0 = E.P.GAMMA; E.P.GAMMA = 1;
   const N = 3000, ts = [0.5, 1, 2], sums = ts.map(() => 0);
   for (let k = 0; k < N; k++) {
-    const v = bare({ seed: 'ens' + k, decay: true }); v.r = E.onCircle(Math.PI / 2);
+    const v = bare({ seed: 'ens' + k, T1: 1 }); v.r = E.onCircle(Math.PI / 2);
     let t = 0, j = 0;
     while (j < ts.length) { v.step({}, DT); t += DT; if (t >= ts[j] - 1e-9) { sums[j] += v.p1; j++; } }
   }
@@ -67,7 +68,20 @@ const bare = opts => { const w = new E.World(opts); w.objects = []; w.generate =
     const got = sums[j] / N, want = 0.5 * Math.exp(-t), sd = Math.sqrt(want * (1 - want) / N) + 0.004;
     check(`ensemble P₁(t = ${t}/γ) = ½ e^{−γt}`, Math.abs(got - want) < 3 * sd, `${got.toFixed(4)} vs ${want.toFixed(4)}`);
   });
-  E.P.GAMMA = g0;
+}
+
+// ---- decay is always on, and T₁ is the difficulty ----
+{
+  const w = new E.World({ seed: 'd' }), m = new E.World({ mission: 'flight', T1: E.P.T1.hard }), j = new E.World({ mission: 'jumps', T1: E.P.T1.easy });
+  check('the endless run decays by default, with the normal T₁', w.decay && w.T1 === E.P.T1.normal, `T₁ = ${w.T1} s`);
+  check('a mission takes the chosen T₁', m.decay && m.T1 === E.P.T1.hard);
+  check('the Quantum jumps mission keeps its own short T₁', j.T1 === 6);
+  const T1s = Object.values(E.P.T1);
+  check('harder means a shorter T₁', T1s.every((v, i) => i === 0 || v < T1s[i - 1]), T1s.join(' > ') + ' s');
+  // with the drive off, decay pulls the qubit down to |0⟩
+  const v = bare({ seed: 'fall', T1: E.P.T1.expert }); v.r = E.onCircle(170 * D2R); let t = 0;
+  while (t < 40 && v.theta > 1 * D2R) { v.step({}, DT); t += DT; }
+  check('with the drive off, decay brings the qubit to |0⟩', v.theta <= 1 * D2R, `θ = ${(v.theta / D2R).toFixed(1)}° after ${t.toFixed(1)} s`);
 }
 
 // ---- measurement follows the Born rule; the X gate maps θ → π − θ ----
@@ -106,11 +120,12 @@ function bot(w) {
   if (!next) return {};
   const d = next.th - w.theta;
   // a ring at a pole: hold the drive on toward it (the ease settles the state there)
-  return { down: d > 1.5 * D2R || next.th > Math.PI - 1e-6, up: d < -1.5 * D2R || next.th < 1e-6 };
+  return { toOne: d > 1.5 * D2R || next.th > Math.PI - 1e-6, toZero: d < -1.5 * D2R || next.th < 1e-6 };
 }
 
 // ---- course: deterministic and fair ----
 {
+  // with decay, as played
   const run = (seed, secs) => { const w = new E.World({ seed }); w.hearts = 1e9; const log = [];
     for (let i = 0; i < secs * 120; i++) for (const e of w.step(bot(w), DT)) log.push(e.type + i);
     return { w, log: log.join() }; };
@@ -120,7 +135,7 @@ function bot(w) {
 
   let hits = 0, total = 0, covered = 0, struck = 0, kinds = new Set();
   for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6']) {
-    const w = new E.World({ seed }); w.hearts = 1e9; const seen = new Set();
+    const w = new E.World({ seed, T1: Infinity }); w.hearts = 1e9; const seen = new Set();   // the geometry alone
     for (let i = 0; i < 200 * 120; i++) {
       for (const o of w.objects) {
         if (seen.has(o)) continue; seen.add(o); kinds.add(o.type);
@@ -137,6 +152,18 @@ function bot(w) {
   check('a bot that steers to each target reaches at least 98 % of them', hits / total >= 0.98, `${hits}/${total}`);
   check('the bot never needs to touch a cloud', struck === 0, `${struck} hits`);
   check('the endless course has rings, clouds, quizzes, measurements and X tokens', ['ring', 'cloud', 'gate', 'token'].every(k => kinds.has(k)), [...kinds].join(','));
+  // with decay, jumps cost some rings; still playable at every difficulty
+  for (const [name, T1] of Object.entries(E.P.T1)) {
+    let got = 0, all = 0;
+    for (const seed of ['s1', 's2', 's3']) {
+      const w = new E.World({ seed, T1 }); w.hearts = 1e9;
+      for (let i = 0; i < 120 * 120; i++) for (const e of w.step(bot(w), DT)) {
+        if (e.type === 'ring' || (e.type === 'quiz' && e.correct)) { got++; all++; }
+        if (e.type === 'miss' || e.type === 'quizmiss' || (e.type === 'quiz' && !e.correct)) all++;
+      }
+    }
+    check(`with T₁ = ${T1} s (${name}) the bot still reaches ${name === 'expert' ? '60' : '75'} % of targets`, got / all >= (name === 'expert' ? 0.6 : 0.75), `${got}/${all}`);
+  }
 }
 
 // ---- stakes: in the endless run a missed ring costs a heart and three in a row win one back; missions forgive misses ----
@@ -150,13 +177,12 @@ function bot(w) {
   check('missions: a missed ring costs no heart (stars reward accuracy instead)', m.hearts === mh);
 }
 
-// ---- every mission can be cleared, and the luck-free ones with three stars ----
+// ---- every mission can be cleared at the normal T₁ (decay makes every mission a little lucky) ----
 {
   for (const m of E.MISSIONS) {
     const w = new E.World({ mission: m.id }); let clear = null, t = 0;
     while (!w.over && t < 120) { for (const e of w.step(bot(w), DT)) if (e.type === 'clear') clear = e; t += DT; }
-    const lucky = m.decay || m.items.some(it => it[0] === 'm');
-    check(`mission "${m.title}" is cleared by the bot${lucky ? '' : ' with 3 stars'}`, clear && (lucky ? clear.stars >= 2 : clear.stars === 3),
+    check(`mission "${m.title}" is cleared by the bot (T₁ = ${w.T1} s) with at least 2 stars`, clear && clear.stars >= 2,
       clear ? `${clear.stars}★, ${w.rings}/${w.total} rings, ${w.hits} hits` : 'not cleared');
   }
 }
