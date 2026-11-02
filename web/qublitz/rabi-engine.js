@@ -15,7 +15,12 @@
  * Holding a drive on is a Rabi oscillation: P(1) = sin²(Ωt/2). The drive amplitude follows its target with time
  * constant TAU, like a bandwidth-limited pulse.
  *
- * T₁ decay is always on (T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests). The qubit is
+ * The game flies an ensemble of N runs of the same experiment (the ghosts), all driven by the same pulse; a target counts
+ * when the mean points through it and the ensemble's fidelity with it, F̄ = (1 + r̄·t̂)/2 (the share of runs that would pass a
+ * test for the target), is at least F_PASS. F̄ is linear in r̄, so aiming the mean is the best strategy, and decoherence
+ * (runs that jumped) shortens r̄ and caps F̄. The ensemble's average Bloch vector r̄ is the density matrix, ρ = (1 + r̄·σ)/2.
+ *
+ * T₁ decay is always on (T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests). Each run is
  * watched (a quantum trajectory): while no photon is detected the state stays pure and slides toward |0⟩ at
  * dθ/dt = −(γ/2) sinθ, γ = 1/T₁, and a photon is detected with probability γ·P₁·dt per step, which resets the
  * state to |0⟩ (a quantum jump). Averaged over runs this is ordinary T₁ decay, P₁ ∝ e^(−t/T₁).
@@ -63,7 +68,11 @@
     OMEGA: 1.6,          // Rabi rate Ω [rad/s]: a π pulse takes about 2 s (slow enough to aim with human reflexes)
     TAU: 0.1,            // drive amplitude time constant [s]
     EASE: 10 * D2R,      // the drive eases off this close to the pole it is pushing toward
-    T1: { easy: 20, normal: 10, hard: 5, expert: 2.5 },   // T₁ [s] for each difficulty: 10, 5, 2.5 and 1.3 π pulses
+    T1: { easy: 12, normal: 6, hard: 3, expert: 1.5 },   // T₁ [s] for each difficulty: 6, 3, 1.5 and ¾ π pulse
+    GHOSTS: 12,          // runs of the experiment flown at once, all by the same drive
+    F_PASS: 0.7,        // a target counts when the ensemble's fidelity with it is at least this (and the mean points through it)
+    F_PERFECT: 0.95,     // and is a perfect above this
+    SHOT: 8,             // s: the endless run resets every run to |0⟩ about this often, starting a new shot of the experiment
     HEARTS: 3,           // in a mission, where only noise costs a heart
     ENDLESS_HEARTS: 5,   // in the endless run, where a missed target costs one too
     STREAK_HEAL: 3,      // and every 3 targets in a row restores one
@@ -104,12 +113,12 @@
   /* Missions: short scripted courses, each teaching one idea. Items are placed by time t [s] and polar angle θ [°]:
    *   ['r', t, θ]            ring (a target state)        ['c', t, θ, half-height°, half-width s]   noise cloud
    *   ['q', t, k]            quiz gate QUIZ[k]             ['m', t, want]   measurement gate paying for outcome want (0 or 1)
-   *   ['x', t, θ]            X gate token
+   *   ['x', t, θ]            X gate token                  ['z', t]         reset every run to |0⟩ (a new shot)
    * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
  * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
     { id: 'flight', title: 'Flight school', start: 90,
-      brief: 'Hold <b>▲</b> to drive the qubit up toward |1⟩ and <b>▼</b> to drive it down toward |0⟩. Let go and the drive is off: then only T₁ decay acts, pulling the qubit down toward |0⟩, slowly or all at once in a quantum jump. Fly through every ring.',
+      brief: 'You fly an ensemble: each ghost is one run of the same experiment, and one drive acts on all of them. Hold <b>▲</b> to drive them up toward |1⟩ and <b>▼</b> down toward |0⟩. Let go and only T₁ decay acts: each ghost drifts down and, at a random moment, jumps to |0⟩. Aim the mean (the big marker) through each ring: it counts when the ensemble\'s fidelity with the ring\'s state is at least 75 %, the share of runs that would pass.',
       learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off the only motion is T₁ decay, down toward the ground state |0⟩: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
@@ -126,18 +135,19 @@
       learn: 'The height here is the angle θ, not the sphere\'s z = cos θ. P(1) = (1 − cos θ)/2 = sin²(θ/2) is a straight line in z but not in θ, so P(1) = ¼ sits at θ = 60°, not 45°.',
       items: [['r', 3, 90], ['q', 6, 0], ['r', 8.5, 90], ['q', 11.5, 2], ['r', 14, 90], ['q', 17, 3], ['r', 19.5, 90], ['q', 22.5, 1], ['r', 25, 90]] },
     { id: 'collapse', title: 'Collapse', start: 90,
-      brief: 'A measurement gate (the blue curtain) puts your qubit in |0⟩ or |1⟩ at random, with P(1) = sin²(θ/2). Each gate names the outcome it pays for: fly close to that end first.',
-      learn: 'Measurement is not a rotation. It picks |0⟩ or |1⟩ with the Born-rule odds and leaves the qubit there. Near |0⟩ or |1⟩ the result is almost certain; on the equator it is a coin flip.',
+      brief: 'A measurement gate (the blue curtain) reads every ghost: each lands in |0⟩ or |1⟩ at random, with P(1) = sin²(θ/2). Each gate names the outcome it pays for, and pays for the share of ghosts that read it: fly close to that end first.',
+      learn: 'Measurement is not a rotation. Each run gives one definite answer with the Born-rule odds and stays there, so the fraction of 1s across the runs is P(1). Afterwards the ghosts sit at both poles, and one pulse turns them oppositely; a π/2 pulse takes both groups to the equator.',
       items: [['r', 3, 60], ['m', 5.5, 0], ['r', 8, 90], ['m', 10.5, 1], ['r', 13, 100], ['m', 15.5, 1], ['r', 18, 80], ['m', 20.5, 0], ['r', 23, 90]] },
     { id: 'gates', title: 'The X gate', start: 30,
       brief: 'X tokens apply the X gate at once: a π pulse, done for you. It takes θ to 180° − θ, mirroring you through the equator. Some rings come too fast to fly to: grab the X first.',
       learn: 'A gate is a fast, calibrated pulse. X is a π rotation about x, so it swaps |0⟩ and |1⟩ and maps every height θ to 180° − θ.',
       items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
         ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
-    { id: 'jumps', title: 'Quantum jumps', start: 90, T1: 6, three: 0.8,
-      brief: 'A short T₁ here (6 s, whatever the difficulty). The qubit slides down toward |0⟩ by itself, and the closer you fly to |1⟩ at the top, the more often it jumps straight down to |0⟩. Jumps cost no hearts.',
-      learn: 'The jump rate is γ·P(1). Between jumps the state still drifts toward |0⟩, because not seeing a photon is information too. With the drive off, averaging many flights gives plain exponential decay, P(1) ∝ e^(−t/T₁).',
-      items: [['r', 3, 120], ['r', 5, 145], ['r', 7, 150], ['r', 9, 140], ['r', 11, 150], ['r', 13, 135], ['r', 15, 150], ['r', 17, 145], ['r', 19, 150], ['r', 21, 140]] },
+    { id: 'jumps', title: 'Quantum jumps', start: 0, T1: 5, three: 0.6,
+      brief: 'A short T₁ here (5 s, whatever the difficulty). The green curtains reset every ghost to |0⟩, a fresh shot. Watch the ghosts: each one falls to |0⟩ in a sudden jump at its own random moment, more often the nearer it is to |1⟩. Jumps cost no hearts, but a ghost that jumped has to be brought back up.',
+      learn: 'T₁ and the jumps are the same thing seen two ways. Each run jumps at a random time, at the rate P(1)/T₁, and between jumps it drifts toward |0⟩ (not seeing a photon is information too). Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the white marker shows it.',
+      items: [['r', 2, 100], ['r', 3.5, 125], ['z', 4.5], ['r', 6.5, 110], ['r', 8, 130], ['z', 9], ['r', 11, 120], ['r', 12.5, 100], ['z', 13.5],
+        ['r', 15.5, 130], ['r', 17, 110]] },
     { id: 'exam', title: 'Final exam', start: 90,
       brief: 'Everything at once: rings, noise, quiz gates, a measurement and X tokens.',
       learn: 'You drove a qubit with real resonant pulses, read probabilities off the Bloch sphere, used a gate, and watched a measurement collapse the state. That is the toolkit behind every single-qubit experiment.',
@@ -147,7 +157,8 @@
   const isGood = o => o.type === 'ring' || o.type === 'token';   // things to collect, which clouds never cover
 
   /* ---------------- the world ----------------
-   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), mission: id }; a mission's own T1 overrides opts.T1.
+   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), ghosts (default P.GHOSTS; 1 for a single run), mission: id };
+   * a mission's own T1 overrides opts.T1.
    * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
    * (or a wrong quiz answer) costs one, and every STREAK_HEAL targets in a row restores one.
    * step(input, dt): input = { toOne, toZero } (booleans). Each step returns a list of events: ring, miss, quiz, quizmiss,
@@ -156,34 +167,52 @@
   class World {
     constructor(opts = {}) {
       this.T1 = opts.T1 ?? P.T1.normal;
+      this.noReset = !!opts.noReset;
+      this.N = Math.max(1, Math.round(opts.ghosts ?? P.GHOSTS));
       this.rand = rng('course:' + (opts.seed ?? 'random'));
-      this.jumpRand = rng('jumps:' + (opts.seed ?? 'random'));
-      this.noiseRand = rng('noise:' + (opts.seed ?? 'random'));
-      this.measRand = rng('measure:' + (opts.seed ?? 'random'));
-      this.r = onCircle(90 * D2R);
       this.t = 0; this.amp = 0;                         // amp: −1 drives toward |0⟩, +1 toward |1⟩
-      this.objects = []; this.nextT = 2.5; this.walk = 90 * D2R;
+      this.objects = []; this.nextT = 2.5; this.walk = 90 * D2R; this.lastReset = 0;
       this.score = 0; this.combo = 0; this.rings = 0; this.misses = 0; this.perfects = 0; this.jumps = 0; this.hits = 0; this.closes = 0;
       this.quizRight = 0; this.quizWrong = 0; this.measures = 0; this.measWins = 0; this.gates = 0;
       this.hearts = P.ENDLESS_HEARTS; this.streak = 0; this.grace = 0; this.over = false;
       this.mission = null; this.cleared = false; this.total = 0;
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
+      // each ghost is one run of the experiment, with its own photon detections and measurement outcomes
+      const tag = m ? 'mission:' + m.id : String(opts.seed ?? 'random');
+      this.ghosts = Array.from({ length: this.N }, (_, i) => ({
+        r: onCircle(90 * D2R), jump: rng(`jumps:${tag}:${i}`), meas: rng(`measure:${tag}:${i}`), noise: rng(`noise:${tag}:${i}`) }));
       if (m) {
         this.mission = m; if (m.T1) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
-        this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id); this.noiseRand = rng('noise:mission:' + m.id);
         this.script(m);
       } else this.generate();
     }
     get decay() { return this.T1 < Infinity; }
     get level() { return Math.min(1, this.t / P.LEVEL_TIME); }
     get ringRadius() { return P.RING0 + (P.RING_MIN - P.RING0) * this.level; }
-    get theta() { return thetaOf(this.r); }
-    get p1() { return (1 - this.r[2]) / 2; }
+    // The ensemble's Bloch vector, the average over the runs: the density matrix is ρ = (1 + r̄·σ)/2, and |r̄| < 1 once
+    // the runs disagree (a mixed state). Setting it puts every run in that (pure) state.
+    get r() { const m = [0, 0, 0]; for (const g of this.ghosts) for (let k = 0; k < 3; k++) m[k] += g.r[k] / this.N; return m; }
+    set r(v) { for (const g of this.ghosts) g.r = v.slice(); }
+    get p1() { return Math.max(0, Math.min(1, (1 - this.r[2]) / 2)); }   // the fraction of runs that would read 1
+    // the height with the ensemble's P(1): θ̄ = 2 arcsin √P̄(1) (for one run, its own θ)
+    get meanTheta() { return 2 * Math.asin(Math.sqrt(this.p1)); }
+    // "You" are the ensemble mean, the direction of r̄ (the density matrix's Bloch vector): the drive is one pulse for every
+    // run, so the best you can do is aim the mean, and the runs scatter around it as decoherence throws individual runs off.
+    // Its length |r̄| (1 when every run agrees) is how far they have spread. When r̄ ≈ 0 the direction is kept from before.
+    get purity() { return norm(this.r); }
+    get theta() {
+      const m = this.r, n = norm(m);
+      if (n > 1e-6) this._dir = Math.acos(Math.max(-1, Math.min(1, m[2] / n)));
+      return this._dir ?? Math.PI / 2;
+    }
+    thetas() { return this.ghosts.map(g => thetaOf(g.r)); }
     get driving() { return Math.abs(this.omega()[0]) > 0.02 * P.OMEGA; }
-    // The drive about x for the current amplitude: its sign follows the side of the circle the state is on, so +amp
-    // always pushes θ up (toward |1⟩), and it eases off within EASE of the pole it is pushing toward.
+    // The drive about x, one pulse for every run: its sign follows the side of the circle the ensemble mean is on, so +amp
+    // pushes the mean toward |1⟩, and it eases off within EASE of the pole it is pushing toward. Once the runs disagree the
+    // mean is shorter than 1 (a mixed state) and a pulse moves it less; split evenly between |0⟩ and |1⟩, it is zero and no
+    // pulse can move it at all. Only T₁, by bringing the runs back to |0⟩, restores it.
     omega() {
-      const th = this.theta, side = this.r[1] <= 0 ? 1 : -1;
+      const th = this.meanTheta, side = this.r[1] <= 0 ? 1 : -1;   // ease by P̄(1), so a nearly mixed ensemble can still be driven
       const ease = Math.min(1, (this.amp > 0 ? Math.PI - th : th) / P.EASE);
       return [P.OMEGA * this.amp * side * ease, 0, 0];
     }
@@ -196,19 +225,22 @@
       const want = (input.toOne ? 1 : 0) - (input.toZero ? 1 : 0);
       this.amp += (want - this.amp) * (1 - Math.exp(-dt / P.TAU));
       if (Math.abs(this.amp) < 1e-3 && !want) this.amp = 0;
-      this.r = rotate(this.r, this.omega(), dt);
-      // watched T₁: a jump to |0⟩ with probability γ P₁ dt, otherwise the no-jump drift toward |0⟩
-      if (this.decay) {
-        const g = 1 / this.T1, z = this.r[2];
-        if (this.jumpRand() < g * (1 - z) / 2 * dt) {
-          this.r = [0, 0, 1]; this.jumps++; this.combo = 0; this.grace = Math.max(this.grace, P.GRACE);
-          ev.push({ type: 'jump' });
-        } else {
-          const h = (g / 2) * dt;
-          this.r = [this.r[0] * (1 - h * z), this.r[1] * (1 - h * z), this.r[2] + h * (1 - z * z)];
+      const w = this.omega(); let jumped = 0;
+      for (const gh of this.ghosts) {
+        let r = rotate(gh.r, w, dt);
+        // watched T₁, run by run: a jump to |0⟩ with probability γ P₁ dt, otherwise the no-jump drift toward |0⟩
+        if (this.decay) {
+          const g = 1 / this.T1, z = r[2];
+          if (gh.jump() < g * (1 - z) / 2 * dt) { r = [0, 0, 1]; jumped++; }
+          else { const h = (g / 2) * dt; r = [r[0] * (1 - h * z), r[1] * (1 - h * z), r[2] + h * (1 - z * z)]; }
         }
+        gh.r = unit(r);
       }
-      this.r = unit(this.r);
+     
+      if (jumped) {
+        this.jumps += jumped; ev.push({ type: 'jump', n: jumped });
+        if (this.N === 1) { this.combo = 0; this.grace = Math.max(this.grace, P.GRACE); }
+      }
       const t0 = this.t; this.t += dt;
       this.score += 2 * dt;
       this.grace = Math.max(0, this.grace - dt);
@@ -220,42 +252,57 @@
       return ev;
     }
 
+    // How many runs are within rad of θ (shown on the page; the score uses the fidelity below).
+    count(th, rad) { let n = 0; for (const g of this.ghosts) if (Math.abs(thetaOf(g.r) - th) < rad) n++; return n; }
+    // The ensemble's fidelity with the target state at height th: F̄ = ⟨t|ρ|t⟩ = (1 + r̄·t̂)/2, the average of the runs'
+    // fidelities, i.e. the share of runs that would pass a test for |t⟩. It is linear in r̄, so aiming the mean is the
+    // best you can do, and decoherence caps it at (1 + |r̄|)/2. The target is taken on the ensemble's side of the circle.
+    fidelity(th) { const m = this.r; return (1 + dot(m, onCircle(th, m[1] <= 0 ? -1 : 1))) / 2; }
+    // A target is met when the mean points through it and F̄ ≥ F_PASS.
+    passes(o) { return Math.abs(this.theta - o.th) < o.rad && this.fidelity(o.th) >= P.F_PASS; }
     // Everything the clock reached in (t0, t].
     meet(t0, ev) {
-      const th = this.theta;
+      const th = this.theta, half = this.N / 2;
       for (const o of this.objects) {
         if (o.done) continue;
         if (o.type === 'cloud') {
-          // an ellipse in (time, θ); touching it costs a heart and the noise measures the qubit (Born rule)
-          const u = (this.t - o.t) / o.w, d = Math.abs(th - o.th) - o.rad * Math.sqrt(Math.max(0, 1 - u * u));
+          // an ellipse in (time, θ). Noise measures each run that touches it (Born rule); a heart is lost when it reaches half of them
+          const u = (this.t - o.t) / o.w, reach = o.rad * Math.sqrt(Math.max(0, 1 - u * u));
           if (Math.abs(u) <= 1) {
-            o.near = Math.min(o.near ?? Infinity, d);
-            if (d < 0 && this.grace <= 0) {
-              o.struck = true; this.hearts--; this.hits++; this.combo = 0; this.grace = P.HIT_GRACE;
-              const p1 = this.p1, one = this.noiseRand() < p1;
-              this.r = one ? [0, 0, -1] : [0, 0, 1]; this.amp = 0;
-              ev.push({ type: 'hit', o, one, p1 });
+            o.near = Math.min(o.near ?? Infinity, Math.abs(th - o.th) - reach);
+            if (this.grace > 0) continue;
+            o.touched = o.touched || new Set(); let fresh = 0, ones = 0, p1 = this.p1;
+            this.ghosts.forEach((g, i) => {
+              if (o.touched.has(i) || Math.abs(thetaOf(g.r) - o.th) >= reach) return;
+              o.touched.add(i); fresh++;
+              const one = g.noise() < (1 - g.r[2]) / 2; g.r = one ? [0, 0, -1] : [0, 0, 1]; if (one) ones++;
+            });
+            if (fresh) {
+              const heart = !o.struck && o.touched.size >= half;
+              if (heart) { o.struck = true; this.hearts--; this.hits++; this.combo = 0; this.grace = P.HIT_GRACE; this.amp = 0; }
+              ev.push({ type: 'hit', o, n: fresh, ones, p1, heart, one: ones > 0 });
             }
           } else if (u > 1) {
             o.done = true;
-            if (!o.struck && o.near >= 0 && o.near < P.CLOSE) { const pts = 25 * Math.max(1, this.combo); this.score += pts; this.closes++; ev.push({ type: 'close', o, pts }); }
+            if (!o.struck && !o.touched && o.near >= 0 && o.near < P.CLOSE) { const pts = 25 * Math.max(1, this.combo); this.score += pts; this.closes++; ev.push({ type: 'close', o, pts }); }
           }
           continue;
         }
         if (o.t > this.t || o.t <= t0 - 1e-9) continue;
         o.done = true;
         if (o.type === 'gate') this.measure(o, ev);
+        else if (o.type === 'reset') this.reset(o, ev);
         else if (o.type === 'token') { if (Math.abs(th - o.th) < P.TOKEN) this.applyX(o, ev); }
-        else if (o.quiz) this.answer(o, th, ev);
+        else if (o.quiz) this.answer(o, ev);
         else {
-          const off = Math.abs(th - o.th);
-          if (off < o.rad) {
+          const n = this.count(o.th, o.rad), off = Math.abs(th - o.th), F = this.fidelity(o.th);
+          if (this.passes(o)) {
             this.combo = Math.min(10, this.combo + 1);
-            const perfect = off < o.rad / 3; if (perfect) this.perfects++;
-            const pts = Math.round(100 * this.combo * (perfect ? 1.5 : 1)); this.score += pts;
-            ev.push({ type: 'ring', o, pts, perfect, combo: this.combo });
+            const perfect = F >= P.F_PERFECT && off < o.rad / 3; if (perfect) this.perfects++;
+            const pts = Math.round(100 * this.combo * F * (perfect ? 1.5 : 1)); this.score += pts;
+            ev.push({ type: 'ring', o, pts, perfect, combo: this.combo, F, n, N: this.N });
             this.counted(ev);
-          } else { this.combo = 0; this.misses++; o.missed = true; ev.push({ type: 'miss', o, off, heart: this.lose() }); }
+          } else { this.combo = 0; this.misses++; o.missed = true; ev.push({ type: 'miss', o, off, F, n, N: this.N, heart: this.lose() }); }
         }
       }
     }
@@ -266,29 +313,37 @@
     }
     // A target missed: in the endless run it costs a heart (true if it did).
     lose() { this.streak = 0; if (this.mission) return false; this.hearts--; return true; }
-    // Both rings of a quiz arrive together: the one you are in answers it.
-    answer(o, th, ev) {
+    // Both rings of a quiz arrive together: the one the ensemble passes (if either) answers it.
+    answer(o, ev) {
       const q = o.quiz; if (q.answered) return;
-      const mine = this.objects.filter(x => x.quiz === q).find(x => Math.abs(th - x.th) < x.rad);
-      if (!mine) { if (o.correct) { q.answered = true; this.combo = 0; this.misses++; ev.push({ type: 'quizmiss', q, heart: this.lose() }); } return; }
-      q.answered = true; this.objects.forEach(x => { if (x.quiz === q) x.done = true; });
+      const pair = this.objects.filter(x => x.quiz === q), right = pair.find(x => x.correct), wrong = pair.find(x => !x.correct);
+      q.answered = true; pair.forEach(x => { x.done = true; });
+      const pr = this.passes(right), pw = this.passes(wrong), F = this.fidelity(right.th);
+      if (!pr && !pw) { this.combo = 0; this.misses++; ev.push({ type: 'quizmiss', q, F, heart: this.lose() }); return; }
+      const correct = pr, mine = correct ? right : wrong;
       let pts = 0;
-      if (mine.correct) { this.quizRight++; this.combo = Math.min(10, this.combo + 1); pts = 300 * this.combo; this.score += pts; this.counted(ev); }
+      if (correct) { this.quizRight++; this.combo = Math.min(10, this.combo + 1); pts = Math.round(300 * this.combo * F); this.score += pts; this.counted(ev); }
       else { this.quizWrong++; this.combo = 0; }
-      ev.push({ type: 'quiz', o: mine, q, correct: mine.correct, pts, combo: this.combo, heart: !mine.correct && this.lose() });
+      ev.push({ type: 'quiz', o: mine, q, correct, pts, combo: this.combo, F, heart: !correct && this.lose() });
     }
-    // A projective measurement of σz: |1⟩ with probability P₁ = sin²(θ/2), otherwise |0⟩.
+    // A projective measurement of σz in every run: each reads 1 with probability P₁ = sin²(θ/2), otherwise 0 (the Born rule).
+    // Then measure-and-reset, as labs do: each run that read 1 gets a π pulse conditioned on its own outcome (real-time
+    // feedback), so every run starts again in |0⟩ and the ensemble is pure again. (With one run and no reset, opts.noReset,
+    // the state stays where the measurement left it.)
     measure(o, ev) {
-      const p1 = this.p1, one = this.measRand() < p1;
-      this.r = one ? [0, 0, -1] : [0, 0, 1]; this.amp = 0;   // the readout interrupts the drive
+      const p1 = this.p1; let ones = 0;
+      for (const g of this.ghosts) { const one = g.meas() < (1 - g.r[2]) / 2; g.r = one && this.noReset ? [0, 0, -1] : [0, 0, 1]; if (one) ones++; }
+      this.amp = 0;   // the readout interrupts the drive
       this.measures++;
-      const win = (one ? 1 : 0) === o.want, pts = win ? 400 * Math.max(1, this.combo) : 0;
+      const got = o.want ? ones : this.N - ones, win = got >= this.N / 2, pts = win ? Math.round(400 * Math.max(1, this.combo) * got / this.N) : 0;
       if (win) { this.measWins++; this.score += pts; }
-      ev.push({ type: 'measure', o, one, p1, win, pts });
+      ev.push({ type: 'measure', o, ones, N: this.N, one: ones >= this.N / 2, p1, win, pts });
     }
-    // The X gate: a π turn about x, so θ → π − θ.
+    // Active reset: every run back to |0⟩, a new shot of the experiment; the ensemble is pure again.
+    reset(o, ev) { const p = this.purity; this.r = [0, 0, 1]; this.amp = 0; ev.push({ type: 'reset', o, purity: p }); }
+    // The X gate on every run: a π turn about x, so θ → π − θ.
     applyX(o, ev) {
-      const from = this.theta; this.r = unit(rotate(this.r, [Math.PI, 0, 0], 1)); this.gates++; this.score += 50;
+      const from = this.theta; for (const g of this.ghosts) g.r = unit(rotate(g.r, [Math.PI, 0, 0], 1)); this.gates++; this.score += 50;
       ev.push({ type: 'token', o, from, to: this.theta });
     }
     stars() {
@@ -310,6 +365,7 @@
         else if (k === 'q') { this.quiz(t, QUIZ[it[2]](R), rr); this.total++; }
         else if (k === 'm') this.add({ type: 'gate', t, want: it[2] });
         else if (k === 'x') this.add({ type: 'token', t, th: d(it[2]), kind: 'X' });
+        else if (k === 'z') this.add({ type: 'reset', t });
         last = Math.max(last, t);
       }
       this.endT = last + 1.5;
@@ -329,6 +385,12 @@
       while (this.nextT < this.t + P.AHEAD) {
         const lvl = Math.min(1, this.nextT / P.LEVEL_TIME), rr = P.RING0 + (P.RING_MIN - P.RING0) * lvl, roll = R();
         const clamp = th => Math.max(12 * D2R, Math.min(168 * D2R, th));
+        if (this.N > 1 && this.nextT - this.lastReset > P.SHOT) {
+          // a reset: a new shot starts from |0⟩, and the next ring is reachable from there
+          const t = this.nextT + 0.4; this.add({ type: 'reset', t }); this.lastReset = t;
+          this.walk = 0; this.nextT = t + 0.2;
+          continue;
+        }
         if (this.nextT > 8 && roll < 0.1 + 0.05 * lvl) {
           // a measurement gate, then a ring on the equator
           const t = this.nextT + 0.4; this.add({ type: 'gate', t, want: R() < 0.5 ? 1 : 0 });

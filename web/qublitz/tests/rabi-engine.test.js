@@ -12,7 +12,7 @@ const { D2R, fromAngles, toAngles, rotate } = E;
 const close = (a, b, tol) => Math.abs(a - b) <= tol;
 const DT = 1 / 120;
 // a world with no course; decay off unless the test asks for a T1
-const bare = opts => { const w = new E.World({ T1: Infinity, ...opts }); w.objects = []; w.generate = () => {}; return w; };
+const bare = opts => { const w = new E.World({ T1: Infinity, ghosts: 1, ...opts }); w.objects = []; w.generate = () => {}; return w; };
 const ONE = { toOne: true }, ZERO = { toZero: true };
 
 // ---- rotation sense: dr/dt = ω × r, with |0⟩ at z = +1 ----
@@ -52,7 +52,7 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
 // ---- watched T₁ ----
 {
   const g = 1 / E.P.T1.normal, T = 3;
-  const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.jumpRand = () => 1; w.r = E.onCircle(2.0);
+  const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.ghosts[0].jump = () => 1; w.r = E.onCircle(2.0);
   for (let i = 0; i < T * 120; i++) w.step({}, DT);
   const want = 2 * Math.atan(Math.tan(1.0) * Math.exp(-g * T / 2));
   check('no-jump trajectory slides toward |0⟩ as tan(θ/2) e^{−γt/2}', close(w.theta, want, 1e-4), `${w.theta.toFixed(5)} vs ${want.toFixed(5)}`);
@@ -75,7 +75,7 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
   const w = new E.World({ seed: 'd' }), m = new E.World({ mission: 'flight', T1: E.P.T1.hard }), j = new E.World({ mission: 'jumps', T1: E.P.T1.easy });
   check('the endless run decays by default, with the normal T₁', w.decay && w.T1 === E.P.T1.normal, `T₁ = ${w.T1} s`);
   check('a mission takes the chosen T₁', m.decay && m.T1 === E.P.T1.hard);
-  check('the Quantum jumps mission keeps its own short T₁', j.T1 === 6);
+  check('the Quantum jumps mission keeps its own short T₁', j.T1 === 5);
   const T1s = Object.values(E.P.T1);
   check('harder means a shorter T₁', T1s.every((v, i) => i === 0 || v < T1s[i - 1]), T1s.join(' > ') + ' s');
   // with the drive off, decay pulls the qubit down to |0⟩
@@ -135,7 +135,7 @@ function bot(w) {
 
   let hits = 0, total = 0, covered = 0, struck = 0, kinds = new Set();
   for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6']) {
-    const w = new E.World({ seed, T1: Infinity }); w.hearts = 1e9; const seen = new Set();   // the geometry alone
+    const w = new E.World({ seed, T1: Infinity, ghosts: 1 }); w.hearts = 1e9; const seen = new Set();   // the geometry alone, one run
     for (let i = 0; i < 200 * 120; i++) {
       for (const o of w.objects) {
         if (seen.has(o)) continue; seen.add(o); kinds.add(o.type);
@@ -162,7 +162,8 @@ function bot(w) {
         if (e.type === 'miss' || e.type === 'quizmiss' || (e.type === 'quiz' && !e.correct)) all++;
       }
     }
-    check(`with T₁ = ${T1} s (${name}) the bot still reaches ${name === 'expert' ? '60' : '75'} % of targets`, got / all >= (name === 'expert' ? 0.6 : 0.75), `${got}/${all}`);
+    const want = name === 'easy' ? 0.85 : 0.65;
+    check(`with T₁ = ${T1} s (${name}) and ${E.P.GHOSTS} ghosts, aiming the mean passes at least ${100 * want} % of targets`, got / all >= want, `${got}/${all}`);
   }
 }
 
@@ -177,14 +178,57 @@ function bot(w) {
   check('missions: a missed ring costs no heart (stars reward accuracy instead)', m.hearts === mh);
 }
 
-// ---- every mission can be cleared at the normal T₁ (decay makes every mission a little lucky) ----
+// ---- every mission can be cleared with the ensemble at the normal T₁ (decay makes it partly luck), and a single
+//      run without decay clears the luck-free ones with three stars ----
 {
   for (const m of E.MISSIONS) {
     const w = new E.World({ mission: m.id }); let clear = null, t = 0;
     while (!w.over && t < 120) { for (const e of w.step(bot(w), DT)) if (e.type === 'clear') clear = e; t += DT; }
-    check(`mission "${m.title}" is cleared by the bot (T₁ = ${w.T1} s) with at least 2 stars`, clear && clear.stars >= 2,
+    check(`mission "${m.title}" is cleared by the bot (${w.N} ghosts, T₁ = ${w.T1} s)`, !!clear,
       clear ? `${clear.stars}★, ${w.rings}/${w.total} rings, ${w.hits} hits` : 'not cleared');
+    if (m.T1 || m.items.some(it => it[0] === 'm')) continue;
+    const v = new E.World({ mission: m.id, ghosts: 1, T1: Infinity }); let c1 = null; t = 0;
+    while (!v.over && t < 120) { for (const e of v.step(bot(v), DT)) if (e.type === 'clear') c1 = e; t += DT; }
+    check(`mission "${m.title}" with one run and no decay: 3 stars`, c1 && c1.stars === 3, c1 ? `${c1.stars}★` : 'not cleared');
   }
+}
+
+// ---- the ensemble: every run gets the same pulse, jumps on its own, and on average decays as e^{−t/T₁} ----
+{
+  const w = new E.World({ seed: 'ghosts', T1: 2, ghosts: 2000 }); w.objects = []; w.generate = () => {}; w.r = [0, 0, -1];
+  const got = [];
+  for (let i = 0; i < 2 * 120; i++) { w.step({}, DT); if ((i + 1) % 120 === 0) got.push(w.p1); }
+  check('2000 ghosts from |1⟩: the fraction left in |1⟩ is e^{−t/T₁} at t = 1 and 2 s', got.every((p, k) => Math.abs(p - Math.exp(-(k + 1) / 2)) < 0.03),
+    got.map(p => p.toFixed(3)).join(', ') + ' vs ' + [1, 2].map(k => Math.exp(-k / 2).toFixed(3)).join(', '));
+  const v = new E.World({ seed: 'same', T1: Infinity, ghosts: 5 }); v.objects = []; v.generate = () => {}; v.r = E.onCircle(30 * D2R);
+  for (let i = 0; i < 60; i++) v.step(ONE, DT);
+  const th = v.thetas();
+  check('without decay every run follows the same pulse exactly', th.every(x => Math.abs(x - th[0]) < 1e-12));
+  const s = new E.World({ seed: 'split', T1: Infinity, ghosts: 400, noReset: true }); s.objects = []; s.generate = () => {}; s.r = E.onCircle(Math.PI / 2);
+  s.measure({ want: 1 }, []);
+  const ones = s.ghosts.filter(g => g.r[2] < 0).length;
+  check('a measurement splits the runs by the Born rule (≈ ½ at the equator)', Math.abs(ones / 400 - 0.5) < 0.08, `${ones}/400`);
+  // after the split, one +X π/2 pulse on every run takes both groups to the equator together (θ and π − θ meet at π/2)
+  for (const g of s.ghosts) g.r = E.rotate(g.r, [E.P.OMEGA, 0, 0], Math.PI / 2 / E.P.OMEGA);
+  const ths = s.thetas();
+  check('after a measurement one pulse brings both groups to the equator together', ths.every(x => Math.abs(x - Math.PI / 2) < 0.03),
+    `${(Math.min(...ths) / D2R).toFixed(1)}°–${(Math.max(...ths) / D2R).toFixed(1)}°`);
+  // the game's gates measure and reset: the outcomes follow the Born rule, then every run is back in |0⟩
+  const z = new E.World({ seed: 'reset', T1: Infinity, ghosts: 400 }); z.objects = []; z.generate = () => {}; z.r = E.onCircle(120 * D2R);
+  const ev = []; z.measure({ want: 1 }, ev);
+  check('measure-and-reset: Born-rule outcomes, then every run in |0⟩', Math.abs(ev[0].ones / 400 - 0.75) < 0.07 && z.ghosts.every(g => g.r[2] === 1), `${ev[0].ones}/400 read 1`);
+  // the score is the fidelity, the average of the runs' own fidelities, so aiming the mean is best
+  const f = new E.World({ seed: 'fid', T1: 2, ghosts: 50 }); f.objects = []; f.generate = () => {}; f.r = E.onCircle(100 * D2R);
+  for (let i = 0; i < 240; i++) f.step(i < 60 ? ONE : {}, DT);
+  const avg = f.ghosts.reduce((a, g) => a + E.fidelity(g.r, E.onCircle(110 * D2R, f.r[1] <= 0 ? -1 : 1)), 0) / 50;
+  check('the ensemble fidelity F̄ is the mean of the runs\' fidelities', close(f.fidelity(110 * D2R), avg, 1e-12), `${f.fidelity(110 * D2R).toFixed(4)}`);
+  const best = f.theta; let top = -1, at = 0;
+  for (let d = 0; d <= 180; d += 0.5) { const F = f.fidelity(d * D2R); if (F > top) { top = F; at = d; } }
+  check('F̄ is largest with the target at the mean\'s direction', Math.abs(at - best / D2R) < 0.6 && close(top, (1 + f.purity) / 2, 1e-3),
+    `best at ${at}°, mean at ${(best / D2R).toFixed(1)}°, F̄max = ${top.toFixed(3)} = (1 + |r̄|)/2`);
+  const mixed = new E.World({ seed: 'mix', T1: Infinity, ghosts: 2 }); mixed.objects = []; mixed.generate = () => {};
+  mixed.ghosts[0].r = E.onCircle(150 * D2R); mixed.ghosts[1].r = [0, 0, 1];
+  check('a spread-out ensemble cannot pass a ring, however well aimed', !mixed.passes({ th: mixed.theta, rad: 20 * D2R }), `|r̄| = ${mixed.purity.toFixed(2)}`);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
