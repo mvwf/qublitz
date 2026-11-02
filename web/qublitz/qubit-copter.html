@@ -41,7 +41,7 @@
   .overlay h2 small{display:block;font-size:13px;font-weight:400;color:#9fb2cc;letter-spacing:.04em;margin-top:2px}
   .overlay p{max-width:640px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
   .overlay p b{color:#fff}
-  .overlay .modes{display:grid;grid-template-columns:repeat(2,minmax(0,250px));gap:10px;justify-content:center;margin:12px 0 4px}
+  .overlay .modes{display:grid;grid-template-columns:repeat(3,minmax(0,210px));gap:10px;justify-content:center;margin:12px 0 4px}
   @media(max-width:560px){.overlay .modes{grid-template-columns:1fr}}
   .overlay .modes button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 14px;text-align:left}
   .overlay .modes button b{display:block;font-size:15px}
@@ -71,14 +71,15 @@
   .box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:13px}
   .box h3{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600;display:flex;gap:8px;align-items:baseline}
   .box h3 span{text-transform:none;letter-spacing:0;font-weight:400}
-  .pad .axis{display:grid;grid-template-columns:118px repeat(5,minmax(0,1fr));gap:6px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+  .pad .axis{display:grid;grid-template-columns:104px repeat(4,minmax(0,1fr));gap:6px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
   .pad .axis:first-of-type{border-top:0}
   .pad .axis.off{opacity:.35}
   .pad .name{font-weight:700;font-size:17px;line-height:1.1}
   .pad .name small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
   .pad .axis[data-axis=x] .name{color:var(--dx)} .pad .axis[data-axis=y] .name{color:var(--dy)} .pad .axis[data-axis=z] .name{color:var(--dz)}
-  .pad button{padding:9px 4px;font-size:14px;touch-action:none;white-space:nowrap}
+  .pad button{padding:6px 4px;min-height:46px;font-size:14px;touch-action:none;white-space:nowrap}
   .pad button.hold{font-weight:700}
+  .pad button small{display:block;font-size:10.5px;color:var(--muted);line-height:1.1}
   .pad .axis[data-axis=x] button.hold{border-color:#efb3bc} .pad .axis[data-axis=y] button.hold{border-color:#a9dbb4} .pad .axis[data-axis=z] button.hold{border-color:#b4cdee}
   .pad button.on{background:#ffd166;border-color:#e0b040}
   .pad .tips{font-size:12px;color:var(--muted);margin:6px 0 0}
@@ -129,11 +130,11 @@
   <div class="overlay" id="menu">
     <h2>Qubit Copter<small>NO PRECESSION · YOU DRIVE EVERY ROTATION</small></h2>
     <div class="modes" role="group" aria-label="Mode">
-      <button data-mode="learn" aria-pressed="true"><b>📘 Learn</b><span>six short lessons on what X, Y and Z do</span></button>
-      <button data-mode="free" aria-pressed="false"><b>🧪 Free flight</b><span>no clock: try any rotation and watch the numbers</span></button>
-      <button data-mode="targets" aria-pressed="false"><b>🎯 Targets</b><span>random states arrive in time; faster and smaller</span></button>
-      <button data-mode="circuit" aria-pressed="false"><b>🔌 Circuit</b><span>each target is the state after a real gate</span></button>
+      <button data-mode="learn" aria-pressed="true"><b>📘 Learn</b><span>six short lessons on X, Y and Z</span></button>
+      <button data-mode="free" aria-pressed="false"><b>🧪 Free flight</b><span>no clock: try any rotation</span></button>
+      <button data-mode="targets" aria-pressed="false"><b>🎯 Play</b><span>reach each target state in time; it speeds up</span></button>
     </div>
+    <label id="circuitOpt" style="font-size:13px;color:#c7d3e6"><input type="checkbox" id="optCircuit"> targets from a real gate circuit (H, S, T, √X…)</label>
     <div class="lessons" id="lessonPick" role="group" aria-label="Lesson"></div>
     <p id="menuHelp"></p>
     <button class="go" id="play">Start ▶</button>
@@ -164,18 +165,17 @@
 <div class="deck">
   <div class="box pad" id="pad">
     <h3>Rotate the qubit <span>hold to turn, or fire an exact pulse</span></h3>
-    <div class="axis" data-axis="x"><div class="name">X <small>drive phase 0° (σx)</small></div>
-      <button data-pulse="-0.5" title="Quarter turn about −x">−π/2</button><button class="hold" data-hold="-1" title="Hold: turn about −x (Shift+X)">⟲ −X</button>
-      <button class="hold" data-hold="1" title="Hold: turn about +x (key X)">+X ⟳</button><button data-pulse="0.5" title="Quarter turn about +x: √X">π/2</button><button data-pulse="1" title="Half turn about x: the X gate">π</button></div>
-    <div class="axis" data-axis="y"><div class="name">Y <small>drive phase 90° (σy)</small></div>
-      <button data-pulse="-0.5" title="Quarter turn about −y">−π/2</button><button class="hold" data-hold="-1" title="Hold: turn about −y (Shift+Y)">⟲ −Y</button>
-      <button class="hold" data-hold="1" title="Hold: turn about +y (key Y)">+Y ⟳</button><button data-pulse="0.5" title="Quarter turn about +y: √Y">π/2</button><button data-pulse="1" title="Half turn about y: the Y gate">π</button></div>
-    <div class="axis" data-axis="z"><div class="name">Z <small>detune / phase (σz)</small></div>
-      <button data-pulse="-0.5" title="Quarter turn about −z: S†">−π/2</button><button class="hold" data-hold="-1" title="Hold: turn about −z (Shift+Z)">⟲ −Z</button>
-      <button class="hold" data-hold="1" title="Hold: turn about +z (key Z)">+Z ⟳</button><button data-pulse="0.5" title="Quarter turn about +z: the S gate">π/2</button><button data-pulse="1" title="Half turn about z: the Z gate">π</button></div>
-    <p class="tips">Keys: hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> to turn the + way, add <kbd>Shift</kbd> for the − way, <kbd>P</kbd> pauses.
-      ⟳ is counterclockwise looking down the axis from its + end (the right-hand rule). In Targets and Circuit you can also
-      <b>point to steer</b>: hold on the sphere where you want to go.</p>
+    <div class="axis" data-axis="x"><div class="name">X <small>drive phase 0°</small></div>
+      <button class="hold" data-hold="-1" title="Hold: turn about −x (Shift+X)">⟲ −X</button><button class="hold" data-hold="1" title="Hold: turn about +x (key X)">+X ⟳</button>
+      <button data-pulse="0.5" title="Quarter turn about +x">90°<small>√X</small></button><button data-pulse="1" title="Half turn about x">180°<small>X gate</small></button></div>
+    <div class="axis" data-axis="y"><div class="name">Y <small>drive phase 90°</small></div>
+      <button class="hold" data-hold="-1" title="Hold: turn about −y (Shift+Y)">⟲ −Y</button><button class="hold" data-hold="1" title="Hold: turn about +y (key Y)">+Y ⟳</button>
+      <button data-pulse="0.5" title="Quarter turn about +y">90°<small>√Y</small></button><button data-pulse="1" title="Half turn about y">180°<small>Y gate</small></button></div>
+    <div class="axis" data-axis="z"><div class="name">Z <small>detune / phase</small></div>
+      <button class="hold" data-hold="-1" title="Hold: turn about −z (Shift+Z)">⟲ −Z</button><button class="hold" data-hold="1" title="Hold: turn about +z (key Z)">+Z ⟳</button>
+      <button data-pulse="0.5" title="Quarter turn about +z">90°<small>S gate</small></button><button data-pulse="1" title="Half turn about z">180°<small>Z gate</small></button></div>
+    <p class="tips">Keys: hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> (<kbd>Shift</kbd> for −). ⟳ = counterclockwise seen from the + end of the axis.
+      In Play you can also hold on the sphere where you want to go.</p>
   </div>
 
   <div class="box read" id="read">
@@ -184,9 +184,6 @@
     <div class="bars">
       <span>P(0)</span><div class="bar"><i id="bP0"></i></div><span class="num" id="nP0"></span>
       <span>P(1)</span><div class="bar"><i id="bP1"></i></div><span class="num" id="nP1"></span>
-      <span style="color:var(--dx)">⟨σx⟩</span><div class="bar pm"><i id="bX"></i></div><span class="num" id="nX"></span>
-      <span style="color:var(--dy)">⟨σy⟩</span><div class="bar pm"><i id="bY"></i></div><span class="num" id="nY"></span>
-      <span style="color:var(--dz)">⟨σz⟩</span><div class="bar pm"><i id="bZ"></i></div><span class="num" id="nZ"></span>
     </div>
     <div class="move" id="move">Press a control to see what it does.</div>
     <div class="lesson" id="lessonBox" hidden><span class="title" id="lessonTitle"></span> · <span id="lessonBrief"></span></div>
@@ -210,7 +207,7 @@
   <p>In the frame rotating with a drive that is exactly on resonance, the qubit's Hamiltonian has no σ<sub>z</sub> term of its own. Adding one is up to you:</p>
   <div class="eq">H = (ħΩ/2)(a<sub>x</sub> σ<sub>x</sub> + a<sub>y</sub> σ<sub>y</sub> + a<sub>z</sub> σ<sub>z</sub>),&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = Ω (a<sub>x</sub>, a<sub>y</sub>, a<sub>z</sub>)</div>
   <p>so the Bloch vector <b>r</b> = (⟨σ<sub>x</sub>⟩, ⟨σ<sub>y</sub>⟩, ⟨σ<sub>z</sub>⟩) stays put unless driven, and turns about <b>ω</b> at rate |<b>ω</b>|
-    while you drive (here Ω = 1.8 rad/s, so a π pulse takes 1.75 s; a real transmon does it in tens of nanoseconds). The X and Y controls are the two
+    while you drive (here Ω = 1.8 rad/s, so a π pulse takes 1.75 s; a real transmon typically does it in 10–50 ns). The X and Y controls are the two
     quadratures of the microwave drive: its phase α picks the equatorial axis (cos α, sin α, 0). The Z control detunes the drive by Ω while you hold it,
     which in the rotating frame is a precession about z, and stops when you let go.</p>
   <p>Because a rotation about <b>n</b> keeps <b>r</b>·<b>n</b> fixed, holding X freezes ⟨σ<sub>x</sub>⟩ and sends ⟨σ<sub>y</sub>⟩ and ⟨σ<sub>z</sub>⟩ around a
@@ -218,7 +215,7 @@
     |0⟩/|1⟩ basis, yet it changes the state: a later X or Y pulse takes it somewhere else.</p>
   <p><b>In the Virtual Qubit Lab</b> your moves become square pulses on the σx and σy channels of a 5 GHz qubit with Ω<sub>R</sub>/2π = 50 MHz (a π pulse
     is 10 ns) and long T₁, so the lab's P(1) matches the game. The lab has no σz channel, so Z turns become a <b>virtual Z</b>, as on real hardware: every later
-    pulse has its phase shifted instead, which gives the same P(1); the final state differs only by a leftover turn about z. Lower T₁ there to watch the
+    pulse has its phase shifted instead, which gives the same P(1). The lab plots its Bloch vector in its own axes (|0⟩ at the bottom, and its x and y swapped relative to this game), so compare P(1) rather than the arrow. Lower T₁ there to watch the
     same moves decohere. (The lab keeps the terms the rotating-wave approximation drops, so with a much faster drive its answer would drift by a few degrees.)</p>
   <p><b>Point to steer</b> (Targets and Circuit) uses the same fact: a rotation about an equatorial axis <b>n</b> joins <b>r</b> to a point <b>p</b> in one turn when
     (<b>r</b> − <b>p</b>)·<b>n</b> = 0, that is <b>n</b> ∥ (<b>r</b> − <b>p</b>) × <b>z</b>, a real choice of drive phase. <b>Circuit</b> targets are the states a random
@@ -240,8 +237,12 @@ if (window.QUBLITZ_STANDALONE) { $('#back').href = SITE + '#labs'; $('#offlineHi
 $('#labLinkTop').href = LAB;
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
-const S = { mode: store.get('copter:mode2', 'learn'), lesson: store.get('copter:lesson', C.LESSONS[0].id), learned: store.get('copter:learned', []) };
+const S = { circuit: store.get('copter:circuit', false), mode: store.get('copter:mode2', 'learn'), lesson: store.get('copter:lesson', C.LESSONS[0].id), learned: store.get('copter:learned', []) };
 if (!C.LESSONS.some(l => l.id === S.lesson)) S.lesson = C.LESSONS[0].id;
+if (S.mode === 'circuit') { S.mode = 'targets'; S.circuit = true; }
+$('#optCircuit').checked = S.circuit;
+$('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); });
+const gameMode = () => S.mode === 'targets' && S.circuit ? 'circuit' : S.mode;
 const AXC = ['#ff7a8a', '#7ee08a', '#7fb8ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'], AXL = ['x', 'y', 'z'];
 const isGame = () => S.mode === 'targets' || S.mode === 'circuit';
 
@@ -365,7 +366,7 @@ const SND = {
 const EXPLAIN = {
   x: '<b>Turning about x.</b> The drive is in phase (σx). ⟨σx⟩ stays fixed while ⟨σy⟩ and ⟨σz⟩ trade places: P(1) changes.',
   y: '<b>Turning about y.</b> The same drive, 90° later in phase (σy). ⟨σy⟩ stays fixed; ⟨σx⟩ and ⟨σz⟩ trade places.',
-  z: '<b>Turning about z.</b> The drive is detuned for as long as you hold, so the state precesses. Only the phase φ changes: P(1) stays fixed.',
+  z: '<b>Turning about z.</b> While you hold, the qubit\'s frequency is offset from the drive\'s frame (a detuning), so it precesses about z. Only the phase φ changes: P(1) stays fixed. On hardware this is usually a virtual Z.',
 };
 const seen = new Set();
 // One gate name for a turn of ang (radians, signed) about axis ax, if it lands on one.
@@ -407,26 +408,26 @@ const MENU_HELP = {
 };
 function syncMenu() {
   document.querySelectorAll('#menu .modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
-  $('#lessonPick').hidden = S.mode !== 'learn';
+  $('#lessonPick').hidden = S.mode !== 'learn'; $('#circuitOpt').hidden = S.mode !== 'targets';
   $('#lessonPick').innerHTML = C.LESSONS.map((l, i) => `<button data-l="${l.id}" aria-pressed="${l.id === S.lesson}" class="${S.learned.includes(l.id) ? 'done' : ''}">${i + 1}. ${l.title}</button>`).join('');
   $('#lessonPick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.lesson = b.dataset.l; store.set('copter:lesson', S.lesson); syncMenu(); }));
-  $('#menuHelp').innerHTML = MENU_HELP[S.mode];
-  const b = isGame() ? store.get('copter:best:' + S.mode, 0) : 0;
-  $('#menuBest').textContent = b ? `Best ${S.mode === 'circuit' ? 'Circuit' : 'Targets'} score: ${b}` : S.mode === 'learn' ? `${S.learned.length} of ${C.LESSONS.length} lessons done` : '';
+  $('#menuHelp').innerHTML = MENU_HELP[gameMode()];
+  const b = isGame() ? store.get('copter:best:' + gameMode(), 0) : 0;
+  $('#menuBest').textContent = b ? `Best ${gameMode() === 'circuit' ? 'circuit' : ''} score: ${b}` : S.mode === 'learn' ? `${S.learned.length} of ${C.LESSONS.length} lessons done` : '';
 }
 document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('copter:mode2', S.mode); syncMenu(); }));
 function start() {
-  world = new C.World({ seed: 'r' + Math.random().toString(36).slice(2, 8), mode: S.mode, lesson: S.lesson });
+  world = new C.World({ seed: 'r' + Math.random().toString(36).slice(2, 8), mode: gameMode(), lesson: S.lesson });
   hist = []; marks = []; noteT = 0; flash = 0; aim = null; move = lastMove = null; phase = 'play'; show(null); acc = 0; last = performance.now();
   sc.classList.toggle('steer', isGame());
   $('#lessonBox').hidden = !world.lesson; $('#freeRow').hidden = S.mode !== 'free'; $('#labRow').hidden = isGame();
-  $('#readMode').textContent = { learn: '· Learn', free: '· Free flight', targets: '· Targets', circuit: '· Circuit' }[S.mode];
+  $('#readMode').textContent = { learn: '· Learn', free: '· Free flight', targets: '· Play', circuit: '· Play (circuit)' }[gameMode()];
   if (world.lesson) {
     const i = C.LESSONS.indexOf(world.lesson);
     $('#lessonTitle').textContent = `Lesson ${i + 1}: ${world.lesson.title}`; $('#lessonBrief').innerHTML = world.lesson.brief;
     note(world.lesson.brief, 6);
   } else if (S.mode === 'free') note('<b>Free flight.</b> Nothing moves until you drive it. Hold X, Y or Z, or fire a pulse from the pad.', 5);
-  else note(S.mode === 'circuit' ? '<b>Circuit.</b> Each target is the state after the gate written above it, starting from |0⟩.' : '<b>Targets.</b> Be inside all three gold windows when they reach the copter.', 4);
+  else note(gameMode() === 'circuit' ? '<b>Circuit.</b> Each target is the state after the gate written above it, starting from |0⟩.' : '<b>Targets.</b> Be inside all three gold windows when they reach the copter.', 4);
   syncPad(); syncLab();
 }
 function pause() { phase = 'paused'; show('#paused'); }
@@ -442,7 +443,7 @@ $('#next').addEventListener('click', () => {
 function note(html, secs = 5) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
 function gameOver() {
   phase = 'over'; overAt = performance.now();
-  const w = world, score = Math.round(w.score), key = 'copter:best:' + S.mode, prev = store.get(key, 0);
+  const w = world, score = Math.round(w.score), key = 'copter:best:' + gameMode(), prev = store.get(key, 0);
   if (score > prev) store.set(key, score);
   $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
   $('#overScore').textContent = score;
@@ -517,7 +518,7 @@ function syncLab() {
   $('#labGo').href = href; $('#labGo').classList.toggle('empty', !n);
   const fromZero = RE.angle(starts, [0, 0, 1]) < 1e-6;
   $('#labInfo').innerHTML = !n ? 'Drive the qubit to build a pulse schedule.'
-    : `${n} square pulse${n > 1 ? 's' : ''}, ${labSeq.end.toFixed(0)} ns` + (Math.abs(labSeq.phi) > 0.02 ? ` · Z turns become a virtual Z (leftover ${(labSeq.phi / D2R).toFixed(0)}° about z)` : '')
+    : `${n} square pulse${n > 1 ? 's' : ''}, ${labSeq.pulses.reduce((a, p) => a + p.dur, 0).toFixed(1)} ns of drive` + (Math.abs(labSeq.phi) > 0.02 ? ` · Z turns become a virtual Z (leftover ${(labSeq.phi / D2R).toFixed(0)}° about z)` : '')
       + (labSeq.cut ? ` · last ${n} only` : '') + (fromZero ? '' : ' · the lab starts in |0⟩, not where you started');
 }
 
@@ -691,13 +692,11 @@ function drawStrips(t) {
 }
 
 /* ---------------- the readout ---------------- */
-const pm = (el, v) => { const w = Math.abs(v) * 50; el.style.left = (v >= 0 ? 50 : 50 - w) + '%'; el.style.width = w + '%'; };
 function drawReadout() {
   const r = world ? world.r : [0, 0, 1], p1 = (1 - r[2]) / 2;
   $('#ket').innerHTML = '|ψ⟩ = ' + C.stateName(r).replace(/e\^\{i(\d+)°\}/, 'e<sup>i$1°</sup>');
   $('#bP0').style.width = (100 * (1 - p1)) + '%'; $('#bP1').style.width = (100 * p1) + '%';
   $('#nP0').textContent = (1 - p1).toFixed(2); $('#nP1').textContent = p1.toFixed(2);
-  [['#bX', '#nX'], ['#bY', '#nY'], ['#bZ', '#nZ']].forEach(([b, n], i) => { pm($(b), r[i]); $(n).textContent = (r[i] >= 0 ? '+' : '−') + Math.abs(r[i]).toFixed(2); });
   $('#move').innerHTML = world ? moveText() : 'Press Start, then a control, to see what it does.';
   document.querySelectorAll('.pad .axis').forEach(row => {
     const ax = row.dataset.axis, a = world ? world.amp[ax] : 0;

@@ -78,10 +78,10 @@
   const K = Object.fromEntries(KETS.map(([v, n]) => [n, v]));
   const LESSONS = [
     { id: 'flip', title: 'Flip the bit', start: '|0⟩', goal: '|1⟩', axes: ['x'],
-      brief: 'Hold <b>X</b> (or press <b>π</b>). The drive turns the state about the x axis, so it swings from |0⟩ over to |1⟩. Watch the three strips.',
+      brief: 'Hold <b>+X</b> (or press <b>180°</b> on the X row). The drive turns the state about the x axis, so it swings from |0⟩ over to |1⟩. Watch the three strips.',
       learn: 'That half turn is a <b>π pulse</b>, the quantum NOT gate X. ⟨σz⟩ went from +1 to −1 while <b>⟨σx⟩ never moved</b>: a rotation leaves the part of the state along its own axis alone. Keep holding and it comes back: that is a Rabi oscillation.' },
     { id: 'super', title: 'Superposition', start: '|0⟩', goal: '|+⟩', axes: ['y'],
-      brief: 'Turn about <b>Y</b> until you reach |+⟩ on the equator. Try the <b>π/2</b> button: a quarter turn.',
+      brief: 'Turn about <b>Y</b> until you reach |+⟩ on the equator. Try the <b>90°</b> button: a quarter turn.',
       learn: 'A π/2 pulse makes |+⟩ = (|0⟩ + |1⟩)/√2. On the equator ⟨σz⟩ = 0, so P(1) = (1 − ⟨σz⟩)/2 = ½: a measurement gives 0 or 1 with even odds.' },
     { id: 'phase', title: 'Phase is a direction', start: '|+⟩', goal: '|+i⟩', axes: ['z'],
       brief: 'Now turn about <b>Z</b>. Keep an eye on the ⟨σz⟩ strip, which is P(1) in disguise.',
@@ -103,8 +103,9 @@
    * state exactly as the game's +X and +Y do; its Rabi rate is 2π f (f = Ω_R/2π in GHz, so angles per ns).
    * It has no σz channel, so Z turns are done the way real labs do them, as a virtual Z: a turn by Φ about z
    * commutes to the end of the sequence if every later drive axis is turned by −Φ, so the lab's P(1) comes out
-   * the same and its final state differs only by the leftover Φ about z. A segment that drives z together with
-   * x or y is split into short slices (a Trotter step every 3°). */
+   * the same and its final state differs only by the leftover Φ about z (the lab plots it in its own axes: x and y
+   * swapped, |0⟩ at −z). A segment that drives z together with x or y is split into short slices (a Trotter step
+   * every 3°). */
   function labSequence(log, opts = {}) {
     const f = opts.fGHz ?? 0.05, t0 = opts.start ?? 5, rate = 2 * Math.PI * f, slice = 3 * D2R, max = opts.max ?? 80;
     const out = []; let phi = 0, t = t0;
