@@ -20,7 +20,8 @@
  *
  * Both plots also show the mean frequency ⟨f⟩ = Σ f·P(f) / Σ P(f), the power-weighted average (the centre of mass
  * of the power spectrum P = |X|², over 0..fmax): a white line that moves along the spectrogram with time, and a line on
- * the spectrum.
+ * the spectrum. opts.meanDash (e.g. [7, 5], in CSS px) draws the white line dashed. Call clear() after fmax changes, since
+ * the columns already drawn were painted on the old frequency axis.
  *
  * LiveSpec.fft(re, im) is the radix-2 FFT the pages also use for their static spectra, and
  * LiveSpec.meanFrequency(freqs, amps) is ⟨f⟩ for a spectrum given as amplitudes.
@@ -135,14 +136,15 @@
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, g.W, g.H);
       ctx.imageSmoothingEnabled = false; ctx.drawImage(off, m.l, m.t);
       // ⟨f⟩ over time: a white line (dark-edged so it reads on yellow too), broken where there was no signal
+      const dash = (opts.meanDash || []).map(v => v * d);
       for (const [col, wid] of [['rgba(0,0,0,0.55)', 4], ['#fff', 2]]) {
-        ctx.strokeStyle = col; ctx.lineWidth = wid * d; ctx.lineJoin = 'round'; ctx.beginPath(); let on = false;
+        ctx.strokeStyle = col; ctx.lineWidth = wid * d; ctx.lineJoin = 'round'; ctx.setLineDash(dash); ctx.beginPath(); let on = false;
         for (let x = 0; x < meanY.length; x++) { const v = meanY[x];
           if (v !== v) { on = false; continue; }
           const X = m.l + x, Y = m.t + (1 - v) * g.ph; on ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); on = true; }
         ctx.stroke();
       }
-      ctx.lineWidth = 1;
+      ctx.setLineDash([]); ctx.lineWidth = 1;
       ctx.font = (11 * d) + 'px Helvetica, Arial, sans-serif'; ctx.fillStyle = '#5a6b63';
       ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       const step = niceStep(fmax);
@@ -159,7 +161,7 @@
       const tag = feed === 'sound' ? '♪ what you hear' : running() ? 'live signal, silent (press ♪ to hear it)' : 'press ♪ to hear it';
       const mf = held ? frameMean(held) : NaN;
       ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(tag + (mf > 0 ? '   ·   white line: mean frequency ⟨f⟩ = ' + fmtHz(mf) : ''), m.l + 6 * d, m.t + 5 * d);
+      ctx.fillText(tag + (mf > 0 ? (opts.meanDash ? '   ·   dashed white line: mean frequency ⟨f⟩ = ' : '   ·   white line: mean frequency ⟨f⟩ = ') + fmtHz(mf) : ''), m.l + 6 * d, m.t + 5 * d);
       // predicted frequencies as ticks on the right edge
       markersOf().forEach(k => { if (k.f > fmax) return; const y = m.t + (1 - k.f / fmax) * g.ph;
         ctx.strokeStyle = k.color || '#9bd'; ctx.lineWidth = 2 * d; ctx.beginPath();

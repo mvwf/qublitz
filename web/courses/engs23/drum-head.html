@@ -199,11 +199,18 @@
       <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
     <canvas id="lspec" height="230"></canvas>
     <canvas id="lline" height="170" style="margin-top:8px"></canvas>
+    <div class="row tight">
+      <label class="lbl" for="fcut">Upper frequency limit</label>
+      <input id="fcut" type="range" min="3" max="12" step="0.5" value="10" style="width:180px">
+      <span class="val" id="fcutv" style="min-width:150px"></span>
+    </div>
     <p class="legend">The same short-time FFT as the Spectrogram Explorer. Without sound it runs silently on the pickup
       signal of the ideal membrane, so every mode the pickup hears is a steady horizontal line: strike the head, pick modes or move
       the pickup and watch the lines change. Press ♪ and it shows the sound instead (the last 8192 samples per column), where the
       lines fade because the sound has a decay added for listening; the ideal membrane rings forever. The ticks on the right and the dashed lines below are the predicted
-      ν<sub><span class="mvar">mn</span></sub>. Play <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b> and compare the line spacing.</p>
+      ν<sub><span class="mvar">mn</span></sub>. The dashed white line is the mean frequency ⟨<span class="mvar">f</span>⟩. Slide the upper limit up to see
+      the high modes a sharp strike or an off-centre pickup brings in (it is set in multiples of ν<sub>10</sub>, so it follows the drum's size
+      and tension; the history clears when you change it). The model includes every mode up to 12 ν<sub>10</sub>, so nothing is missing below the limit. Play <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b> and compare the line spacing.</p>
   </div>
 
   <div class="card" id="ladderCard">
@@ -287,8 +294,10 @@ if (window.QUBLITZ_STANDALONE) {
 
   // ---------- modes ----------
   // n = 0..10, m = 1..8: enough for a mallet 0.04a wide; the tiles show n ≤ 4, m ≤ 4.
-  const NMAX=10, MMAX=8, TILE_N=5, TILE_M=4, MAXSEL=6;
-  const modes = D.buildModes(NMAX, MMAX);
+  // every mode up to FMODEL·ν10 (j_24,1 and j_0,10 are both above 12 ν10, so n ≤ 23 and m ≤ 9 cover it), so the spectrum
+  // is complete up to the spectrogram's highest limit. Modes are sorted by frequency, so the filter keeps their indices.
+  const NMAX=23, MMAX=9, FMODEL=12, TILE_N=5, TILE_M=4, MAXSEL=6;
+  const modes = D.buildModes(NMAX, MMAX).filter(md=>md.ratio<=FMODEL+1e-9);
   const modeAt = (m,n) => modes.find(md=>md.m===m && md.n===n);
   const SCOL=['#00693e','#2d6fb3','#c84b31','#8a5cc4','#cc8800','#0f766e'];
 
@@ -749,8 +758,12 @@ if (window.QUBLITZ_STANDALONE) {
       for(let i=0;i<n;i++){ x[i]+=c.a*cr+c.b*sr; const nc=cr*cd-sr*sd; sr=sr*cd+cr*sd; cr=nc; } }
     return x;
   }
-  const live=LiveSpec.create({spec:$('lspec'), line:$('lline'), signal:pickupSamples,
-    fmax:()=>Math.min(8000,Math.max(1000,Math.ceil(6.5*f10Hz()/100)*100)),
+  // the spectrogram's upper limit, in multiples of ν10 (10 by default, up to FMODEL), rounded to 50 Hz
+  let fcut=10;
+  const fmaxHz=()=>Math.min(16000,Math.max(200,Math.round(fcut*f10Hz()/50)*50));
+  function showFcut(){ const t=fcut+' ν₁₀ = '+(fmaxHz()>=1000?(fmaxHz()/1000).toFixed(2)+' kHz':fmaxHz()+' Hz'); if($('fcutv').textContent!==t) $('fcutv').textContent=t; }
+  const live=LiveSpec.create({spec:$('lspec'), line:$('lline'), signal:pickupSamples, meanDash:[7,5],
+    fmax:()=>{ showFcut(); return fmaxHz(); },
     markers:()=>{ const comps=pickupComps(), mx=Math.max(1e-12,...comps.map(c=>c.amp)), f10=f10Hz();
       return comps.filter(c=>c.amp>0.02*mx).map(c=>{ const si=sel.findIndex(([m,n])=>m===c.md.m&&n===c.md.n);
         return {f:c.md.ratio*f10, label:'('+c.md.m+','+c.md.n+')', color: src==='modes'&&si>=0? SCOL[si] : '#7fa8c9'}; }); }});
@@ -858,6 +871,7 @@ if (window.QUBLITZ_STANDALONE) {
   $('mw').addEventListener('input',e=>{ malletW=+e.target.value; $('mwv').textContent=malletW.toFixed(2)+' a'; });
   $('mw').addEventListener('change',()=>{ if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
   $('listen').addEventListener('click',()=>playPartials(drumPartials()));
+  $('fcut').addEventListener('input',e=>{ fcut=+e.target.value; showFcut(); live.clear(); });
   $('listenDrum').addEventListener('click',()=>playPartials(drumPartials()));
   $('listenString').addEventListener('click',()=>playPartials(harmonicPartials()));
   $('selLowest').addEventListener('click',()=>setSel([[1,0],[1,1],[1,2],[2,0]]));
