@@ -1,0 +1,772 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Drum Head — Vibration of a Circular Membrane</title>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;
+    line-height:1.5; padding:18px 20px 40px;}
+  h1{font-size:23px;margin:0 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .eqn,.eqn i,.frac,.mvar,.eqnum{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,'Times New Roman',Times,serif}
+  .eqns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 46px;margin:12px 0 16px}
+  .eqn-wrap{display:flex;align-items:center;gap:10px}
+  .eqn{font-size:21px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+  .eqn i{font-style:italic}
+  .frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.04}
+  .frac .num{border-bottom:1.3px solid currentColor;padding:0 5px 1px}
+  .frac .den{padding:1px 5px 0}
+  .brace{display:inline-flex;flex-direction:column;line-height:1.05;font-size:17px;border-left:1.3px solid currentColor;border-right:1.3px solid currentColor;border-radius:7px;padding:0 5px;text-align:center}
+  .eqop{margin:0 2px}
+  .eqnum{color:var(--muted);font-size:15px}
+  .mvar{font-style:italic}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 6px;max-width:1100px}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .wrap>.card{min-width:0}
+  .full{grid-column:1/-1}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px}
+  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  canvas{display:block;width:100%;border-radius:8px;background:var(--panel);border:1px solid var(--line);touch-action:none}
+  #drum{cursor:grab}
+  #tiles{cursor:pointer}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  .row.tight{gap:6px}
+  label.lbl{font-size:12.5px;color:var(--muted);min-width:fit-content}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:7px;padding:6px 11px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+  button.primary:hover{background:var(--green2);color:#fff}
+  button.sound{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.sound:hover{background:#a93a24;color:#fff}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{border:none;border-radius:0;padding:5px 10px}
+  .seg button:not(:last-child){border-right:1px solid var(--line)}
+  .seg button.on{background:var(--green);color:#fff}
+  input[type=range]{accent-color:var(--green);vertical-align:middle}
+  .val{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink);min-width:60px;display:inline-block;text-align:right}
+  .pill{font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:20px;padding:2px 9px;font-variant-numeric:tabular-nums}
+  .legend{font-size:12px;color:var(--muted);margin:6px 0 0}
+  .hint{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px dashed var(--line);
+    border-radius:8px;padding:9px 11px;margin-top:16px}
+  .hint b{color:var(--green)}
+  .muted{color:var(--muted)}
+  .flexcap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  a{color:var(--green)}
+  table.kt{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%;margin-top:8px}
+  table.kt th,table.kt td{border-bottom:1px solid var(--line);padding:3px 6px;text-align:right}
+  table.kt th{color:var(--muted);font-weight:600}
+  table.kt td small{color:var(--muted)}
+  .phys{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;font-size:12.5px}
+  .phys label{color:var(--muted)}
+  .footer{margin-top:18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+  .dl{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+  .dl[hidden]{display:none}
+  ol{margin:6px 0 0;padding-left:20px}
+  ol li{margin:4px 0}
+</style>
+
+<script src="../../shared/sitebar.js"></script>
+<a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
+<h1>The Drum Head</h1>
+<p class="sub" id="intro">A circular membrane of radius <span class="mvar">a</span> is clamped to a rigid rim, like a drum head, and its
+  displacement <span class="mvar">z</span>(<span class="mvar">r</span>, θ, <span class="mvar">t</span>) obeys the wave equation (Boas, ch. 13 §6).
+  Separating variables in polar coordinates gives Bessel functions in <span class="mvar">r</span>, and the clamped rim allows only the
+  zeros <span class="mvar">k<sub>mn</sub></span> of <span class="mvar">J<sub>n</sub></span>. Pick normal modes and watch them oscillate side by side on one clock,
+  or strike the head and see which modes it rings.</p>
+<div class="eqns">
+  <div class="eqn-wrap"><span class="eqn"><span>&nabla;<sup>2</sup><i>z</i></span><span class="eqop">=</span><span class="frac"><span class="num">1</span><span class="den"><i>v</i><sup>2</sup></span></span><span class="frac"><span class="num">&part;<sup>2</sup><i>z</i></span><span class="den">&part;<i>t</i><sup>2</sup></span></span></span><span class="eqnum">(6.1)</span></div>
+  <div class="eqn-wrap"><span class="eqn"><i>z</i><span class="eqop">=</span><span><i>J<sub>n</sub></i>(<i>k<sub>mn</sub>r</i>/<i>a</i>)</span><span class="brace"><span>sin <i>n</i>θ</span><span>cos <i>n</i>θ</span></span><span class="brace"><span>sin <i>k<sub>mn</sub>vt</i>/<i>a</i></span><span>cos <i>k<sub>mn</sub>vt</i>/<i>a</i></span></span></span><span class="eqnum">(6.6)</span></div>
+  <div class="eqn-wrap"><span class="eqn"><i>ν<sub>mn</sub></i><span class="eqop">=</span><span class="frac"><span class="num"><i>k<sub>mn</sub> v</i></span><span class="den">2π<i>a</i></span></span><span>,&ensp;<i>J<sub>n</sub></i>(<i>k<sub>mn</sub></i>) = 0</span></span></div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="drumCard">
+    <div class="flexcap"><h2 style="margin:0">Drum head — <span class="mvar">z</span>(<span class="mvar">r</span>, θ, <span class="mvar">t</span>)</h2>
+      <span class="pill" id="timePill">t = 0.00 T₁₀</span></div>
+    <div class="row tight" style="margin-top:6px">
+      <label class="lbl">Show</label>
+      <span class="seg" id="srcSeg"><button data-src="modes" class="on">Selected modes</button><button data-src="strike">Mallet strike</button></span>
+      <span class="seg" id="viewSeg"><button data-view="3d" class="on">3D</button><button data-view="top">Top</button></span>
+      <label class="lbl"><input type="checkbox" id="sand"> sand</label>
+    </div>
+    <canvas id="drum" height="380"></canvas>
+    <div class="row">
+      <button id="play" class="primary">❚❚ Pause</button>
+      <button id="reset">Reset to t = 0</button>
+      <button id="copyLink" title="Copy a link that reopens the page with these settings">Copy link</button>
+      <button id="listen" class="sound">♪ Listen</button>
+    </div>
+    <div class="row tight">
+      <label class="lbl">Slow motion</label>
+      <input id="speed" type="range" min="0.05" max="2" step="0.01" value="0.4" style="flex:1">
+      <span class="val" id="speedv" style="min-width:150px">0.40 T₁₀ per second</span>
+    </div>
+    <div class="row tight">
+      <label class="lbl">Click the head to</label>
+      <span class="seg" id="kindSeg"><button data-kind="strike" class="on">strike it</button><button data-kind="press">press &amp; release</button></span>
+      <label class="lbl">mallet width</label>
+      <input id="mw" type="range" min="0.04" max="0.3" step="0.01" value="0.08" style="width:110px">
+      <span class="val" id="mwv" style="min-width:44px">0.08 a</span>
+    </div>
+    <p class="legend" id="drumLegend">Height and colour are the displacement (red up, blue down). Drag to turn the drum. With
+      <b>Selected modes</b> the head shows the sum of the modes picked on the right; click the head to strike it instead.</p>
+  </div>
+
+  <div class="card" id="tilesCard">
+    <div class="flexcap"><h2 style="margin:0">Normal modes, seen from above — click to select</h2>
+      <span class="pill" id="selPill">4 selected</span></div>
+    <canvas id="tiles" height="380"></canvas>
+    <div class="row tight">
+      <button id="selLowest">Lowest four</button>
+      <button id="selFig">Figure 6.1</button>
+      <button id="selRadial">n = 0 only</button>
+      <button id="selClear">Clear</button>
+      <span class="muted" style="font-size:12px">up to 6 at a time</span>
+    </div>
+    <p class="legend" id="tilesLegend">Laid out as Boas's Figure 6.1: <span class="mvar">m</span> across, <span class="mvar">n</span> down. Each tile is
+      <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ, animated at its own
+      frequency. It has <span class="mvar">n</span> nodal diameters and <span class="mvar">m</span> − 1 nodal circles inside the rim. The number is
+      ν<sub><span class="mvar">mn</span></sub>/ν<sub>10</sub>. Every mode with <span class="mvar">n</span> ≥ 1 has a twin, sin <span class="mvar">n</span>θ, turned by
+      90°/<span class="mvar">n</span>, with the same frequency. After a strike each tile shows its mode's share of the energy
+      (the cos and sin twins together).</p>
+  </div>
+
+  <div class="card full" id="raceCard">
+    <div class="flexcap"><h2 style="margin:0">The selected modes side by side, on one clock</h2>
+      <span class="pill" id="racePill">after 1 T₁₀</span></div>
+    <canvas id="race" height="230"></canvas>
+    <canvas id="traces" height="190" style="margin-top:8px"></canvas>
+    <div class="row tight">
+      <button id="sync">Start them together (t = 0)</button>
+      <label class="lbl">Window</label>
+      <input id="win" type="range" min="1" max="8" step="0.5" value="3" style="width:140px">
+      <span class="val" id="winv" style="min-width:60px">3 T₁₀</span>
+    </div>
+    <p class="legend">Each drum is one normal mode started at full height at <span class="mvar">t</span> = 0. The dial turns once per
+      oscillation, so a mode with ν<sub><span class="mvar">mn</span></sub> = 1.59 ν<sub>10</sub> turns 1.59 times while the fundamental turns once. Below, the time
+      factor cos(2πν<sub><span class="mvar">mn</span></sub><span class="mvar">t</span>) of each mode over the last few fundamental periods T₁₀ = 1/ν<sub>10</sub>; dots mark each
+      mode's crests. On a string, harmonic <span class="mvar">n</span> makes exactly <span class="mvar">n</span> oscillations per T₁, so every harmonic is back at a crest on every
+      grid line and the string repeats each period. Here only the fundamental is.</p>
+  </div>
+
+  <div class="card" id="ladderCard">
+    <div class="flexcap"><h2 style="margin:0">Frequencies: drum against string</h2>
+      <span class="pill">ν / ν<sub>fundamental</sub></span></div>
+    <canvas id="ladder" height="190"></canvas>
+    <p class="legend">Top: every drum mode up to 6ν<sub>10</sub>; the selected ones in their colours, and after a strike the line height
+      is the mode's share of the energy. Bottom: a string of the same fundamental, ν<sub><span class="mvar">n</span></sub> = <span class="mvar">n</span>ν<sub>1</sub>.
+      None of the drum's overtones is a whole multiple of ν<sub>10</sub>. "This is why a drum is less musical than a violin" (Boas §6).</p>
+    <table class="kt" id="ktab"></table>
+    <p class="legend">The zeros <span class="mvar">k<sub>mn</sub></span> of <span class="mvar">J<sub>n</sub></span> (Problem 2), computed on this page, with ν<sub><span class="mvar">mn</span></sub>/ν<sub>10</sub>
+      and the frequency in Hz for the drum set below.</p>
+  </div>
+
+  <div class="card" id="physCard">
+    <h2>A real drum: put in numbers</h2>
+    <div class="phys">
+      <label for="pa">Radius <span class="mvar">a</span></label><input id="pa" type="range" min="5" max="40" step="0.1" value="17.8"><span class="val" id="pav">17.8 cm</span>
+      <label for="pT">Tension <span class="mvar">T</span></label><input id="pT" type="range" min="200" max="8000" step="10" value="2000"><span class="val" id="pTv">2000 N/m</span>
+      <label for="ps">Areal density σ</label><input id="ps" type="range" min="0.05" max="1" step="0.01" value="0.26"><span class="val" id="psv">0.26 kg/m²</span>
+    </div>
+    <p style="font-size:13.5px;margin:10px 0 4px">Wave speed <span class="mvar">v</span> = √(<span class="mvar">T</span>/σ) = <b id="vOut">87.7 m/s</b>,
+      fundamental ν<sub>10</sub> = <span class="mvar">k</span><sub>10</sub><span class="mvar">v</span>/(2π<span class="mvar">a</span>) = <b id="f10Out">189 Hz</b>.</p>
+    <div class="row">
+      <button id="listenDrum" class="sound">♪ Drum</button>
+      <button id="listenString">♪ Same partials, made harmonic</button>
+    </div>
+    <p class="legend">The defaults are a 14-inch tom with a 0.19 mm Mylar head (σ ≈ 0.26 kg/m²). <b>♪ Drum</b> plays what the head on
+      the left is doing: the selected modes at equal loudness, or after a strike every mode with its share of the energy, each at its
+      ν<sub><span class="mvar">mn</span></sub>. <b>♪ Same partials, made harmonic</b> keeps those loudnesses but moves the <span class="mvar">j</span>-th lowest partial to
+      <span class="mvar">j</span>ν<sub>10</sub>, as a string would have it. The ideal membrane of (6.1) never stops ringing; the sound alone gets a
+      decay so it can end. A real drum's air loading and stiff head shift these ratios (timpani are tuned to make a few of them nearly
+      harmonic); (6.1) leaves both out.</p>
+  </div>
+</div>
+
+<div class="hint">
+  <b>Exercise — the drum is not a string</b>
+  <ol>
+    <li>Press <b>Lowest four</b>. The first dial is the fundamental (1,0). How many turns has the (1,1) dial made when the fundamental
+      has made exactly one? Check it against <span class="mvar">k</span><sub>11</sub>/<span class="mvar">k</span><sub>10</sub> in the table.</li>
+    <li>Press <b>Start them together</b> and watch the traces. Do the four modes ever all reach a crest at the same instant again?
+      What would have to be true of the ratios for that to happen?</li>
+    <li>Select (2,0) alone, turn on <b>sand</b> in the <b>Top</b> view, and measure the radius of the nodal circle. Boas predicts
+      <span class="mvar">r</span> = <span class="mvar">a k</span><sub>10</sub>/<span class="mvar">k</span><sub>20</sub>. Why is that the right radius?</li>
+    <li>Switch to <b>Mallet strike</b> and strike the exact centre. Which tiles light up, and why can a centre strike never excite
+      a mode with <span class="mvar">n</span> ≥ 1? Then strike near the rim and compare the tiles and the sound.</li>
+    <li>Strike once, then play <b>♪ Drum</b> and <b>♪ Same partials, made harmonic</b>. Same loudnesses, different frequencies:
+      which one has a pitch you could sing?</li>
+  </ol>
+</div>
+
+<div class="footer">
+  Built for ENGS 23 · Systems, Fields &amp; Waves, following Boas, <i>Mathematical Methods in the Physical Sciences</i>, ch. 13 §6.
+  Same skeleton as the string: separate variables → eigenfunctions from the spatial problem and the boundary condition → each mode
+  oscillates at its own eigenvalue. In polar coordinates the eigenfunctions are Bessel functions and the eigenvalues are their zeros,
+  which are not evenly spaced. Bessel functions are computed from Bessel's integral and the zeros by bracketing and Newton's method;
+  <code>tests/drum-engine.test.js</code> checks them against Abramowitz &amp; Stegun.
+  <br><br>
+  Developed with Claude (Anthropic) through extensive prompt engineering and deep knowledge of the ENGS 23 course material.
+<p class="dl" id="offlineHint"><a href="drum-head-offline.html" download="engs23-drum-head.html">Download this demo</a>
+  as a single HTML file that runs offline in any browser.</p>
+</div>
+
+<script>
+// scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
+// runs from disk, so the back link goes to the live site and the download link is hidden.
+if (window.QUBLITZ_STANDALONE) {
+  document.getElementById('back').href = 'https://mvwf.github.io/qublitz/#engs23';
+  document.getElementById('offlineHint').hidden = true;
+}
+</script>
+<script src="../../shared/pagekit.js"></script>
+<script src="drum-engine.js"></script>
+<script>
+"use strict";
+(function(){
+  const D = window.DrumEngine;
+  const $ = id => document.getElementById(id);
+
+  // ---------- modes ----------
+  // n = 0..10, m = 1..8: enough for a mallet 0.04a wide; the tiles show n ≤ 4, m ≤ 4.
+  const NMAX=10, MMAX=8, TILE_N=5, TILE_M=4, MAXSEL=6;
+  const modes = D.buildModes(NMAX, MMAX);
+  const modeAt = (m,n) => modes.find(md=>md.m===m && md.n===n);
+  const SCOL=['#00693e','#2d6fb3','#c84b31','#8a5cc4','#cc8800','#0f766e'];
+
+  // ---------- state ----------
+  let src='modes', view='3d', sand=false, kind='strike', malletW=0.08;
+  let sel=[[1,0],[1,1],[1,2],[2,0]];                 // selected (m,n), in the order picked
+  let strikeAt=null;                                  // {rho, theta, kind, w} of the last strike
+  let strikeState=D.emptyState(modes);
+  let clock=0, playing=!window.matchMedia('(prefers-reduced-motion: reduce)').matches, lastTS=null, speed=0.4, win=3;
+  let cam={az:-0.62, el:0.6};
+  let phys={a:0.178, T:2000, s:0.26};
+
+  // The selected modes as a state: each a pure cos nθ mode scaled to unit peak height, released from rest.
+  function selState(){
+    const st=D.emptyState(modes);
+    sel.forEach(([m,n])=>{ const md=modeAt(m,n); st[md.index].Ac=1/md.peak; });
+    return st;
+  }
+  const curState = () => src==='strike' ? strikeState : selState();
+  const isActive = st => st.Ac||st.As||st.Bc||st.Bs;
+
+  // ---------- polar meshes: z on (ρ_i, θ_j), with per-mode radial and angular factors cached ----------
+  function makeMesh(Nr,Nt){
+    const rho=new Float32Array(Nr+1), cs=new Float32Array(Nt), sn=new Float32Array(Nt);
+    for(let i=0;i<=Nr;i++) rho[i]=i/Nr;
+    for(let j=0;j<Nt;j++){ cs[j]=Math.cos(2*Math.PI*j/Nt); sn[j]=Math.sin(2*Math.PI*j/Nt); }
+    return {Nr,Nt,rho,cs,sn,rad:new Map(),trig:new Map(),z:new Float32Array((Nr+1)*Nt),order:null,camKey:''};
+  }
+  function meshRad(M,md){ let R=M.rad.get(md.index);
+    if(!R){ R=new Float32Array(M.Nr+1); for(let i=0;i<=M.Nr;i++) R[i]=D.radial(md,M.rho[i]); M.rad.set(md.index,R); } return R; }
+  function meshTrig(M,n){ let T=M.trig.get(n);
+    if(!T){ T={c:new Float32Array(M.Nt),s:new Float32Array(M.Nt)};
+      for(let j=0;j<M.Nt;j++){ const th=2*Math.PI*j/M.Nt; T.c[j]=Math.cos(n*th); T.s[j]=Math.sin(n*th); } M.trig.set(n,T); } return T; }
+  function meshField(M,state,t){
+    const z=M.z, Nt=M.Nt; z.fill(0);
+    for(let k=0;k<modes.length;k++){ const st=state[k]; if(!isActive(st)) continue;
+      const md=modes[k], [c,s]=D.temporal(md,st,t); if(!c && !s) continue;
+      const R=meshRad(M,md), T=meshTrig(M,md.n);
+      for(let i=0;i<M.Nr;i++){ const Ri=R[i]; if(!Ri) continue; const o=i*Nt;
+        for(let j=0;j<Nt;j++) z[o+j]+=Ri*(c*T.c[j]+s*T.s[j]); }
+    }
+    return z;
+  }
+  const mainMesh=makeMesh(30,96), coarseMesh=makeMesh(16,40), miniMesh=makeMesh(16,56);
+
+  // Largest |z| the state reaches (sampled over about 12 fundamental periods), so the drawing has a fixed height scale.
+  function peakOf(state){
+    let p=0;
+    // the time step 0.1371 T10 is no simple fraction of any mode's period
+    for(let q=0;q<90;q++){ const z=meshField(coarseMesh,state,q*0.1371); for(let i=0;i<z.length;i++) p=Math.max(p,Math.abs(z[i])); }
+    return p||1;
+  }
+  let zMax=1;
+  function refreshScale(){ zMax=peakOf(curState()); sandDirty=true; }
+
+  // ---------- 3D drawing ----------
+  const ZH=0.34, SHELL=0.42;   // a displacement of zMax is drawn 0.34 a high; the shell is 0.42 a deep
+  function camera(w,h,pad){
+    const ca=Math.cos(cam.az), sa=Math.sin(cam.az), ce=Math.cos(cam.el), se=Math.sin(cam.el);
+    // fit the head (radius 1), its bumps (ZH) and the shell below it (SHELL) into the canvas
+    const S=Math.min((w-2*pad)/2, (h-2*pad)/(2*se+(ZH+SHELL)*ce)), cx=w/2, cy=h/2+S*(ZH-SHELL)*ce/2;
+    return {ca,sa,ce,se,S,cx,cy};
+  }
+  // world (x, y, z) → screen; depth grows away from the viewer
+  function project(C,x,y,z,out){
+    const X=x*C.ca-y*C.sa, Y=x*C.sa+y*C.ca;
+    out[0]=C.cx+C.S*X; out[1]=C.cy-C.S*(z*C.ce+Y*C.se); out[2]=Y*C.ce-z*C.se;
+  }
+  const NEU=[240,244,241], POS=[200,75,49], NEG=[45,111,179];
+  function colorOf(u,shade){
+    const a=Math.min(1,Math.pow(Math.abs(u),0.75)), c=u>=0?POS:NEG;
+    return 'rgb('+((NEU[0]+(c[0]-NEU[0])*a)*shade|0)+','+((NEU[1]+(c[1]-NEU[1])*a)*shade|0)+','+((NEU[2]+(c[2]-NEU[2])*a)*shade|0)+')';
+  }
+  const LX=-0.35, LY=-0.45, LZ=0.82;   // light from the front left, above
+
+  function drawDrum3D(g,w,h,M,state,t,scale,opts){
+    const C=camera(w,h,opts.pad||10), Nr=M.Nr, Nt=M.Nt, z=meshField(M,state,t);
+    const zs=ZH/scale, P=new Float32Array((Nr+1)*Nt*3), tmp=[0,0,0];
+    for(let i=0;i<=Nr;i++) for(let j=0;j<Nt;j++){ const k=i*Nt+j, r=M.rho[i];
+      project(C,r*M.cs[j],r*M.sn[j],z[k]*zs,tmp); P[3*k]=tmp[0]; P[3*k+1]=tmp[1]; P[3*k+2]=tmp[2]; }
+    // painter's order from the flat head; recomputed only when the camera turns
+    const key=cam.az.toFixed(4)+','+cam.el.toFixed(4);
+    if(M.camKey!==key){ M.camKey=key; const q=[];
+      for(let i=0;i<Nr;i++) for(let j=0;j<Nt;j++){ const r=(i+0.5)/Nr, th=2*Math.PI*(j+0.5)/Nt;
+        project(C,r*Math.cos(th),r*Math.sin(th),0,tmp); q.push([tmp[2],i,j]); }
+      q.sort((a,b)=>b[0]-a[0]); M.order=q; }
+    // shell: the rim's front half and the drum's side
+    const H=SHELL, rimPts=[], bot=[];
+    for(let j=0;j<=96;j++){ const th=2*Math.PI*j/96; project(C,Math.cos(th),Math.sin(th),0,tmp); rimPts.push([tmp[0],tmp[1],tmp[2]]);
+      project(C,Math.cos(th),Math.sin(th),-H,tmp); bot.push([tmp[0],tmp[1]]); }
+    if(opts.shell!==false){
+      g.fillStyle='#dfe7e2'; g.strokeStyle='#b9c8bf'; g.lineWidth=1;
+      g.beginPath(); rimPts.forEach((p,j)=>j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));
+      for(let j=96;j>=0;j--) g.lineTo(bot[j][0],bot[j][1]); g.closePath(); g.fill();
+      g.beginPath(); bot.forEach((p,j)=>j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.stroke();
+    }
+    // rim, back half
+    g.lineWidth=opts.rimW||3; g.strokeStyle='#5f6f67'; g.lineCap='round';
+    g.beginPath(); let on=false;
+    rimPts.forEach(p=>{ if(p[2]>=0){ on?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]); on=true; } else on=false; }); g.stroke();
+    // membrane
+    g.lineWidth=0.7; g.lineJoin='round';
+    const ord=M.order;
+    for(let q=0;q<ord.length;q++){ const i=ord[q][1], j=ord[q][2], j1=(j+1)%Nt;
+      const a=i*Nt+j, b=i*Nt+j1, c=(i+1)*Nt+j1, d=(i+1)*Nt+j;
+      // world points for the normal
+      const r0=M.rho[i], r1=M.rho[i+1];
+      const ax=r0*M.cs[j], ay=r0*M.sn[j], az=z[a]*zs, cx=r1*M.cs[j1], cy=r1*M.sn[j1], cz=z[c]*zs;
+      const bx=r0*M.cs[j1], by=r0*M.sn[j1], bz=z[b]*zs, dx=r1*M.cs[j], dy=r1*M.sn[j], dz=z[d]*zs;
+      const ux=cx-ax, uy=cy-ay, uz=cz-az, vx=dx-bx, vy=dy-by, vz=dz-bz;
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; if(nz<0){nx=-nx;ny=-ny;nz=-nz;}
+      const nl=Math.hypot(nx,ny,nz)||1, lam=Math.max(0,(nx*LX+ny*LY+nz*LZ)/nl);
+      const u=(z[a]+z[b]+z[c]+z[d])/(4*scale);
+      const col=colorOf(u,0.68+0.32*lam);
+      g.fillStyle=col; g.strokeStyle=col; g.beginPath();
+      g.moveTo(P[3*a],P[3*a+1]); g.lineTo(P[3*b],P[3*b+1]); g.lineTo(P[3*c],P[3*c+1]); g.lineTo(P[3*d],P[3*d+1]);
+      g.closePath(); g.fill(); g.stroke();
+    }
+    // rim, front half
+    g.lineWidth=opts.rimW||3; g.strokeStyle='#4a5852';
+    g.beginPath(); on=false;
+    rimPts.forEach(p=>{ if(p[2]<0){ on?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]); on=true; } else on=false; }); g.stroke();
+    return C;
+  }
+
+  // ---------- top view (heat map) ----------
+  const TOPN=220;
+  const top={cv:document.createElement('canvas'), pix:null, rad:new Map(), trig:new Map()};
+  top.cv.width=top.cv.height=TOPN;
+  (function(){
+    const n=TOPN*TOPN, rho=new Float32Array(n), th=new Float32Array(n);
+    for(let py=0;py<TOPN;py++) for(let px=0;px<TOPN;px++){ const x=(px+0.5)/TOPN*2-1, y=1-(py+0.5)/TOPN*2, k=py*TOPN+px;
+      rho[k]=Math.hypot(x,y); th[k]=Math.atan2(y,x); }
+    top.rho=rho; top.th=th;
+  })();
+  function topRad(md){ let R=top.rad.get(md.index);
+    if(!R){ R=new Float32Array(TOPN*TOPN); for(let k=0;k<R.length;k++) R[k]=top.rho[k]<1?D.radial(md,top.rho[k]):0; top.rad.set(md.index,R); } return R; }
+  function topTrig(n){ let T=top.trig.get(n);
+    if(!T){ T={c:new Float32Array(TOPN*TOPN),s:new Float32Array(TOPN*TOPN)};
+      for(let k=0;k<T.c.length;k++){ T.c[k]=Math.cos(n*top.th[k]); T.s[k]=Math.sin(n*top.th[k]); } top.trig.set(n,T); } return T; }
+  const topZ=new Float32Array(TOPN*TOPN), topImg=top.cv.getContext('2d').createImageData(TOPN,TOPN);
+  function renderTop(state,t,scale){
+    topZ.fill(0);
+    for(let k=0;k<modes.length;k++){ const st=state[k]; if(!isActive(st)) continue;
+      const md=modes[k], [c,s]=D.temporal(md,st,t); if(!c && !s) continue;
+      const R=topRad(md), T=topTrig(md.n);
+      for(let q=0;q<topZ.length;q++){ const r=R[q]; if(r) topZ[q]+=r*(c*T.c[q]+s*T.s[q]); }
+    }
+    const px=topImg.data;
+    for(let q=0;q<topZ.length;q++){ const o=4*q;
+      if(top.rho[q]>=1){ px[o+3]=0; continue; }
+      const u=topZ[q]/scale, a=Math.min(1,Math.pow(Math.abs(u),0.75)), c=u>=0?POS:NEG;
+      px[o]=NEU[0]+(c[0]-NEU[0])*a; px[o+1]=NEU[1]+(c[1]-NEU[1])*a; px[o+2]=NEU[2]+(c[2]-NEU[2])*a; px[o+3]=255;
+    }
+    top.cv.getContext('2d').putImageData(topImg,0,0);
+  }
+
+  // ---------- sand: grains settle where the time-averaged motion is smallest ----------
+  let grains=[], sandDirty=true;
+  function buildSand(){
+    sandDirty=false; grains=[];
+    const st=curState(), N=26000, cand=[];
+    let msMax=0;
+    // fixed pseudo-random positions so the pattern does not flicker between rebuilds
+    let seed=12345; const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
+    for(let q=0;q<N;q++){ const r=Math.sqrt(rnd()), th=2*Math.PI*rnd(), ms=D.meanSquare(modes,st,r,th);
+      cand.push([r,th,ms,rnd()]); msMax=Math.max(msMax,ms); }
+    if(!msMax) return;
+    const amp0=0.07;   // grains stay where the rms amplitude is below 7 % of the largest
+    cand.forEach(([r,th,ms,u])=>{ const A=Math.sqrt(ms/msMax); if(A<amp0 && u>A/amp0) grains.push([r*Math.cos(th),r*Math.sin(th)]); });
+  }
+
+  // ---------- canvases ----------
+  function sizeCanvas(cv,h){ const dpr=window.devicePixelRatio||1, w=cv.clientWidth;
+    cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return {w,h,g}; }
+  let DR, TL, RC, TR, LD;
+  function layout(){
+    DR=sizeCanvas($('drum'),380); TL=sizeCanvas($('tiles'),380); RC=sizeCanvas($('race'),230);
+    TR=sizeCanvas($('traces'),190); LD=sizeCanvas($('ladder'),190);
+  }
+
+  let lastDrumCam=null;
+  function drawDrum(){
+    const {w,h,g}=DR; g.clearRect(0,0,w,h);
+    const st=curState();
+    if(!st.some(isActive)){ g.fillStyle='#8a9a92'; g.font='13px Helvetica,Arial,sans-serif'; g.textAlign='center';
+      g.fillText(src==='strike'?'Click the head to strike it':'No modes selected: click a tile on the right', w/2, h-14); }
+    if(sand && sandDirty) buildSand();
+    if(view==='3d'){
+      const C=drawDrum3D(g,w,h,mainMesh,st,clock,zMax,{pad:14});
+      lastDrumCam=C;
+      if(sand){ g.fillStyle='rgba(120,92,48,0.9)'; const tmp=[0,0,0];
+        grains.forEach(([x,y])=>{ project(C,x,y,D.displacement(modes,st,Math.hypot(x,y),Math.atan2(y,x),clock)*ZH/zMax,tmp); g.fillRect(tmp[0]-0.6,tmp[1]-0.6,1.3,1.3); }); }
+      if(strikeAt && src==='strike'){ project(C,strikeAt.rho*Math.cos(strikeAt.theta),strikeAt.rho*Math.sin(strikeAt.theta),0,tmp3);
+        g.strokeStyle='#1b2a24'; g.lineWidth=1.2; g.beginPath(); g.arc(tmp3[0],tmp3[1],4,0,7); g.stroke(); }
+    } else {
+      renderTop(st,clock,zMax);
+      const S=Math.min(w,h)-28, x0=(w-S)/2, y0=(h-S)/2;
+      g.imageSmoothingEnabled=true; g.drawImage(top.cv,x0,y0,S,S);
+      g.strokeStyle='#4a5852'; g.lineWidth=3; g.beginPath(); g.arc(x0+S/2,y0+S/2,S/2,0,7); g.stroke();
+      if(sand){ g.fillStyle='rgba(120,92,48,0.9)'; grains.forEach(([x,y])=>g.fillRect(x0+(x+1)/2*S-0.7,y0+(1-y)/2*S-0.7,1.4,1.4)); }
+      if(strikeAt && src==='strike'){ g.strokeStyle='#1b2a24'; g.lineWidth=1.2; g.beginPath();
+        g.arc(x0+(strikeAt.rho*Math.cos(strikeAt.theta)+1)/2*S, y0+(1-strikeAt.rho*Math.sin(strikeAt.theta))/2*S, 4,0,7); g.stroke(); }
+      // θ = 0 marker and scale
+      g.fillStyle='#8a9a92'; g.font='11px Helvetica,Arial,sans-serif'; g.textAlign='left';
+      g.fillText('θ = 0 →', x0+S+4>w-40? w-46 : x0+S+4, y0+S/2+4);
+      lastDrumCam={top:true,x0,y0,S};
+    }
+    const T10ms=1000/D.frequencyHz(modes[0],phys.a,phys.T,phys.s);
+    $('timePill').textContent='t = '+clock.toFixed(2)+' T₁₀  ('+(clock*T10ms).toFixed(1)+' ms)';
+  }
+  const tmp3=[0,0,0];
+
+  // ---------- mode tiles (Figure 6.1 layout) ----------
+  let tileGeo=null;
+  const TILEPX=64, tileField=new Map();
+  function tileBase(md){ let F=tileField.get(md.index);
+    if(!F){ F=new Float32Array(TILEPX*TILEPX);
+      for(let py=0;py<TILEPX;py++) for(let px=0;px<TILEPX;px++){ const x=(px+0.5)/TILEPX*2-1, y=1-(py+0.5)/TILEPX*2, r=Math.hypot(x,y);
+        F[py*TILEPX+px]= r<1 ? D.radial(md,r)*Math.cos(md.n*Math.atan2(y,x))/md.peak : NaN; }
+      tileField.set(md.index,F); } return F; }
+  const tileCv=document.createElement('canvas'); tileCv.width=tileCv.height=TILEPX;
+  const tileImg=tileCv.getContext('2d').createImageData(TILEPX,TILEPX);
+  function energyShares(){
+    const E=modes.map((md,i)=>D.modeEnergy(md,strikeState[i])), tot=E.reduce((a,b)=>a+b,0);
+    return tot? E.map(e=>e/tot) : E;
+  }
+  function drawTiles(){
+    const {w,h,g}=TL; g.clearRect(0,0,w,h);
+    const padL=34, padT=22, gap=6, cw=(w-padL-gap*(TILE_M))/TILE_M, chh=(h-padT-gap*TILE_N)/TILE_N;
+    const S=Math.min(cw,chh-16);
+    tileGeo={padL,padT,gap,cw,chh,S};
+    g.font='12px Helvetica,Arial,sans-serif'; g.fillStyle='#5a6b63'; g.textAlign='center';
+    for(let m=1;m<=TILE_M;m++) g.fillText('m = '+m, padL+(m-1)*(cw+gap)+cw/2, 14);
+    g.textAlign='right';
+    for(let n=0;n<TILE_N;n++) g.fillText('n = '+n, padL-6, padT+n*(chh+gap)+S/2+4);
+    const shares = src==='strike' ? energyShares() : null;
+    for(let n=0;n<TILE_N;n++) for(let m=1;m<=TILE_M;m++){
+      const md=modeAt(m,n), F=tileBase(md), osc=Math.cos(md.omega*clock), px=tileImg.data;
+      for(let q=0;q<F.length;q++){ const o=4*q, f=F[q];
+        if(f!==f){ px[o+3]=0; continue; }
+        const u=f*osc, a=Math.min(1,Math.pow(Math.abs(u),0.75)), c=u>=0?POS:NEG;
+        px[o]=NEU[0]+(c[0]-NEU[0])*a; px[o+1]=NEU[1]+(c[1]-NEU[1])*a; px[o+2]=NEU[2]+(c[2]-NEU[2])*a; px[o+3]=255; }
+      tileCv.getContext('2d').putImageData(tileImg,0,0);
+      const x0=padL+(m-1)*(cw+gap)+(cw-S)/2, y0=padT+n*(chh+gap);
+      const si=shares? -1 : sel.findIndex(([a,b])=>a===m&&b===n);
+      if(si>=0){ g.fillStyle=SCOL[si]+'22'; g.fillRect(x0-3,y0-3,S+6,S+20); }
+      g.imageSmoothingEnabled=true; g.drawImage(tileCv,x0,y0,S,S);
+      g.lineWidth=si>=0?3:1.5; g.strokeStyle=si>=0?SCOL[si]:'#7d8c85';
+      g.beginPath(); g.arc(x0+S/2,y0+S/2,S/2-0.5,0,7); g.stroke();
+      g.font='11px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillStyle=si>=0?SCOL[si]:'#1b2a24';
+      if(shares){ const sh=shares[md.index];   // after a strike: the mode's share of the energy, as text and a bar
+        g.fillText('('+m+','+n+')  '+(100*sh).toFixed(sh<0.1?1:0)+'%', x0+S/2, y0+S+12);
+        if(sh>0.0005){ g.fillStyle='rgba(27,42,36,0.75)'; g.fillRect(x0, y0+S+15, S*Math.min(1,Math.sqrt(sh)), 3); } }
+      else g.fillText('('+m+','+n+')  '+md.ratio.toFixed(3), x0+S/2, y0+S+12);
+    }
+    if(shares){ let shown=0; for(let n=0;n<TILE_N;n++) for(let m=1;m<=TILE_M;m++) shown+=shares[modeAt(m,n).index];
+      $('selPill').textContent=(100*shown).toFixed(0)+'% of the energy shown';
+    } else $('selPill').textContent=sel.length+' selected';
+  }
+
+  // ---------- the race: selected modes side by side ----------
+  function drawRace(){
+    const {w,h,g}=RC; g.clearRect(0,0,w,h);
+    if(!sel.length){ g.fillStyle='#8a9a92'; g.font='13px Helvetica,Arial,sans-serif'; g.textAlign='center';
+      g.fillText('Select modes from the tiles above', w/2, h/2); return; }
+    const n=sel.length, cw=w/n, dh=h-64;
+    sel.forEach(([m,nn],k)=>{
+      const md=modeAt(m,nn), st=D.emptyState(modes); st[md.index].Ac=1/md.peak;
+      g.save(); g.translate(k*cw,0); g.beginPath(); g.rect(0,0,cw,dh); g.clip();
+      drawDrum3D(g,cw,dh,miniMesh,st,clock,1,{pad:8,rimW:2});
+      g.restore();
+      // dial: one turn per oscillation; the hand points up at a crest
+      const cx=k*cw+30, cy=dh+30, R=22, ph=md.omega*clock;
+      g.strokeStyle='#c9d6cf'; g.lineWidth=1.5; g.beginPath(); g.arc(cx,cy,R,0,7); g.stroke();
+      g.strokeStyle=SCOL[k]; g.lineWidth=3; g.lineCap='round'; g.beginPath(); g.moveTo(cx,cy);
+      g.lineTo(cx+R*0.85*Math.sin(ph), cy-R*0.85*Math.cos(ph)); g.stroke();
+      g.fillStyle=SCOL[k]; g.beginPath(); g.arc(cx,cy,2.5,0,7); g.fill();
+      g.textAlign='left'; g.font='bold 12.5px Helvetica,Arial,sans-serif';
+      g.fillText('('+m+','+nn+')  ν = '+md.ratio.toFixed(3)+' ν₁₀', cx+R+8, cy-6);
+      g.font='12px Helvetica,Arial,sans-serif'; g.fillStyle='#5a6b63';
+      g.fillText((md.ratio*clock).toFixed(2)+' oscillations', cx+R+8, cy+10);
+      g.fillText('k = '+md.k.toFixed(4), cx+R+8, cy+25);
+    });
+    $('racePill').textContent='t = '+clock.toFixed(2)+' T₁₀: the fundamental has made '+clock.toFixed(2)+' oscillations';
+  }
+  function drawTraces(){
+    const {w,h,g}=TR; g.clearRect(0,0,w,h);
+    if(!sel.length) return;
+    const L=46, Rr=10, n=sel.length, lane=(h-22)/n, t1=clock, t0=clock-win;
+    const X=t=>L+(t-t0)/win*(w-L-Rr);
+    // fundamental-period grid
+    g.font='10.5px Helvetica,Arial,sans-serif'; g.textAlign='center';
+    for(let k=Math.max(0,Math.ceil(t0));k<=t1;k++){ const x=X(k); g.strokeStyle='#d8e2dc'; g.lineWidth=1; g.beginPath(); g.moveTo(x,2); g.lineTo(x,h-20); g.stroke();
+      g.fillStyle='#8a9a92'; g.fillText(k+' T₁₀', x, h-6); }
+    sel.forEach(([m,nn],k)=>{
+      const md=modeAt(m,nn), mid=lane*(k+0.5)+2, A=lane*0.38;
+      g.strokeStyle='#eef3f0'; g.lineWidth=1; g.beginPath(); g.moveTo(L,mid); g.lineTo(w-Rr,mid); g.stroke();
+      g.strokeStyle=SCOL[k]; g.lineWidth=1.8; g.beginPath();
+      const NS=Math.ceil(w-L);
+      let started=false;   // the modes start together at t = 0, so nothing is drawn before it
+      for(let q=0;q<=NS;q++){ const t=t0+win*q/NS; if(t<0) continue;
+        const y=mid-A*Math.cos(2*Math.PI*md.ratio*t); started?g.lineTo(X(t),y):g.moveTo(X(t),y); started=true; }
+      g.stroke();
+      // crests at t = j/ratio
+      g.fillStyle=SCOL[k];
+      for(let j=Math.ceil(t0*md.ratio);j/md.ratio<=t1;j++){ if(j<0) continue; g.beginPath(); g.arc(X(j/md.ratio),mid-A,2.6,0,7); g.fill(); }
+      g.textAlign='right'; g.font='11px Helvetica,Arial,sans-serif'; g.fillText('('+m+','+nn+')', L-6, mid+4);
+    });
+    g.strokeStyle='#1b2a24'; g.lineWidth=1; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(t1),2); g.lineTo(X(t1),h-20); g.stroke(); g.setLineDash([]);
+  }
+
+  // ---------- frequency ladder ----------
+  function drawLadder(){
+    const {w,h,g}=LD; g.clearRect(0,0,w,h);
+    const L=52, Rr=12, XM=6, X=r=>L+r/XM*(w-L-Rr), yD=88, yS=150;
+    g.font='11px Helvetica,Arial,sans-serif';
+    for(let k=0;k<=XM;k++){ const x=X(k); g.strokeStyle='#eef3f0'; g.lineWidth=1; g.setLineDash([3,3]); g.beginPath(); g.moveTo(x,8); g.lineTo(x,yS); g.stroke(); g.setLineDash([]);
+      g.fillStyle='#8a9a92'; g.textAlign='center'; g.fillText(k+'×', x, h-6); }
+    g.strokeStyle='#c9d6cf'; g.lineWidth=1.5; g.beginPath(); g.moveTo(L,yD); g.lineTo(w-Rr,yD); g.moveTo(L,yS); g.lineTo(w-Rr,yS); g.stroke();
+    g.fillStyle='#5a6b63'; g.textAlign='right'; g.fillText('drum',L-8,yD+4); g.fillText('string',L-8,yS+4);
+    const shares = src==='strike' ? energyShares() : null, sMax = shares? Math.max(...shares) : 1;
+    let lastLabel=-1;
+    modes.filter(md=>md.ratio<=XM+1e-9).forEach(md=>{
+      const si=sel.findIndex(([a,b])=>a===md.m&&b===md.n), x=X(md.ratio);
+      let H=34, col='#9bb0a6', lw=1.5;
+      if(shares){ H=6+70*Math.sqrt(shares[md.index]/sMax); col='#1b2a24'; }
+      else if(si>=0){ H=60; col=SCOL[si]; lw=3; }
+      g.strokeStyle=col; g.lineWidth=lw; g.beginPath(); g.moveTo(x,yD); g.lineTo(x,yD-H); g.stroke();
+      if((si>=0 && !shares) || (x-lastLabel>30 && md.ratio<3.2)){ g.save(); g.translate(x+3,yD-H-3); g.rotate(-Math.PI/3);
+        g.fillStyle=si>=0&&!shares?col:'#5a6b63'; g.textAlign='left'; g.font='10.5px Helvetica,Arial,sans-serif';
+        g.fillText('('+md.m+','+md.n+')',0,0); g.restore(); lastLabel=x; }
+    });
+    for(let k=1;k<=XM;k++){ const x=X(k); g.strokeStyle='#00693e'; g.lineWidth=2.5; g.beginPath(); g.moveTo(x,yS); g.lineTo(x,yS-34); g.stroke(); }
+  }
+
+  // ---------- k_mn table (Problem 2) ----------
+  function fillTable(){
+    const f10=D.frequencyHz(modes[0],phys.a,phys.T,phys.s);
+    let s='<tr><th style="text-align:left">J<sub>n</sub></th>'+[1,2,3,4].map(m=>'<th>m = '+m+'</th>').join('')+'</tr>';
+    for(let n=0;n<=5;n++){ s+='<tr><th style="text-align:left">n = '+n+'</th>';
+      for(let m=1;m<=4;m++){ const md=modeAt(m,n);
+        s+='<td>'+md.k.toFixed(4)+'<br><small>'+md.ratio.toFixed(3)+'× · '+Math.round(md.ratio*f10)+' Hz</small></td>'; }
+      s+='</tr>'; }
+    $('ktab').innerHTML=s;
+  }
+  function updatePhys(){
+    const v=D.waveSpeed(phys.T,phys.s), f10=D.frequencyHz(modes[0],phys.a,phys.T,phys.s);
+    $('pav').textContent=(phys.a*100).toFixed(1)+' cm'; $('pTv').textContent=phys.T+' N/m'; $('psv').textContent=phys.s.toFixed(2)+' kg/m²';
+    $('vOut').textContent=v.toFixed(1)+' m/s'; $('f10Out').textContent=f10.toFixed(1)+' Hz';
+    fillTable();
+  }
+
+  function drawAll(){ drawDrum(); drawTiles(); drawRace(); drawTraces(); drawLadder(); }
+
+  // ---------- sound ----------
+  let actx=null, voice=null;
+  // partials: [{ratio, amp}]; each rings at ratio·ν10 with a decay that is shorter for higher partials
+  function playPartials(parts){
+    if(!parts.length) return;
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    const f10=D.frequencyHz(modes[0],phys.a,phys.T,phys.s), sr=actx.sampleRate, dur=2.6, N=Math.floor(sr*dur);
+    const buf=actx.createBuffer(1,N,sr), x=buf.getChannelData(0);
+    parts.forEach(p=>{ const f=p.ratio*f10; if(f>=sr*0.45 || !p.amp) return;
+      const tau=0.9*Math.pow(f10/f,0.6), w=2*Math.PI*f/sr, dk=Math.exp(-1/(tau*sr));
+      let e=p.amp; for(let i=0;i<N;i++){ x[i]+=e*Math.sin(w*i); e*=dk; } });
+    let pk=0; for(let i=0;i<N;i++) pk=Math.max(pk,Math.abs(x[i]));
+    const att=Math.floor(0.003*sr);
+    for(let i=0;i<N;i++){ x[i]*=0.35/(pk||1); if(i<att) x[i]*=i/att; if(i>N-400) x[i]*=(N-i)/400; }
+    if(voice) try{ voice.stop(); }catch(e){}
+    voice=actx.createBufferSource(); voice.buffer=buf; voice.connect(actx.destination); voice.start();
+  }
+  function drumPartials(){
+    if(src==='strike'){ const E=modes.map((md,i)=>D.modeEnergy(md,strikeState[i]));
+      return modes.map((md,i)=>({ratio:md.ratio, amp:Math.sqrt(E[i])})).filter(p=>p.amp>0); }
+    return sel.map(([m,n])=>({ratio:modeAt(m,n).ratio, amp:1}));
+  }
+  function harmonicPartials(){
+    return drumPartials().sort((a,b)=>a.ratio-b.ratio).map((p,j)=>({ratio:j+1, amp:p.amp}));
+  }
+
+  // ---------- animation ----------
+  function frame(ts){
+    if(!playing){ lastTS=null; return; }
+    if(lastTS!=null) clock+=Math.min(0.1,(ts-lastTS)/1000)*speed;
+    lastTS=ts; drawAll(); requestAnimationFrame(frame);
+  }
+  function setPlaying(p){ playing=p; $('play').textContent=p?'❚❚ Pause':'▶ Play'; if(p){ lastTS=null; requestAnimationFrame(frame); } else drawAll(); }
+
+  // ---------- controls ----------
+  function setSeg(id,attr,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset[attr]===val)); }
+  function setSrc(s){ src=s; setSeg('srcSeg','src',s); refreshScale(); drawAll(); }
+  function setSel(list){ sel=list.slice(0,MAXSEL); if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); } refreshScale(); drawAll(); }
+  function doStrike(rho,theta,k,w){
+    strikeAt={rho,theta,kind:k,w};
+    strikeState=D.strike(modes,rho,theta,w,k);
+    src='strike'; setSeg('srcSeg','src','strike'); clock=0; refreshScale();
+    if(!playing) setPlaying(true); else drawAll();
+  }
+  $('srcSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.src==='strike' && !strikeAt){ doStrike(0.55,0.5,kind,malletW); return; }
+    setSrc(b.dataset.src); });
+  $('viewSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; view=b.dataset.view; setSeg('viewSeg','view',view); drawAll(); });
+  $('kindSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; kind=b.dataset.kind; setSeg('kindSeg','kind',kind);
+    if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
+  $('sand').addEventListener('change',e=>{ sand=e.target.checked; sandDirty=true; drawAll(); });
+  $('play').addEventListener('click',()=>setPlaying(!playing));
+  $('reset').addEventListener('click',()=>{ clock=0; drawAll(); });
+  $('sync').addEventListener('click',()=>{ clock=0; drawAll(); });
+  $('speed').addEventListener('input',e=>{ speed=+e.target.value; $('speedv').textContent=speed.toFixed(2)+' T₁₀ per second'; });
+  $('win').addEventListener('input',e=>{ win=+e.target.value; $('winv').textContent=win+' T₁₀'; drawTraces(); });
+  $('mw').addEventListener('input',e=>{ malletW=+e.target.value; $('mwv').textContent=malletW.toFixed(2)+' a'; });
+  $('mw').addEventListener('change',()=>{ if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
+  $('listen').addEventListener('click',()=>playPartials(drumPartials()));
+  $('listenDrum').addEventListener('click',()=>playPartials(drumPartials()));
+  $('listenString').addEventListener('click',()=>playPartials(harmonicPartials()));
+  $('selLowest').addEventListener('click',()=>setSel([[1,0],[1,1],[1,2],[2,0]]));
+  $('selFig').addEventListener('click',()=>setSel([[1,0],[2,0],[1,1],[2,1]]));
+  $('selRadial').addEventListener('click',()=>setSel([[1,0],[2,0],[3,0],[4,0]]));
+  $('selClear').addEventListener('click',()=>setSel([]));
+  [['pa','a',0.01],['pT','T',1],['ps','s',1]].forEach(([id,key,f])=>$(id).addEventListener('input',e=>{ phys[key]=+e.target.value*f; updatePhys(); drawDrum(); }));
+
+  $('tiles').addEventListener('click',e=>{
+    if(!tileGeo) return; const r=$('tiles').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=tileGeo;
+    const m=Math.floor((x-G.padL)/(G.cw+G.gap))+1, n=Math.floor((y-G.padT)/(G.chh+G.gap));
+    if(m<1||m>TILE_M||n<0||n>=TILE_N) return;
+    const i=sel.findIndex(([a,b])=>a===m&&b===n);
+    if(src!=='modes') setSel([[m,n]]);
+    else if(i>=0) setSel(sel.filter((_,k)=>k!==i));
+    else setSel(sel.length>=MAXSEL? sel.slice(1).concat([[m,n]]) : sel.concat([[m,n]]));
+  });
+
+  // drag to turn (3D), click to strike
+  let drag=null;
+  $('drum').addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,az:cam.az,el:cam.el,moved:false}; $('drum').setPointerCapture(e.pointerId); });
+  $('drum').addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+    if(Math.abs(dx)+Math.abs(dy)>4) drag.moved=true;
+    if(drag.moved && view==='3d'){ cam.az=drag.az-dx*0.01; cam.el=Math.max(0.2,Math.min(1.5,drag.el+dy*0.01)); if(!playing) drawAll(); } });
+  $('drum').addEventListener('pointerup',e=>{
+    const d=drag; drag=null; if(!d || d.moved || !lastDrumCam) return;
+    const r=$('drum').getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, C=lastDrumCam;
+    let x,y;
+    if(C.top){ x=(px-C.x0)/C.S*2-1; y=1-(py-C.y0)/C.S*2; }
+    else { const X=(px-C.cx)/C.S, Y=(C.cy-py)/C.S/C.se; x=X*C.ca+Y*C.sa; y=-X*C.sa+Y*C.ca; }
+    const rho=Math.hypot(x,y); if(rho>=0.97) return;
+    doStrike(rho, Math.atan2(y,x), kind, malletW);
+  });
+
+  window.addEventListener('resize',()=>{ layout(); mainMesh.camKey=''; miniMesh.camKey=''; drawAll(); });
+
+  /* ---------- shareable state ----------
+     ?sel=10,11,12,20 (m then n) | ?hit=ρ,θ,w&kind=strike|press ; view=top ; sand=1 ; a (cm), T (N/m), s (kg/m²) */
+  function shareQuery(){
+    const q=new URLSearchParams();
+    if(src==='strike' && strikeAt){ q.set('hit',[strikeAt.rho,strikeAt.theta,strikeAt.w].map(v=>+v.toFixed(3)).join(',')); q.set('kind',strikeAt.kind); }
+    else q.set('sel',sel.map(([m,n])=>''+m+n).join(','));
+    if(view==='top') q.set('view','top');
+    if(sand) q.set('sand','1');
+    if(Math.abs(phys.a-0.178)>1e-9) q.set('a',+(phys.a*100).toFixed(1));
+    if(phys.T!==2000) q.set('T',phys.T);
+    if(phys.s!==0.26) q.set('s',phys.s);
+    return q.toString();
+  }
+  function readQuery(){
+    const P=PageKit.params(), st={};
+    const s=P.raw.get('sel');
+    if(s!=null){ const l=s? s.split(',').filter(c=>/^[1-4][0-4]$/.test(c)).map(c=>[+c[0],+c[1]]) : []; st.sel=l; }
+    const hit=P.list('hit',3); if(hit && hit[0]>=0 && hit[0]<0.97 && hit[2]>=0.04 && hit[2]<=0.3) st.hit=hit;
+    const k=P.str('kind',['strike','press']); if(k) st.kind=k;
+    const v=P.str('view',['3d','top']); if(v) st.view=v;
+    if(P.has('sand')) st.sand=P.raw.get('sand')==='1';
+    const a=P.num('a',5,40); if(a!=null) st.a=a;
+    const T=P.num('T',200,8000); if(T!=null) st.T=T;
+    const ss=P.num('s',0.05,1); if(ss!=null) st.s=ss;
+    return st;
+  }
+  function applyState(st){
+    clock=0;
+    if(st.view){ view=st.view; setSeg('viewSeg','view',view); }
+    if(st.sand!=null){ sand=st.sand; $('sand').checked=sand; sandDirty=true; }
+    if(st.a!=null){ phys.a=st.a/100; $('pa').value=st.a; }
+    if(st.T!=null){ phys.T=st.T; $('pT').value=st.T; }
+    if(st.s!=null){ phys.s=st.s; $('ps').value=st.s; }
+    if(st.kind){ kind=st.kind; setSeg('kindSeg','kind',kind); }
+    updatePhys();
+    if(st.hit){ malletW=st.hit[2]; $('mw').value=malletW; $('mwv').textContent=malletW.toFixed(2)+' a';
+      strikeAt={rho:st.hit[0],theta:st.hit[1],kind,w:malletW}; strikeState=D.strike(modes,st.hit[0],st.hit[1],malletW,kind);
+      src='strike'; setSeg('srcSeg','src','strike'); refreshScale(); drawAll(); }
+    else if(st.sel) setSel(st.sel);
+    else drawAll();
+    if(st.play!=null) setPlaying(st.play);
+  }
+  $('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/drum-head.html',shareQuery()));
+
+  /* ---------- guided predictions (?guided=1) ---------- */
+  const k=(m,n)=>modeAt(m,n).k;
+  const f10def=D.frequencyHz(modes[0],0.178,2000,0.26);
+  const GUIDED=[
+    { title:'The first overtone',
+      setup:{sel:[[1,0]],view:'3d',sand:false,a:17.8,T:2000,s:0.26,play:true}, reveal:{sel:[[1,0],[1,1]]}, cover:['#raceCard','#ladderCard','#tilesCard'],
+      intro:'The drum on the left is a 14-inch tom ringing in its fundamental (1,0) at ν<sub>10</sub> = '+f10def.toFixed(1)+' Hz.',
+      ask:'The next mode up is (1,1): one nodal diameter, k<sub>11</sub> = 3.8317 is the first zero of J<sub>1</sub>. What is its frequency, in Hz?',
+      answer:+(f10def*k(1,1)/k(1,0)).toFixed(1), tol:3, unit:'Hz',
+      explain:'ν<sub>mn</sub> = k<sub>mn</sub>v/(2πa), so ν<sub>11</sub>/ν<sub>10</sub> = k<sub>11</sub>/k<sub>10</sub> = 3.8317/2.4048 = 1.593, and ν<sub>11</sub> = '+(f10def*k(1,1)/k(1,0)).toFixed(1)+' Hz. A string\'s first overtone would be exactly 2ν<sub>1</sub>. Watch the two dials below: (1,1) turns 1.59 times per turn of (1,0).' },
+    { title:'Where is the nodal circle?',
+      setup:{sel:[[2,0]],view:'top',sand:false,play:true}, reveal:{sand:true}, cover:['#tilesCard'],
+      intro:'The (2,0) mode, J<sub>0</sub>(k<sub>20</sub>r/a), has a circle inside the rim that never moves: the centre goes up while the outer ring goes down.',
+      ask:'At what radius r/a is that nodal circle?',
+      answer:+(k(1,0)/k(2,0)).toFixed(3), tol:0.01, unit:'a',
+      explain:'J<sub>0</sub>(k<sub>20</sub>r/a) = 0 where k<sub>20</sub>r/a is a zero of J<sub>0</sub>. The first one is k<sub>10</sub>, so r = a k<sub>10</sub>/k<sub>20</sub> = 2.4048/5.5201 a = '+(k(1,0)/k(2,0)).toFixed(3)+' a (Boas §6). The sand has collected there, on the circle that does not vibrate.' },
+    { title:'Strike the centre',
+      setup:{hit:[0,0,0.08],kind:'strike',view:'3d',sand:false,play:true}, cover:['#tilesCard','#ladderCard'],
+      ask:'The mallet hits the exact centre of the head. Which modes does that excite?',
+      choices:['All of them','Only the n = 0 modes (no nodal diameters)','Only the n = 1 modes','Only (1,0)'], answer:1,
+      explain:'A centre strike is the same at every θ, so its projection on cos nθ and sin nθ vanishes for every n ≥ 1. Only J<sub>0</sub>(k<sub>m0</sub>r/a), m = 1, 2, 3, … are excited, and the tiles show all the energy in the top row. Their frequencies 1, 2.295, 3.598, 4.903 … ν<sub>10</sub> are still not harmonic.' },
+    { title:'Does it ever repeat?',
+      setup:{sel:[[1,0],[1,1]],view:'3d',play:false}, cover:[],
+      ask:'Release (1,0) and (1,1) together from rest. Is there a time when the head is back in exactly its starting shape?',
+      choices:['Yes, after one fundamental period','Yes, after two fundamental periods','Not in any time you could watch','Yes, after 1.593 periods'], answer:2,
+      explain:'The head is back where it started only when both modes have made whole numbers of oscillations: t = p T<sub>10</sub> = q T<sub>11</sub>, which needs k<sub>11</sub>/k<sub>10</sub> = 1.59334… = q/p. Its best fractions, 3/2, 8/5, 43/27, 51/32, 94/59 …, all miss, by less each time, so the shape never quite comes back: the motion is quasi-periodic. A string\'s ratios are whole numbers, so it repeats every T<sub>1</sub>. Press Play and watch the traces: the crest dots of (1,1) drift across the T<sub>10</sub> grid lines.' },
+  ];
+  function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'drum-head' }); }
+
+  layout(); updatePhys(); refreshScale();
+  { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
+  setPlaying(playing);
+  if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry($('intro'), startGuided);
+  window.__drum={modes,D,state:()=>({src,sel,clock,zMax,strikeAt})};
+  console.log('[drum-head] ready. modes='+modes.length);
+})();
+</script>

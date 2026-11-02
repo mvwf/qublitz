@@ -34,12 +34,12 @@ jobs:
           mkdir -p _site
           cp -r web/. _site/
           cp pages/_assets/quantum_chess.html _site/qublitz/arena.html
-          rm -rf _site/qublitz/tests _site/README.md
+          rm -rf _site/qublitz/tests _site/courses/engs23/tests _site/README.md
           # Single-file copies for the pages' "Download" links (they run offline).
           for page in qubit-simulator fridge-noise ep-tpd sonify rabi-rider qubit-copter; do
             python3 scripts/build_standalone.py web/qublitz/$page.html _site/qublitz/$page-offline.html
           done
-          for page in heat-wave-schrodinger vibrating-string spectrogram; do
+          for page in heat-wave-schrodinger vibrating-string drum-head spectrogram; do
             python3 scripts/build_standalone.py web/courses/engs23/$page.html _site/courses/engs23/$page-offline.html
           done
 
