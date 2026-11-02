@@ -92,9 +92,10 @@
 <script src="../shared/sitebar.js"></script>
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>🌀 Rabi Rider <span>ride a Rabi oscillation</span></h1>
-<p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere: |0⟩ at the top, |1⟩ at the bottom, P(1) = sin²(θ/2) in between.
-  The course scrolls past in time. The drive is exactly on resonance, so <b>the qubit only moves while you drive it</b>: hold ▼ to turn it
-  toward |1⟩, ▲ toward |0⟩, and let go to leave it where it is. For rotations about x, y and z in 3D, try
+<p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
+  excited state |1⟩ at the top, so height is energy, with P(1) = sin²(θ/2) in between. The course scrolls past in time. The drive is
+  exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and only <b>T₁ decay</b>
+  acts, and it always pulls the qubit down to |0⟩, like gravity. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
   <a id="copterLink" href="qubit-copter.html">🚁 Qubit Copter</a>; to run the same pulses as an experiment, open the
   <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
 
@@ -103,12 +104,14 @@
     <canvas id="cv" aria-label="Game: the qubit's height θ over time, with rings to fly through"></canvas>
 
     <div class="overlay" id="menu">
-      <h2>Rabi Rider<small>NOTHING MOVES UNLESS YOU DRIVE IT</small></h2>
+      <h2>Rabi Rider<small>DRIVE IT UP · T₁ PULLS IT DOWN</small></h2>
       <p>Missions teach one idea each. Start with <b>Flight school</b>.</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
         <button class="go" id="endless">Endless run ▶</button>
-        <label><input type="checkbox" id="optDecay"> T₁ decay</label>
+        <label>T₁ <select id="optT1" aria-label="Difficulty: the qubit's T₁">
+          <option value="easy">20 s · easy</option><option value="normal" selected>10 s · normal</option>
+          <option value="hard">5 s · hard</option><option value="expert">2.5 s · expert</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <p class="best" id="menuBest"></p>
@@ -117,7 +120,7 @@
     <div class="overlay" id="brief" hidden>
       <h2 id="briefTitle"></h2>
       <p id="briefText"></p>
-      <p class="best">Hold <kbd>↓</kbd> or <kbd>S</kbd> for ▼, <kbd>↑</kbd> or <kbd>W</kbd> for ▲, or press and hold the bottom or top half of the game.</p>
+      <p class="best">Hold <kbd>↑</kbd> or <kbd>W</kbd> for ▲ (toward |1⟩), <kbd>↓</kbd> or <kbd>S</kbd> for ▼ (toward |0⟩), or press and hold the top or bottom half of the game.</p>
       <div class="row"><button class="go" id="briefGo">Start ▶</button><button id="briefBack">Back</button></div>
     </div>
 
@@ -145,10 +148,10 @@
     <div class="panel">
       <h3>Drive</h3>
       <div class="ctrl">
-        <button id="btnUp">▲<small>toward |0⟩</small></button>
-        <button id="btnDown">▼<small>toward |1⟩</small></button>
+        <button id="btnUp">▲<small>toward |1⟩</small></button>
+        <button id="btnDown">▼<small>toward |0⟩</small></button>
       </div>
-      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>P</kbd> pause. Let go and the drive is off.</p>
+      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>P</kbd> pause. Let go and the drive is off; T₁ pulls the qubit down to |0⟩.</p>
     </div>
     <div class="panel">
       <h3>On the Bloch sphere</h3>
@@ -172,17 +175,19 @@
   <div class="eq">H = ±(ħΩ/2) σ<sub>x</sub>,&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = (±Ω, 0, 0),&emsp; P(1) = sin²(θ/2)</div>
   <p>so the Bloch vector turns about the x axis at the Rabi rate Ω (here 1.6 rad/s: a π pulse, |0⟩ → |1⟩, takes about 2 s; on a transmon it typically takes 10–50
     nanoseconds). A turn about x keeps the state on the circle through |0⟩ and |1⟩ in the y–z plane, so its height θ says everything, which is why the
-    game can draw it as a line. ▼ and ▲ pick the drive's sign that turns θ the way you ask, and the drive eases off as the state reaches |0⟩ or |1⟩.
+    game can draw it as a line. It is drawn with |0⟩ at the bottom (the usual Bloch sphere puts it at the top; the sphere on the right
+    is the usual one turned upside down about x), so height is energy and decay falls. ▲ and ▼ pick the drive's sign that turns θ the way you ask, and the drive eases off as the state reaches |0⟩ or |1⟩.
     A constant drive would carry the state through |1⟩ and back again, P(1) = sin²(Ωt/2), a Rabi oscillation; the game stops it at the poles and reverses the drive when you ask. The phase in the ket, cos(θ/2)|0⟩ ∓ i sin(θ/2)|1⟩, is the
     −i that a turn about x leaves; it does not change P(1), but a turn about y or z would feel it (see Qubit Copter).</p>
   <p><b>Measurement gates</b> are projective measurements of σ<sub>z</sub>: the state jumps to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise (the Born rule).
     <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
     state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
     learns the state, and the superposition is gone.
-    With <b>T₁ decay</b> on, the qubit is a watched quantum trajectory: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps
-    to |0⟩ at the rate γ·P(1); with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>.
-    The game's T₁ is 14 s (6 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's
-    T₁ of about 100 µs lasts thousands of 20 ns π pulses.</p>
+    <b>T₁ decay</b> is always on, as it is for a real qubit: it emits a photon and falls to its ground state. The qubit here is a watched
+    quantum trajectory, γ = 1/T₁: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps to |0⟩ at the rate
+    γ·P(1), most often near |1⟩; with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>. The difficulty is T₁:
+    20, 10, 5 or 2.5 s (6 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
+    100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>Left out, on purpose:</b> pure dephasing (random turns about z, the T<sub>φ</sub> part of T₂), so here T₂ = 2T₁, the most a qubit
     can have; detuning, so nothing precesses (see Qubit Copter's Z control for that); and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
@@ -207,10 +212,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ==
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
 let challengeSeed = null;
 try { challengeSeed = new URL(location.href).searchParams.get('seed'); } catch (e) { /* no URL */ }
-const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), decay: store.get('rider2:decay', false) };
-$('#optSound').checked = S.sound; $('#optDecay').checked = S.decay;
+const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), level: store.get('rider2:t1', 'normal') };
+if (!E.P.T1[S.level]) S.level = 'normal';
+$('#optSound').checked = S.sound; $('#optT1').value = S.level;
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rider2:sound', S.sound); });
-$('#optDecay').addEventListener('change', e => { S.decay = e.target.checked; store.set('rider2:decay', S.decay); });
+$('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider2:t1', S.level); });
 
 /* ---------------- canvases ---------------- */
 const cv = $('#cv'), g = cv.getContext('2d'), sc = $('#sphere'), sg = sc.getContext('2d');
@@ -222,16 +228,17 @@ function resize() {
 }
 addEventListener('resize', resize);
 const PAD_T = 30, PAD_B = 30, AHEAD_S = 6, BEHIND_S = 2;
-const Y = th => PAD_T + (H - PAD_T - PAD_B) * th / Math.PI;
+const Y = th => PAD_T + (H - PAD_T - PAD_B) * (Math.PI - th) / Math.PI;   // |1⟩ (θ = π) at the top, |0⟩ at the bottom
 const pxs = () => (W - 40) / (AHEAD_S + BEHIND_S);
 const nowX = () => 20 + BEHIND_S * pxs();
 const X = t => nowX() + (t - world.t) * pxs();
 
-/* ---------------- input: ▲/▼ keys, buttons, or the top/bottom half of the game ---------------- */
+/* ---------------- input: ▲/▼ keys, buttons, or the top/bottom half of the game; ▲ is toward |1⟩ (up) ---------------- */
 const keys = new Set(); let touch = 0;   // touch: −1 top half (▲), +1 bottom half (▼)
 const held = { up: false, down: false };
 function input() {
-  return { up: keys.has('arrowup') || keys.has('w') || held.up || touch < 0, down: keys.has('arrowdown') || keys.has('s') || held.down || touch > 0 };
+  const up = keys.has('arrowup') || keys.has('w') || held.up || touch < 0, down = keys.has('arrowdown') || keys.has('s') || held.down || touch > 0;
+  return { up, down, toOne: up, toZero: down };
 }
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -313,10 +320,10 @@ function toMenu() { syncMenu(); show('#menu'); }
 function start(m, again) {
   current = m;
   seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
-  world = new E.World(m ? { mission: m.id } : { seed, decay: S.decay });
+  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level] });
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null);
   if (m) note(m.brief, 6);
-  else note(`<b>Endless run</b>${S.decay ? ' with T₁ decay' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
+  else note(`<b>Endless run</b>, T₁ = ${world.T1} s. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
 }
 function pause() { show('#paused'); }
 function resume() { show(null); last = performance.now(); }
@@ -324,9 +331,10 @@ function note(html, secs = 4) { const el = $('#note'); el.innerHTML = html; el.c
 function pop(text, color = '#ffd166') { pops.push({ t: world.t, th: world.theta, text, color }); }
 
 const TIPS = [
-  'Let go early: the drive takes a moment to ramp down, and then the qubit stays exactly where it is.',
-  'P(1) = ½ is the middle line, but P(1) = ¼ is at θ = 60°, a third of the way down, not a quarter.',
-  'A full dive from |0⟩ to |1⟩ is a π pulse: about 2 s here. Plan it before the ring arrives.',
+  'Let go early: the drive takes a moment to ramp down. After that only T₁ moves the qubit, and only downward.',
+  'P(1) = ½ is the middle line, but P(1) = ¼ is at θ = 60°, a third of the way up, not a quarter.',
+  'A full climb from |0⟩ to |1⟩ is a π pulse: about 2 s here. Plan it before the ring arrives.',
+  'Near the top the qubit jumps down most often: the jump rate is P(1)/T₁. Don\'t wait up there longer than you need to.',
   'Near a measurement gate, fly close to the outcome it pays for: P(1) = sin²(θ/2).',
 ];
 function finish(ev) {
@@ -387,10 +395,10 @@ function draw(t) {
     const y = Y(deg * D2R), main = deg % 90 === 0;
     g.strokeStyle = deg === 90 ? 'rgba(170,200,240,.4)' : main ? 'rgba(170,200,240,.3)' : 'rgba(160,190,230,.13)'; g.lineWidth = 1;
     g.setLineDash(deg === 90 ? [6, 6] : []); g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); g.setLineDash([]);
-    g.fillStyle = 'rgba(190,210,240,.6)'; g.textAlign = 'right'; g.fillText(`P(1)=${(Math.sin(deg * D2R / 2) ** 2).toFixed(2).replace(/\.?0+$/, '') || '0'}`, W - 6, y + (deg === 0 ? 9 : deg === 180 ? -9 : -8));
+    g.fillStyle = 'rgba(190,210,240,.6)'; g.textAlign = 'right'; g.fillText(`P(1)=${(Math.sin(deg * D2R / 2) ** 2).toFixed(2).replace(/\.?0+$/, '') || '0'}`, W - 6, y + (deg === 0 ? -9 : deg === 180 ? 9 : -8));
   }
   g.textAlign = 'left'; g.font = '700 13px Helvetica,Arial'; g.fillStyle = '#7fb8ff';
-  g.fillText('|0⟩', 8, Y(0) + 11); g.fillText('|1⟩', 8, Y(Math.PI) - 11);
+  g.fillText('|0⟩ ground', 8, Y(0) - 11); g.fillText('|1⟩ excited', 8, Y(Math.PI) + 11);
   g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.65)'; g.fillText('equator: equal superposition', 8, Y(Math.PI / 2) - 9);
   if (!world) return;
   const w = world, nx = nowX(), rpx = (H - PAD_T - PAD_B) / Math.PI;
@@ -411,7 +419,7 @@ function draw(t) {
       g.fillStyle = '#9fd2ff'; g.font = '700 12px Helvetica,Arial'; g.textAlign = 'center';
       g.fillText('MEASURE', x, 12); g.fillText(`pays for |${o.want}⟩`, x, H - 10);
       // the Born-rule odds if it came now
-      g.font = '11px Helvetica,Arial'; g.fillText(`P(${o.want}) now ${(o.want ? w.p1 : 1 - w.p1).toFixed(2)}`, x, Y(o.want ? Math.PI : 0) + (o.want ? -18 : 18));
+      g.font = '11px Helvetica,Arial'; g.fillText(`P(${o.want}) now ${(o.want ? w.p1 : 1 - w.p1).toFixed(2)}`, x, Y(o.want ? Math.PI : 0) + (o.want ? 18 : -18));
     } else if (o.type === 'token') {
       if (o.done) continue;
       const y = Y(o.th), y2 = Y(Math.PI - o.th);
@@ -424,7 +432,7 @@ function draw(t) {
       const col = o.missed ? 'rgba(255,120,140,.5)' : quiz ? '#c9a2ff' : '#ffd166';
       g.strokeStyle = col; g.lineWidth = quiz ? 3 : 3.5; ellipse(x, y, 9, ry); g.stroke();
       g.globalAlpha = 0.18; g.fillStyle = col; ellipse(x, y, 9, ry); g.fill(); g.globalAlpha = 1;
-      if (o.th > Math.PI - 1e-6 || o.th < 1e-6) { g.fillStyle = col; g.font = '700 12px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(o.th < 1 ? '|0⟩' : '|1⟩', x, y + (o.th < 1 ? ry + 10 : -ry - 10)); }
+      if (o.th > Math.PI - 1e-6 || o.th < 1e-6) { g.fillStyle = col; g.font = '700 12px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(o.th < 1 ? '|0⟩' : '|1⟩', x, y + (o.th < 1 ? -ry - 10 : ry + 10)); }
     }
   }
   if (nq) {
@@ -436,7 +444,7 @@ function draw(t) {
   }
   // where ▲ and ▼ would take you in the next second (a fan), and the trail behind
   const th = w.theta, inp = input(), reachT = 0.5;
-  for (const [dir, on] of [[-1, inp.up], [1, inp.down]]) {
+  for (const [dir, on] of [[1, inp.toOne], [-1, inp.toZero]]) {   // dir: the sign of dθ
     if ((dir < 0 && th < 0.02) || (dir > 0 && th > Math.PI - 0.02)) continue;
     g.strokeStyle = on ? 'rgba(255,255,255,.7)' : 'rgba(255,255,255,.14)'; g.lineWidth = on ? 2 : 1; g.setLineDash([3, 4]); g.beginPath();
     for (let i = 0; i <= 20; i++) { const s = reachT * i / 20, tt = Math.max(0, Math.min(Math.PI, th + dir * E.P.OMEGA * Math.max(0, s - 0.08))); i ? g.lineTo(nx + s * pxs(), Y(tt)) : g.moveTo(nx, Y(tt)); }
@@ -452,7 +460,7 @@ function draw(t) {
     g.fillStyle = glow; g.beginPath(); g.arc(nx, y, 20, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(nx, y, 6, 0, Math.PI * 2); g.fill();
   }
   if (w.driving) {
-    const dir = w.amp > 0 ? 1 : -1; g.fillStyle = '#ffb347'; g.beginPath();
+    const dir = w.amp > 0 ? -1 : 1; g.fillStyle = '#ffb347'; g.beginPath();   // on screen: toward |1⟩ is up (−y)
     g.moveTo(nx - 7, y + dir * 12); g.lineTo(nx + 7, y + dir * 12); g.lineTo(nx, y + dir * 22); g.fill();
     g.font = '700 11px Helvetica,Arial'; g.textAlign = 'left'; g.fillText(w.driveSign > 0 ? '+X pulse' : '−X pulse', nx + 12, y - dir * 12);
   } else { g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.7)'; g.textAlign = 'left'; g.fillText('drive off', nx + 12, y - 12); }
@@ -466,14 +474,16 @@ function draw(t) {
   let hearts = ''; for (let i = 0; i < Math.max(E.P.HEARTS, w.hearts); i++) hearts += i < w.hearts ? '♥' : '♡'; g.fillText(hearts, W - 10, 6);
   g.textBaseline = 'middle';
   if (w.mission) { const f = Math.min(1, w.t / w.endT); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * f, 3); }
-  if (w.decay) { g.textAlign = 'right'; g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.7)'; g.fillText('T₁ decay on', W - 10, 34); }
+  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`T₁ = ${w.T1} s`, W / 2, 8);
   if (flash > 0) { g.fillStyle = `rgba(255,60,90,${flash * 0.6})`; g.fillRect(0, 0, W, H); }
 }
 
 /* ---------------- drawing: the Bloch sphere (the state rides the y–z circle; the drive is the x axis) ---------------- */
 const VAZ = 35 * D2R, VEL = 15 * D2R;
 const Vd = [Math.cos(VEL) * Math.cos(VAZ), Math.cos(VEL) * Math.sin(VAZ), Math.sin(VEL)], Vr = E.unit(E.cross([0, 0, 1], Vd)), Vu = E.cross(Vd, Vr);
-function SP(v) { const c = SW / 2, R = SW * 0.36; return { x: c + R * E.dot(v, Vr), y: c - R * E.dot(v, Vu), front: E.dot(v, Vd) >= 0 }; }
+// The sphere is drawn turned 180° about x, so |0⟩ is at the bottom like the game. That is a rotation (y → −y, z → −z),
+// not a mirror, so a turn about +x still looks right-handed.
+function SP(v) { v = [v[0], -v[1], -v[2]]; const c = SW / 2, R = SW * 0.36; return { x: c + R * E.dot(v, Vr), y: c - R * E.dot(v, Vu), front: E.dot(v, Vd) >= 0 }; }
 function circ(n, k = 64) {
   const ref = Math.abs(n[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1], e1 = E.unit(E.cross(n, ref)), e2 = E.cross(n, e1);
   return Array.from({ length: k + 1 }, (_, i) => { const a = i / k * 2 * Math.PI; return [0, 1, 2].map(j => Math.cos(a) * e1[j] + Math.sin(a) * e2[j]); });
@@ -508,7 +518,7 @@ function drawSphere() {
   sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
   $('#driveText').innerHTML = !w ? 'The orange circle is the path a turn about x keeps the state on.'
     : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
-      : 'Drive off: no rotation, and in the frame of a resonant drive no precession either.';
+      : `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only T₁ (${w.T1} s) acts, toward |0⟩.`;
 }
 function drawState() {
   const w = world, r = w ? w.r : [0, 0, 1], th = E.thetaOf(r), p1 = (1 - r[2]) / 2, c = Math.cos(th / 2), s = Math.sin(th / 2);
