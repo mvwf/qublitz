@@ -54,9 +54,7 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
   const g = 1 / E.P.T1.normal, T = 3;
   const w = bare({ seed: 'nojump', T1: E.P.T1.normal }); w.ghosts[0].jump = () => 1; w.r = E.onCircle(2.0);
   for (let i = 0; i < T * 120; i++) w.step({}, DT);
-  const want = 2 * Math.atan(Math.tan(1.0) * Math.exp(-g * T / 2));
-  check('no-jump trajectory slides toward |0⟩ as tan(θ/2) e^{−γt/2}', close(w.theta, want, 1e-4), `${w.theta.toFixed(5)} vs ${want.toFixed(5)}`);
-  check('the no-jump state stays pure (unit Bloch vector)', close(E.norm(w.r), 1, 1e-12));
+  check('between jumps nothing moves: no drift, decoherence is jumps only', close(w.theta, 2.0, 1e-12), `${w.theta.toFixed(5)}`);
 
   const N = 3000, ts = [0.5, 1, 2], sums = ts.map(() => 0);
   for (let k = 0; k < N; k++) {
@@ -68,6 +66,22 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
     const got = sums[j] / N, want = 0.5 * Math.exp(-t), sd = Math.sqrt(want * (1 - want) / N) + 0.004;
     check(`ensemble P₁(t = ${t}/γ) = ½ e^{−γt}`, Math.abs(got - want) < 3 * sd, `${got.toFixed(4)} vs ${want.toFixed(4)}`);
   });
+}
+
+// ---- jumps: photons leave at the rate P₁/T₁; phase flips dephase; the Z control turns the phase only ----
+{
+  const N = 3000, T1 = 4, w = new E.World({ seed: 'photons', T1, ghosts: N }); w.objects = []; w.generate = () => {}; w.r = E.onCircle(120 * D2R);
+  let photons = 0; for (let i = 0; i < 12; i++) for (const e of w.step({}, DT)) if (e.type === 'jump') photons += e.n;
+  const want = N * 0.75 * (1 - Math.exp(-12 * DT / T1)), sd = Math.sqrt(want);
+  check('photons leave at the rate P₁/T₁ (3000 runs at θ = 120° for 0.1 s)', Math.abs(photons - want) < 3 * sd, `${photons} vs ${want.toFixed(0)}`);
+  const Tphi = 3, d = new E.World({ seed: 'dephase', T1: 6, Tphi, ghosts: 4000 }); d.objects = []; d.generate = () => {}; d.r = E.onCircle(Math.PI / 2);
+  for (let i = 0; i < 120; i++) d.step({}, DT);
+  const perp = Math.hypot(d.r[0], d.r[1]), wantPerp = Math.exp(-1 / 6 - 1 / Tphi);
+  check('coherence decays as e^{−t/T₁ − t/T_φ} (1/T₂ = 1/T₁ + 1/T_φ)', Math.abs(perp - wantPerp) < 0.03, `${perp.toFixed(3)} vs ${wantPerp.toFixed(3)}`);
+  const f = bare({ seed: 'flip', Tphi: 0.01 }); f.r = E.onCircle(60 * D2R); f.ghosts[0].phase = () => 0; f.step({}, DT);
+  check('a phase flip keeps the height and moves the run to the other side of the circle', close(f.theta, 60 * D2R, 1e-9) && f.r[1] > 0.8);
+  const z = bare({ seed: 'z' }); z.r = E.onCircle(60 * D2R); for (let i = 0; i < 120; i++) z.step({ zPlus: true }, DT);
+  check('the Z control turns the phase, not the height', close(z.theta, 60 * D2R, 1e-9) && Math.abs(Math.atan2(z.r[1], z.r[0]) + Math.PI / 2) > 0.5);
 }
 
 // ---- decay is always on, and T₁ is the difficulty ----
@@ -162,7 +176,7 @@ function bot(w) {
         if (e.type === 'miss' || e.type === 'quizmiss' || (e.type === 'quiz' && !e.correct)) all++;
       }
     }
-    const want = name === 'easy' ? 0.85 : 0.65;
+    const want = { easy: 0.85, normal: 0.65, hard: 0.6, expert: 0.5 }[name];
     check(`with T₁ = ${T1} s (${name}) and ${E.P.GHOSTS} ghosts, aiming the mean passes at least ${100 * want} % of targets`, got / all >= want, `${got}/${all}`);
   }
 }

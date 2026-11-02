@@ -20,10 +20,15 @@
  * test for the target), is at least F_PASS. F̄ is linear in r̄, so aiming the mean is the best strategy, and decoherence
  * (runs that jumped) shortens r̄ and caps F̄. The ensemble's average Bloch vector r̄ is the density matrix, ρ = (1 + r̄·σ)/2.
  *
- * T₁ decay is always on (T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests). Each run is
- * watched (a quantum trajectory): while no photon is detected the state stays pure and slides toward |0⟩ at
- * dθ/dt = −(γ/2) sinθ, γ = 1/T₁, and a photon is detected with probability γ·P₁·dt per step, which resets the
- * state to |0⟩ (a quantum jump). Averaged over runs this is ordinary T₁ decay, P₁ ∝ e^(−t/T₁).
+ * Decoherence is quantum jumps only; between jumps a run's state does not move unless you drive it.
+ *   T₁ (always on; T₁ sets the difficulty; opts.T1 = Infinity turns it off, for tests): at the rate 1/T₁ the
+ *     environment measures the run's energy and leaves it in |0⟩. It finds |1⟩ with probability P₁, and then a photon
+ *     is emitted, so photons leave at the rate P₁/T₁ as a photon counter would see. Averaged over runs, P₁ decays
+ *     exactly as e^(−t/T₁), and coherence as e^(−t/T₁).
+ *   Dephasing (opts.Tphi, Infinity = off): at the rate 1/(2T_φ) a run's phase flips, a π turn about z, (x, y, z) →
+ *     (−x, −y, z). Its height is unchanged, but the shared drive now turns it the other way. Averaged, coherence decays
+ *     by a further e^(−t/T_φ). Together 1/T₂ = 1/T₁ + 1/T_φ.
+ * A Z control (input zPlus / zMinus) turns every run about z at OMEGA_Z: it changes the phase, not the height.
  *
  * Hitting noise costs a heart, and the noise measures the qubit: stray coupling to the environment acts as an
  * unwanted measurement of σz, so the state collapses to |1⟩ with probability P₁ and to |0⟩ otherwise (decoherence
@@ -68,7 +73,8 @@
     OMEGA: 1.6,          // Rabi rate Ω [rad/s]: a π pulse takes about 2 s (slow enough to aim with human reflexes)
     TAU: 0.1,            // drive amplitude time constant [s]
     EASE: 10 * D2R,      // the drive eases off this close to the pole it is pushing toward
-    T1: { easy: 12, normal: 6, hard: 3, expert: 1.5 },   // T₁ [s] for each difficulty: 6, 3, 1.5 and ¾ π pulse
+    T1: { easy: 12, normal: 6, hard: 3, expert: 1.5 },
+    OMEGA_Z: 1.6,        // rate of the Z control [rad/s]   // T₁ [s] for each difficulty: 6, 3, 1.5 and ¾ π pulse
     GHOSTS: 12,          // runs of the experiment flown at once, all by the same drive
     F_PASS: 0.7,        // a target counts when the ensemble's fidelity with it is at least this (and the mean points through it)
     F_PERFECT: 0.95,     // and is a perfect above this
@@ -118,7 +124,7 @@
  * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
     { id: 'flight', title: 'Flight school', start: 90,
-      brief: 'You fly an ensemble: each ghost is one run of the same experiment, and one drive acts on all of them. Hold <b>▲</b> to drive them up toward |1⟩ and <b>▼</b> down toward |0⟩. Let go and only T₁ decay acts: each ghost drifts down and, at a random moment, jumps to |0⟩. Aim the mean (the big marker) through each ring: it counts when the ensemble\'s fidelity with the ring\'s state is at least 75 %, the share of runs that would pass.',
+      brief: 'You fly an ensemble: each ghost is one run of the same experiment, and one drive acts on all of them. Hold <b>▲</b> to drive them up toward |1⟩ and <b>▼</b> down toward |0⟩. Let go and only decoherence acts: at random moments a ghost jumps to |0⟩ and shoots out a photon. Aim the mean (the big marker) through each ring: it counts when the ensemble\'s fidelity with the ring\'s state is at least 75 %, the share of runs that would pass.',
       learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off the only motion is T₁ decay, down toward the ground state |0⟩: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
@@ -144,8 +150,8 @@
       items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
         ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
     { id: 'jumps', title: 'Quantum jumps', start: 0, T1: 5, three: 0.6,
-      brief: 'A short T₁ here (5 s, whatever the difficulty). The green curtains reset every ghost to |0⟩, a fresh shot. Watch the ghosts: each one falls to |0⟩ in a sudden jump at its own random moment, more often the nearer it is to |1⟩. Jumps cost no hearts, but a ghost that jumped has to be brought back up.',
-      learn: 'T₁ and the jumps are the same thing seen two ways. Each run jumps at a random time, at the rate P(1)/T₁, and between jumps it drifts toward |0⟩ (not seeing a photon is information too). Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the white marker shows it.',
+      brief: 'A short T₁ here (5 s, whatever the difficulty). The green curtains reset every ghost to |0⟩, a fresh shot. Watch the ghosts: each one falls to |0⟩ in a sudden jump at its own random moment, and the higher it was, the likelier a photon flies out. Jumps cost no hearts, but a ghost that jumped has to be brought back up.',
+      learn: 'T₁ and the jumps are the same thing seen two ways. Each run is left in |0⟩ at a random moment (rate 1/T₁), emitting a photon if it was found in |1⟩, and does not move in between. Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the big marker shows it.',
       items: [['r', 2, 100], ['r', 3.5, 125], ['z', 4.5], ['r', 6.5, 110], ['r', 8, 130], ['z', 9], ['r', 11, 120], ['r', 12.5, 100], ['z', 13.5],
         ['r', 15.5, 130], ['r', 17, 110]] },
     { id: 'exam', title: 'Final exam', start: 90,
@@ -157,7 +163,8 @@
   const isGood = o => o.type === 'ring' || o.type === 'token';   // things to collect, which clouds never cover
 
   /* ---------------- the world ----------------
-   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), ghosts (default P.GHOSTS; 1 for a single run), mission: id };
+   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), Tphi [s] (dephasing; default Infinity = none),
+   *         ghosts (default P.GHOSTS; 1 for a single run), mission: id };
    * a mission's own T1 overrides opts.T1.
    * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
    * (or a wrong quiz answer) costs one, and every STREAK_HEAL targets in a row restores one.
@@ -168,6 +175,9 @@
     constructor(opts = {}) {
       this.T1 = opts.T1 ?? P.T1.normal;
       this.noReset = !!opts.noReset;
+      this.Tphi = opts.Tphi ?? Infinity;
+      this.zamp = 0;                                    // the Z control: −1 … +1
+      this.flips = 0; this.photons = 0;
       this.N = Math.max(1, Math.round(opts.ghosts ?? P.GHOSTS));
       this.rand = rng('course:' + (opts.seed ?? 'random'));
       this.t = 0; this.amp = 0;                         // amp: −1 drives toward |0⟩, +1 toward |1⟩
@@ -180,7 +190,8 @@
       // each ghost is one run of the experiment, with its own photon detections and measurement outcomes
       const tag = m ? 'mission:' + m.id : String(opts.seed ?? 'random');
       this.ghosts = Array.from({ length: this.N }, (_, i) => ({
-        r: onCircle(90 * D2R), jump: rng(`jumps:${tag}:${i}`), meas: rng(`measure:${tag}:${i}`), noise: rng(`noise:${tag}:${i}`) }));
+        r: onCircle(90 * D2R), jump: rng(`jumps:${tag}:${i}`), meas: rng(`measure:${tag}:${i}`), noise: rng(`noise:${tag}:${i}`),
+        phase: rng(`phase:${tag}:${i}`) }));
       if (m) {
         this.mission = m; if (m.T1) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.script(m);
@@ -206,7 +217,7 @@
       return this._dir ?? Math.PI / 2;
     }
     thetas() { return this.ghosts.map(g => thetaOf(g.r)); }
-    get driving() { return Math.abs(this.omega()[0]) > 0.02 * P.OMEGA; }
+    get driving() { const w = this.omega(); return Math.abs(w[0]) > 0.02 * P.OMEGA || Math.abs(w[2]) > 0.02 * P.OMEGA_Z; }
     // The drive about x, one pulse for every run: its sign follows the side of the circle the ensemble mean is on, so +amp
     // pushes the mean toward |1⟩, and it eases off within EASE of the pole it is pushing toward. Once the runs disagree the
     // mean is shorter than 1 (a mixed state) and a pulse moves it less; split evenly between |0⟩ and |1⟩, it is zero and no
@@ -214,7 +225,7 @@
     omega() {
       const th = this.meanTheta, side = this.r[1] <= 0 ? 1 : -1;   // ease by P̄(1), so a nearly mixed ensemble can still be driven
       const ease = Math.min(1, (this.amp > 0 ? Math.PI - th : th) / P.EASE);
-      return [P.OMEGA * this.amp * side * ease, 0, 0];
+      return [P.OMEGA * this.amp * side * ease, 0, P.OMEGA_Z * this.zamp];
     }
     // +1 for a +X drive, −1 for −X, 0 when off: the pulse the game is playing for you.
     get driveSign() { const w = this.omega()[0]; return Math.abs(w) < 0.02 * P.OMEGA ? 0 : Math.sign(w); }
@@ -225,22 +236,27 @@
       const want = (input.toOne ? 1 : 0) - (input.toZero ? 1 : 0);
       this.amp += (want - this.amp) * (1 - Math.exp(-dt / P.TAU));
       if (Math.abs(this.amp) < 1e-3 && !want) this.amp = 0;
-      const w = this.omega(); let jumped = 0;
-      for (const gh of this.ghosts) {
+      const wz = (input.zPlus ? 1 : 0) - (input.zMinus ? 1 : 0);
+      this.zamp += (wz - this.zamp) * (1 - Math.exp(-dt / P.TAU));
+      if (Math.abs(this.zamp) < 1e-3 && !wz) this.zamp = 0;
+      const w = this.omega(), photons = [], flips = [];
+      this.ghosts.forEach((gh, i) => {
         let r = rotate(gh.r, w, dt);
-        // watched T₁, run by run: a jump to |0⟩ with probability γ P₁ dt, otherwise the no-jump drift toward |0⟩
-        if (this.decay) {
-          const g = 1 / this.T1, z = r[2];
-          if (gh.jump() < g * (1 - z) / 2 * dt) { r = [0, 0, 1]; jumped++; }
-          else { const h = (g / 2) * dt; r = [r[0] * (1 - h * z), r[1] * (1 - h * z), r[2] + h * (1 - z * z)]; }
+        // T₁, run by run: at the rate 1/T₁ the environment leaves the run in |0⟩ (a jump; no drift in between). It found
+        // |1⟩, and a photon left, with probability P₁.
+        if (this.decay && gh.jump() < dt / this.T1) {
+          if (gh.jump() < (1 - r[2]) / 2) photons.push({ i, th: thetaOf(r) });
+          r = [0, 0, 1];
         }
+        // dephasing: at the rate 1/(2T_φ) a phase flip, a π turn about z
+        if (this.Tphi < Infinity && gh.phase() < dt / (2 * this.Tphi)) { if (Math.hypot(r[0], r[1]) > 0.05) flips.push({ i, th: thetaOf(r) }); r = [-r[0], -r[1], r[2]]; }
         gh.r = unit(r);
-      }
-     
-      if (jumped) {
-        this.jumps += jumped; ev.push({ type: 'jump', n: jumped });
+      });
+      if (photons.length) {
+        this.jumps += photons.length; this.photons += photons.length; ev.push({ type: 'jump', n: photons.length, photons });
         if (this.N === 1) { this.combo = 0; this.grace = Math.max(this.grace, P.GRACE); }
       }
+      if (flips.length) { this.flips += flips.length; ev.push({ type: 'flip', n: flips.length, flips }); }
       const t0 = this.t; this.t += dt;
       this.score += 2 * dt;
       this.grace = Math.max(0, this.grace - dt);
@@ -256,8 +272,11 @@
     count(th, rad) { let n = 0; for (const g of this.ghosts) if (Math.abs(thetaOf(g.r) - th) < rad) n++; return n; }
     // The ensemble's fidelity with the target state at height th: F̄ = ⟨t|ρ|t⟩ = (1 + r̄·t̂)/2, the average of the runs'
     // fidelities, i.e. the share of runs that would pass a test for |t⟩. It is linear in r̄, so aiming the mean is the
-    // best you can do, and decoherence caps it at (1 + |r̄|)/2. The target is taken on the ensemble's side of the circle.
-    fidelity(th) { const m = this.r; return (1 + dot(m, onCircle(th, m[1] <= 0 ? -1 : 1))) / 2; }
+    // best you can do, and decoherence caps it at (1 + |r̄|)/2. The target is the state at the ring's height on the mean's own
+    // azimuth φ̄ (the closest state at that height), so a phase error common to every run does not count against you, but
+    // runs that disagree in phase do.
+    fidelity(th) { const m = this.r, ph = Math.hypot(m[0], m[1]) > 1e-9 ? Math.atan2(m[1], m[0]) : -Math.PI / 2;
+      return (1 + dot(m, fromAngles(th, ph))) / 2; }
     // A target is met when the mean points through it and F̄ ≥ F_PASS.
     passes(o) { return Math.abs(this.theta - o.th) < o.rad && this.fidelity(o.th) >= P.F_PASS; }
     // Everything the clock reached in (t0, t].

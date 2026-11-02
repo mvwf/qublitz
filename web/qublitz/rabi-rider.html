@@ -69,6 +69,7 @@
   .ctrl button{padding:14px 6px;font-size:16px;font-weight:700;background:var(--panel);touch-action:none}
   .ctrl button small{display:block;font-size:11.5px;font-weight:400;color:var(--muted)}
   .ctrl button.on{background:var(--green);color:#fff;border-color:var(--green)} .ctrl button.on small{color:#d9f2e6}
+  .ctrl #btnZm,.ctrl #btnZp{padding:8px 6px;font-size:14px}
   .keys{font-size:12px;color:var(--muted);margin:6px 0 0}
   .keys kbd{border-color:var(--line);background:var(--panel);color:var(--ink)}
   .ket{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:17px;margin:0 0 6px}
@@ -118,6 +119,8 @@
           <option value="hard">3 s · hard</option><option value="expert">1.5 s · expert</option></select></label>
         <label>runs <select id="optN" aria-label="How many runs of the experiment (ghosts) to fly at once">
           <option value="1">1</option><option value="6">6</option><option value="12" selected>12</option><option value="24">24</option></select></label>
+        <label>phase flips <select id="optPhi" aria-label="Dephasing: how often a run's phase flips">
+          <option value="0">off</option><option value="2" selected>T_φ = 2T₁</option><option value="1">T_φ = T₁</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <p class="best" id="menuBest"></p>
@@ -156,8 +159,11 @@
       <div class="ctrl">
         <button id="btnUp">▲<small>toward |1⟩</small></button>
         <button id="btnDown">▼<small>toward |0⟩</small></button>
+        <button id="btnZm">⟲ −Z<small>turn the phase</small></button>
+        <button id="btnZp">+Z ⟳<small>turn the phase</small></button>
       </div>
-      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>P</kbd> pause. Let go and the drive is off; T₁ pulls the qubit down to |0⟩.</p>
+      <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>←</kbd>/<kbd>A</kbd> −Z · <kbd>→</kbd>/<kbd>D</kbd> +Z · <kbd>P</kbd> pause.
+        Let go and the drive is off; decoherence pulls the runs down to |0⟩ and flips their phases. Z turns every run about z: the height stays, but which way the next ▲ turns each run changes.</p>
     </div>
     <div class="panel">
       <h3>On the Bloch sphere</h3>
@@ -189,9 +195,13 @@
     <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
     state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
     learns the state, and the superposition is gone.
-    <b>T₁ decay</b> is always on, as it is for a real qubit: it emits a photon and falls to its ground state. The qubit here is a watched
-    quantum trajectory, γ = 1/T₁: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps to |0⟩ at the rate
-    γ·P(1), most often near |1⟩; with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>. The difficulty is T₁:
+    <b>Decoherence is quantum jumps only</b>; between them a run does not move unless you drive it. <b>T₁</b> is always on, as for a real
+    qubit: at the rate 1/T₁ the environment checks the run's energy and leaves it in |0⟩. It finds |1⟩ with probability P(1), and then the
+    run emits a photon (the yellow wave), so photons leave at the rate P(1)/T₁, most often near |1⟩, just as a photon counter would see.
+    Averaged over runs this gives exactly P(1) ∝ e<sup>−t/T₁</sup>, and it also costs coherence at the rate 1/T₁. <b>Phase flips</b>
+    (dephasing) turn a run by π about z at the rate 1/(2T<sub>φ</sub>): same height, other side of the circle, so the shared drive turns
+    it the wrong way. Together the coherence lasts T₂ with 1/T₂ = 1/T₁ + 1/T<sub>φ</sub>. The <b>Z</b> control turns every run's phase
+    at once, which is how you bring the mean back onto the circle the drive works on. The difficulty is T₁:
     12, 6, 3 or 1.5 s (5 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
     100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>The ghosts.</b> An experiment is many runs of the same pulse sequence, and its result is an average over them. The game flies
@@ -202,8 +212,8 @@
     (1 + |r̄|)/2: once the runs spread, no aim gets most of them through. A ring counts at F̄ ≥ 70 %.
     Measurement gates read every run and then <b>reset</b> it to |0⟩ (a π pulse conditioned on its own outcome, as labs do); green
     reset curtains start a fresh shot. Noise clouds measure the runs that touch them.</p>
-  <p><b>Left out, on purpose:</b> pure dephasing (random turns about z, the T<sub>φ</sub> part of T₂), so here T₂ = 2T₁, the most a qubit
-    can have; detuning, so nothing precesses (see Qubit Copter's Z control for that); and readout imperfections: every measurement
+  <p><b>Left out, on purpose:</b> detuning, so nothing precesses unless you hold Z; slow noise that would turn every run's phase a
+    little (here dephasing is whole π flips, one simple way to unravel it); and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
     number of measurements.</p>
 </div>
@@ -231,6 +241,8 @@ if (!E.P.T1[S.level]) S.level = 'normal';
 if (![1, 6, 12, 24].includes(S.N)) S.N = E.P.GHOSTS;
 $('#optSound').checked = S.sound; $('#optT1').value = S.level; $('#optN').value = S.N;
 $('#optN').addEventListener('change', e => { S.N = +e.target.value; store.set('rider2:n', S.N); });
+S.phi = store.get('rider2:phi', 2); if (![0, 1, 2].includes(S.phi)) S.phi = 2; $('#optPhi').value = S.phi;
+$('#optPhi').addEventListener('change', e => { S.phi = +e.target.value; store.set('rider2:phi', S.phi); });
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rider2:sound', S.sound); });
 $('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider2:t1', S.level); });
 
@@ -251,15 +263,16 @@ const X = t => nowX() + (t - world.t) * pxs();
 
 /* ---------------- input: ▲/▼ keys, buttons, or the top/bottom half of the game; ▲ is toward |1⟩ (up) ---------------- */
 const keys = new Set(); let touch = 0;   // touch: −1 top half (▲), +1 bottom half (▼)
-const held = { up: false, down: false };
+const held = { up: false, down: false, zp: false, zm: false };
 function input() {
   const up = keys.has('arrowup') || keys.has('w') || held.up || touch < 0, down = keys.has('arrowdown') || keys.has('s') || held.down || touch > 0;
-  return { up, down, toOne: up, toZero: down };
+  const zPlus = keys.has('arrowright') || keys.has('d') || held.zp, zMinus = keys.has('arrowleft') || keys.has('a') || held.zm;
+  return { up, down, toOne: up, toZero: down, zPlus, zMinus };
 }
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.target.closest('input,select,textarea')) return;
-  if (['arrowup', 'arrowdown', ' '].includes(k)) e.preventDefault();
+  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
   if ((k === ' ' || k === 'enter') && !e.target.closest('button,a')) {
     if (phase === 'paused') resume(); else if (phase === 'brief') $('#briefGo').click();
@@ -269,7 +282,7 @@ addEventListener('keydown', e => {
   keys.add(k);
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-addEventListener('blur', () => { keys.clear(); touch = 0; held.up = held.down = false; if (phase === 'play') pause(); });
+addEventListener('blur', () => { keys.clear(); touch = 0; held.up = held.down = held.zp = held.zm = false; if (phase === 'play') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pause(); });
 const stage = $('#stage');
 const touchAt = e => { const b = stage.getBoundingClientRect(); touch = e.clientY - b.top < b.height / 2 ? -1 : 1; };
@@ -280,7 +293,7 @@ stage.addEventListener('pointerdown', e => {
 });
 stage.addEventListener('pointermove', e => { if (touch) touchAt(e); });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => stage.addEventListener(t, () => { touch = 0; }));
-for (const [id, k] of [['#btnUp', 'up'], ['#btnDown', 'down']]) {
+for (const [id, k] of [['#btnUp', 'up'], ['#btnDown', 'down'], ['#btnZp', 'zp'], ['#btnZm', 'zm']]) {
   const b = $(id);
   b.addEventListener('pointerdown', e => { b.setPointerCapture(e.pointerId); held[k] = true; });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, () => { held[k] = false; }));
@@ -310,6 +323,10 @@ const SND = {
 };
 
 /* ---------------- menus ---------------- */
+// photons in flight: { t (game time), th (where it left), dir (angle on screen) }
+let photons = [];
+// off to the right along the track (a run near |1⟩ is at the top, so upward would leave the canvas at once)
+function shootPhoton(th) { photons.push({ t: world.t, th, dir: (Math.random() - 0.5) * 1.2 + (th > 2.4 ? 0.35 : th < 0.7 ? -0.35 : 0) }); }
 let world = null, phase = 'menu', hist = [], pops = [], noteT = 0, flash = 0, overAt = 0, current = null, seed = null;
 function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; }
 const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -336,7 +353,9 @@ function toMenu() { syncMenu(); show('#menu'); }
 function start(m, again) {
   current = m;
   seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
-  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], ghosts: S.N });
+  const T1 = (m && m.T1) || E.P.T1[S.level];
+  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], Tphi: S.phi ? S.phi * T1 : Infinity, ghosts: S.N });
+  photons = [];
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null);
   if (m) note(m.brief, 6);
   else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
@@ -344,7 +363,8 @@ function start(m, again) {
 function pause() { show('#paused'); }
 function resume() { show(null); last = performance.now(); }
 function note(html, secs = 4) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
-function pop(text, color = '#ffd166') { pops.push({ t: world.t, th: world.theta, text, color }); }
+// pops that arrive together are stacked, not drawn on top of each other
+function pop(text, color = '#ffd166') { const k = pops.filter(p => world.t - p.t < 0.6).length; pops.push({ t: world.t, th: world.theta, text, color, k }); }
 
 const TIPS = [
   'Let go early: the drive takes a moment to ramp down. After that only T₁ moves the qubit, and only downward.',
@@ -400,11 +420,13 @@ function handle(ev) {
     else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
     else if (e.type === 'hit') { SND.hit(); if (e.heart) flash = 0.35;
       if (world.N === 1) note(`<b>Noise!</b> The environment measured your qubit: P(1) was ${e.p1.toFixed(2)}, and it collapsed to |${e.one ? 1 : 0}⟩. That cost a heart.`, 4);
-      else if (e.heart || world.hits === 0) note(`<b>Noise!</b> The environment measured ${e.n} run${e.n > 1 ? 's' : ''}, and each collapsed to |0⟩ or |1⟩.${e.heart ? ' It reached half of them: that cost a heart.' : ''}`, 4); }
-    else if (e.type === 'jump') { SND.jump(); pop(world.N > 1 ? (e.n > 1 ? e.n + ' jumps' : 'jump') : 'jump!', '#9fd2ff');
+      else if (e.heart || world.hits === 0) note(`<b>Noise!</b> The environment measured ${e.n > 1 ? e.n + ' runs, and each' : '1 run, and it'} collapsed to |0⟩ or |1⟩.${e.heart ? ' It reached half of them: that cost a heart.' : ''}`, 4); }
+    else if (e.type === 'jump') { SND.jump(); e.photons.forEach(ph => shootPhoton(ph.th));
       if (world.jumps === e.n) note(world.N > 1
-        ? '<b>A ghost jumped.</b> One run emitted its photon and fell to |0⟩; the others did not, so the runs now disagree and the mean marker shrinks. Each run jumps at its own random moment, at the rate P(1)/T₁. Averaged, that is T₁ decay.'
-        : '<b>Quantum jump.</b> A photon escaped, so the qubit is now in |0⟩. The odds are γ·P(1) per second: highest near |1⟩.', 6); }
+        ? '<b>A photon!</b> One run was found in |1⟩, emitted its photon and fell to |0⟩; the others did not, so the runs now disagree and the mean marker shrinks. Photons leave at the rate P(1)/T₁: most often from runs near |1⟩. Averaged, that is T₁ decay.'
+        : '<b>A photon!</b> The qubit emitted it and fell to |0⟩: a quantum jump. Photons leave at the rate P(1)/T₁, highest near |1⟩.', 6); }
+    else if (e.type === 'flip') { pop(e.n > 1 ? e.n + ' phase flips' : 'phase flip', '#ffb066');
+      if (world.flips === e.n) note('<b>Phase flip.</b> Dephasing turned a run by π about z: same height, other side of the circle (orange). The shared drive now turns it the wrong way. Its rate is 1/(2T_φ); averaged, it shrinks the mean like T₁ does.', 6); }
     else if (e.type === 'reset') { tone(520, 780, 0.15, 'triangle', 0.06); pop('reset', '#8ff0b0');
       if (!world._resetSeen) { world._resetSeen = true; note('<b>Reset.</b> Every run is back in |0⟩: a new shot of the experiment, and the ensemble is pure again. Real experiments repeat short shots like this, because decoherence builds up within each one.', 6); } }
     else if (e.type === 'clear') { SND.clear(); finish(e); }
@@ -492,8 +514,9 @@ function draw(t) {
       hist.forEach((h, i) => { const v = h.ths && h.ths[k]; if (v == null) return; const x = X(h.t);
         if (prev == null || Math.abs(v - prev) > 0.5) g.moveTo(x, Y(v)); else g.lineTo(x, Y(v)); prev = v; });
       g.stroke(); }
-    g.fillStyle = 'rgba(220,240,255,.55)';
-    ths.forEach(v => { g.beginPath(); g.arc(nx, Y(v), 3, 0, Math.PI * 2); g.fill(); });
+    const m = w.r;   // a run whose phase points away from the mean's is turned the other way by the drive: draw it orange
+    w.ghosts.forEach((gh, k) => { const away = gh.r[0] * m[0] + gh.r[1] * m[1] < -1e-6;
+      g.fillStyle = away ? 'rgba(255,170,90,.9)' : 'rgba(220,240,255,.55)'; g.beginPath(); g.arc(nx, Y(ths[k]), away ? 3.5 : 3, 0, Math.PI * 2); g.fill(); });
   }
   g.strokeStyle = 'rgba(160,220,255,.85)'; g.lineWidth = 2.5; g.beginPath();
   hist.forEach((h, i) => { const x = X(h.t); i ? g.lineTo(x, Y(h.th)) : g.moveTo(x, Y(h.th)); }); g.stroke();
@@ -511,9 +534,19 @@ function draw(t) {
     g.moveTo(nx - 7, y + dir * 12); g.lineTo(nx + 7, y + dir * 12); g.lineTo(nx, y + dir * 22); g.fill();
     g.font = '700 11px Helvetica,Arial'; g.textAlign = 'left'; g.fillText(w.driveSign > 0 ? '+X pulse' : '−X pulse', nx + 12, y - dir * 12);
   } else { g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.7)'; g.textAlign = 'left'; g.fillText('drive off', nx + 12, y - 12); }
+  // photons: a wave packet flying out of the run that emitted it
+  photons = photons.filter(ph => w.t - ph.t < 1.1);
+  for (const ph of photons) {
+    const a = (w.t - ph.t) / 1.1, d = 10 + a * 170, x0 = nx + d * Math.cos(ph.dir), y0 = Y(ph.th) + d * Math.sin(ph.dir);
+    g.globalAlpha = 1 - a; g.strokeStyle = '#fff36b'; g.lineWidth = 2.8; g.beginPath();
+    for (let k = 0; k <= 24; k++) { const u = (k / 24 - 0.5) * 34, wv = 5 * Math.sin(k / 24 * 6 * Math.PI - a * 40) * Math.exp(-((k / 24 - 0.5) ** 2) * 10);
+      const px = x0 + u * Math.cos(ph.dir) - wv * Math.sin(ph.dir), py = y0 + u * Math.sin(ph.dir) + wv * Math.cos(ph.dir); k ? g.lineTo(px, py) : g.moveTo(px, py); }
+    g.stroke(); g.fillStyle = '#fff36b'; g.font = '700 11px Helvetica,Arial'; g.textAlign = 'center'; if (a < 0.5) g.fillText('γ', x0, y0 - 10); g.globalAlpha = 1;
+    if (a < 0.15) { g.globalAlpha = 1 - a / 0.15; g.fillStyle = '#fff36b'; g.beginPath(); g.arc(nx, Y(ph.th), 9, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }   // the flash at emission
+  }
   // score pops
   pops = pops.filter(p => w.t - p.t < 1.2);
-  for (const p of pops) { const a = w.t - p.t; g.globalAlpha = 1 - a / 1.2; g.fillStyle = p.color; g.font = '700 15px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(p.text, nx + 30, Y(p.th) - 20 - a * 30); g.globalAlpha = 1; }
+  for (const p of pops) { const a = w.t - p.t; g.globalAlpha = 1 - a / 1.2; g.fillStyle = p.color; g.font = '700 15px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(p.text, nx + 30, Y(p.th) - 20 - a * 30 - 18 * (p.k || 0)); g.globalAlpha = 1; }
   // HUD
   g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.font = '800 22px Helvetica,Arial'; g.fillText(Math.round(w.score), 52, 6);
   if (w.combo > 1) { g.fillStyle = '#ffd166'; g.font = '700 12px Helvetica,Arial'; g.fillText(`combo ×${w.combo}`, 54, 31); }
@@ -521,7 +554,7 @@ function draw(t) {
   let hearts = ''; for (let i = 0; i < Math.max(E.P.HEARTS, w.hearts); i++) hearts += i < w.hearts ? '♥' : '♡'; g.fillText(hearts, W - 10, 6);
   g.textBaseline = 'middle';
   if (w.mission) { const f = Math.min(1, w.t / w.endT); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * f, 3); }
-  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`T₁ = ${w.T1} s`, W / 2, 8);
+  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`T₁ = ${w.T1} s` + (w.Tphi < Infinity ? ` · T_φ = ${w.Tphi} s` : ''), W / 2, 8);
   if (flash > 0) { g.fillStyle = `rgba(255,60,90,${flash * 0.6})`; g.fillRect(0, 0, W, H); }
 }
 
@@ -567,7 +600,8 @@ function drawSphere() {
   sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
   $('#driveText').innerHTML = !w ? 'The orange circle is the path a turn about x keeps the state on.'
     : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
-      : `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only T₁ (${w.T1} s) acts, toward |0⟩.`;
+      : w.zamp ? `<b>Turning about z</b>: every run's phase turns, at ${E.P.OMEGA_Z} rad/s; heights stay put.`
+      : `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only decoherence acts: jumps to |0⟩ (T₁ = ${w.T1} s)${w.Tphi < Infinity ? ` and phase flips (T_φ = ${w.Tphi} s)` : ''}.`;
 }
 const ketOf = r => { const th = E.thetaOf(r), c = Math.cos(th / 2), s = Math.sin(th / 2);
   return s < 0.005 ? '|0⟩' : c < 0.005 ? (r[1] > 0 ? 'i|1⟩' : '−i|1⟩') : `${c.toFixed(2)}|0⟩ ${r[1] > 0 ? '+' : '−'} i·${s.toFixed(2)}|1⟩`; };
@@ -584,6 +618,7 @@ function drawState() {
   $('#bP0').style.width = (100 * (1 - p1)) + '%'; $('#bP1').style.width = (100 * p1) + '%';
   $('#nP0').textContent = (1 - p1).toFixed(2); $('#nP1').textContent = p1.toFixed(2);
   const inp = phase === 'play' ? input() : {}; $('#btnUp').classList.toggle('on', !!inp.up); $('#btnDown').classList.toggle('on', !!inp.down);
+  $('#btnZp').classList.toggle('on', !!inp.zPlus); $('#btnZm').classList.toggle('on', !!inp.zMinus);
 }
 
 /* ---------------- main loop ---------------- */
