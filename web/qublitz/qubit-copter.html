@@ -83,6 +83,9 @@
   .pad button small{display:block;font-size:10.5px;color:var(--muted);line-height:1.1}
   .pad .axis[data-axis=x] button.hold{border-color:#efb3bc} .pad .axis[data-axis=y] button.hold{border-color:#a9dbb4} .pad .axis[data-axis=z] button.hold{border-color:#b4cdee}
   .pad button.on{background:#ffd166;border-color:#e0b040}
+  .pad button.hint{box-shadow:0 0 0 3px #ffd166;animation:hintPulse 1s ease-in-out infinite}
+  @keyframes hintPulse{50%{box-shadow:0 0 0 3px rgba(255,209,102,.35)}}
+  @media (prefers-reduced-motion: reduce){.pad button.hint{animation:none}}
   .pad .tips{font-size:12px;color:var(--muted);margin:6px 0 0}
   .read .ket{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:18px;margin:0 0 6px}
   .read .bars{display:grid;grid-template-columns:auto 1fr 48px;gap:4px 8px;align-items:center;font-size:12.5px}
@@ -531,6 +534,47 @@ function activeAxis() {
   if (hover && allowed(hover.ax)) { const n = AX[AXL.indexOf(hover.ax)].map(c => c * hover.s); return { n, hover: true, ang: hover.ang }; }
   return null;
 }
+// Make a target easy to find: a gold vector and marker, the shortest way there from the state (a dotted great-circle
+// arc), and, when it is on the far side of the sphere, an arrow at the rim pointing toward it.
+function markTarget(v, r, strong) {
+  const { c, R } = sph(), tp = P(v), al = strong ? 1 : 0.5;
+  sg.globalAlpha = al * (tp.front ? 1 : 0.55);
+  sg.strokeStyle = '#ffd166'; sg.lineWidth = 2; sg.setLineDash([6, 4]); sg.beginPath(); sg.moveTo(c, c); sg.lineTo(tp.x, tp.y); sg.stroke(); sg.setLineDash([]);
+  sg.globalAlpha = al;
+  const ang = RE.angle(r, v);
+  if (strong && ang > 0.05) {   // the shortest path: a great-circle arc from r to v
+    const s0 = Math.sin(ang), path = Array.from({ length: 33 }, (_, i) => { const f = i / 32, a = Math.sin((1 - f) * ang) / s0, b = Math.sin(f * ang) / s0;
+      return [0, 1, 2].map(k => a * r[k] + b * v[k]); });
+    sg.setLineDash([2, 5]); sg.lineCap = 'round'; sg.strokeStyle = 'rgba(255,209,102,.8)'; sg.lineWidth = 2.5; sg.beginPath(); let pen = false;
+    for (const q of path) { const pp = P(q); pen ? sg.lineTo(pp.x, pp.y) : sg.moveTo(pp.x, pp.y); pen = true; } sg.stroke(); sg.setLineDash([]); sg.lineCap = 'butt';
+  }
+  // the marker: solid in front, hollow and labelled behind
+  sg.beginPath(); sg.arc(tp.x, tp.y, 7, 0, Math.PI * 2);
+  if (tp.front) { sg.fillStyle = '#ffd166'; sg.fill(); sg.strokeStyle = '#1b1300'; sg.lineWidth = 1.5; sg.stroke(); }
+  else { sg.strokeStyle = '#ffd166'; sg.lineWidth = 2.5; sg.stroke(); }
+  if (!tp.front && strong) {
+    const dx = tp.x - c, dy = tp.y - c, d = Math.hypot(dx, dy) || 1, ex = c + (R + 14) * dx / d, ey = c + (R + 14) * dy / d;
+    arrowHead({ x: c + (R - 4) * dx / d, y: c + (R - 4) * dy / d }, { x: ex, y: ey }, '#ffd166', 12);
+    sg.fillStyle = '#ffd166'; sg.font = '700 12px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+    sg.fillText('target behind', Math.max(50, Math.min(SW - 50, ex + 34 * dx / d)), Math.max(12, Math.min(SW - 12, ey + 14 * dy / d)));
+  }
+  sg.globalAlpha = 1;
+}
+// The held control that closes the angle to p fastest right now: turning about a changes r·p at the rate a·(r × p),
+// so it is the axis with the largest component of r × p, with that component's sign. In a lesson, only its axes count.
+let hintKey = '';
+function bestControl(r, p, axes) {
+  const rp = RE.cross(r, p); let best = null;
+  ['x', 'y', 'z'].forEach((name, i) => { if (axes && !axes.includes(name)) return;
+    if (!best || Math.abs(rp[i]) > Math.abs(rp[best.i])) best = { i, name, sign: rp[i] >= 0 ? 1 : -1 }; });
+  return best && Math.abs(rp[best.i]) > 0.02 ? best : null;
+}
+function showHint(h) {
+  const key = h ? h.name + h.sign : '';
+  if (key === hintKey) return; hintKey = key;
+  document.querySelectorAll('.pad button.hint').forEach(b => b.classList.remove('hint'));
+  if (h) { const b = document.querySelector(`.pad .axis[data-axis=${h.name}] button[data-hold="${h.sign}"]`); if (b) b.classList.add('hint'); }
+}
 function arrowHead(a, b, col, size = 8) {   // a filled triangle at b, pointing from a
   const ang = Math.atan2(b.y - a.y, b.x - a.x);
   sg.fillStyle = col; sg.beginPath(); sg.moveTo(b.x, b.y);
@@ -586,16 +630,18 @@ function drawSphere(t) {
   // a lesson's goal
   if (w.goal) {
     const pulse = 0.75 + 0.25 * Math.sin(t * 5); curve(capRing(w.goal, C.P.WIN), `rgba(255,209,102,${pulse})`, 3);
+    markTarget(w.goal, w.r, true);
     const g = w.lesson.goal, p = P(w.goal); sg.fillStyle = '#ffd166'; sg.font = '700 13px Helvetica,Arial';
     sg.fillText('goal ' + (typeof g === 'string' ? g : `θ=${g[0]}° φ=${g[1]}°`), p.x, p.y - 20);
   }
   // targets: the next one bright with a countdown, the one after faint; in a circuit, the gate's own path
   const [n1, n2] = w.targets;
-  if (n2) curve(capRing(n2.v, n2.rad), 'rgba(255,209,102,.3)', 1.5);
+  if (n2) { curve(capRing(n2.v, n2.rad), 'rgba(255,209,102,.3)', 1.5); markTarget(n2.v, w.r, false); }
   if (n1) {
     if (n1.gate) { sg.setLineDash([4, 5]); curve(C.gateArc(n1.from, n1.gate), 'rgba(255,209,102,.55)', 1.5, false); sg.setLineDash([]); }
     const pulse = 0.75 + 0.25 * Math.sin(t * 7);
     curve(capRing(n1.v, n1.rad), `rgba(255,209,102,${pulse})`, 3);
+    markTarget(n1.v, w.r, true);
     const p = P(n1.v), left = Math.max(0, n1.t - w.t), span = Math.max(0.5, n1.t - (w.prevT ?? 0));
     sg.strokeStyle = 'rgba(255,209,102,.9)'; sg.lineWidth = 3; sg.beginPath(); sg.arc(p.x, p.y, 16, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, left / span)); sg.stroke();
     sg.fillStyle = '#ffd166'; sg.font = '700 13px Helvetica,Arial'; sg.fillText(n1.gate ? C.GATES[n1.gate].label : left.toFixed(1), p.x, p.y - 26);
@@ -620,10 +666,20 @@ function drawSphere(t) {
     let hearts = ''; for (let i = 0; i < C.P.HEARTS; i++) hearts += i < w.hearts ? '♥' : '♡'; sg.fillText(hearts, SW - 12, 12);
     sg.textBaseline = 'bottom'; sg.font = '11px Helvetica,Arial'; sg.fillStyle = 'rgba(190,210,240,.7)';
     sg.fillText(`${w.t.toFixed(0)} s · ring ${(w.radius / D2R).toFixed(0)}°`, SW - 12, SW - 8);
+    const tgt = w.targets[0]; if (tgt) { const a = RE.angle(w.r, tgt.v), inside = a <= tgt.rad, h = inside ? null : bestControl(w.r, tgt.v);
+      sg.textAlign = 'left'; sg.font = '700 13px Helvetica,Arial'; sg.fillStyle = inside ? '#9cf09f' : '#ffd166';
+      sg.fillText(inside ? `on target ✓ (${(a / D2R).toFixed(0)}°)` : `to target: ${(a / D2R).toFixed(0)}° · fidelity ${RE.fidelity(w.r, tgt.v).toFixed(2)}`, 14, SW - 8);
+      if (h) { sg.font = '12px Helvetica,Arial'; sg.fillText(`fastest now: hold ${h.sign > 0 ? '+' : '−'}${h.name.toUpperCase()} (or press on the gold dot)`, 14, SW - 26); }
+      showHint(h); } else showHint(null);
   } else {
     sg.fillStyle = '#ffd166'; sg.font = '700 13px Helvetica,Arial';
     sg.fillText(w.lesson ? `Lesson ${C.LESSONS.indexOf(w.lesson) + 1} · use ${w.lesson.axes.map(a => a.toUpperCase()).join(' ')}` : 'Free flight · no clock', 14, 12);
     if (!w.driving) { sg.fillStyle = 'rgba(190,210,240,.75)'; sg.font = '12px Helvetica,Arial'; sg.fillText('not driving: the state stays put', 14, 30); }
+    if (w.goal) { const a = RE.angle(w.r, w.goal), inside = a <= C.P.WIN, h = inside ? null : bestControl(w.r, w.goal, w.lesson && w.lesson.axes);
+      sg.textBaseline = 'bottom'; sg.font = '700 13px Helvetica,Arial';
+      sg.fillStyle = inside ? '#9cf09f' : '#ffd166'; sg.fillText(inside ? `at the goal ✓` : `to the goal: ${(a / D2R).toFixed(0)}°`, 14, SW - 8);
+      if (h) { sg.font = '12px Helvetica,Arial'; sg.fillText(`fastest now: hold ${h.sign > 0 ? '+' : '−'}${h.name.toUpperCase()}`, 14, SW - 26); }
+      showHint(h); } else if (!isGame()) showHint(null);
   }
 }
 
