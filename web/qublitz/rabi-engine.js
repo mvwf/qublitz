@@ -56,14 +56,17 @@
 
   // ---------------- game constants ----------------
   const P = {
-    OMEGA: 2.4,          // Rabi rate Ω [rad/s]: a π pulse takes 1.3 s
+    OMEGA: 1.6,          // Rabi rate Ω [rad/s]: a π pulse takes about 2 s (slow enough to aim with human reflexes)
     TAU: 0.1,            // drive amplitude time constant [s]
     EASE: 10 * D2R,      // the drive eases off this close to the pole it is pushing toward
     GAMMA: 1 / 14,       // T₁ decay rate γ = 1/T₁ [1/s], when decay is on
-    HEARTS: 3,
+    HEARTS: 3,           // in a mission, where only noise costs a heart
+    ENDLESS_HEARTS: 5,   // in the endless run, where a missed target costs one too
+    STREAK_HEAL: 3,      // and every 3 targets in a row restores one
     GRACE: 1.2,          // s of invulnerability after a jump
     HIT_GRACE: 1.6,      // and after a hit, which also resets the qubit to |0⟩
-    RING0: 14 * D2R, RING_MIN: 9 * D2R,
+    MISSION_RING: 16 * D2R,
+    RING0: 20 * D2R, RING_MIN: 9 * D2R,   // the endless run's rings shrink from RING0 to RING_MIN over LEVEL_TIME
     TOKEN: 10 * D2R,     // pickup half-height of a gate token
     LEVEL_TIME: 150,     // s for the endless course to reach full difficulty
     AHEAD: 10,           // s of course generated ahead
@@ -91,7 +94,7 @@
         why: `⟨σz⟩ = cos θ = P(0) − P(1): +1 at the top, −1 at the bottom. So ⟨σz⟩ = ${fmtNum(z)} is at θ = ${fmtDeg(th)}.` }; },
     R => { const [deg, name] = pick(R, [[60, 'π/3'], [90, 'π/2'], [120, '2π/3'], [135, '3π/4']]), th = deg * D2R;
       return { prompt: `|0⟩ after a ${name} pulse`, th, wrong: th / 2,
-        why: `A pulse of area ${name} turns the Bloch vector by ${deg}°, so θ = ${deg}°. Half of that, ${deg / 2}°, is the angle in the ket cos(θ/2)|0⟩ + sin(θ/2)|1⟩.` }; },
+        why: `A pulse of area ${name} turns the Bloch vector by ${deg}°, so θ = ${deg}°. Half of that, ${deg / 2}°, is the angle in the ket cos(θ/2)|0⟩ − i sin(θ/2)|1⟩.` }; },
   ];
 
   /* Missions: short scripted courses, each teaching one idea. Items are placed by time t [s] and polar angle θ [°]:
@@ -102,20 +105,20 @@
   const MISSIONS = [
     { id: 'flight', title: 'Flight school', start: 90,
       brief: 'Hold <b>▼</b> to drive the qubit toward |1⟩ and <b>▲</b> to drive it toward |0⟩. Let go and it stays put: the drive is off. Fly through every ring.',
-      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing changes, because on resonance there is no precession to watch.',
+      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing changes: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
       brief: 'A π pulse turns |0⟩ all the way to |1⟩. Hold <b>▼</b> to dive to the ring at the bottom, then <b>▲</b> back to the top.',
-      learn: 'At this Rabi rate (Ω = 2.4 rad/s) a π pulse takes π/Ω ≈ 1.3 s, which is how long each dive took. Down and up again is one Rabi oscillation, P(1) = sin²(Ωt/2). On a real transmon the same pulse takes 20–50 ns.',
-      items: [['r', 3, 0], ['r', 5, 180], ['r', 7.5, 0], ['r', 9.5, 180], ['r', 12, 0], ['r', 14, 180], ['r', 16.5, 0]] },
+      learn: 'At this Rabi rate (Ω = 1.6 rad/s) a π pulse takes π/Ω ≈ 2 s, which is how long each dive took. A constant drive would carry the state through |1⟩ and back to |0⟩, P(1) = sin²(Ωt/2): one Rabi oscillation. The game stops you at |1⟩ and reverses the drive when you press ▲, so your down-and-up traced the same P(1) curve. On a real transmon a π pulse typically takes 10–50 ns.',
+      items: [['r', 3, 0], ['r', 6, 180], ['r', 9.5, 0], ['r', 12.5, 180], ['r', 16, 0], ['r', 19, 180], ['r', 22.5, 0]] },
     { id: 'equator', title: 'Superposition', start: 0,
       brief: 'The middle line is the equator: P(1) = ½, an equal superposition. That takes a π/2 pulse, half a dive. Stay on it between the noise clouds.',
       learn: 'On the equator a measurement gives 0 or 1 with even odds, yet the state is not a coin that has already landed: one more π/2 pulse takes it to |1⟩ with certainty.',
-      items: [['r', 3, 90], ['c', 4.5, 45, 22, 0.5], ['c', 4.5, 135, 22, 0.5], ['r', 6, 90], ['c', 7.5, 50, 20, 0.6], ['c', 7.5, 130, 20, 0.6],
-        ['r', 9, 90], ['r', 11, 0], ['r', 13, 90], ['c', 14.5, 45, 22, 0.5], ['c', 14.5, 135, 22, 0.5], ['r', 16, 90]] },
+      items: [['r', 3.5, 90], ['c', 5, 40, 18, 0.5], ['c', 5, 140, 18, 0.5], ['r', 6.5, 90], ['c', 8, 42, 17, 0.6], ['c', 8, 138, 17, 0.6],
+        ['r', 9.5, 90], ['r', 12, 0], ['r', 14.5, 90], ['c', 16, 40, 18, 0.5], ['c', 16, 140, 18, 0.5], ['r', 17.5, 90]] },
     { id: 'born', title: 'Measure up', start: 90,
       brief: 'Quiz gates: two purple rings, one answer. Read the question and fly through the ring it describes. The labels on the right give P(1) at each height.',
-      learn: 'P(1) = sin²(θ/2) and ⟨σz⟩ = cos θ, so probability is not proportional to height: P(1) = ¼ sits at θ = 60°, not 45°.',
+      learn: 'The height here is the angle θ, not the sphere\'s z = cos θ. P(1) = (1 − cos θ)/2 = sin²(θ/2) is a straight line in z but not in θ, so P(1) = ¼ sits at θ = 60°, not 45°.',
       items: [['r', 3, 90], ['q', 6, 0], ['r', 8.5, 90], ['q', 11.5, 2], ['r', 14, 90], ['q', 17, 3], ['r', 19.5, 90], ['q', 22.5, 1], ['r', 25, 90]] },
     { id: 'collapse', title: 'Collapse', start: 90,
       brief: 'A measurement gate (the blue curtain) puts your qubit in |0⟩ or |1⟩ at random, with P(1) = sin²(θ/2). Each gate names the outcome it pays for: fly close to that end first.',
@@ -127,8 +130,8 @@
       items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
         ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
     { id: 'jumps', title: 'Quantum jumps', start: 90, decay: true, gamma: 1 / 6, three: 0.8,
-      brief: 'T₁ decay is on, and strong. Now the qubit drifts up toward |0⟩ by itself, and the closer you fly to |1⟩, the more often it jumps there at once. Jumps cost no hearts.',
-      learn: 'The jump rate is γ·P(1). Between jumps the state still drifts toward |0⟩, because not seeing a photon is information too. Averaged over many flights this is plain exponential decay, e^(−t/T₁).',
+      brief: 'T₁ decay is on, and strong. Now the qubit drifts up toward |0⟩ by itself, and the closer you fly to |1⟩, the more often it jumps straight back to |0⟩. Jumps cost no hearts.',
+      learn: 'The jump rate is γ·P(1). Between jumps the state still drifts toward |0⟩, because not seeing a photon is information too. With the drive off, averaging many flights gives plain exponential decay, P(1) ∝ e^(−t/T₁).',
       items: [['r', 3, 120], ['r', 5, 145], ['r', 7, 150], ['r', 9, 140], ['r', 11, 150], ['r', 13, 135], ['r', 15, 150], ['r', 17, 145], ['r', 19, 150], ['r', 21, 140]] },
     { id: 'exam', title: 'Final exam', start: 90,
       brief: 'Everything at once: rings, noise, quiz gates, a measurement and X tokens.',
@@ -140,6 +143,8 @@
 
   /* ---------------- the world ----------------
    * opts: { seed, decay: bool, mission: id }
+   * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
+   * (or a wrong quiz answer) costs one, and every STREAK_HEAL targets in a row restores one.
    * step(input, dt): input = { up, down } (booleans). Each step returns a list of events: ring, miss, quiz, quizmiss,
    * token, measure, close, heal, hit, jump, clear (a mission finished) and over.
    * Objects carry a time t; the course scrolls in time, and an object is met when the clock reaches it. */
@@ -154,11 +159,11 @@
       this.objects = []; this.nextT = 2.5; this.walk = 90 * D2R;
       this.score = 0; this.combo = 0; this.rings = 0; this.misses = 0; this.perfects = 0; this.jumps = 0; this.hits = 0; this.closes = 0;
       this.quizRight = 0; this.quizWrong = 0; this.measures = 0; this.measWins = 0; this.gates = 0;
-      this.hearts = P.HEARTS; this.grace = 0; this.over = false;
+      this.hearts = P.ENDLESS_HEARTS; this.streak = 0; this.grace = 0; this.over = false;
       this.mission = null; this.cleared = false; this.total = 0;
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
       if (m) {
-        this.mission = m; this.decay = !!m.decay; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
+        this.mission = m; this.decay = !!m.decay; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id);
         this.script(m);
       } else this.generate();
@@ -242,25 +247,27 @@
             const pts = Math.round(100 * this.combo * (perfect ? 1.5 : 1)); this.score += pts;
             ev.push({ type: 'ring', o, pts, perfect, combo: this.combo });
             this.counted(ev);
-          } else { this.combo = 0; this.misses++; o.missed = true; ev.push({ type: 'miss', o, off }); }
+          } else { this.combo = 0; this.misses++; o.missed = true; ev.push({ type: 'miss', o, off, heart: this.lose() }); }
         }
       }
     }
-    // A target reached: every 10th one restores a heart.
+    // A target reached. In the endless run every STREAK_HEAL in a row restores a heart.
     counted(ev) {
       this.rings++;
-      if (this.rings % 10 === 0 && this.hearts < P.HEARTS) { this.hearts++; ev.push({ type: 'heal' }); }
+      if (!this.mission && ++this.streak % P.STREAK_HEAL === 0 && this.hearts < P.ENDLESS_HEARTS) { this.hearts++; ev.push({ type: 'heal' }); }
     }
+    // A target missed: in the endless run it costs a heart (true if it did).
+    lose() { this.streak = 0; if (this.mission) return false; this.hearts--; return true; }
     // Both rings of a quiz arrive together: the one you are in answers it.
     answer(o, th, ev) {
       const q = o.quiz; if (q.answered) return;
       const mine = this.objects.filter(x => x.quiz === q).find(x => Math.abs(th - x.th) < x.rad);
-      if (!mine) { if (o.correct) { q.answered = true; this.combo = 0; this.misses++; ev.push({ type: 'quizmiss', q }); } return; }
+      if (!mine) { if (o.correct) { q.answered = true; this.combo = 0; this.misses++; ev.push({ type: 'quizmiss', q, heart: this.lose() }); } return; }
       q.answered = true; this.objects.forEach(x => { if (x.quiz === q) x.done = true; });
       let pts = 0;
       if (mine.correct) { this.quizRight++; this.combo = Math.min(10, this.combo + 1); pts = 300 * this.combo; this.score += pts; this.counted(ev); }
       else { this.quizWrong++; this.combo = 0; }
-      ev.push({ type: 'quiz', o: mine, q, correct: mine.correct, pts, combo: this.combo });
+      ev.push({ type: 'quiz', o: mine, q, correct: mine.correct, pts, combo: this.combo, heart: !mine.correct && this.lose() });
     }
     // A projective measurement of σz: |1⟩ with probability P₁ = sin²(θ/2), otherwise |0⟩.
     measure(o, ev) {
@@ -286,7 +293,7 @@
     // Would cloud c sit on top of good object o (ring or token)?
     covers(c, o) { return Math.abs(o.t - c.t) < c.w + 0.15 && Math.abs(o.th - c.th) < c.rad + (o.rad || P.TOKEN) * 0.6 + 3 * D2R; }
     script(m) {
-      const R = rng('mission:' + m.id), rr = P.RING0;
+      const R = rng('mission:' + m.id), rr = P.MISSION_RING;
       let last = 0;
       for (const it of m.items) {
         const [k, t] = it, d = v => v * D2R;

@@ -207,7 +207,7 @@
   <p>In the frame rotating with a drive that is exactly on resonance, the qubit's Hamiltonian has no σ<sub>z</sub> term of its own. Adding one is up to you:</p>
   <div class="eq">H = (ħΩ/2)(a<sub>x</sub> σ<sub>x</sub> + a<sub>y</sub> σ<sub>y</sub> + a<sub>z</sub> σ<sub>z</sub>),&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = Ω (a<sub>x</sub>, a<sub>y</sub>, a<sub>z</sub>)</div>
   <p>so the Bloch vector <b>r</b> = (⟨σ<sub>x</sub>⟩, ⟨σ<sub>y</sub>⟩, ⟨σ<sub>z</sub>⟩) stays put unless driven, and turns about <b>ω</b> at rate |<b>ω</b>|
-    while you drive (here Ω = 1.8 rad/s, so a π pulse takes 1.75 s; a real transmon does it in tens of nanoseconds). The X and Y controls are the two
+    while you drive (here Ω = 1.8 rad/s, so a π pulse takes 1.75 s; a real transmon typically does it in 10–50 ns). The X and Y controls are the two
     quadratures of the microwave drive: its phase α picks the equatorial axis (cos α, sin α, 0). The Z control detunes the drive by Ω while you hold it,
     which in the rotating frame is a precession about z, and stops when you let go.</p>
   <p>Because a rotation about <b>n</b> keeps <b>r</b>·<b>n</b> fixed, holding X freezes ⟨σ<sub>x</sub>⟩ and sends ⟨σ<sub>y</sub>⟩ and ⟨σ<sub>z</sub>⟩ around a
@@ -215,7 +215,7 @@
     |0⟩/|1⟩ basis, yet it changes the state: a later X or Y pulse takes it somewhere else.</p>
   <p><b>In the Virtual Qubit Lab</b> your moves become square pulses on the σx and σy channels of a 5 GHz qubit with Ω<sub>R</sub>/2π = 50 MHz (a π pulse
     is 10 ns) and long T₁, so the lab's P(1) matches the game. The lab has no σz channel, so Z turns become a <b>virtual Z</b>, as on real hardware: every later
-    pulse has its phase shifted instead, which gives the same P(1); the final state differs only by a leftover turn about z. Lower T₁ there to watch the
+    pulse has its phase shifted instead, which gives the same P(1). The lab plots its Bloch vector in its own axes (|0⟩ at the bottom, and its x and y swapped relative to this game), so compare P(1) rather than the arrow. Lower T₁ there to watch the
     same moves decohere. (The lab keeps the terms the rotating-wave approximation drops, so with a much faster drive its answer would drift by a few degrees.)</p>
   <p><b>Point to steer</b> (Targets and Circuit) uses the same fact: a rotation about an equatorial axis <b>n</b> joins <b>r</b> to a point <b>p</b> in one turn when
     (<b>r</b> − <b>p</b>)·<b>n</b> = 0, that is <b>n</b> ∥ (<b>r</b> − <b>p</b>) × <b>z</b>, a real choice of drive phase. <b>Circuit</b> targets are the states a random
@@ -366,7 +366,7 @@ const SND = {
 const EXPLAIN = {
   x: '<b>Turning about x.</b> The drive is in phase (σx). ⟨σx⟩ stays fixed while ⟨σy⟩ and ⟨σz⟩ trade places: P(1) changes.',
   y: '<b>Turning about y.</b> The same drive, 90° later in phase (σy). ⟨σy⟩ stays fixed; ⟨σx⟩ and ⟨σz⟩ trade places.',
-  z: '<b>Turning about z.</b> The drive is detuned for as long as you hold, so the state precesses. Only the phase φ changes: P(1) stays fixed.',
+  z: '<b>Turning about z.</b> While you hold, the qubit\'s frequency is offset from the drive\'s frame (a detuning), so it precesses about z. Only the phase φ changes: P(1) stays fixed. On hardware this is usually a virtual Z.',
 };
 const seen = new Set();
 // One gate name for a turn of ang (radians, signed) about axis ax, if it lands on one.

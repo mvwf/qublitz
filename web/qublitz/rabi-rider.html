@@ -170,15 +170,15 @@
   <h2>The physics</h2>
   <p>In the frame rotating with a drive that is exactly on resonance there is no free precession. A drive of phase 0 (+X) or π (−X) gives</p>
   <div class="eq">H = ±(ħΩ/2) σ<sub>x</sub>,&emsp; d<b>r</b>/dt = <b>ω</b> × <b>r</b>,&emsp; <b>ω</b> = (±Ω, 0, 0),&emsp; P(1) = sin²(θ/2)</div>
-  <p>so the Bloch vector turns about the x axis at the Rabi rate Ω (here 2.4 rad/s: a π pulse, |0⟩ → |1⟩, takes 1.3 s; on a transmon it takes tens of
+  <p>so the Bloch vector turns about the x axis at the Rabi rate Ω (here 1.6 rad/s: a π pulse, |0⟩ → |1⟩, takes about 2 s; on a transmon it typically takes 10–50
     nanoseconds). A turn about x keeps the state on the circle through |0⟩ and |1⟩ in the y–z plane, so its height θ says everything, which is why the
     game can draw it as a line. ▼ and ▲ pick the drive's sign that turns θ the way you ask, and the drive eases off as the state reaches |0⟩ or |1⟩.
-    Hold a drive on and the state keeps turning: P(1) = sin²(Ωt/2), a Rabi oscillation. The phase in the ket, cos(θ/2)|0⟩ ∓ i sin(θ/2)|1⟩, is the
+    A constant drive would carry the state through |1⟩ and back again, P(1) = sin²(Ωt/2), a Rabi oscillation; the game stops it at the poles and reverses the drive when you ask. The phase in the ket, cos(θ/2)|0⟩ ∓ i sin(θ/2)|1⟩, is the
     −i that a turn about x leaves; it does not change P(1), but a turn about y or z would feel it (see Qubit Copter).</p>
   <p><b>Measurement gates</b> are projective measurements of σ<sub>z</sub>: the state jumps to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise (the Born rule).
-    <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> stand for an error that relaxes the qubit to |0⟩.
+    <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are a game stand-in for an error: they reset the qubit to |0⟩ (real relaxation is random; switch on T₁ decay to see it).
     With <b>T₁ decay</b> on, the qubit is a watched quantum trajectory: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps
-    to |0⟩ at the rate γ·P(1); averaged over many runs that is exponential decay, e<sup>−t/T₁</sup>.</p>
+    to |0⟩ at the rate γ·P(1); with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>.</p>
 </div>
 <p class="dl" id="offlineHint"><a href="rabi-rider-offline.html" download="qublitz-rabi-rider.html">Download the game</a>
   as a single HTML file that runs offline in any browser.</p>
@@ -308,7 +308,7 @@ function start(m, again) {
   world = new E.World(m ? { mission: m.id } : { seed, decay: S.decay });
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null);
   if (m) note(m.brief, 6);
-  else note(`<b>Endless run</b>${S.decay ? ' with T₁ decay' : ''}. ▼ toward |1⟩, ▲ toward |0⟩; nothing moves when you let go.`, 4);
+  else note(`<b>Endless run</b>${S.decay ? ' with T₁ decay' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
 }
 function pause() { show('#paused'); }
 function resume() { show(null); last = performance.now(); }
@@ -318,7 +318,7 @@ function pop(text, color = '#ffd166') { pops.push({ t: world.t, th: world.theta,
 const TIPS = [
   'Let go early: the drive takes a moment to ramp down, and then the qubit stays exactly where it is.',
   'P(1) = ½ is the middle line, but P(1) = ¼ is at θ = 60°, a third of the way down, not a quarter.',
-  'A full dive from |0⟩ to |1⟩ is a π pulse: 1.3 s here. Plan it before the ring arrives.',
+  'A full dive from |0⟩ to |1⟩ is a π pulse: about 2 s here. Plan it before the ring arrives.',
   'Near a measurement gate, fly close to the outcome it pays for: P(1) = sin²(θ/2).',
 ];
 function finish(ev) {
@@ -347,7 +347,7 @@ function finish(ev) {
 function handle(ev) {
   for (const e of ev) {
     if (e.type === 'ring') { SND.ring(e.combo, e.perfect); pop(`+${e.pts}${e.perfect ? ' PERFECT' : ''}`); }
-    else if (e.type === 'miss') { SND.miss(); pop('miss', '#ff8a9a'); if (world.misses === 1) note(`<b>Missed by ${(e.off / D2R).toFixed(0)}°.</b> Start the turn earlier: each 10° takes about 0.07 s of drive, plus the ramp.`, 3.5); }
+    else if (e.type === 'miss') { SND.miss(); pop(e.heart ? 'miss −♥' : 'miss', '#ff8a9a'); if (world.misses === 1) note(`<b>Missed by ${(e.off / D2R).toFixed(0)}°.</b> Let go a little before you get there: each 10° takes about 0.1 s of drive, and your reactions add more.`, 3.5); }
     else if (e.type === 'quiz') {
       if (e.correct) { SND.ring(e.combo, false); pop(`+${e.pts} ✓`); } else { SND.miss(); pop('✗', '#ff8a9a'); }
       note((e.correct ? '<b>Right.</b> ' : '<b>Not that one.</b> ') + e.q.why, 6);
@@ -358,7 +358,7 @@ function handle(ev) {
       note(`<b>Measured ${e.one ? '1' : '0'}.</b> P(1) was ${e.p1.toFixed(2)}, so this was ${e.p1 > 0.85 || e.p1 < 0.15 ? 'almost certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a weighted coin'}. The qubit is now in |${e.one ? 1 : 0}⟩.${e.win ? ` +${e.pts}` : ''}`, 4);
     } else if (e.type === 'token') { SND.gate(); pop('X'); note(`<b>X gate:</b> a π turn about x. θ went from ${(e.from / D2R).toFixed(0)}° to ${(e.to / D2R).toFixed(0)}°.`, 3); }
     else if (e.type === 'close') pop(`close +${e.pts}`, '#9fd2ff');
-    else if (e.type === 'heal') { pop('+♥', '#ff6b85'); }
+    else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
     else if (e.type === 'hit') { SND.hit(); flash = 0.35; note('<b>Noise!</b> The error relaxed your qubit to |0⟩ and cost a heart.', 3); }
     else if (e.type === 'jump') { SND.jump(); pop('jump!', '#9fd2ff'); if (world.jumps === 1) note('<b>Quantum jump.</b> A photon escaped, so the qubit is now in |0⟩. The odds are γ·P(1) per second: highest near |1⟩.', 5); }
     else if (e.type === 'clear') { SND.clear(); finish(e); }
@@ -498,8 +498,8 @@ function drawSphere() {
   sg.strokeStyle = '#00693e'; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
   sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
   $('#driveText').innerHTML = !w ? 'The orange circle is the path a turn about x keeps the state on.'
-    : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = 2.4 rad/s.`
-      : 'Drive off: no rotation, and on resonance no precession either.';
+    : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
+      : 'Drive off: no rotation, and in the frame of a resonant drive no precession either.';
 }
 function drawState() {
   const w = world, r = w ? w.r : [0, 0, 1], th = E.thetaOf(r), p1 = (1 - r[2]) / 2, c = Math.cos(th / 2), s = Math.sin(th / 2);

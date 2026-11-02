@@ -103,8 +103,9 @@
    * state exactly as the game's +X and +Y do; its Rabi rate is 2π f (f = Ω_R/2π in GHz, so angles per ns).
    * It has no σz channel, so Z turns are done the way real labs do them, as a virtual Z: a turn by Φ about z
    * commutes to the end of the sequence if every later drive axis is turned by −Φ, so the lab's P(1) comes out
-   * the same and its final state differs only by the leftover Φ about z. A segment that drives z together with
-   * x or y is split into short slices (a Trotter step every 3°). */
+   * the same and its final state differs only by the leftover Φ about z (the lab plots it in its own axes: x and y
+   * swapped, |0⟩ at −z). A segment that drives z together with x or y is split into short slices (a Trotter step
+   * every 3°). */
   function labSequence(log, opts = {}) {
     const f = opts.fGHz ?? 0.05, t0 = opts.start ?? 5, rate = 2 * Math.PI * f, slice = 3 * D2R, max = opts.max ?? 80;
     const out = []; let phi = 0, t = t0;

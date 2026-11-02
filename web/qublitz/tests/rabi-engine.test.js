@@ -123,6 +123,17 @@ function bot(w) {
   check('the endless course has rings, clouds, quizzes, measurements and X tokens', ['ring', 'cloud', 'gate', 'token'].every(k => kinds.has(k)), [...kinds].join(','));
 }
 
+// ---- stakes: in the endless run a missed ring costs a heart and three in a row win one back; missions forgive misses ----
+{
+  const w = bare({ seed: 'stakes' }); w.r = E.onCircle(Math.PI / 2); const h0 = w.hearts;
+  w.objects = [{ type: 'ring', t: 0.05, th: 0.3, rad: 0.2 }]; for (let i = 0; i < 12; i++) w.step({}, DT);
+  check('endless: a missed ring costs a heart', w.hearts === h0 - 1, `${h0} → ${w.hearts}`);
+  w.objects = [0.1, 0.2, 0.3].map(t => ({ type: 'ring', t: w.t + t, th: Math.PI / 2, rad: 0.2 })); for (let i = 0; i < 60; i++) w.step({}, DT);
+  check('endless: three rings in a row restore it', w.hearts === h0, `${w.hearts}`);
+  const m = new E.World({ mission: 'flight' }); m.objects = [{ type: 'ring', t: 0.05, th: 0.3, rad: 0.2 }]; const mh = m.hearts; for (let i = 0; i < 12; i++) m.step({}, DT);
+  check('missions: a missed ring costs no heart (stars reward accuracy instead)', m.hearts === mh);
+}
+
 // ---- every mission can be cleared, and the luck-free ones with three stars ----
 {
   for (const m of E.MISSIONS) {
