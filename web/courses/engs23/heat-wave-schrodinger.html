@@ -58,8 +58,10 @@
 <h1>Three Equations, One Eigenbasis</h1>
 <p class="sub" id="intro">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
 operator and therefore one set of modes sin(n&pi;x/L). Give all three the <i>same</i> starting shape and release them. What
-differs is only how each equation turns a spatial eigenvalue &lambda;<sub>n</sub> into motion in time. The clock below is set
-so the fundamental mode n = 1 has the same rate in all three panels, which makes the contrast between them the real content.</p>
+differs is only how each equation turns a spatial eigenvalue &lambda;<sub>n</sub> into motion in time. The three equations have
+their own constants (&alpha;, <i>v</i>, &hbar;/2<i>m</i>), so the page picks one time unit for all of them: at t = 1 the heat
+fundamental has decayed to 1/e, the wave fundamental has made one full period, and (at Schr&ouml;dinger rate 1) the Schr&ouml;dinger
+fundamental has turned its phase once. With that fixed, the contrast between the panels is the real content.</p>
 
 <div class="card">
   <h2>The one idea</h2>
@@ -89,6 +91,7 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
       <option value="mode1">Single mode n = 1</option>
       <option value="mode3">Single mode n = 3</option>
       <option value="two">Two modes, &phi;&#8321;+&phi;&#8322;</option>
+      <option value="moving">Moving packet, bump &times; e<sup>ikx</sup></option>
       <option value="draw">Draw your own shape</option>
       <option value="custom">Custom (edited bars)</option>
     </select>
@@ -116,8 +119,10 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
   </div>
   <p class="note">The clock is shared, with one deliberate twist. Schr&ouml;dinger phases spin as n&sup2;, far faster than the
   wave&rsquo;s n, so run at the same rate it would just blur. The <b>Schr&ouml;dinger rate</b> control scales its clock down (default 0.3)
-  to make the motion watchable. The time axis is arbitrary anyway. At rate 1 the packet would revive exactly when the wave
-  reforms at t = 1, where the heat profile has also faded to e<sup>&minus;1</sup> of its fundamental with the high modes gone first.</p>
+  to make the motion watchable; the time axis is arbitrary anyway. At rate r the packet reassembles as a mirror image at
+  t = 1/(2r) and revives exactly at t = 1/r, so the time slider runs at least that far. At rate 1 the revival comes exactly
+  when the wave reforms at t = 1, where the heat profile has also faded to e<sup>&minus;1</sup> of its fundamental with the high modes
+  nearly gone (n = 2 is down to e<sup>&minus;4</sup> &asymp; 2 %).</p>
   <div class="row">
     <label class="lbl">Draw u(x,0)</label>
     <button id="clearDraw">Clear</button>
@@ -130,17 +135,19 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
   <h2>Fourier components c<sub>n</sub> &mdash; drag the bars</h2>
   <div class="barwrap">
     <div>
-      <div class="barlab">Re c<sub>n</sub> &mdash; amplitude, felt by all three equations</div>
+      <div class="barlab">Re c<sub>n</sub> &mdash; the real starting shape, used by all three equations</div>
       <canvas id="barsRe" style="height:120px"></canvas>
     </div>
     <div>
-      <div class="barlab">Im c<sub>n</sub> &mdash; phase, changes Schr&ouml;dinger only (this is momentum)</div>
+      <div class="barlab">Im c<sub>n</sub> &mdash; an imaginary part of &Psi;(x,0), Schr&ouml;dinger only</div>
       <canvas id="barsIm" style="height:120px"></canvas>
     </div>
   </div>
   <p class="note" style="margin-top:8px">Drag a bar up or down to set that mode. Heat and wave are real equations, so they
-  respond only to Re&thinsp;c<sub>n</sub>. Schr&ouml;dinger carries the full complex amplitude c<sub>n</sub> = Re + i&thinsp;Im,
-  so a sloped Im&thinsp;c<sub>n</sub> pattern gives the packet momentum and sends it moving. The bars show c<sub>n</sub> at
+  use only Re&thinsp;c<sub>n</sub>, the real shape &Sigma; Re&thinsp;c<sub>n</sub>&phi;<sub>n</sub>(x). Schr&ouml;dinger carries the full complex
+  amplitude c<sub>n</sub> = Re + i&thinsp;Im; its size |c<sub>n</sub>| is how much of mode n there is, and its phase matters only relative to
+  the other modes. A real &Psi;(x,0) always has &lang;p&rang; = 0, so it spreads symmetrically; to move, a packet needs complex c<sub>n</sub>
+  with the right relative phases, as in the <b>Moving packet</b> preset, &Psi;(x,0) = bump &times; e<sup>ikx</sup>, which carries momentum &hbar;k. The bars show c<sub>n</sub> at
   t = 0 and hold still while the clock runs: each equation only multiplies mode n by its own T<sub>n</sub>(t), so the modes
   never mix. Heat shrinks every |c<sub>n</sub>| (high n first), the wave swings each one between ±c<sub>n</sub>, and
   Schr&ouml;dinger only turns its phase, so it alone keeps every |c<sub>n</sub>| fixed.</p>
@@ -163,7 +170,7 @@ so the fundamental mode n = 1 has the same rate in all three panels, which makes
   </div>
   <div class="pan sch">
     <h3>Schr&ouml;dinger</h3>
-    <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>i</i>&thinsp;2&pi;<i>n</i><sup>2</sup><i>t</i></sup> &nbsp; disperse, revive</div>
+    <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>i</i>&thinsp;2&pi;<i>n</i><sup>2</sup><i>rt</i></sup> &nbsp; disperse, revive</div>
     <canvas id="cSch"></canvas>
     <div class="legend"><span><i class="sw" style="background:#2d6fb3"></i>Re&Psi;</span><span><i class="sw" style="background:#c84b31"></i>Im&Psi;</span><span><i class="sw" style="background:var(--sch)"></i>|&Psi;|&sup2;</span></div>
     <div class="mini" id="mSch"></div>
@@ -206,13 +213,18 @@ let schRate=0.3;  // Schrodinger clock scaled down for visibility (time axis is 
 const u0=new Float64Array(NX);             // initial shape (for the dashed guide + scaling)
 let A0=1, R0=1;                            // display scales (amplitude, probability)
 
-const params={ pluck:0.3, x0:0.35, sigma:0.06 };
+const params={ pluck:0.3, x0:0.35, sigma:0.06, k:8*PI };   // k: wavenumber of the moving packet (centred on mode n = 8)
 function clearC(){ cRe=new Float64Array(Nmax+1); cIm=new Float64Array(Nmax+1); }
 function resizeC(){ if(cRe.length<Nmax+1){ const a=new Float64Array(Nmax+1),b=new Float64Array(Nmax+1); a.set(cRe); b.set(cIm); cRe=a; cIm=b; } }
 function projectReal(fn){
   clearC();
   const psi=Xg.map(x=>fn(x)); const dx=1/(NX-1);
   for(let n=1;n<=Nmax;n++){ let s=0,ph=PHI[n]; for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; s+=w*ph[j]*psi[j]; } cRe[n]=s*dx; }
+}
+function projectComplex(fn){
+  clearC();
+  const psi=Array.from(Xg,fn), dx=1/(NX-1);   // a plain array: Float32Array.map would squash each [re, im] pair to a number
+  for(let n=1;n<=Nmax;n++){ let sr=0,si=0,ph=PHI[n]; for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; sr+=w*ph[j]*psi[j][0]; si+=w*ph[j]*psi[j][1]; } cRe[n]=sr*dx; cIm[n]=si*dx; }
 }
 function setModes(list){ clearC(); for(const [n,v] of list) if(n<=Nmax) cRe[n]=v; }
 function normalizeC(){ let s=0; for(let n=1;n<=Nmax;n++) s+=cRe[n]*cRe[n]+cIm[n]*cIm[n];
@@ -226,13 +238,15 @@ function recomputeScales(){
 function rebuildState(){
   resizeC();
   const p=$("preset").value;
-  $("x0Wrap").style.display = p==="gauss" ? "" : "none";
+  $("x0Wrap").style.display = p==="gauss"||p==="moving" ? "" : "none";
   if(p==="mode1"){ setModes([[1,1]]); normalizeC(); }
   else if(p==="mode3"){ setModes([[3,1]]); normalizeC(); }
   else if(p==="two"){ setModes([[1,1],[2,1]]); normalizeC(); }
   else if(p==="pluck"){ const a=params.pluck; projectReal(x=> x<a? x/a : (1-x)/(1-a)); normalizeC(); }
   else if(p==="step"){ projectReal(x=> (x>0.33&&x<0.66)?1:0); normalizeC(); }
   else if(p==="gauss"){ const {x0,sigma}=params; projectReal(x=> Math.exp(-((x-x0)*(x-x0))/(2*sigma*sigma))); normalizeC(); }
+  else if(p==="moving"){ const {x0,sigma}=params, k=params.k;   // Ψ(x,0) = bump · e^{ikx}: complex, so it carries momentum ħk
+    projectComplex(x=>{ const g=Math.exp(-((x-x0)*(x-x0))/(2*sigma*sigma)); return [g*Math.cos(k*x), g*Math.sin(k*x)]; }); normalizeC(); }
   else if(p==="draw"){ projectFromDrawn(); normalizeC(); }
   else if(p==="custom"){ /* keep current c_n as edited on the bars */ }
   recomputeScales();
@@ -303,7 +317,7 @@ function drawSch(t){
   ctx.strokeStyle="#2d6fb3"; ctx.lineWidth=1.6; curve(ctx,m,pw,ph,xpix,yAmp,reA);
   ctx.strokeStyle="#c84b31"; ctx.lineWidth=1.3; ctx.setLineDash([4,3]); curve(ctx,m,pw,ph,xpix,yAmp,imA); ctx.setLineDash([]);
   let nrm=0; const dx=1/(NX-1); for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; nrm+=w*rho[j]; } nrm*=dx;
-  $("mSch").textContent="∫|Ψ|² dx = "+nrm.toFixed(3)+"  (conserved in time)";
+  $("mSch").textContent="∫|Ψ|² dx = "+nrm.toFixed(3)+"  (conserved) · mirror at t = "+(0.5/schRate).toFixed(2)+", revival at t = "+(1/schRate).toFixed(2);
 }
 
 let t=0, playing=false, last=0, speed=0.5;
@@ -316,7 +330,9 @@ $("play").addEventListener("click",()=>setPlay(!playing));
 $("reset").addEventListener("click",()=>{ t=0; $("time").value=0; drawAll(); });
 $("time").addEventListener("input",()=>{ t=+$("time").value; drawAll(); });
 $("speed").addEventListener("input",()=>{ speed=+$("speed").value; $("speedLbl").textContent=speed.toFixed(2); });
-$("schrate").addEventListener("input",()=>{ schRate=+$("schrate").value; $("schrateLbl").textContent=schRate.toFixed(2); drawAll(); });
+// the time slider reaches the full Schrödinger revival at t = 1/r
+function setTimeMax(){ $("time").max=Math.max(1.25, +(1.05/schRate).toFixed(2)); }
+$("schrate").addEventListener("input",()=>{ schRate=+$("schrate").value; $("schrateLbl").textContent=schRate.toFixed(2); setTimeMax(); drawAll(); });
 $("nmodes").addEventListener("input",()=>{ Nmax=+$("nmodes").value; $("nmodesLbl").textContent=Nmax; buildModes(); rebuildState(); drawAll(); });
 $("preset").addEventListener("change",()=>{ rebuildState(); drawAll(); });
 $("x0").addEventListener("input",()=>{ params.x0=+$("x0").value; $("x0Lbl").textContent=params.x0.toFixed(2);
@@ -399,13 +415,13 @@ function barEdit(which,e){ e.preventDefault();
 })();
 
 /* ---------- shareable state: ?s=preset&N=&t=&r=&x0= (or re=/im= for edited bars) ---------- */
-const PRESETS=["gauss","pluck","step","mode1","mode3","two","custom"];
+const PRESETS=["gauss","pluck","step","mode1","mode3","two","moving","custom"];
 const coefList=a=>{ const v=[]; for(let n=1;n<=Nmax;n++) v.push(+(a[n]||0).toFixed(4)); while(v.length&&!v[v.length-1]) v.pop(); return v.join(","); };
 function shareQuery(){
   let p=$("preset").value; const q=new URLSearchParams();
   if(p==="draw") p="custom";               // a drawn shape is shared as its coefficients
   q.set("s",p); q.set("N",Nmax); q.set("t",+t.toFixed(4)); q.set("r",schRate);
-  if(p==="gauss") q.set("x0",params.x0);
+  if(p==="gauss"||p==="moving") q.set("x0",params.x0);
   if(p==="custom"){ q.set("re",coefList(cRe)); const im=coefList(cIm); if(im) q.set("im",im); }
   return q.toString();
 }
@@ -413,7 +429,7 @@ function readQuery(){
   const P=PageKit.params(), st={};
   const s=P.str("s",PRESETS); if(s) st.s=s;
   const N=P.num("N",2,48); if(N!=null) st.N=Math.round(N);
-  const tt=P.num("t",0,1.25); if(tt!=null) st.t=tt;
+  const tt=P.num("t",0,10.5); if(tt!=null) st.t=tt;
   const r=P.num("r",0.1,1); if(r!=null) st.r=r;
   const x0=P.num("x0",0.1,0.9); if(x0!=null) st.x0=x0;
   const re=P.list("re"), im=P.list("im");
@@ -426,7 +442,7 @@ function applyState(st){
   setPlay(false);
   if(st.N!=null){ Nmax=st.N; $("nmodes").value=Nmax; $("nmodesLbl").textContent=Nmax; buildModes(); }
   if(st.x0!=null){ params.x0=st.x0; $("x0").value=st.x0; $("x0Lbl").textContent=st.x0.toFixed(2); }
-  if(st.r!=null){ schRate=st.r; $("schrate").value=st.r; $("schrateLbl").textContent=st.r.toFixed(2); }
+  if(st.r!=null){ schRate=st.r; $("schrate").value=st.r; $("schrateLbl").textContent=st.r.toFixed(2); setTimeMax(); }
   if(st.re){ if(st.re.length>Nmax){ Nmax=Math.min(48,st.re.length); $("nmodes").value=Nmax; $("nmodesLbl").textContent=Nmax; buildModes(); }
     clearC(); resizeC(); st.re.forEach((v,i)=>{ if(i<Nmax) cRe[i+1]=v; }); (st.im||[]).forEach((v,i)=>{ if(i<Nmax) cIm[i+1]=v; });
     st.s="custom"; }
@@ -442,7 +458,7 @@ const GUIDED=[
     setup:{s:"gauss",x0:0.35,N:30,r:0.3,t:0}, reveal:{t:1}, cover:[".trip"],
     ask:"All three panels start from the same bump. At t = 1, which panel has lost the bump <i>for good</i>?",
     choices:["Heat","Wave","Schrödinger","All three"], answer:0,
-    explain:"Heat multiplies mode n by e<sup>−n²t</sup>, so by t = 1 everything above n = 1 is gone and no later time brings it back. The wave has exactly reformed: every cos(2πnt) is 1 at t = 1. Schrödinger at rate 0.3 looks smeared, but nothing was lost: its |c<sub>n</sub>| never change, and the bump revives (step 4).",
+    explain:"Heat multiplies mode n by e<sup>−n²t</sup>, so by t = 1 everything above n = 1 is nearly gone (n = 2 is at e<sup>−4</sup> ≈ 2 %), and no later time brings it back. The wave has exactly reformed: every cos(2πnt) is 1 at t = 1. Schrödinger at rate 0.3 looks smeared, but nothing was lost: its |c<sub>n</sub>| never change, and the bump revives (step 4).",
     try:"Press Play and watch from t = 0." },
   { title:"Higher modes die faster",
     setup:{s:"mode3",t:0}, reveal:{t:0.1111}, cover:[".trip"],
@@ -454,7 +470,7 @@ const GUIDED=[
     setup:{s:"gauss",x0:0.35,r:0.3,t:0}, reveal:{t:0.5}, cover:[".trip"],
     ask:"The bump starts at x = 0.35. What does the <b>wave</b> panel show at t = ½?",
     choices:["The same bump","The bump upside down, same place","The bump upside down, mirrored to x = 0.65","A flat string"], answer:2,
-    explain:"At t = ½ each mode picks up cos(πn) = (−1)<sup>n</sup>. Since (−1)<sup>n</sup> sin(nπx) = −sin(nπ(1−x)), the whole string becomes −u(1−x, 0): flipped and mirrored. On a real string, that is the pulse having reflected off both ends, each reflection inverting it." },
+    explain:"At t = ½ each mode picks up cos(πn) = (−1)<sup>n</sup>. Since (−1)<sup>n</sup> sin(nπx) = −sin(nπ(1−x)), the whole string becomes −u(1−x, 0): flipped and mirrored. On a real string, the released bump splits into two halves running in opposite directions; each reflects once off its end, inverted, and they meet again at x = 1 − 0.35." },
   { title:"A quantum revival",
     setup:{s:"gauss",x0:0.35,r:1,t:0}, reveal:{t:0.5}, cover:[".trip"],
     intro:"Schrödinger rate is now 1, so its clock matches the other two.",
@@ -476,7 +492,7 @@ const GUIDED=[
 ];
 function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector(".trip"), key:"three-equations" }); }
 
-buildModes(); rebuildState();
+buildModes(); setTimeMax(); rebuildState();
 { const st=readQuery(); if(Object.keys(st).length) applyState(st); else drawAll(); }
 if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry($("intro"), startGuided);
 </script>
