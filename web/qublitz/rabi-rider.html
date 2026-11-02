@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f1930'/%3E%3Cpath d='M6 52 C20 52 22 14 36 14 L36 52' fill='none' stroke='%23a0dcff' stroke-width='4' stroke-linecap='round'/%3E%3Cellipse cx='50' cy='22' rx='6' ry='10' fill='none' stroke='%23ffd166' stroke-width='4'/%3E%3Ccircle cx='36' cy='14' r='5' fill='%23fff'/%3E%3C/svg%3E">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rabi Rider — ride a Rabi oscillation</title>
 <!-- Everything this page needs ships with it (no CDN), so it also works offline.
@@ -95,9 +96,8 @@
 <p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
   excited state |1⟩ at the top, so height is energy, with P(1) = sin²(θ/2) in between. The course scrolls past in time. The drive is
   exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and only <b>T₁ decay</b>
-  acts, and it always pulls the qubit down to |0⟩, like gravity. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
-  <a id="copterLink" href="qubit-copter.html">🚁 Qubit Copter</a>; to run the same pulses as an experiment, open the
-  <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
+  acts, and it always pulls the qubit down to |0⟩, like gravity. A shorter T₁ is a harder game. To run the same pulses as an
+  experiment, open the <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
 
 <div class="game">
   <div class="stage" id="stage">
@@ -178,7 +178,7 @@
     game can draw it as a line. It is drawn with |0⟩ at the bottom (the usual Bloch sphere puts it at the top; the sphere on the right
     is the usual one turned upside down about x), so height is energy and decay falls. ▲ and ▼ pick the drive's sign that turns θ the way you ask, and the drive eases off as the state reaches |0⟩ or |1⟩.
     A constant drive would carry the state through |1⟩ and back again, P(1) = sin²(Ωt/2), a Rabi oscillation; the game stops it at the poles and reverses the drive when you ask. The phase in the ket, cos(θ/2)|0⟩ ∓ i sin(θ/2)|1⟩, is the
-    −i that a turn about x leaves; it does not change P(1), but a turn about y or z would feel it (see Qubit Copter).</p>
+    −i that a turn about x leaves; it does not change P(1), but a turn about y or z would feel it.</p>
   <p><b>Measurement gates</b> are projective measurements of σ<sub>z</sub>: the state jumps to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise (the Born rule).
     <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
     state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
@@ -189,7 +189,7 @@
     20, 10, 5 or 2.5 s (6 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
     100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>Left out, on purpose:</b> pure dephasing (random turns about z, the T<sub>φ</sub> part of T₂), so here T₂ = 2T₁, the most a qubit
-    can have; detuning, so nothing precesses (see Qubit Copter's Z control for that); and readout imperfections: every measurement
+    can have; detuning, so nothing precesses; and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
     number of measurements.</p>
 </div>
@@ -205,7 +205,7 @@ const E = window.RabiEngine, D2R = Math.PI / 180;
 const $ = s => document.querySelector(s);
 const SITE = 'https://mvwf.github.io/qublitz/';
 if (window.QUBLITZ_STANDALONE) {
-  $('#back').href = SITE + '#labs'; $('#labLink').href = SITE + 'qublitz/qubit-simulator.html'; $('#copterLink').href = SITE + 'qublitz/qubit-copter.html';
+  $('#back').href = SITE + '#labs'; $('#labLink').href = SITE + 'qublitz/qubit-simulator.html';
   $('#offlineHint').hidden = true;
 }
 const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },

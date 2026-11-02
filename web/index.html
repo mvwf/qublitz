@@ -172,7 +172,7 @@ const DEMOS = [
     eq:'<i>H</i> = <span class="fr"><span>&omega;<sub><i>q</i></sub></span><span>2</span></span>&sigma;<sub><i>z</i></sub> + &Omega;<sub><i>R</i></sub>[<i>I</i>(<i>t</i>)&sigma;<sub><i>x</i></sub> + <i>Q</i>(<i>t</i>)&sigma;<sub><i>y</i></sub>] cos &omega;<sub><i>d</i></sub><i>t</i>',
     desc:'A virtual qubit lab. Find a mystery qubit by experiment (frequency sweep, Rabi, T₁ and Ramsey), set your own qubit in free play, or, as an instructor, generate a code for every student with a private answer key. Includes the QuBlitz Arena battle game.',
     tags:['quantum','qubits','Rabi','Ramsey','T1','game'] },
-  { group:'labs', title:'Qubit Copter', thumb:'rider',
+  { group:'labs', title:'Qubit Copter', thumb:'copter', hidden:true,
     href:'qublitz/qubit-copter.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>d</i><b>r</b>/<i>dt</i> = <b>&omega;</b> &times; <b>r</b>,&ensp; <b>&omega;</b> = &Omega; (<i>a<sub>x</sub></i>, <i>a<sub>y</sub></i>, <i>a<sub>z</sub></i>)',
     desc:'Turn a qubit about x, y and z yourself: nothing precesses unless you drive it. Short lessons on what each rotation does, free flight with live P(1) and ⟨σ⟩ readouts, timed courses, and a link that replays your moves as pulses in the Virtual Qubit Lab.',
@@ -180,7 +180,7 @@ const DEMOS = [
   { group:'labs', title:'Rabi Rider', thumb:'rider',
     href:'qublitz/rabi-rider.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>P</i>(1) = sin<sup>2</sup>(&Omega;<i>t</i>/2)',
-    desc:'Ride a Rabi oscillation: hold ▼ or ▲ to turn your qubit between |0⟩ and |1⟩ with a resonant drive, and it stays put when you let go. Missions on π pulses, superposition, the Born rule, the X gate and quantum jumps.',
+    desc:'Ride a Rabi oscillation: hold ▲ to drive your qubit up toward |1⟩ with a resonant pulse, while T₁ decay keeps pulling it back down to |0⟩. Pick your T₁. Missions on π pulses, superposition, the Born rule, the X gate and quantum jumps.',
     tags:['quantum','Bloch sphere','game'] },
   { group:'research', title:'Fridge Noise Explorer', thumb:'chain',
     href:'qublitz/fridge-noise.html', repo:'https://github.com/mvwf/qublitz',
@@ -385,21 +385,65 @@ const THUMBS = {
     g.strokeStyle='#19b8c9'; g.lineWidth=2.2; g.beginPath(); g.arc(xt,ym,5,0,7); g.stroke();
   },
   rider(g,w,h,t){
-    // a qubit flying across the Bloch-sphere map: rings ahead, a noise cloud, the |0⟩/|1⟩ edges
+    // Rabi Rider: |1⟩ at the top, |0⟩ at the bottom; the qubit climbs on a drive, T₁ pulls it back, sometimes in a jump
     g.fillStyle='#0f1930'; g.fillRect(0,0,w,h);
+    const top=14, bot=h-12, V=28, P=3.2;
+    const yOf=th=>bot-(bot-top)*th/Math.PI;                 // θ = 0 (|0⟩) at the bottom
+    // θ along the course: a climb to near |1⟩, a hover while T₁ drags it down a little, then a quantum jump to |0⟩
+    const thAt=s=>{ const p=((s%P)+P)%P/P; return p<0.45? Math.PI*0.92*(1-Math.cos(Math.PI*p/0.45))/2 : p<0.85? Math.PI*(0.92-0.25*(p-0.45)/0.4) : 0; };
     g.strokeStyle='rgba(160,190,230,.18)'; g.lineWidth=1;
-    const sp=w/4, off=(t*28)%sp;
+    const sp=w/4, off=(t*V)%sp;
     for(let x=-off;x<w;x+=sp){ g.beginPath(); g.moveTo(x,6); g.lineTo(x,h-6); g.stroke(); }
-    g.setLineDash([4,4]); g.beginPath(); g.moveTo(0,h/2); g.lineTo(w,h/2); g.stroke(); g.setLineDash([]);
-    const path=x=>h/2-(h*0.32)*Math.sin((x+t*28)*0.018);
-    for(let k=0;k<4;k++){ const x=((k*90-t*28)%360+360)%360+60; if(x>w+20) continue;
-      g.strokeStyle=k%3===2?'#7ef9ff':'#ffd166'; g.lineWidth=2.4; g.beginPath(); g.ellipse(x,path(x),11,13,0,0,7); g.stroke(); }
-    const cx=((200-t*28)%360+360)%360+40, cy=path(cx)+(path(cx)<h/2?34:-34);
-    g.fillStyle='rgba(255,70,120,.55)'; g.beginPath(); g.ellipse(cx,cy,14,12,0,0,7); g.fill();
-    g.strokeStyle='rgba(160,220,255,.6)'; g.lineWidth=2; g.beginPath();
-    for(let x=10;x<=60;x+=2) x===10?g.moveTo(x,path(x)):g.lineTo(x,path(x)); g.stroke();
-    g.fillStyle='#fff'; g.beginPath(); g.arc(60,path(60),4,0,7); g.fill();
-    g.fillStyle='rgba(190,210,240,.75)'; g.font='10px Helvetica,Arial'; g.fillText('|0⟩',4,12); g.fillText('|1⟩',4,h-5);
+    g.setLineDash([4,4]); g.beginPath(); g.moveTo(0,(top+bot)/2); g.lineTo(w,(top+bot)/2); g.stroke(); g.setLineDash([]);
+    const qx=64, sOf=x=>t+(x-qx)/V;                        // course time at screen x
+    // rings ahead on the path
+    for(let k=1;k<=4;k++){ const s0=Math.floor(t/P)*P+k*P*0.3; const x=qx+(s0-t)*V; if(x<qx+20||x>w-8) continue;
+      g.strokeStyle='#ffd166'; g.lineWidth=2.4; g.beginPath(); g.ellipse(x,yOf(thAt(s0)),7,11,0,0,7); g.stroke(); }
+    // trail behind, with the jump as a dashed drop
+    g.strokeStyle='rgba(160,220,255,.8)'; g.lineWidth=2.2; g.beginPath(); let prev=null;
+    for(let x=6;x<=qx;x+=1.5){ const th=thAt(sOf(x)), y=yOf(th);
+      if(prev!=null && Math.abs(th-prev)>0.8){ g.stroke(); g.setLineDash([2,3]); g.beginPath(); g.moveTo(x,yOf(prev)); g.lineTo(x,y); g.stroke(); g.setLineDash([]); g.beginPath(); g.moveTo(x,y); }
+      else if(prev==null) g.moveTo(x,y); else g.lineTo(x,y); prev=th; }
+    g.stroke();
+    const qy=yOf(thAt(t));
+    const glow=g.createRadialGradient(qx,qy,0,qx,qy,12); glow.addColorStop(0,'rgba(200,240,255,.9)'); glow.addColorStop(1,'rgba(120,200,255,0)');
+    g.fillStyle=glow; g.beginPath(); g.arc(qx,qy,12,0,7); g.fill(); g.fillStyle='#fff'; g.beginPath(); g.arc(qx,qy,4,0,7); g.fill();
+    const ph=((t%P)+P)%P/P;
+    if(ph<0.45){ g.fillStyle='#ffb347'; g.beginPath(); g.moveTo(qx-5,qy-8); g.lineTo(qx+5,qy-8); g.lineTo(qx,qy-15); g.fill(); }   // driving up
+    else if(ph>=0.85 && ph<0.95){ g.fillStyle='#9fd2ff'; g.font='bold 10px Helvetica,Arial'; g.fillText('jump!',qx+8,qy-6); }
+    g.fillStyle='rgba(190,210,240,.75)'; g.font='10px Helvetica,Arial'; g.fillText('|1⟩',4,12); g.fillText('|0⟩',4,h-4);
+  },
+  copter(g,w,h,t){
+    // Qubit Copter: a Bloch sphere with x, y, z axes; a little copter rides the state vector, turning about one axis at a time
+    const sky=g.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#e8f3fb'); sky.addColorStop(1,'#f6fbf7');
+    g.fillStyle=sky; g.fillRect(0,0,w,h);
+    const cx=w/2, cy=h/2+2, R=Math.min(w,h)*0.38;
+    const P=([x,y,z])=>[cx+R*(0.94*y-0.36*x), cy-R*(0.94*z-0.22*x)];   // a fixed oblique view
+    const rot=(v,ax,a)=>{ const [x,y,z]=v, c=Math.cos(a), s=Math.sin(a);
+      return ax===0? [x,c*y-s*z,s*y+c*z] : ax===1? [c*x+s*z,y,-s*x+c*z] : [c*x-s*y,s*x+c*y,z]; };
+    // quarter turns about x, z, y, x, z, y (1.4 s each): |0⟩ → −y → +x → |1⟩ → +y → −x → |0⟩, so the loop closes
+    const SEQ=[0,2,1,0,2,1], T=1.4, n=Math.floor(t/T), f=t/T-n;
+    let v=[0,0,1]; for(let i=0;i<n%SEQ.length;i++) v=rot(v,SEQ[i],Math.PI/2);
+    const ax=SEQ[n%SEQ.length], e=f<0.25?0:Math.min(1,(f-0.25)/0.6), ease=e*e*(3-2*e); v=rot(v,ax,Math.PI/2*ease);
+    // sphere
+    const grd=g.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R); grd.addColorStop(0,'#ffffff'); grd.addColorStop(1,'#d6e4dc');
+    g.fillStyle=grd; g.beginPath(); g.arc(cx,cy,R,0,7); g.fill(); g.strokeStyle='rgba(40,70,60,.35)'; g.lineWidth=1; g.stroke();
+    g.beginPath(); for(let i=0;i<=48;i++){ const a=i/48*2*Math.PI, p=P([Math.cos(a),Math.sin(a),0]); i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]); } g.stroke();
+    // axes, the active one bold
+    const COL=['#c8384c','#1f8a3a','#2f6fc4'], NAME=['x','y','z'];
+    for(let k=0;k<3;k++){ const u=[0,0,0]; u[k]=1.25; const a=P(u.map(q=>-q)), b=P(u), on=k===ax&&f>=0.25;
+      g.strokeStyle=COL[k]; g.globalAlpha=on?1:0.45; g.lineWidth=on?3:1.5; g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.fillStyle=COL[k]; g.font=(on?'bold ':'')+'11px Helvetica,Arial'; g.fillText(NAME[k],b[0]+3,b[1]+4); g.globalAlpha=1; }
+    g.fillStyle='#2f6fc4'; g.font='10px Helvetica,Arial'; const p0=P([0,0,1.18]), p1=P([0,0,-1.18]); g.fillText('|0⟩',p0[0]+6,p0[1]+2); g.fillText('|1⟩',p1[0]+6,p1[1]+8);
+    // the state vector and the copter at its tip
+    const tip=P(v);
+    g.strokeStyle='#00693e'; g.lineWidth=2.5; g.beginPath(); g.moveTo(cx,cy); g.lineTo(tip[0],tip[1]); g.stroke();
+    g.save(); g.translate(tip[0],tip[1]-4);
+    g.fillStyle='#ffd166'; g.strokeStyle='#8a6a10'; g.lineWidth=1; g.beginPath(); g.ellipse(0,0,7,4.5,0,0,7); g.fill(); g.stroke();   // body
+    g.beginPath(); g.moveTo(-6,0); g.lineTo(-13,-2); g.stroke();                                                                     // tail
+    g.strokeStyle='#1b2a24'; g.lineWidth=1.5; g.beginPath(); g.moveTo(0,-4.5); g.lineTo(0,-7); g.stroke();
+    const rw=11*Math.abs(Math.cos(t*30)); g.beginPath(); g.moveTo(-rw,-7); g.lineTo(rw,-7); g.stroke();                              // spinning rotor
+    g.restore();
   },
   sonify(g,w,h,t){
     // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone
