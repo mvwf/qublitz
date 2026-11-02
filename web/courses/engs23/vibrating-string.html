@@ -191,7 +191,9 @@
     <canvas id="spectrum" height="200" style="display:none"></canvas>
     <p class="legend">Each string's FFT is one trace, with the superimposed total overlaid. Click a name in the legend to
       isolate a string. When clean the per-string spectra add to the total; turn the gain up and the total grows extra
-      harmonics the strings never had — clipping manufactures frequencies, which is how a guitar amp makes distortion.</p>
+      harmonics the strings never had — clipping manufactures frequencies, which is how a guitar amp makes distortion.
+      The dashed line is the mean frequency ⟨<span class="mvar">f</span>⟩ = Σ <span class="mvar">f</span>|<span class="mvar">V</span>|² / Σ |<span class="mvar">V</span>|² of the output: where its
+      power sits on average. Pluck nearer the bridge, switch the coil to velocity or add gain, and it moves up: the sound gets brighter.</p>
   </div>
 
   <div class="card" id="liveCard" style="grid-column:1/-1">
@@ -489,7 +491,11 @@ if (window.QUBLITZ_STANDALONE) {
       traces.push({x:s.freqs,y:s.amps,mode:'lines',name:noteLab(i),line:{color:SCOL[i],width:1.4}}); });
     const sum=spectrumAmps(Vout, f1low, Fmax);
     traces.push({x:sum.freqs,y:sum.amps,mode:'lines',name:'sum',line:{color:'#1b2a24',width:2}});
-    const layout={margin:{l:58,r:12,t:6,b:38},barmode:'overlay',showlegend:true,legend:{orientation:'h',y:1.18,x:0,font:{size:11}},
+    const mf=LiveSpec.meanFrequency(sum.freqs, sum.amps);   // ⟨f⟩ of what you hear (the clipped output)
+    const layout={margin:{l:58,r:12,t:6,b:38},barmode:'overlay',
+      shapes: mf>0? [{type:'line',xref:'x',yref:'paper',x0:mf,x1:mf,y0:0,y1:0.92,line:{color:'#1b2a24',width:1.5,dash:'dash'}}] : [],
+      annotations: mf>0? [{x:mf,y:0.97,xref:'x',yref:'paper',text:'<b>⟨f⟩ = '+Math.round(mf)+' Hz</b>',showarrow:false,
+        xanchor: mf>0.7*Fmax?'right':'left',font:{size:11,color:'#1b2a24'}}] : [],showlegend:true,legend:{orientation:'h',y:1.18,x:0,font:{size:11}},
       font:{family:'Helvetica,Arial,sans-serif',size:11},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdfc',
       xaxis:{title:'frequency (Hz)',range:[0,Fmax],gridcolor:'#eef3f0'},
       yaxis:{title:'|V| (V)',rangemode:'tozero',gridcolor:'#eef3f0'}};
@@ -562,6 +568,7 @@ if (window.QUBLITZ_STANDALONE) {
     // each string's own raw FFT curve (coloured)
     curves.forEach(c=>{ spx.strokeStyle=SCOL[c.i]; spx.lineWidth=1.3; spx.beginPath();
       for(let k=0;k<=K;k++){ const X=padx+plotW*k/K, Y=base-c.amps[k]*vscale; k?spx.lineTo(X,Y):spx.moveTo(X,Y); } spx.stroke(); });
+    meanLine(spx, sum.freqs, sum.amps, Fmax, padx, plotW, base-plotH, base);
     // legend
     legendRow(spx, pl, padx, 10);
     // x axis
@@ -571,6 +578,14 @@ if (window.QUBLITZ_STANDALONE) {
       spx.textAlign=fr===0?'left':(fr===1?'right':'center'); spx.fillText(Math.round(Fmax*fr), X, base+14); });
     spx.textAlign='center'; spx.fillStyle='#5a6b63'; spx.font='italic 12px "Latin Modern Roman",Georgia,"Times New Roman",serif';
     spx.fillText('frequency  (Hz)', (padx+w-pr)/2, h-4); spx.textAlign='left';
+  }
+  // ⟨f⟩ of the output spectrum as a dashed line on the canvas FFT
+  function meanLine(ctx, freqs, amps, Fmax, padx, plotW, top, base){
+    const mf=LiveSpec.meanFrequency(freqs, amps); if(!(mf>0)) return;
+    const X=padx+plotW*mf/Fmax; ctx.strokeStyle='#1b2a24'; ctx.lineWidth=1.3; ctx.setLineDash([5,3]);
+    ctx.beginPath(); ctx.moveTo(X,top); ctx.lineTo(X,base); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#1b2a24'; ctx.font='bold 10px Helvetica,Arial,sans-serif'; ctx.textAlign=X>padx+plotW*0.7?'right':'left';
+    ctx.fillText('⟨f⟩ = '+Math.round(mf)+' Hz', X+(X>padx+plotW*0.7?-4:4), top+8); ctx.textAlign='left';
   }
   // small colour legend: string note names + "sum"
   function legendRow(ctx, pl, x0, y){ ctx.font='9px Helvetica,Arial,sans-serif'; ctx.textAlign='left'; let lx=x0;

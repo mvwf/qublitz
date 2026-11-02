@@ -185,7 +185,9 @@
     <p class="legend">The Fourier transform of the pickup signal (64 fundamental periods, Hann window), in units of the signal.
       Each peak is one normal mode, at ν<sub><span class="mvar">mn</span></sub> = <span class="mvar">k<sub>mn</sub>v</span>/(2π<span class="mvar">a</span>); the
       dotted lines are the string's harmonics <span class="mvar">n</span>ν<sub>10</sub> for comparison. A selected mode the pickup cannot hear is
-      marked ✕. Move the pickup off the centre and the <span class="mvar">n</span> ≥ 1 peaks appear.</p>
+      marked ✕. Move the pickup off the centre and the <span class="mvar">n</span> ≥ 1 peaks appear. The dashed line is the mean frequency
+      ⟨<span class="mvar">f</span>⟩ = Σ ν<sub><span class="mvar">mn</span></sub><span class="mvar">A</span><sub><span class="mvar">mn</span></sub>² / Σ <span class="mvar">A</span><sub><span class="mvar">mn</span></sub>², each mode
+      weighted by its power at the pickup: where the sound's energy sits on average, which sets how bright it sounds.</p>
   </div>
 
   <div class="card full" id="liveCard">
@@ -721,6 +723,14 @@ if (window.QUBLITZ_STANDALONE) {
       g.fillStyle=silent?'#9bb0a6':o.col; g.textAlign='center'; g.font='10.5px Helvetica,Arial,sans-serif';
       const y=silent? bot-8 : bot-(bot-top)*o.amp/pk-6;
       if(x-lastX>26){ g.fillText((silent?'✕ ':'')+'('+o.md.m+','+o.md.n+')', x, Math.max(top-6,y)); lastX=x; } });
+    // mean frequency of the pickup signal, exact from its modes: ⟨f⟩ = Σ ν A² / Σ A² (each mode's power is A²/2)
+    const mf=LiveSpec.meanFrequency(comps.map(c=>c.md.ratio), comps.map(c=>c.amp));
+    if(mf>0){ const x=X(Math.min(mf,RM));
+      g.strokeStyle='#1b2a24'; g.lineWidth=1.5; g.setLineDash([5,3]); g.beginPath(); g.moveTo(x,top); g.lineTo(x,bot); g.stroke(); g.setLineDash([]);
+      const txt='⟨f⟩ = '+Math.round(mf*f10)+' Hz = '+mf.toFixed(2)+' ν₁₀'+(mf>RM?' →':''), right=x>w*0.6, yl=(top+bot)/2;
+      g.font='bold 11px Helvetica,Arial,sans-serif'; const tw=g.measureText(txt).width, x0=right? x-5-tw : x+5;
+      g.fillStyle='rgba(255,255,255,0.88)'; g.fillRect(x0-3, yl-9, tw+6, 15);
+      g.fillStyle='#1b2a24'; g.textAlign='left'; g.fillText(txt, x0, yl+2); }
   }
 
   // live spectrogram: of the sound while ♪ plays, otherwise (while the animation runs) of the pickup signal itself,
