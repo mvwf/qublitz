@@ -189,13 +189,14 @@
   </div>
 
   <div class="card full" id="liveCard">
-    <div class="flexcap"><h2 style="margin:0">Live spectrogram — running while ♪ plays</h2>
+    <div class="flexcap"><h2 style="margin:0">Live spectrogram of the pickup</h2>
       <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
     <canvas id="lspec" height="230"></canvas>
     <canvas id="lline" height="170" style="margin-top:8px"></canvas>
-    <p class="legend">The same short-time FFT as the Spectrogram Explorer, run on the sound as it plays: each new column is the
-      spectrum of the last 8192 samples. Every mode is a horizontal line that fades as the sound decays (the decay is added for
-      listening; the ideal membrane rings forever). The ticks on the right and the dashed lines below are the predicted
+    <p class="legend">The same short-time FFT as the Spectrogram Explorer. Without sound it runs silently on the pickup
+      signal of the ideal membrane, so every mode the pickup hears is a steady horizontal line: strike the head, pick modes or move
+      the pickup and watch the lines change. Press ♪ and it shows the sound instead (the last 8192 samples per column), where the
+      lines fade because the sound has a decay added for listening; the ideal membrane rings forever. The ticks on the right and the dashed lines below are the predicted
       ν<sub><span class="mvar">mn</span></sub>. Play <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b> and compare the line spacing.</p>
   </div>
 
@@ -722,8 +723,16 @@ if (window.QUBLITZ_STANDALONE) {
       if(x-lastX>26){ g.fillText((silent?'✕ ':'')+'('+o.md.m+','+o.md.n+')', x, Math.max(top-6,y)); lastX=x; } });
   }
 
-  // live spectrogram of whatever ♪ plays
-  const live=LiveSpec.create({spec:$('lspec'), line:$('lline'),
+  // live spectrogram: of the sound while ♪ plays, otherwise (while the animation runs) of the pickup signal itself,
+  // a sum of undamped cosines a cos ωτ + b sin ωτ with τ = t·ν10 the time in fundamental periods
+  function pickupSamples(t0, fs, n){
+    const x=new Float64Array(n), f10=f10Hz();
+    for(const c of pickupComps()){ if(!c.amp) continue;
+      const w=c.md.omega*f10, d=w/fs; let cr=Math.cos(w*t0), sr=Math.sin(w*t0); const cd=Math.cos(d), sd=Math.sin(d);
+      for(let i=0;i<n;i++){ x[i]+=c.a*cr+c.b*sr; const nc=cr*cd-sr*sd; sr=sr*cd+cr*sd; cr=nc; } }
+    return x;
+  }
+  const live=LiveSpec.create({spec:$('lspec'), line:$('lline'), signal:pickupSamples,
     fmax:()=>Math.min(8000,Math.max(1000,Math.ceil(6.5*f10Hz()/100)*100)),
     markers:()=>{ const comps=pickupComps(), mx=Math.max(1e-12,...comps.map(c=>c.amp)), f10=f10Hz();
       return comps.filter(c=>c.amp>0.02*mx).map(c=>{ const si=sel.findIndex(([m,n])=>m===c.md.m&&n===c.md.n);
@@ -764,7 +773,7 @@ if (window.QUBLITZ_STANDALONE) {
     if(lastTS!=null) clock+=Math.min(0.1,(ts-lastTS)/1000)*speed;
     lastTS=ts; drawAll(); requestAnimationFrame(frame);
   }
-  function setPlaying(p){ playing=p; $('play').textContent=p?'❚❚ Pause':'▶ Play'; if(p){ lastTS=null; requestAnimationFrame(frame); } else drawAll(); }
+  function setPlaying(p){ playing=p; $('play').textContent=p?'❚❚ Pause':'▶ Play'; if(p){ lastTS=null; requestAnimationFrame(frame); } else drawAll(); live.redraw(); }
 
   // ---------- controls ----------
   function setSeg(id,attr,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset[attr]===val)); }
