@@ -195,12 +195,13 @@
   </div>
 
   <div class="card" id="liveCard" style="grid-column:1/-1">
-    <div class="flexcap"><h2 style="margin:0">Live spectrogram — running while ♪ Listen plays</h2>
+    <div class="flexcap"><h2 style="margin:0">Live spectrogram of the pickup</h2>
       <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
     <canvas id="lspec" height="230"></canvas>
     <canvas id="lline" height="170" class="subcanvas"></canvas>
-    <p class="legend">The same short-time FFT as the Spectrogram Explorer, run on the amp's output as you hear it: each new column is
-      the spectrum of the last 8192 samples. Each harmonic is a horizontal line at <span class="mvar">n</span>·f₁, evenly spaced, and the
+    <p class="legend">The same short-time FFT as the Spectrogram Explorer. Without sound it runs silently on the amp's output
+      <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>), so it changes as you fret, pluck or turn the gain; press ♪ Listen and it
+      shows the sound as you hear it (the last 8192 samples per column). Each harmonic is a horizontal line at <span class="mvar">n</span>·f₁, evenly spaced, and the
       high ones fade first. The ticks on the right and the dashed lines below mark <span class="mvar">n</span>·f₁ for every played string
       (its colour). Turn up the gain and listen again: clipping paints new lines between them.</p>
   </div>
@@ -608,14 +609,17 @@ if (window.QUBLITZ_STANDALONE) {
     requestAnimationFrame(frame);
   }
   function play(){ playing=true; lastTS=null; document.getElementById('play').textContent='❚❚ Pause';
-    requestAnimationFrame(frame); }
-  function pause(){ playing=false; document.getElementById('play').textContent='▶ Play'; }
+    requestAnimationFrame(frame); live.redraw(); }
+  function pause(){ playing=false; document.getElementById('play').textContent='▶ Play'; live.redraw(); }
 
   // ---------- audio (additive synthesis at physical pitch) ----------
   let actx=null;
   // live spectrogram of the sound; the markers are n·f1 of every played string, in its colour
   const liveFmax=()=>{ const pl=playedList(); return pl.length? Math.min(6000, Math.max(2200, 13*Math.max(...pl.map(i=>f1of(i))))) : 2200; };
+  // without sound it runs silently on the amp output V_out(t) itself (clipping included) while Play is on
+  const liveSamples=(t0,fs,n)=>{ const x=new Float64Array(n); for(let i=0;i<n;i++) x[i]=Vout(t0+i/fs); return x; };
   const live=LiveSpec.create({spec:document.getElementById('lspec'), line:document.getElementById('lline'), fmax:liveFmax,
+    signal:liveSamples,
     markers:()=>{ const out=[], F=liveFmax(), pl=playedList();
       pl.forEach((i,idx)=>{ const f1i=f1of(i);
         modes.forEach(md=>{ const f=f1i*md.ratio; if(f>0 && f<=F) out.push({f, color:SCOL[i], label: idx===0? (Math.round(md.ratio*100)/100)+'×' : ''}); }); });
