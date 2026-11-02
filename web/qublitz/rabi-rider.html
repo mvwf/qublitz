@@ -96,7 +96,10 @@
 <p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
   excited state |1⟩ at the top, so height is energy, with P(1) = sin²(θ/2) in between. The course scrolls past in time. The drive is
   exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and only <b>T₁ decay</b>
-  acts, and it always pulls the qubit down to |0⟩, like gravity. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
+  acts, and it always pulls the qubit down to |0⟩, like gravity. You fly an <b>ensemble</b>: each faint ghost is one run of the same
+  experiment, all driven by the same pulse, and each decays in its own random quantum jump. The big marker is their mean, the
+  density matrix; aim it through the rings, because the share of runs that succeed is the ensemble's fidelity with the ring's
+  state. Decoherence spreads the runs and makes that harder; a green reset starts a fresh shot. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
   <a id="copterLink" href="qubit-copter.html">🚁 Qubit Copter</a>; to run the same pulses as an experiment, open the
   <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
 
@@ -105,14 +108,16 @@
     <canvas id="cv" aria-label="Game: the qubit's height θ over time, with rings to fly through"></canvas>
 
     <div class="overlay" id="menu">
-      <h2>Rabi Rider<small>DRIVE IT UP · T₁ PULLS IT DOWN</small></h2>
+      <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN</small></h2>
       <p>Missions teach one idea each. Start with <b>Flight school</b>.</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
         <button class="go" id="endless">Endless run ▶</button>
         <label>T₁ <select id="optT1" aria-label="Difficulty: the qubit's T₁">
-          <option value="easy">20 s · easy</option><option value="normal" selected>10 s · normal</option>
-          <option value="hard">5 s · hard</option><option value="expert">2.5 s · expert</option></select></label>
+          <option value="easy">12 s · easy</option><option value="normal" selected>6 s · normal</option>
+          <option value="hard">3 s · hard</option><option value="expert">1.5 s · expert</option></select></label>
+        <label>runs <select id="optN" aria-label="How many runs of the experiment (ghosts) to fly at once">
+          <option value="1">1</option><option value="6">6</option><option value="12" selected>12</option><option value="24">24</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
       </div>
       <p class="best" id="menuBest"></p>
@@ -160,7 +165,7 @@
       <p class="drive" id="driveText"></p>
     </div>
     <div class="panel">
-      <h3>State</h3>
+      <h3>State (P(1): the share of runs that would read 1)</h3>
       <div class="ket" id="ket">|0⟩</div>
       <div class="bars">
         <span>P(0)</span><div class="bar"><i id="bP0"></i></div><span class="num" id="nP0"></span>
@@ -187,8 +192,16 @@
     <b>T₁ decay</b> is always on, as it is for a real qubit: it emits a photon and falls to its ground state. The qubit here is a watched
     quantum trajectory, γ = 1/T₁: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps to |0⟩ at the rate
     γ·P(1), most often near |1⟩; with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>. The difficulty is T₁:
-    20, 10, 5 or 2.5 s (6 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
+    12, 6, 3 or 1.5 s (5 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
     100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
+  <p><b>The ghosts.</b> An experiment is many runs of the same pulse sequence, and its result is an average over them. The game flies
+    up to 24 runs at once with one drive. Each run is a pure state that jumps on its own; their average Bloch vector r̄ is the density
+    matrix, ρ = ½(1 + r̄·σ), with |r̄| = 1 while they agree and less once decoherence has thrown some off (a mixed state). A ring is a
+    test for its target state |t⟩: each run passes with probability |⟨t|ψ⟩|², so the share that pass is the fidelity
+    F̄ = ⟨t|ρ|t⟩ = (1 + r̄·t̂)/2. That is linear in r̄, so aiming the mean is the best any single pulse can do, and it is capped at
+    (1 + |r̄|)/2: once the runs spread, no aim gets most of them through. A ring counts at F̄ ≥ 70 %.
+    Measurement gates read every run and then <b>reset</b> it to |0⟩ (a π pulse conditioned on its own outcome, as labs do); green
+    reset curtains start a fresh shot. Noise clouds measure the runs that touch them.</p>
   <p><b>Left out, on purpose:</b> pure dephasing (random turns about z, the T<sub>φ</sub> part of T₂), so here T₂ = 2T₁, the most a qubit
     can have; detuning, so nothing precesses (see Qubit Copter's Z control for that); and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
@@ -213,9 +226,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ==
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
 let challengeSeed = null;
 try { challengeSeed = new URL(location.href).searchParams.get('seed'); } catch (e) { /* no URL */ }
-const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), level: store.get('rider2:t1', 'normal') };
+const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), level: store.get('rider2:t1', 'normal'), N: store.get('rider2:n', E.P.GHOSTS) };
 if (!E.P.T1[S.level]) S.level = 'normal';
-$('#optSound').checked = S.sound; $('#optT1').value = S.level;
+if (![1, 6, 12, 24].includes(S.N)) S.N = E.P.GHOSTS;
+$('#optSound').checked = S.sound; $('#optT1').value = S.level; $('#optN').value = S.N;
+$('#optN').addEventListener('change', e => { S.N = +e.target.value; store.set('rider2:n', S.N); });
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rider2:sound', S.sound); });
 $('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider2:t1', S.level); });
 
@@ -321,10 +336,10 @@ function toMenu() { syncMenu(); show('#menu'); }
 function start(m, again) {
   current = m;
   seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
-  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level] });
+  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], ghosts: S.N });
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null);
   if (m) note(m.brief, 6);
-  else note(`<b>Endless run</b>, T₁ = ${world.T1} s. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
+  else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
 }
 function pause() { show('#paused'); }
 function resume() { show(null); last = performance.now(); }
@@ -335,7 +350,9 @@ const TIPS = [
   'Let go early: the drive takes a moment to ramp down. After that only T₁ moves the qubit, and only downward.',
   'P(1) = ½ is the middle line, but P(1) = ¼ is at θ = 60°, a third of the way up, not a quarter.',
   'A full climb from |0⟩ to |1⟩ is a π pulse: about 2 s here. Plan it before the ring arrives.',
-  'Near the top the qubit jumps down most often: the jump rate is P(1)/T₁. Don\'t wait up there longer than you need to.',
+  'Near the top the runs jump down most often: the jump rate is P(1)/T₁. Don\'t wait up there longer than you need to.',
+  'Aim the mean, not the leaders: the share of runs that pass a ring is F̄ = (1 + r̄·t̂)/2, which only the mean decides.',
+  'When the ghosts are spread out, no aim can pass a ring: F̄ is at most (1 + |r̄|)/2. Hold on until the next reset.',
   'Near a measurement gate, fly close to the outcome it pays for: P(1) = sin²(θ/2).',
 ];
 function finish(ev) {
@@ -356,15 +373,18 @@ function finish(ev) {
     $('#overBest').textContent = `Best ${Math.max(score, prev)} · course ${seed}`;
   }
   if (current) $('#overBest').textContent = '';
-  $('#overStats').innerHTML = [[`${w.rings}${current ? '/' + w.total : ''}`, 'rings'], [w.perfects, 'perfect'], [w.hits, 'hits'], [w.t.toFixed(0) + ' s', 'time']]
+  $('#overStats').innerHTML = [[`${w.rings}${current ? '/' + w.total : ''}`, 'rings'], [w.perfects, 'perfect'], [w.jumps, 'jumps'], [w.t.toFixed(0) + ' s', 'time']]
     .map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
   $('#overTip').textContent = current && w.cleared ? '' : 'Tip: ' + TIPS[Math.floor(Math.random() * TIPS.length)];
   setTimeout(() => { if (phase === 'play') show('#over'); }, w.cleared ? 400 : 700);
 }
 function handle(ev) {
   for (const e of ev) {
-    if (e.type === 'ring') { SND.ring(e.combo, e.perfect); pop(`+${e.pts}${e.perfect ? ' PERFECT' : ''}`); }
-    else if (e.type === 'miss') { SND.miss(); pop(e.heart ? 'miss −♥' : 'miss', '#ff8a9a'); if (world.misses === 1) note(`<b>Missed by ${(e.off / D2R).toFixed(0)}°.</b> Let go a little before you get there: each 10° takes about 0.1 s of drive, and your reactions add more.`, 3.5); }
+    if (e.type === 'ring') { SND.ring(e.combo, e.perfect); pop(`+${e.pts}${e.perfect ? ' PERFECT' : ''}${world.N > 1 ? ` · ${Math.round(100 * e.F)}% pass` : ''}`); }
+    else if (e.type === 'miss') { SND.miss(); pop((e.heart ? 'miss −♥' : 'miss') + (world.N > 1 ? ` · ${Math.round(100 * e.F)}%` : ''), '#ff8a9a');
+      if (world.misses === 1) note(world.N > 1 && Math.abs(e.off) < e.o.rad
+        ? `<b>Aimed right, but only ${Math.round(100 * e.F)}% of the runs would pass</b> (${Math.round(100 * E.P.F_PASS)}% needed). Decoherence has spread the ghosts: F̄ can be at most (1 + |r̄|)/2. A reset restores them.`
+        : `<b>Missed by ${(e.off / D2R).toFixed(0)}°.</b> Let go a little before you get there: each 10° takes about 0.1 s of drive, and your reactions add more.`, 5); }
     else if (e.type === 'quiz') {
       if (e.correct) { SND.ring(e.combo, false); pop(`+${e.pts} ✓`); } else { SND.miss(); pop('✗', '#ff8a9a'); }
       note((e.correct ? '<b>Right.</b> ' : '<b>Not that one.</b> ') + e.q.why, 6);
@@ -372,13 +392,21 @@ function handle(ev) {
     else if (e.type === 'measure') {
       SND.measure(e.one); flash = 0.25;
       pop(e.one ? '|1⟩' : '|0⟩', e.win ? '#9cf09f' : '#7fb8ff');
-      note(`<b>Measured ${e.one ? '1' : '0'}.</b> P(1) was ${e.p1.toFixed(2)}, so this was ${e.p1 > 0.85 || e.p1 < 0.15 ? 'almost certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a weighted coin'}. The qubit is now in |${e.one ? 1 : 0}⟩.${e.win ? ` +${e.pts}` : ''}`, 4);
+      note(world.N > 1
+        ? `<b>Measured: ${e.ones} of ${e.N} runs read 1</b> (P(1) was ${e.p1.toFixed(2)}). Each run got one definite answer, and the share of 1s is P(1). Then every run was reset to |0⟩.${e.win ? ` +${e.pts}` : ''}`
+        : `<b>Measured ${e.one ? '1' : '0'}.</b> P(1) was ${e.p1.toFixed(2)}, so this was ${e.p1 > 0.85 || e.p1 < 0.15 ? 'almost certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a weighted coin'}. Then the qubit was reset to |0⟩.${e.win ? ` +${e.pts}` : ''}`, 5);
     } else if (e.type === 'token') { SND.gate(); pop('X'); note(`<b>X gate:</b> a π turn about x. θ went from ${(e.from / D2R).toFixed(0)}° to ${(e.to / D2R).toFixed(0)}°.`, 3); }
     else if (e.type === 'close') pop(`close +${e.pts}`, '#9fd2ff');
     else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
-    else if (e.type === 'hit') { SND.hit(); flash = 0.35;
-      note(`<b>Noise!</b> The environment measured your qubit: P(1) was ${e.p1.toFixed(2)}, and it collapsed to |${e.one ? 1 : 0}⟩. That cost a heart.`, 4); }
-    else if (e.type === 'jump') { SND.jump(); pop('jump!', '#9fd2ff'); if (world.jumps === 1) note('<b>Quantum jump.</b> A photon escaped, so the qubit is now in |0⟩. The odds are γ·P(1) per second: highest near |1⟩.', 5); }
+    else if (e.type === 'hit') { SND.hit(); if (e.heart) flash = 0.35;
+      if (world.N === 1) note(`<b>Noise!</b> The environment measured your qubit: P(1) was ${e.p1.toFixed(2)}, and it collapsed to |${e.one ? 1 : 0}⟩. That cost a heart.`, 4);
+      else if (e.heart || world.hits === 0) note(`<b>Noise!</b> The environment measured ${e.n} run${e.n > 1 ? 's' : ''}, and each collapsed to |0⟩ or |1⟩.${e.heart ? ' It reached half of them: that cost a heart.' : ''}`, 4); }
+    else if (e.type === 'jump') { SND.jump(); pop(world.N > 1 ? (e.n > 1 ? e.n + ' jumps' : 'jump') : 'jump!', '#9fd2ff');
+      if (world.jumps === e.n) note(world.N > 1
+        ? '<b>A ghost jumped.</b> One run emitted its photon and fell to |0⟩; the others did not, so the runs now disagree and the mean marker shrinks. Each run jumps at its own random moment, at the rate P(1)/T₁. Averaged, that is T₁ decay.'
+        : '<b>Quantum jump.</b> A photon escaped, so the qubit is now in |0⟩. The odds are γ·P(1) per second: highest near |1⟩.', 6); }
+    else if (e.type === 'reset') { tone(520, 780, 0.15, 'triangle', 0.06); pop('reset', '#8ff0b0');
+      if (!world._resetSeen) { world._resetSeen = true; note('<b>Reset.</b> Every run is back in |0⟩: a new shot of the experiment, and the ensemble is pure again. Real experiments repeat short shots like this, because decoherence builds up within each one.', 6); } }
     else if (e.type === 'clear') { SND.clear(); finish(e); }
     else if (e.type === 'over') { SND.over(); finish(e); }
   }
@@ -413,6 +441,11 @@ function draw(t) {
       glow.addColorStop(0, o.struck ? 'rgba(255,90,110,.75)' : 'rgba(255,90,120,.55)'); glow.addColorStop(1, 'rgba(255,60,100,.08)');
       g.fillStyle = glow; ellipse(x, Y(o.th), o.w * pxs(), o.rad * rpx); g.fill();
       g.strokeStyle = 'rgba(255,130,150,.6)'; g.lineWidth = 1.2; g.setLineDash([3, 3]); ellipse(x, Y(o.th), o.w * pxs(), o.rad * rpx); g.stroke(); g.setLineDash([]);
+    } else if (o.type === 'reset') {
+      if (o.done) continue;
+      g.fillStyle = 'rgba(80,220,140,.12)'; g.fillRect(x - 8, 0, 16, H);
+      g.strokeStyle = 'rgba(120,240,170,.9)'; g.lineWidth = 2; g.setLineDash([2, 4]); g.beginPath(); g.moveTo(x, PAD_T - 8); g.lineTo(x, H - PAD_B + 8); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#8ff0b0'; g.font = '700 12px Helvetica,Arial'; g.textAlign = 'center'; g.fillText('RESET', x, 12); g.fillText('→ |0⟩', x, H - 10);
     } else if (o.type === 'gate') {
       if (o.done) continue;
       g.fillStyle = 'rgba(80,150,255,.14)'; g.fillRect(x - 10, 0, 20, H);
@@ -451,14 +484,27 @@ function draw(t) {
     for (let i = 0; i <= 20; i++) { const s = reachT * i / 20, tt = Math.max(0, Math.min(Math.PI, th + dir * E.P.OMEGA * Math.max(0, s - 0.08))); i ? g.lineTo(nx + s * pxs(), Y(tt)) : g.moveTo(nx, Y(tt)); }
     g.stroke(); g.setLineDash([]);
   }
+  // the ghosts: every run's own trail and dot (a jump is a straight drop to |0⟩)
+  if (w.N > 1) {
+    const ths = w.thetas();
+    g.strokeStyle = 'rgba(200,230,255,.16)'; g.lineWidth = 1;
+    for (let k = 0; k < w.N; k++) { g.beginPath(); let prev = null;
+      hist.forEach((h, i) => { const v = h.ths && h.ths[k]; if (v == null) return; const x = X(h.t);
+        if (prev == null || Math.abs(v - prev) > 0.5) g.moveTo(x, Y(v)); else g.lineTo(x, Y(v)); prev = v; });
+      g.stroke(); }
+    g.fillStyle = 'rgba(220,240,255,.55)';
+    ths.forEach(v => { g.beginPath(); g.arc(nx, Y(v), 3, 0, Math.PI * 2); g.fill(); });
+  }
   g.strokeStyle = 'rgba(160,220,255,.85)'; g.lineWidth = 2.5; g.beginPath();
   hist.forEach((h, i) => { const x = X(h.t); i ? g.lineTo(x, Y(h.th)) : g.moveTo(x, Y(h.th)); }); g.stroke();
-  // the qubit, with the drive shown as an arrow
-  const y = Y(th);
+  // the mean (or the one run), with the drive shown as an arrow; with many runs its size is the purity |r̄|
+  const y = Y(th), pur = w.purity;
   const blink = w.grace > 0 && Math.floor(t * 14) % 2 === 0;
   if (!blink) {
-    const glow = g.createRadialGradient(nx, y, 0, nx, y, 20); glow.addColorStop(0, 'rgba(200,240,255,.95)'); glow.addColorStop(1, 'rgba(120,200,255,0)');
-    g.fillStyle = glow; g.beginPath(); g.arc(nx, y, 20, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(nx, y, 6, 0, Math.PI * 2); g.fill();
+    const R = 8 + 12 * pur, glow = g.createRadialGradient(nx, y, 0, nx, y, R); glow.addColorStop(0, `rgba(200,240,255,${0.45 + 0.5 * pur})`); glow.addColorStop(1, 'rgba(120,200,255,0)');
+    g.fillStyle = glow; g.beginPath(); g.arc(nx, y, R, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(nx, y, 3 + 3 * pur, 0, Math.PI * 2); g.fill();
+    if (w.N > 1) { g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 1.5; g.beginPath(); g.arc(nx, y, 9, 0, Math.PI * 2); g.stroke();
+      g.font = '11px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.textAlign = 'right'; g.fillText(`mean · |r̄| = ${pur.toFixed(2)}`, nx - 14, y - 12); }
   }
   if (w.driving) {
     const dir = w.amp > 0 ? -1 : 1; g.fillStyle = '#ffb347'; g.beginPath();   // on screen: toward |1⟩ is up (−y)
@@ -514,6 +560,8 @@ function drawSphere() {
   const a = SP([-1.3, 0, 0]), b = SP([1.3, 0, 0]);
   sg.strokeStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.35)'; sg.lineWidth = sgn ? 3 : 1.5; sg.beginPath(); sg.moveTo(a.x, a.y); sg.lineTo(b.x, b.y); sg.stroke();
   const tip = sgn < 0 ? a : b; sg.fillStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.5)'; sg.fillText(sgn < 0 ? '−x' : '+x', tip.x + (sgn < 0 ? -10 : 10), tip.y + 8);
+  // each run on the sphere (all pure, on the surface), and their mean: shorter than 1 once they disagree (a mixed state)
+  if (w && w.N > 1) { sg.fillStyle = 'rgba(0,105,62,.35)'; for (const gh of w.ghosts) { const q = SP(gh.r); sg.beginPath(); sg.arc(q.x, q.y, 2.5, 0, Math.PI * 2); sg.fill(); } }
   const s = SP(r);
   sg.strokeStyle = '#00693e'; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
   sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
@@ -521,10 +569,18 @@ function drawSphere() {
     : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
       : `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only T₁ (${w.T1} s) acts, toward |0⟩.`;
 }
+const ketOf = r => { const th = E.thetaOf(r), c = Math.cos(th / 2), s = Math.sin(th / 2);
+  return s < 0.005 ? '|0⟩' : c < 0.005 ? (r[1] > 0 ? 'i|1⟩' : '−i|1⟩') : `${c.toFixed(2)}|0⟩ ${r[1] > 0 ? '+' : '−'} i·${s.toFixed(2)}|1⟩`; };
 function drawState() {
-  const w = world, r = w ? w.r : [0, 0, 1], th = E.thetaOf(r), p1 = (1 - r[2]) / 2, c = Math.cos(th / 2), s = Math.sin(th / 2);
-  const ket = s < 0.005 ? '|0⟩' : c < 0.005 ? (r[1] > 0 ? 'i|1⟩' : '−i|1⟩') : `${c.toFixed(2)}|0⟩ ${r[1] > 0 ? '+' : '−'} i·${s.toFixed(2)}|1⟩`;
-  $('#ket').innerHTML = '|ψ⟩ = ' + ket + `<br><span style="font-size:13px;color:var(--muted)">θ = ${(th / D2R).toFixed(0)}°</span>`;
+  const w = world, r = w ? w.r : [0, 0, 1], p1 = (1 - r[2]) / 2;
+  if (w && w.N > 1) {
+    // the ensemble is a density matrix: its Bloch vector is the mean, |r̄| = 1 when every run agrees
+    $('#ket').innerHTML = `ρ = ½(1 + r̄·σ), |r̄| = ${w.purity.toFixed(2)}`
+      + `<br><span style="font-size:13px;color:var(--muted)">mean θ = ${(w.theta / D2R).toFixed(0)}° · one run: ${ketOf(w.ghosts[0].r)}</span>`;
+  } else {
+    const th = E.thetaOf(r);
+    $('#ket').innerHTML = '|ψ⟩ = ' + ketOf(r) + `<br><span style="font-size:13px;color:var(--muted)">θ = ${(th / D2R).toFixed(0)}°</span>`;
+  }
   $('#bP0').style.width = (100 * (1 - p1)) + '%'; $('#bP1').style.width = (100 * p1) + '%';
   $('#nP0').textContent = (1 - p1).toFixed(2); $('#nP1').textContent = p1.toFixed(2);
   const inp = phase === 'play' ? input() : {}; $('#btnUp').classList.toggle('on', !!inp.up); $('#btnDown').classList.toggle('on', !!inp.down);
@@ -540,7 +596,7 @@ function frame(now) {
     while (acc >= STEP) {
       acc -= STEP;
       const ev = world.step(inp, STEP);
-      hist.push({ t: world.t, th: world.theta }); while (hist.length && hist[0].t < world.t - BEHIND_S) hist.shift();
+      hist.push({ t: world.t, th: world.theta, ths: world.thetas() }); while (hist.length && hist[0].t < world.t - BEHIND_S) hist.shift();
       if (ev.length) handle(ev);
       if (world.over) break;
     }
