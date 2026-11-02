@@ -123,9 +123,17 @@
    * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
  * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
-    { id: 'flight', title: 'Flight school', start: 90,
-      brief: 'You fly an ensemble: each ghost is one run of the same experiment, and one drive acts on all of them. Hold <b>▲</b> to drive them up toward |1⟩ and <b>▼</b> down toward |0⟩. Let go and only decoherence acts: at random moments a ghost jumps to |0⟩ and shoots out a photon. Aim the mean (the big marker) through each ring: it counts when the ensemble\'s fidelity with the ring\'s state is at least 75 %, the share of runs that would pass.',
-      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off the only motion is T₁ decay, down toward the ground state |0⟩: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame).',
+    { id: 'flight', title: 'Flight school', start: 90, ghosts: 1, T1: 30,
+      brief: 'One qubit, one run. Hold <b>▲</b> to drive it up toward |1⟩ and <b>▼</b> down toward |0⟩; let go and the drive is off. Fly through every ring.',
+      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing turns it: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame). The qubit did not stay put forever, though: that is the next mission.',
+      items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
+    { id: 'photon', title: 'One qubit, one photon', start: 0, ghosts: 1, T1: 4, three: 0.6,
+      brief: 'Still one run, now with a short T₁ (4 s). Climb to |1⟩ and stay near the top. At a random moment the qubit will give up its energy as a <b>photon</b> (the yellow wave) and <b>jump</b> straight down to |0⟩. That is a quantum jump: not a slow slide but all at once. Climb back and keep flying.',
+      learn: 'A qubit in |1⟩ does not decay a little at a time. It stays put and then, at a random moment you cannot predict, emits one photon and is in |0⟩. The rate is fixed, 1/T₁ (times P(1), the chance it is found excited), so a jump in the next second is as likely now as it was a minute ago. T₁ is the average wait. Next: what many runs of this look like together.',
+      items: [['r', 2.5, 160], ['r', 5, 170], ['r', 7.5, 160], ['r', 10, 170], ['r', 12.5, 155], ['r', 15, 170], ['r', 17.5, 160], ['r', 20, 170]] },
+    { id: 'ensemble', title: 'Many runs', start: 90,
+      brief: 'An experiment repeats the same pulses many times, and each run jumps at its own moment. Now you fly 12 runs at once (the ghosts), with one drive for all of them. The big marker is their mean, the density matrix. Aim the mean through each ring: it counts when the share of runs that would pass a test for the ring\'s state, the fidelity, is at least 70 %.',
+      learn: 'Every run felt the same pulse, but each jumped at its own random moment, so the runs drifted apart and the mean shrank. You cannot steer one run at a time, and you cannot see them in a real experiment: what you measure is the average. Aiming the mean is the best a single pulse can do, and it gets the most runs through.',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'pi', title: 'The π pulse', start: 0,
       brief: 'A π pulse turns |0⟩ all the way to |1⟩. Hold <b>▲</b> to climb to the ring at the top, then <b>▼</b> back down to the bottom.',
@@ -149,7 +157,7 @@
       learn: 'A gate is a fast, calibrated pulse. X is a π rotation about x, so it swaps |0⟩ and |1⟩ and maps every height θ to 180° − θ.',
       items: [['r', 3, 30], ['x', 4, 30], ['r', 4.6, 150], ['r', 6.5, 150], ['x', 7.5, 150], ['r', 8.1, 30], ['r', 10, 60], ['x', 11, 60], ['r', 11.6, 120],
         ['r', 13.5, 45], ['x', 14.5, 45], ['r', 15.1, 135], ['r', 17, 90]] },
-    { id: 'jumps', title: 'Quantum jumps', start: 0, T1: 5, three: 0.6,
+    { id: 'jumps', title: 'Jumps in the crowd', start: 0, T1: 5, three: 0.6,
       brief: 'A short T₁ here (5 s, whatever the difficulty). The green curtains reset every ghost to |0⟩, a fresh shot. Watch the ghosts: each one falls to |0⟩ in a sudden jump at its own random moment, and the higher it was, the likelier a photon flies out. Jumps cost no hearts, but a ghost that jumped has to be brought back up.',
       learn: 'T₁ and the jumps are the same thing seen two ways. Each run is left in |0⟩ at a random moment (rate 1/T₁), emitting a photon if it was found in |1⟩, and does not move in between. Averaged over the runs, the fraction in |1⟩ falls smoothly as e^(−t/T₁): that average is what an experiment measures, and the big marker shows it.',
       items: [['r', 2, 100], ['r', 3.5, 125], ['z', 4.5], ['r', 6.5, 110], ['r', 8, 130], ['z', 9], ['r', 11, 120], ['r', 12.5, 100], ['z', 13.5],
@@ -163,7 +171,7 @@
   const isGood = o => o.type === 'ring' || o.type === 'token';   // things to collect, which clouds never cover
 
   /* ---------------- the world ----------------
-   * opts: { seed, T1 [s] (default P.T1.normal; Infinity for no decay), Tphi [s] (dephasing; default Infinity = none),
+   * opts: { free (free play: no course, never over), seed, T1 [s] (default P.T1.normal; Infinity for no decay), Tphi [s] (dephasing; default Infinity = none),
    *         ghosts (default P.GHOSTS; 1 for a single run), mission: id };
    * a mission's own T1 overrides opts.T1.
    * Missions start with HEARTS and only noise costs one; the endless run starts with ENDLESS_HEARTS, a missed target
@@ -175,6 +183,7 @@
     constructor(opts = {}) {
       this.T1 = opts.T1 ?? P.T1.normal;
       this.noReset = !!opts.noReset;
+      this.free = !!opts.free;                          // free play: no course, no hearts, no end
       this.Tphi = opts.Tphi ?? Infinity;
       this.zamp = 0;                                    // the Z control: −1 … +1
       this.flips = 0; this.photons = 0;
@@ -187,6 +196,7 @@
       this.hearts = P.ENDLESS_HEARTS; this.streak = 0; this.grace = 0; this.over = false;
       this.mission = null; this.cleared = false; this.total = 0;
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
+      if (m && m.ghosts) this.N = m.ghosts;              // a mission can fix the number of runs
       // each ghost is one run of the experiment, with its own photon detections and measurement outcomes
       const tag = m ? 'mission:' + m.id : String(opts.seed ?? 'random');
       this.ghosts = Array.from({ length: this.N }, (_, i) => ({
@@ -195,7 +205,7 @@
       if (m) {
         this.mission = m; if (m.T1) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.script(m);
-      } else this.generate();
+      } else if (!this.free) this.generate();
     }
     get decay() { return this.T1 < Infinity; }
     get level() { return Math.min(1, this.t / P.LEVEL_TIME); }
@@ -260,10 +270,10 @@
       const t0 = this.t; this.t += dt;
       this.score += 2 * dt;
       this.grace = Math.max(0, this.grace - dt);
-      if (!this.mission) this.generate();
+      if (!this.mission && !this.free) this.generate();
       this.meet(t0, ev);
       this.objects = this.objects.filter(o => o.t + (o.w || 0) > this.t - 3);
-      if (this.hearts <= 0) { this.over = true; ev.push({ type: 'over' }); }
+      if (this.hearts <= 0 && !this.free) { this.over = true; ev.push({ type: 'over' }); }
       else if (this.mission && this.t >= this.endT) { this.over = true; this.cleared = true; ev.push({ type: 'clear', stars: this.stars() }); }
       return ev;
     }
