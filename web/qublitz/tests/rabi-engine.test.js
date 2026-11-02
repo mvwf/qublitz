@@ -118,7 +118,25 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
   for (let i = 0; i < 200 * 120; i++) { c.step({}, DT); for (const o of c.objects) if (o.kind === 'T1' && !seen.has(o)) { seen.add(o); n++; } }
   check('the endless course offers a few T₁+ tokens', n >= 3 && n <= 6, `${n} in 200 s`);
   const nd = new E.World({ seed: 'course', T1: Infinity }); for (let i = 0; i < 60 * 120; i++) nd.step({}, DT);
-  check('and none when there is no decay to fight', !nd.objects.some(o => o.kind === 'T1'));
+  check('and none when there is no decay to fight', !nd.objects.some(o => o.kind === 'T1' || o.type === 'drain'));
+}
+
+// ---- T₁− hazards: each shortens T₁ by T1_UP, down to T1_MIN of the start; the course leaves room to dodge them ----
+{
+  const w = bare({ seed: 'drain', T1: 6 }); w.r = E.onCircle(90 * D2R); w.ghosts[0].thr = Infinity; const got = [];
+  for (let k = 0; k < 6; k++) { const ev = []; w.drain({}, ev); got.push(ev[0].to); }
+  check('a T₁− hazard shortens T₁ by the same factor a T₁+ lengthens it', close(got[0], 4.4, 1e-9), got.join(' → ') + ' s');
+  check('T₁ never drops below half where it started', Math.min(...got) === 3);
+  const t = bare({ seed: 'hz', T1: 6 }); t.r = E.onCircle(90 * D2R); t.objects = [{ type: 'drain', t: 0.05, th: 95 * D2R }];
+  const ev = []; for (let i = 0; i < 12; i++) ev.push(...t.step({}, DT));
+  check('flying the mean into a T₁− hazard triggers it', ev.some(e => e.type === 'drain') && t.T1 < 6, `T₁ = ${t.T1} s`);
+  const d = bare({ seed: 'hz2', T1: 6 }); d.r = E.onCircle(30 * D2R); d.objects = [{ type: 'drain', t: 0.05, th: 95 * D2R }];
+  const ev2 = []; for (let i = 0; i < 12; i++) ev2.push(...d.step({}, DT));
+  check('passing it by is a dodge, and T₁ is unchanged', ev2.some(e => e.type === 'dodge') && d.T1 === 6);
+  let n = 0, hit = 0;
+  for (const seed of ['h1', 'h2', 'h3']) { const c = new E.World({ seed, T1: 6 }); c.hearts = 1e9;
+    for (let i = 0; i < 200 * 120; i++) for (const e of c.step(bot(c), DT)) { if (e.type === 'drain') { hit++; n++; } if (e.type === 'dodge') n++; } }
+  check('the endless course has T₁− hazards, and a bot that steers to its targets never needs to touch one', n >= 6 && hit === 0, `${hit} of ${n} hit`);
 }
 
 // ---- free play: no course, no hearts lost, never over; missions can fix the number of runs ----

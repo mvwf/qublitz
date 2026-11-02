@@ -108,7 +108,7 @@
   driven by the same pulse; each emits its photon and drops to |0⟩ at its own random moment, and the faint ghosts show 12 of them.
   The big marker is their mean, the density matrix; aim it through the rings, because the share of runs that succeed is the
   ensemble's fidelity with the ring's state. Decay spreads the runs and makes that harder; a green reset starts a fresh shot, and
-  cyan <b>T₁+</b> chips are real fixes that make the qubit decay more slowly. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
+  cyan <b>T₁+</b> chips are real fixes that make the qubit decay more slowly, while red <b>T₁−</b> chips, real faults, make it decay faster. A shorter T₁ is a harder game. For rotations about x, y and z in 3D, try
   <a id="copterLink" href="qubit-copter.html">🚁 Qubit Copter</a>; to run the same pulses as an experiment, open the
   <a id="labLink" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
 
@@ -165,6 +165,7 @@
       <button class="stagebtn" id="freeMeasure" title="Measure σz in every run (no reset, so you see the collapse)">Measure</button>
       <button class="stagebtn" id="freeReset" title="Reset every run to |0⟩">Reset to |0⟩</button>
       <button class="stagebtn" id="freePower" title="Upgrade the chip: T₁ 35 % longer (up to 4×)">T₁+</button>
+      <button class="stagebtn" id="freeDrain" title="Something goes wrong: T₁ 35 % shorter (down to half)">T₁−</button>
     </div>
     <div class="note fade" id="note"></div>
   </div>
@@ -224,7 +225,9 @@
   <p><b>T₁+ chips</b> each make T₁ 35 % longer, up to four times where it started, and each is named for a real fix: a Purcell filter
     on the readout line, infrared and magnetic shielding, cleaner surfaces, tantalum films and better packaging. Each closes one place
     the qubit's energy can leak to, and together, over 25 years, fixes like these took transmon T₁ from nanoseconds to hundreds of
-    microseconds. The game's 35 % per chip is for play; the real gains came one paper at a time.</p>
+    microseconds. The game's 35 % per chip is for play; the real gains came one paper at a time. Red <b>T₁−</b> chips are the other
+    direction, real ways T₁ gets worse: a defect drifting into resonance, a light leak, a trapped vortex, a lossy seam in the box. Each
+    takes T₁ down by the same factor, to no less than half where it started; dodge them.</p>
   <p><b>The ghosts.</b> An experiment is many runs of the same pulse sequence, and its result is an average over them. The game flies
     240 runs at once with one drive and draws a few of them. Each run is a pure state that jumps on its own (their photon times are
     stratified, so the 240 between them spread their jumps evenly and the mean follows the master equation to within about a degree); their average Bloch vector r̄ is the density
@@ -418,13 +421,15 @@ $('#freeEnsemble').addEventListener('click', () => { if (world.N === 1) startFre
 $('#freeMeasure').addEventListener('click', () => { const ev = []; world.measure({ want: 1 }, ev); handle(ev); });
 $('#freeReset').addEventListener('click', () => { const ev = []; world.reset({}, ev); handle(ev); });
 $('#freePower').addEventListener('click', () => { const ev = []; world.power({ th: world.theta }, ev); handle(ev); });
+$('#freeDrain').addEventListener('click', () => { const ev = []; world.drain({ th: world.theta }, ev); handle(ev); });
 // the chip panel: T₁ now, and the upgrades collected
 function syncChip() {
   const w = world; if (!w) return;
   const ups = E.UPGRADES.slice(0, Math.min(w.upgrades, E.UPGRADES.length));
   $('#chip').innerHTML = !w.decay ? 'No decay in this run.'
     : `<b style="color:var(--green);font-size:15px">T₁ = ${w.T1} s</b>${w.T1 > w.T1start ? ` (from ${w.T1start} s)` : ''}`
-      + (ups.length ? '<br>' + ups.map(u => '✓ ' + u.name).join('<br>') : '<br>No upgrades yet: fly the mean through a cyan T₁+ chip.');
+      + (ups.length ? '<br>' + ups.map(u => '✓ ' + u.name).join('<br>') : '<br>No upgrades yet: fly the mean through a cyan T₁+ chip.')
+      + (w.drains ? `<br><span style="color:#c0334d">✗ ${E.HAZARDS.slice(0, Math.min(w.drains, E.HAZARDS.length)).map(h => h.name).join(', ')}</span>` : '');
 }
 function note(html, secs = 4) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
 // pops that arrive together are stacked, not drawn on top of each other
@@ -439,6 +444,7 @@ const TIPS = [
   'When the ghosts are spread out, no aim can pass a ring: F̄ is at most (1 + |r̄|)/2. Hold on until the next reset.',
   'Near a measurement gate, fly close to the outcome it pays for: P(1) = sin²(θ/2).',
   'Grab the cyan T₁+ chips: a longer T₁ keeps the runs together, so the mean stays long and more of them pass.',
+  'Steer the mean around red T₁− chips: each one makes every run decay faster.',
   'On the equator the runs slide down even without a photon; at |1⟩ they wait and then jump. Both are T₁.',
 ];
 function finish(ev) {
@@ -483,6 +489,9 @@ function handle(ev) {
         : `<b>Measured ${e.one ? '1' : '0'}.</b> P(1) was ${e.p1.toFixed(2)}, so this was ${e.p1 > 0.85 || e.p1 < 0.15 ? 'almost certain' : e.p1 > 0.35 && e.p1 < 0.65 ? 'a coin flip' : 'a weighted coin'}. Then the qubit was reset to |0⟩.${e.win ? ` +${e.pts}` : ''}`, 5);
     } else if (e.type === 'power') { SND.power(); pop(`T₁ ${e.from} → ${e.to} s`, '#5ff2ff'); syncChip();
       note(`<b>${e.up.name}!</b> T₁ ${e.from} → ${e.to} s${e.maxed ? ' (as good as this chip gets)' : ''}. ${e.up.fact}`, 7);
+    } else if (e.type === 'drain') { SND.hit(); flash = 0.2; pop(`T₁ ${e.from} → ${e.to} s`, '#ff5f7e'); syncChip();
+      note(`<b>${e.hz.name}!</b> T₁ ${e.from} → ${e.to} s. ${e.hz.fact}`, 7);
+    } else if (e.type === 'dodge') { pop('dodged +30', '#ffb3c1');
     } else if (e.type === 'token') { SND.gate(); pop('X'); note(`<b>X gate:</b> a π turn about x. θ went from ${(e.from / D2R).toFixed(0)}° to ${(e.to / D2R).toFixed(0)}°.`, 3); }
     else if (e.type === 'close') pop(`close +${e.pts}`, '#9fd2ff');
     else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
@@ -545,6 +554,16 @@ function draw(t) {
       g.fillText('MEASURE', x, 12); g.fillText(`pays for |${o.want}⟩`, x, H - 10);
       // the Born-rule odds if it came now
       g.font = '11px Helvetica,Arial'; g.fillText(`P(${o.want}) now ${(o.want ? w.p1 : 1 - w.p1).toFixed(2)}`, x, Y(o.want ? Math.PI : 0) + (o.want ? 18 : -18));
+    } else if (o.type === 'drain') {
+      if (o.done && !o.dodged) continue;
+      // a T₁− chip: a red die with a crack, to dodge
+      const y = Y(o.th), s = 11, a = o.done ? 0.3 : 1; g.globalAlpha = a;
+      const glow = g.createRadialGradient(x, y, 2, x, y, 30); glow.addColorStop(0, 'rgba(255,70,100,.55)'); glow.addColorStop(1, 'rgba(255,70,100,0)');
+      g.fillStyle = glow; g.beginPath(); g.arc(x, y, 30, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#ff5f7e'; g.lineWidth = 2; for (const k of [-0.5, 0, 0.5]) { g.beginPath(); g.moveTo(x - s - 4, y + k * s); g.lineTo(x + s + 4, y + k * s); g.moveTo(x + k * s, y - s - 4); g.lineTo(x + k * s, y + s + 4); g.stroke(); }
+      g.fillStyle = '#3a0b16'; g.beginPath(); g.roundRect(x - s, y - s, 2 * s, 2 * s, 3); g.fill(); g.stroke();
+      g.strokeStyle = 'rgba(255,170,185,.8)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x - s + 2, y - s + 3); g.lineTo(x - 2, y - 1); g.lineTo(x + 2, y + 3); g.lineTo(x + s - 2, y + s - 2); g.stroke();
+      g.fillStyle = '#ff8fa3'; g.font = '800 11px Helvetica,Arial'; g.textAlign = 'center'; g.fillText('T₁−', x, y + 1); g.globalAlpha = 1;
     } else if (o.type === 'token' && o.kind === 'T1') {
       if (o.done) continue;
       // a T₁+ chip: a small square die with pins, pulsing
@@ -637,8 +656,11 @@ function draw(t) {
   }
   g.textBaseline = 'middle';
   if (w.mission) { const f = Math.min(1, w.t / w.endT); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * f, 3); }
-  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; if (w.T1 > w.T1start) { g.fillStyle = '#5ff2ff'; g.font = '700 12px Helvetica,Arial'; }
-  g.fillText(w.decay ? `T₁ = ${w.T1} s` + (w.upgrades ? ` · ${'▲'.repeat(Math.min(w.upgrades, 6))}` : '') : 'no decay', W / 2, 8);
+  g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; { // T₁ now, on a pill so it reads over the curtains' labels: cyan when upgraded, red when below where it started
+    const txt = w.decay ? `T₁ = ${w.T1} s` + (w.T1 !== w.T1start ? ` (${w.T1 > w.T1start ? '▲' : '▼'} from ${w.T1start} s)` : '') : 'no decay';
+    g.font = '700 12px Helvetica,Arial'; const tw = g.measureText(txt).width + 16;
+    g.fillStyle = 'rgba(8,13,25,.85)'; g.beginPath(); g.roundRect(W / 2 - tw / 2, 4, tw, 19, 9); g.fill();
+    g.fillStyle = w.T1 > w.T1start ? '#5ff2ff' : w.T1 < w.T1start ? '#ff8fa3' : 'rgba(190,210,240,.9)'; g.fillText(txt, W / 2, 8); }
   if (flash > 0) { g.fillStyle = `rgba(255,60,90,${flash * 0.6})`; g.fillRect(0, 0, W, H); }
 }
 

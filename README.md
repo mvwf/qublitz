@@ -20,6 +20,32 @@ Qublitz is a simulation tool aimed to lower the barrier to entry for students in
 
 Qublitz currently includes the following apps:
 
+### 🌀 Rabi Rider
+**[Play it in the browser](https://mvwf.github.io/qublitz/qublitz/rabi-rider.html)**: a game about driving a qubit and fighting T₁.
+Your qubit's height is its polar angle θ on the Bloch sphere (|0⟩ at the bottom, |1⟩ at the top). Hold ▲ or ▼ to apply a resonant
+drive and fly the state through rings, each a target state. There is no precession: nothing turns unless you drive it.
+
+![Rabi Rider: the mission menu](images/rabi-rider/menu.png)
+
+- **You fly an ensemble.** 240 runs of the same experiment share one drive. Each run emits its photon and drops to |0⟩ at its
+  own random moment, and the faint ghosts show 12 of them. The big marker is their mean, the density matrix. A ring counts when the
+  ensemble's fidelity with it, F̄ = (1 + r̄·t̂)/2 (the share of runs that would pass), is at least 70 %, so you play to the mean.
+- **T₁ is the only decoherence**, modelled as real amplitude damping. Photons leave at the rate P(1)/T₁, and between photons a
+  superposition slides slowly toward |0⟩. Averaged over the runs, P(1) decays as e^(−t/T₁) and the coherence as e^(−t/2T₁).
+- **Power-ups and hazards.** Cyan **T₁+** chips lengthen T₁ by 35 % each. Each is a real fix labs use (Purcell filter, infrared
+  and magnetic shielding, cleaner surfaces, tantalum films, packaging) and comes with a one-line fact. Red **T₁−** chips are real
+  faults (a TLS defect, a light leak, a trapped vortex, a lossy seam) and shorten it again: dodge them.
+
+![Build a better qubit: a T₁+ chip just collected (Tantalum films), with another T₁+ and a red T₁− ahead](images/rabi-rider/upgrade.png)
+
+- **Eleven missions**, each teaching one idea: the π pulse, superposition, the Born rule (quiz gates), measurement collapse, the X
+  gate, quantum jumps in a crowd, and *Build a better qubit*. There is also an **endless run** with a shareable course seed, and
+  **free play** to switch between a single shot and the ensemble, measure, reset, and turn T₁ up or down.
+
+![Endless run: decay has spread the ghosts, so a well-aimed mean still gets only 68 % of the runs through](images/rabi-rider/endless.png)
+
+The physics lives in `web/qublitz/rabi-engine.js` and is checked by `node web/qublitz/tests/rabi-engine.test.js`.
+
 ### Home
 The landing page with a welcome message and navigation to all available apps.
 

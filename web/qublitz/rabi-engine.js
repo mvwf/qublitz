@@ -29,6 +29,7 @@
  *     dθ/dt = −sin θ/(2T₁). |1⟩ and |0⟩ do not move (sin θ = 0): |1⟩ waits and then jumps; superpositions slide down.
  * Averaged over runs this is exactly the T₁ master equation: P₁ decays as e^(−t/T₁) and the coherence (x, y) as e^(−t/2T₁).
  * T₁+ tokens (power-ups) multiply T₁ by T1_UP, up to T1_MAX times its starting value: each is a real way labs lengthen T₁.
+ * T₁− chips (hazards, type 'drain') divide it by T1_UP, down to T1_MIN times the start: each is a real way a qubit loses T₁.
  *
  * Hitting noise costs a heart, and the noise measures the qubit: stray coupling to the environment acts as an
  * unwanted measurement of σz, so the state collapses to |1⟩ with probability P₁ and to |0⟩ otherwise (decoherence
@@ -78,7 +79,8 @@
     GHOSTS: 12,          // of which this many are drawn (the ghosts)
     T1_UP: 1.35,         // a T₁+ token multiplies T₁ by this
     T1_MAX: 4,           // up to this many times the starting T₁
-    POWER: 13 * D2R,     // pickup half-height of a T₁+ token
+    POWER: 13 * D2R,     // pickup half-height of a T₁+ token (and of a T₁− hazard)
+    T1_MIN: 0.5,         // a T₁− hazard can take T₁ down to half where it started, no lower
     F_PASS: 0.7,        // a target counts when the ensemble's fidelity with it is at least this (and the mean points through it)
     F_PERFECT: 0.95,     // and is a perfect above this
     SHOT: 8,             // s: the endless run resets every run to |0⟩ about this often, starting a new shot of the experiment
@@ -109,6 +111,14 @@
     { name: 'Better packaging', fact: 'The box holding the chip has resonances of its own. Moving them far from the qubit\'s frequency removes one more place for its photon to go.' },
   ];
 
+  /* T₁− hazards: real ways a qubit's T₁ gets worse, cycled in order. */
+  const HAZARDS = [
+    { name: 'TLS defect', fact: 'A defect in the chip\'s oxide (a two-level system) drifted into resonance with the qubit and is soaking up its energy. These defects wander in frequency, which is why a real qubit\'s T₁ changes from hour to hour.' },
+    { name: 'Light leak', fact: 'Infrared light got past the shields. It breaks Cooper pairs, and the quasiparticles it leaves behind absorb the qubit\'s energy.' },
+    { name: 'Trapped vortex', fact: 'A magnetic field was trapped in the film as it cooled. Each vortex has a core of normal metal that dissipates energy as current flows past it.' },
+    { name: 'Lossy seam', fact: 'A gap in the lid of the box holding the chip lets microwave energy leak out, so the qubit\'s photon has one more way to escape.' },
+  ];
+
   /* Quiz gates: two rings at the same moment, and the prompt describes one of them. Each maker takes a seeded
    * generator and returns the right θ, a tempting wrong θ, and the explanation shown afterward. */
   const fmtDeg = th => `${Math.round(th / D2R)}°`;
@@ -133,7 +143,7 @@
    *   ['r', t, θ]            ring (a target state)        ['c', t, θ, half-height°, half-width s]   noise cloud
    *   ['q', t, k]            quiz gate QUIZ[k]             ['m', t, want]   measurement gate paying for outcome want (0 or 1)
    *   ['x', t, θ]            X gate token                  ['z', t]         reset every run to |0⟩ (a new shot)
-   *   ['u', t, θ]            T₁+ token (a power-up)
+   *   ['u', t, θ]            T₁+ token (a power-up)        ['d', t, θ]      T₁− hazard (dodge it)
    * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
  * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
   const MISSIONS = [
@@ -177,10 +187,10 @@
       items: [['r', 2, 100], ['r', 3.5, 125], ['z', 4.5], ['r', 6.5, 110], ['r', 8, 130], ['z', 9], ['r', 11, 120], ['r', 12.5, 100], ['z', 13.5],
         ['r', 15.5, 130], ['r', 17, 110]] },
     { id: 'upgrade', title: 'Build a better qubit', start: 0, T1: 2.5, three: 0.6,
-      brief: 'This chip is bad: T₁ = 2.5 s, barely longer than a π pulse, so runs near |1⟩ keep jumping down. Fly the mean through the cyan <b>T₁+</b> chips: each one is a real fix that labs use, and each makes T₁ 35 % longer. The rings high up get easier with every upgrade.',
+      brief: 'This chip is bad: T₁ = 2.5 s, barely longer than a π pulse, so runs near |1⟩ keep jumping down. Fly the mean through the cyan <b>T₁+</b> chips: each one is a real fix that labs use, and each makes T₁ 35 % longer. Dodge the red <b>T₁−</b> chips: each is a real way T₁ gets worse. The rings high up get easier with every upgrade.',
       learn: 'T₁ is not a law of nature: it is set by everywhere the qubit\'s energy can go, and engineers close those exits one by one. Real transmons went from nanoseconds in 1999 to hundreds of microseconds today. A longer T₁ lets the runs stay together for longer, so the mean stays long and more experiments succeed.',
       items: [['u', 1.6, 60], ['r', 3, 100], ['u', 4.3, 120], ['z', 5.2], ['u', 6.6, 90], ['r', 8, 130], ['z', 9], ['u', 10.4, 100], ['r', 12, 145],
-        ['u', 13.3, 155], ['r', 14.8, 165], ['z', 15.8], ['r', 18, 150], ['r', 20, 165]] },
+        ['u', 13.3, 155], ['r', 14.8, 165], ['z', 15.8], ['d', 17, 70], ['r', 18, 150], ['r', 20, 165]] },
     { id: 'exam', title: 'Final exam', start: 90,
       brief: 'Everything at once: rings, noise, quiz gates, a measurement, a T₁+ chip and X tokens.',
       learn: 'You drove a qubit with real resonant pulses, read probabilities off the Bloch sphere, used a gate, and watched a measurement collapse the state. That is the toolkit behind every single-qubit experiment.',
@@ -201,7 +211,7 @@
   class World {
     constructor(opts = {}) {
       this.T1 = opts.T1 ?? P.T1.normal;
-      this.upgrades = 0; this.powerPlanned = 0;         // T₁+ tokens collected, and placed on the endless course
+      this.upgrades = 0; this.powerPlanned = 0; this.drains = 0;         // T₁+ tokens collected, and placed on the endless course
       this.noReset = !!opts.noReset;
       this.free = !!opts.free;                          // free play: no course, no hearts, no end
       this.photons = 0;
@@ -353,6 +363,7 @@
         if (o.t > this.t || o.t <= t0 - 1e-9) continue;
         o.done = true;
         if (o.type === 'gate') this.measure(o, ev);
+        else if (o.type === 'drain') { if (Math.abs(th - o.th) < P.POWER) this.drain(o, ev); else { o.dodged = true; this.score += 30; ev.push({ type: 'dodge', o }); } }
         else if (o.type === 'reset') this.reset(o, ev);
         else if (o.type === 'token') { if (o.kind === 'T1') { if (Math.abs(th - o.th) < P.POWER) this.power(o, ev); } else if (Math.abs(th - o.th) < P.TOKEN) this.applyX(o, ev); }
         else if (o.quiz) this.answer(o, ev);
@@ -415,6 +426,13 @@
       this.upgrades++; const pts = 150 * Math.max(1, this.combo); this.score += pts;
       ev.push({ type: 'power', o, from, to: this.T1, up, pts, maxed: this.T1 >= this.T1start * P.T1_MAX - 1e-9 });
     }
+    // A T₁− hazard: T₁ shrinks by T1_UP (down to T1_MIN times where it started), and the combo is lost.
+    drain(o, ev) {
+      const from = this.T1, hz = HAZARDS[this.drains % HAZARDS.length];
+      if (this.decay) this.T1 = Math.max(Math.round(this.T1start * P.T1_MIN * 10) / 10, Math.round(this.T1 / P.T1_UP * 10) / 10);
+      this.drains++; this.combo = 0;
+      ev.push({ type: 'drain', o, from, to: this.T1, hz });
+    }
     stars() {
       const f = this.total ? this.rings / this.total : 1;
       return f >= (this.mission.three ?? 0.9) - 1e-9 && this.hits === 0 ? 3 : f >= 0.7 ? 2 : 1;
@@ -436,6 +454,7 @@
         else if (k === 'x') this.add({ type: 'token', t, th: d(it[2]), kind: 'X' });
         else if (k === 'z') this.add({ type: 'reset', t });
         else if (k === 'u') this.add({ type: 'token', t, th: d(it[2]), kind: 'T1' });
+        else if (k === 'd') this.add({ type: 'drain', t, th: d(it[2]) });
         last = Math.max(last, t);
       }
       this.endT = last + 1.5;
@@ -486,10 +505,18 @@
             const from = this.walk, to = clamp(from + (R() * 2 - 1) * (35 + 50 * lvl) * D2R), t = this.nextT + this.reach(from, to, lvl);
             this.add({ type: 'ring', t, th: to, rad: rr });
             if (R() < 0.35 + 0.4 * lvl && t - this.nextT > 1) this.cloudBeside(this.nextT, t, from, to, R);
+            else if (this.decay && this.nextT > 10 && R() < 0.12 + 0.1 * lvl && t - this.nextT > 0.8) this.drainBeside(this.nextT, t, from, to, R);
             this.walk = to; this.nextT = t;
           }
         }
       }
+    }
+    // A T₁− hazard between times t0 and t1, well clear of the band from θ a to θ b (so it is always possible to dodge).
+    drainBeside(t0, t1, a, b, R) {
+      const m = P.POWER + 14 * D2R, lo = Math.min(a, b) - m, hi = Math.max(a, b) + m, room = [lo - 8 * D2R, Math.PI - 8 * D2R - hi];
+      if (Math.max(...room) <= 0) return;
+      const below = room[0] > room[1], th = below ? 8 * D2R + R() * room[0] : hi + R() * room[1];
+      this.add({ type: 'drain', t: (t0 + t1) / 2, th });
     }
     // A cloud between times t0 and t1 that keeps clear of the band from θ a to θ b (with a margin) on its far side.
     cloudBeside(t0, t1, a, b, R) {
@@ -502,7 +529,7 @@
   }
 
   const api = { P, D2R, dot, cross, norm, unit, fromAngles, toAngles, wrap, rotate, fidelity, angle, rng, onCircle, thetaOf,
-    QUIZ, MISSIONS, UPGRADES, World };
+    QUIZ, MISSIONS, UPGRADES, HAZARDS, World };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RabiEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
