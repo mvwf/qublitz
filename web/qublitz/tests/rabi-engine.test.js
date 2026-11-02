@@ -84,9 +84,18 @@ const ONE = { toOne: true }, ZERO = { toZero: true };
   check('the Z control turns the phase, not the height', close(z.theta, 60 * D2R, 1e-9) && Math.abs(Math.atan2(z.r[1], z.r[0]) + Math.PI / 2) > 0.5);
 }
 
+// ---- free play: no course, no hearts lost, never over; missions can fix the number of runs ----
+{
+  const f = new E.World({ free: true, seed: 'free', T1: 1, ghosts: 6 });
+  for (let i = 0; i < 60 * 120; i++) f.step(i % 400 < 200 ? ONE : {}, DT);
+  check('free play has no course and never ends', f.objects.length === 0 && !f.over && f.hearts === E.P.ENDLESS_HEARTS, `${f.t.toFixed(0)} s, ${f.jumps} jumps`);
+  check('Flight school and the photon mission fly one run; Many runs flies the ensemble',
+    new E.World({ mission: 'flight', ghosts: 12 }).N === 1 && new E.World({ mission: 'photon', ghosts: 12 }).N === 1 && new E.World({ mission: 'ensemble', ghosts: 12 }).N === 12);
+}
+
 // ---- decay is always on, and T₁ is the difficulty ----
 {
-  const w = new E.World({ seed: 'd' }), m = new E.World({ mission: 'flight', T1: E.P.T1.hard }), j = new E.World({ mission: 'jumps', T1: E.P.T1.easy });
+  const w = new E.World({ seed: 'd' }), m = new E.World({ mission: 'ensemble', T1: E.P.T1.hard }), j = new E.World({ mission: 'jumps', T1: E.P.T1.easy });
   check('the endless run decays by default, with the normal T₁', w.decay && w.T1 === E.P.T1.normal, `T₁ = ${w.T1} s`);
   check('a mission takes the chosen T₁', m.decay && m.T1 === E.P.T1.hard);
   check('the Quantum jumps mission keeps its own short T₁', j.T1 === 5);

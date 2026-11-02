@@ -30,6 +30,14 @@
     aspect-ratio:16/9;user-select:none;-webkit-user-select:none;touch-action:none}
   @media(max-width:600px){.stage{aspect-ratio:4/3}}
   .stage canvas{display:block;width:100%;height:100%}
+  .stagebtn{position:absolute;z-index:3;font:600 12.5px Helvetica,Arial,sans-serif;color:#e8eef7;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:4px 9px;cursor:pointer}
+  .stagebtn:hover{background:rgba(255,255,255,.18)}
+  #menuBtn{top:6px;left:6px}
+  .freebar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);top:28px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .freebar[hidden],.stagebtn[hidden]{display:none}
+  .freebar .stagebtn{position:static}
+  .freebar .stagebtn.on{background:#ffd166;color:#1b1300;border-color:#ffd166}
   .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;text-align:center;
     background:rgba(8,13,25,.87);color:#e8eef7;padding:18px;overflow:auto}
   .overlay>:first-child{margin-top:auto} .overlay>:last-child{margin-bottom:auto}
@@ -110,15 +118,16 @@
 
     <div class="overlay" id="menu">
       <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN</small></h2>
-      <p>Missions teach one idea each. Start with <b>Flight school</b>.</p>
+      <p>Missions teach one idea each. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
+        <button class="go" id="free">Free play ▶</button>
         <button class="go" id="endless">Endless run ▶</button>
         <label>T₁ <select id="optT1" aria-label="Difficulty: the qubit's T₁">
           <option value="easy">12 s · easy</option><option value="normal" selected>6 s · normal</option>
           <option value="hard">3 s · hard</option><option value="expert">1.5 s · expert</option></select></label>
         <label>runs <select id="optN" aria-label="How many runs of the experiment (ghosts) to fly at once">
-          <option value="1">1</option><option value="6">6</option><option value="12" selected>12</option><option value="24">24</option></select></label>
+          <option value="1">1 (single shot)</option><option value="6">6</option><option value="12" selected>12</option><option value="24">24</option></select></label>
         <label>phase flips <select id="optPhi" aria-label="Dephasing: how often a run's phase flips">
           <option value="0">off</option><option value="2" selected>T_φ = 2T₁</option><option value="1">T_φ = T₁</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
@@ -149,7 +158,15 @@
       <p class="best" id="overBest"></p>
     </div>
 
-    <div class="overlay" id="paused" hidden><h2>Paused</h2><p>Press <kbd>P</kbd> or tap to carry on.</p></div>
+    <div class="overlay" id="paused" hidden><h2>Paused</h2><p>Press <kbd>P</kbd> or <kbd>Esc</kbd> to carry on.</p>
+      <div class="row"><button class="go" id="resumeBtn">Resume ▶</button><button id="pauseMenu">Menu</button></div></div>
+    <button class="stagebtn" id="menuBtn" hidden title="Pause (Esc), with a way back to the menu">☰ Menu</button>
+    <div class="freebar" id="freeBar" hidden>
+      <button class="stagebtn" id="freeSingle" title="One run: a single shot of the experiment">Single shot</button>
+      <button class="stagebtn" id="freeEnsemble" title="Many runs at once, one drive for all">Ensemble</button>
+      <button class="stagebtn" id="freeMeasure" title="Measure σz in every run (no reset, so you see the collapse)">Measure</button>
+      <button class="stagebtn" id="freeReset" title="Reset every run to |0⟩">Reset to |0⟩</button>
+    </div>
     <div class="note fade" id="note"></div>
   </div>
 
@@ -202,7 +219,7 @@
     (dephasing) turn a run by π about z at the rate 1/(2T<sub>φ</sub>): same height, other side of the circle, so the shared drive turns
     it the wrong way. Together the coherence lasts T₂ with 1/T₂ = 1/T₁ + 1/T<sub>φ</sub>. The <b>Z</b> control turns every run's phase
     at once, which is how you bring the mean back onto the circle the drive works on. The difficulty is T₁:
-    12, 6, 3 or 1.5 s (5 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's T₁ of about
+    12, 6, 3 or 1.5 s (4 s in One qubit, one photon and 5 s in Jumps in the crowd), only a few π pulses long so you can see it happen; a transmon's T₁ of about
     100 µs lasts thousands of 20 ns π pulses. Keeping a qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>The ghosts.</b> An experiment is many runs of the same pulse sequence, and its result is an average over them. The game flies
     up to 24 runs at once with one drive. Each run is a pure state that jumps on its own; their average Bloch vector r̄ is the density
@@ -287,7 +304,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && pha
 const stage = $('#stage');
 const touchAt = e => { const b = stage.getBoundingClientRect(); touch = e.clientY - b.top < b.height / 2 ? -1 : 1; };
 stage.addEventListener('pointerdown', e => {
-  if (phase === 'paused' && e.target.closest('.overlay')) { resume(); return; }
+  if (phase === 'paused' && e.target.closest('.overlay') && !e.target.closest('button')) { resume(); return; }
   if (phase !== 'play' || e.target.closest('.overlay')) return;
   stage.setPointerCapture(e.pointerId); touchAt(e);
 });
@@ -328,7 +345,7 @@ let photons = [];
 // off to the right along the track (a run near |1⟩ is at the top, so upward would leave the canvas at once)
 function shootPhoton(th) { photons.push({ t: world.t, th, dir: (Math.random() - 0.5) * 1.2 + (th > 2.4 ? 0.35 : th < 0.7 ? -0.35 : 0) }); }
 let world = null, phase = 'menu', hist = [], pops = [], noteT = 0, flash = 0, overAt = 0, current = null, seed = null;
-function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; }
+function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; syncStageButtons(); }
 const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 function syncMenu() {
   const next = E.MISSIONS.find(m => !S.stars[m.id]);
@@ -349,19 +366,53 @@ $('#again').addEventListener('click', () => start(current, current ? null : seed
 $('#toMenu').addEventListener('click', toMenu);
 $('#nextMission').addEventListener('click', () => { const i = E.MISSIONS.indexOf(current); if (i + 1 < E.MISSIONS.length) brief(E.MISSIONS[i + 1].id); else toMenu(); });
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html', 'seed=' + encodeURIComponent(seed)));
-function toMenu() { syncMenu(); show('#menu'); }
-function start(m, again) {
-  current = m;
-  seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
+function toMenu() { syncMenu(); show('#menu'); if (typeof syncStageButtons === 'function') syncStageButtons(); }
+let freeplay = false;
+function newWorld(m, N, extra = {}) {
   const T1 = (m && m.T1) || E.P.T1[S.level];
-  world = new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], Tphi: S.phi ? S.phi * T1 : Infinity, ghosts: S.N });
+  return new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], Tphi: S.phi ? S.phi * T1 : Infinity, ghosts: N, ...extra });
+}
+function start(m, again) {
+  current = m; freeplay = false;
+  seed = m ? null : again || challengeSeed || Math.random().toString(36).slice(2, 8);
+  world = newWorld(m, S.N);
   photons = [];
-  hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null);
+  hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
   if (m) note(m.brief, 6);
   else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go.`, 5);
 }
-function pause() { show('#paused'); }
-function resume() { show(null); last = performance.now(); }
+function pause() { show('#paused'); syncStageButtons(); }
+function resume() { show(null); last = performance.now(); syncStageButtons(); }
+// Free play: no rings, no hearts; switch between one run and the ensemble mid-flight, keeping the state
+function startFree(N) {
+  current = null; freeplay = true; seed = 'free-' + Math.random().toString(36).slice(2, 6);
+  const prev = world && !world.over ? world : null;
+  world = newWorld(null, N, { free: true, noReset: true });
+  if (prev) {   // keep where you were: the ensemble starts with every run in the single run's state; one run takes the mean's direction
+    const m = prev.r, n = Math.hypot(...m);
+    world.r = prev.N === 1 ? prev.ghosts[0].r : n > 0.05 ? m.map(v => v / n) : [0, 0, 1];
+  } else world.r = [0, 0, 1];
+  photons = []; hist = []; pops = []; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
+  note(N === 1
+    ? '<b>Free play, single shot.</b> One run of the experiment. Hold ▲ and ▼, ←/→ for Z. Sit near |1⟩ and wait for the photon: the qubit jumps to |0⟩ all at once, at a random moment.'
+    : `<b>Free play, ensemble of ${N}.</b> The same pulses on ${N} runs. Each jumps and flips on its own, so the mean (the big marker) shrinks: that mean is what an experiment measures.`, 7);
+}
+function syncStageButtons() {
+  $('#menuBtn').hidden = !(phase === 'play' && world && !world.over);
+  $('#freeBar').hidden = !(freeplay && phase === 'play');
+  $('#freeSingle').classList.toggle('on', freeplay && world && world.N === 1);
+  $('#freeEnsemble').classList.toggle('on', freeplay && world && world.N > 1);
+}
+$('#free').addEventListener('click', () => { world = null; startFree(S.N > 1 ? S.N : 1); });
+$('#resumeBtn').addEventListener('click', resume);
+$('#pauseMenu').addEventListener('click', () => { freeplay = false; world = null; toMenu(); syncStageButtons(); });
+$('#menuBtn').addEventListener('click', e => { e.stopPropagation(); pause(); });
+$('#menuBtn').addEventListener('pointerdown', e => e.stopPropagation());
+$('#freeBar').addEventListener('pointerdown', e => e.stopPropagation());
+$('#freeSingle').addEventListener('click', () => { if (world.N !== 1) startFree(1); });
+$('#freeEnsemble').addEventListener('click', () => { if (world.N === 1) startFree(S.N > 1 ? S.N : E.P.GHOSTS); });
+$('#freeMeasure').addEventListener('click', () => { const ev = []; world.measure({ want: 1 }, ev); handle(ev); });
+$('#freeReset').addEventListener('click', () => { const ev = []; world.reset({}, ev); handle(ev); });
 function note(html, secs = 4) { const el = $('#note'); el.innerHTML = html; el.className = 'note'; noteT = secs; }
 // pops that arrive together are stacked, not drawn on top of each other
 function pop(text, color = '#ffd166') { const k = pops.filter(p => world.t - p.t < 0.6).length; pops.push({ t: world.t, th: world.theta, text, color, k }); }
@@ -548,10 +599,16 @@ function draw(t) {
   pops = pops.filter(p => w.t - p.t < 1.2);
   for (const p of pops) { const a = w.t - p.t; g.globalAlpha = 1 - a / 1.2; g.fillStyle = p.color; g.font = '700 15px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(p.text, nx + 30, Y(p.th) - 20 - a * 30 - 18 * (p.k || 0)); g.globalAlpha = 1; }
   // HUD
-  g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.font = '800 22px Helvetica,Arial'; g.fillText(Math.round(w.score), 52, 6);
-  if (w.combo > 1) { g.fillStyle = '#ffd166'; g.font = '700 12px Helvetica,Arial'; g.fillText(`combo ×${w.combo}`, 54, 31); }
+  if (w.free) {
+    g.textAlign = 'left'; g.textBaseline = 'top'; g.font = '700 13px Helvetica,Arial'; g.fillStyle = '#ffd166';
+    g.fillText(w.N === 1 ? 'Free play · single shot' : `Free play · ensemble of ${w.N}`, 92, 6);
+    g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`${w.photons} photon${w.photons === 1 ? '' : 's'} · ${w.flips} phase flip${w.flips === 1 ? '' : 's'}`, 92, 23);
+  } else {
+  g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.font = '800 22px Helvetica,Arial'; g.fillText(Math.round(w.score), 96, 6);
+  if (w.combo > 1) { g.fillStyle = '#ffd166'; g.font = '700 12px Helvetica,Arial'; g.fillText(`combo ×${w.combo}`, 98, 31); }
   g.textAlign = 'right'; g.font = '18px Helvetica,Arial'; g.fillStyle = '#ff6b85';
   let hearts = ''; for (let i = 0; i < Math.max(E.P.HEARTS, w.hearts); i++) hearts += i < w.hearts ? '♥' : '♡'; g.fillText(hearts, W - 10, 6);
+  }
   g.textBaseline = 'middle';
   if (w.mission) { const f = Math.min(1, w.t / w.endT); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 0, W, 3); g.fillStyle = '#ffd166'; g.fillRect(0, 0, W * f, 3); }
   g.textAlign = 'center'; g.textBaseline = 'top'; g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`T₁ = ${w.T1} s` + (w.Tphi < Infinity ? ` · T_φ = ${w.Tphi} s` : ''), W / 2, 8);
