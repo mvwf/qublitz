@@ -19,7 +19,8 @@
  * line sits near the top of the scale.
  *
  * Both plots also show the mean frequency ⟨f⟩ = Σ f·P(f) / Σ P(f), the power-weighted average (the centre of mass
- * of the power spectrum P = |X|², over 0..fmax): a white trace across the spectrogram and a line on the spectrum.
+ * of the power spectrum P = |X|², over 0..fmax): a white line that moves along the spectrogram with time, and a line on
+ * the spectrum.
  *
  * LiveSpec.fft(re, im) is the radix-2 FFT the pages also use for their static spectra, and
  * LiveSpec.meanFrequency(freqs, amps) is ⟨f⟩ for a spectrum given as amplitudes.
@@ -81,6 +82,7 @@
     let held = null, feed = '';                        // the frame on show and where it came from ('sound' or 'signal')
     let loud = null, loudPk = -Infinity, soundOn = false, quiet = 0;
     let sigBuf = null, sigT = -1;
+    let meanY = new Float32Array(0);                  // ⟨f⟩ per spectrogram column, as a fraction of fmax (NaN: no signal)
 
     if (root.IntersectionObserver) new IntersectionObserver(es => { visible = es.some(e => e.isIntersecting); if (visible) kick(); }).observe(spec);
 
@@ -100,6 +102,8 @@
         const c = o.getContext('2d'); c.fillStyle = '#000'; c.fillRect(0, 0, g.pw, g.ph);
         if (off) c.drawImage(off, g.pw - off.width, 0);
         off = o;
+        const m = new Float32Array(g.pw).fill(NaN), n = Math.min(g.pw, meanY.length);   // keep the newest columns, right-aligned
+        m.set(meanY.subarray(meanY.length - n), g.pw - n); meanY = m;
       }
     }
     function frameMean(fr) {
@@ -130,6 +134,15 @@
       const ctx = spec.getContext('2d'), d = g.dpr, m = g.m, fmax = fmaxOf();
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, g.W, g.H);
       ctx.imageSmoothingEnabled = false; ctx.drawImage(off, m.l, m.t);
+      // ⟨f⟩ over time: a white line (dark-edged so it reads on yellow too), broken where there was no signal
+      for (const [col, wid] of [['rgba(0,0,0,0.55)', 4], ['#fff', 2]]) {
+        ctx.strokeStyle = col; ctx.lineWidth = wid * d; ctx.lineJoin = 'round'; ctx.beginPath(); let on = false;
+        for (let x = 0; x < meanY.length; x++) { const v = meanY[x];
+          if (v !== v) { on = false; continue; }
+          const X = m.l + x, Y = m.t + (1 - v) * g.ph; on ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); on = true; }
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1;
       ctx.font = (11 * d) + 'px Helvetica, Arial, sans-serif'; ctx.fillStyle = '#5a6b63';
       ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       const step = niceStep(fmax);
@@ -146,7 +159,7 @@
       const tag = feed === 'sound' ? '♪ what you hear' : running() ? 'live signal, silent (press ♪ to hear it)' : 'press ♪ to hear it';
       const mf = held ? frameMean(held) : NaN;
       ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillText(tag + (mf > 0 ? '   ·   white trace: mean frequency ⟨f⟩ = ' + fmtHz(mf) : ''), m.l + 6 * d, m.t + 5 * d);
+      ctx.fillText(tag + (mf > 0 ? '   ·   white line: mean frequency ⟨f⟩ = ' + fmtHz(mf) : ''), m.l + 6 * d, m.t + 5 * d);
       // predicted frequencies as ticks on the right edge
       markersOf().forEach(k => { if (k.f > fmax) return; const y = m.t + (1 - k.f / fmax) * g.ph;
         ctx.strokeStyle = k.color || '#9bd'; ctx.lineWidth = 2 * d; ctx.beginPath();
@@ -200,8 +213,9 @@
         col.data[4 * y] = rgb[0]; col.data[4 * y + 1] = rgb[1]; col.data[4 * y + 2] = rgb[2]; col.data[4 * y + 3] = 255;
       }
       for (let j = 1; j <= k; j++) c.putImageData(col, g.pw - j, 0);
-      const mf = frameMean(fr);   // the ⟨f⟩ trace, painted into the image so it scrolls with it
-      if (mf > 0 && mf <= fmax) { c.fillStyle = 'rgba(255,255,255,0.95)'; c.fillRect(g.pw - k, Math.round((1 - mf / fmax) * (g.ph - 1)) - 1, k, 2); }
+      // the ⟨f⟩ history scrolls with the image
+      const mf = frameMean(fr), v = mf > 0 && mf <= fmax ? mf / fmax : NaN;
+      meanY.copyWithin(0, Math.min(k, meanY.length)); meanY.fill(v, Math.max(0, meanY.length - k));
     }
 
     function loop(ts) {
@@ -237,7 +251,7 @@
     }
     // redraw: repaint now and (re)start the silent feed if the page is running
     function redraw() { sigBuf = null; const g = geom(); ensureOff(g); paintSpec(g); paintLine(); if (running() || soundOn) kick(); }
-    function clear() { off = null; held = null; redraw(); }
+    function clear() { off = null; held = null; meanY = new Float32Array(0); redraw(); }
     document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
     requestAnimationFrame(redraw);   // first draw after the page's own script has finished setting up
     return { input, redraw, clear };
