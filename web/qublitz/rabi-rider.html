@@ -176,9 +176,17 @@
     A constant drive would carry the state through |1⟩ and back again, P(1) = sin²(Ωt/2), a Rabi oscillation; the game stops it at the poles and reverses the drive when you ask. The phase in the ket, cos(θ/2)|0⟩ ∓ i sin(θ/2)|1⟩, is the
     −i that a turn about x leaves; it does not change P(1), but a turn about y or z would feel it (see Qubit Copter).</p>
   <p><b>Measurement gates</b> are projective measurements of σ<sub>z</sub>: the state jumps to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise (the Born rule).
-    <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are a game stand-in for an error: they reset the qubit to |0⟩ (real relaxation is random; switch on T₁ decay to see it).
+    <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
+    state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
+    learns the state, and the superposition is gone.
     With <b>T₁ decay</b> on, the qubit is a watched quantum trajectory: between photon detections it slides toward |0⟩ at dθ/dt = −(γ/2) sin θ, and it jumps
-    to |0⟩ at the rate γ·P(1); with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>.</p>
+    to |0⟩ at the rate γ·P(1); with the drive off, averaging many runs gives exponential decay, e<sup>−t/T₁</sup>.
+    The game's T₁ is 14 s (6 s in the Quantum jumps mission), only a few π pulses long so you can see it happen; a transmon's
+    T₁ of about 100 µs lasts thousands of 20 ns π pulses.</p>
+  <p><b>Left out, on purpose:</b> pure dephasing (random turns about z, the T<sub>φ</sub> part of T₂), so here T₂ = 2T₁, the most a qubit
+    can have; detuning, so nothing precesses (see Qubit Copter's Z control for that); and readout imperfections: every measurement
+    here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
+    number of measurements.</p>
 </div>
 <p class="dl" id="offlineHint"><a href="rabi-rider-offline.html" download="qublitz-rabi-rider.html">Download the game</a>
   as a single HTML file that runs offline in any browser.</p>
@@ -359,7 +367,8 @@ function handle(ev) {
     } else if (e.type === 'token') { SND.gate(); pop('X'); note(`<b>X gate:</b> a π turn about x. θ went from ${(e.from / D2R).toFixed(0)}° to ${(e.to / D2R).toFixed(0)}°.`, 3); }
     else if (e.type === 'close') pop(`close +${e.pts}`, '#9fd2ff');
     else if (e.type === 'heal') { pop('+♥ streak', '#ff6b85'); tone(880, 1320, 0.15, 'sine', 0.06); }
-    else if (e.type === 'hit') { SND.hit(); flash = 0.35; note('<b>Noise!</b> The error relaxed your qubit to |0⟩ and cost a heart.', 3); }
+    else if (e.type === 'hit') { SND.hit(); flash = 0.35;
+      note(`<b>Noise!</b> The environment measured your qubit: P(1) was ${e.p1.toFixed(2)}, and it collapsed to |${e.one ? 1 : 0}⟩. That cost a heart.`, 4); }
     else if (e.type === 'jump') { SND.jump(); pop('jump!', '#9fd2ff'); if (world.jumps === 1) note('<b>Quantum jump.</b> A photon escaped, so the qubit is now in |0⟩. The odds are γ·P(1) per second: highest near |1⟩.', 5); }
     else if (e.type === 'clear') { SND.clear(); finish(e); }
     else if (e.type === 'over') { SND.over(); finish(e); }

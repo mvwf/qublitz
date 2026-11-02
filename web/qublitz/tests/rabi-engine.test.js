@@ -84,6 +84,22 @@ const bare = opts => { const w = new E.World(opts); w.objects = []; w.generate =
   check('the X token takes θ = 40° to 140°', close(w.theta / D2R, 140, 1e-9));
 }
 
+// ---- a noise cloud measures the qubit: it collapses with the Born-rule odds, not to |0⟩ every time ----
+{
+  const th = 120 * D2R, N = 8000; let ones = 0, poles = true;
+  for (let k = 0; k < N; k++) {
+    const w = bare({ seed: 'noise' + k }); w.r = E.onCircle(th);
+    w.objects = [{ type: 'cloud', t: DT / 2, th, rad: 10 * D2R, w: 0.5 }];
+    const hit = w.step({}, DT).find(e => e.type === 'hit');
+    if (!hit) { poles = false; break; }
+    if (hit.one) ones++;
+    if (Math.abs(Math.abs(w.r[2]) - 1) > 1e-12) poles = false;
+  }
+  const p = Math.sin(th / 2) ** 2;
+  check('a noise hit leaves the qubit at a pole', poles);
+  check('a noise hit at θ = 120° gives |1⟩ with P = sin²(60°) = ¾', Math.abs(ones / N - p) < 3 * Math.sqrt(p * (1 - p) / N), `${(ones / N).toFixed(4)}`);
+}
+
 // ---- a bot that steers to each target in turn (the right ring of a quiz) ----
 function bot(w) {
   const next = w.objects.filter(o => !o.done && o.t > w.t - 1e-9 && (o.type === 'token' || (o.type === 'ring' && (!o.quiz || o.correct)))).sort((a, b) => a.t - b.t)[0];

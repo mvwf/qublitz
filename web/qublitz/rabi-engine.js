@@ -18,7 +18,9 @@
  * pure and slides toward |0⟩ at dθ/dt = −(γ/2) sinθ, and a photon is detected with probability γ·P₁·dt per
  * step, which resets the state to |0⟩ (a quantum jump). Averaged over runs this is ordinary T₁ decay.
  *
- * Hitting noise costs a heart and relaxes the qubit to |0⟩. A measurement gate is a projective measurement
+ * Hitting noise costs a heart, and the noise measures the qubit: stray coupling to the environment acts as an
+ * unwanted measurement of σz, so the state collapses to |1⟩ with probability P₁ and to |0⟩ otherwise (decoherence
+ * as a measurement nobody asked for). A measurement gate is the same projective measurement
  * of σz: the state goes to |1⟩ with probability P₁ = sin²(θ/2) and to |0⟩ otherwise (the Born rule).
  * An X token applies the X gate, a π turn about x, which takes θ to π − θ.
  */
@@ -64,7 +66,7 @@
     ENDLESS_HEARTS: 5,   // in the endless run, where a missed target costs one too
     STREAK_HEAL: 3,      // and every 3 targets in a row restores one
     GRACE: 1.2,          // s of invulnerability after a jump
-    HIT_GRACE: 1.6,      // and after a hit, which also resets the qubit to |0⟩
+    HIT_GRACE: 1.6,      // and after a hit, which also collapses the qubit to |0⟩ or |1⟩
     MISSION_RING: 16 * D2R,
     RING0: 20 * D2R, RING_MIN: 9 * D2R,   // the endless run's rings shrink from RING0 to RING_MIN over LEVEL_TIME
     TOKEN: 10 * D2R,     // pickup half-height of a gate token
@@ -153,6 +155,7 @@
       this.decay = !!opts.decay;
       this.rand = rng('course:' + (opts.seed ?? 'random'));
       this.jumpRand = rng('jumps:' + (opts.seed ?? 'random'));
+      this.noiseRand = rng('noise:' + (opts.seed ?? 'random'));
       this.measRand = rng('measure:' + (opts.seed ?? 'random'));
       this.r = onCircle(90 * D2R);
       this.t = 0; this.amp = 0;                         // amp: −1 drives toward |0⟩, +1 toward |1⟩
@@ -164,7 +167,7 @@
       const m = opts.mission && MISSIONS.find(x => x.id === opts.mission);
       if (m) {
         this.mission = m; this.decay = !!m.decay; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
-        this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id);
+        this.jumpRand = rng('jumps:mission:' + m.id); this.measRand = rng('measure:mission:' + m.id); this.noiseRand = rng('noise:mission:' + m.id);
         this.script(m);
       } else this.generate();
     }
@@ -219,14 +222,15 @@
       for (const o of this.objects) {
         if (o.done) continue;
         if (o.type === 'cloud') {
-          // an ellipse in (time, θ); touching it costs a heart and relaxes the qubit to |0⟩
+          // an ellipse in (time, θ); touching it costs a heart and the noise measures the qubit (Born rule)
           const u = (this.t - o.t) / o.w, d = Math.abs(th - o.th) - o.rad * Math.sqrt(Math.max(0, 1 - u * u));
           if (Math.abs(u) <= 1) {
             o.near = Math.min(o.near ?? Infinity, d);
             if (d < 0 && this.grace <= 0) {
               o.struck = true; this.hearts--; this.hits++; this.combo = 0; this.grace = P.HIT_GRACE;
-              this.r = [0, 0, 1]; this.amp = 0;
-              ev.push({ type: 'hit', o });
+              const p1 = this.p1, one = this.noiseRand() < p1;
+              this.r = one ? [0, 0, -1] : [0, 0, 1]; this.amp = 0;
+              ev.push({ type: 'hit', o, one, p1 });
             }
           } else if (u > 1) {
             o.done = true;
