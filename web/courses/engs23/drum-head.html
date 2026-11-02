@@ -141,12 +141,16 @@
       <button id="selClear">Clear</button>
       <span class="muted" style="font-size:12px">up to 6 at a time</span>
     </div>
+    <div class="flexcap" style="margin-top:4px"><span class="muted" style="font-size:12.5px">Amplitude of each selected mode — drag the bars</span>
+      <span><span class="pill" id="ampRead">hover a bar</span> <button id="ampReset" title="Set every selected mode back to +1">All +1</button></span></div>
+    <canvas id="amps" height="120" style="margin-top:6px;cursor:ns-resize"></canvas>
     <p class="legend" id="tilesLegend">Laid out as Boas's Figure 6.1: <span class="mvar">m</span> across, <span class="mvar">n</span> down. Each tile is
       <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ, animated at its own
       frequency. It has <span class="mvar">n</span> nodal diameters and <span class="mvar">m</span> − 1 nodal circles inside the rim. The number is
       ν<sub><span class="mvar">mn</span></sub>/ν<sub>10</sub>. Every mode with <span class="mvar">n</span> ≥ 1 has a twin, sin <span class="mvar">n</span>θ, turned by
       90°/<span class="mvar">n</span>, with the same frequency. After a strike each tile shows its mode's share of the energy
-      (the cos and sin twins together).</p>
+      (the cos and sin twins together). The bars set how much of each selected mode is in the superposition, from −1 to +1
+      (its peak height); the drum, the pickup, the FFT, the sound and the spectrogram all follow.</p>
   </div>
 
   <div class="card full" id="raceCard">
@@ -160,7 +164,7 @@
       <input id="win" type="range" min="1" max="8" step="0.5" value="3" style="width:140px">
       <span class="val" id="winv" style="min-width:60px">3 T₁₀</span>
     </div>
-    <p class="legend">Each drum is one normal mode started at full height at <span class="mvar">t</span> = 0. The dial turns once per
+    <p class="legend">Each drum is one normal mode, started at <span class="mvar">t</span> = 0 at the height set by its amplitude bar. The dial turns once per
       oscillation, so a mode with ν<sub><span class="mvar">mn</span></sub> = 1.59 ν<sub>10</sub> turns 1.59 times while the fundamental turns once. Below, the time
       factor cos(2πν<sub><span class="mvar">mn</span></sub><span class="mvar">t</span>) of each mode over the last few fundamental periods T₁₀ = 1/ν<sub>10</sub>; dots mark each
       mode's crests. On a string, harmonic <span class="mvar">n</span> makes exactly <span class="mvar">n</span> oscillations per T₁, so every harmonic is back at a crest on every
@@ -298,10 +302,13 @@ if (window.QUBLITZ_STANDALONE) {
   let phys={a:0.178, T:2000, s:0.26};
   let pickup={rho:0, theta:0}, senseVel=false;   // pickup position (ρ = r/a, θ in radians) and what it senses
 
-  // The selected modes as a state: each a pure cos nθ mode scaled to unit peak height, released from rest.
+  // The selected modes as a state: each a pure cos nθ mode with peak height equal to its amplitude (the bars,
+  // −1 to +1, default +1), released from rest.
+  let amps={};                                       // amplitude per mode, keyed 'mn'
+  const ampOf=(m,n)=>amps[''+m+n] ?? 1;
   function selState(){
     const st=D.emptyState(modes);
-    sel.forEach(([m,n])=>{ const md=modeAt(m,n); st[md.index].Ac=1/md.peak; });
+    sel.forEach(([m,n])=>{ const md=modeAt(m,n); st[md.index].Ac=ampOf(m,n)/md.peak; });
     return st;
   }
   const curState = () => src==='strike' ? strikeState : selState();
@@ -461,10 +468,10 @@ if (window.QUBLITZ_STANDALONE) {
   // ---------- canvases ----------
   function sizeCanvas(cv,h){ const dpr=window.devicePixelRatio||1, w=cv.clientWidth;
     cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return {w,h,g}; }
-  let DR, TL, RC, TR, LD;
+  let DR, TL, RC, TR, LD, AM;
   function layout(){
     DR=sizeCanvas($('drum'),380); TL=sizeCanvas($('tiles'),380); RC=sizeCanvas($('race'),230);
-    TR=sizeCanvas($('traces'),190); LD=sizeCanvas($('ladder'),190);
+    TR=sizeCanvas($('traces'),190); LD=sizeCanvas($('ladder'),190); AM=sizeCanvas($('amps'),120);
     SC=sizeCanvas($('scope'),200); PF=sizeCanvas($('pfft'),200);
   }
 
@@ -558,7 +565,7 @@ if (window.QUBLITZ_STANDALONE) {
       g.fillText('Select modes from the tiles above', w/2, h/2); return; }
     const n=sel.length, cw=w/n, dh=h-64;
     sel.forEach(([m,nn],k)=>{
-      const md=modeAt(m,nn), st=D.emptyState(modes); st[md.index].Ac=1/md.peak;
+      const md=modeAt(m,nn), st=D.emptyState(modes); st[md.index].Ac=ampOf(m,nn)/md.peak;
       g.save(); g.translate(k*cw,0); g.beginPath(); g.rect(0,0,cw,dh); g.clip();
       drawDrum3D(g,cw,dh,miniMesh,st,clock,1,{pad:8,rimW:2});
       g.restore();
@@ -586,7 +593,7 @@ if (window.QUBLITZ_STANDALONE) {
     for(let k=Math.max(0,Math.ceil(t0));k<=t1;k++){ const x=X(k); g.strokeStyle='#d8e2dc'; g.lineWidth=1; g.beginPath(); g.moveTo(x,2); g.lineTo(x,h-20); g.stroke();
       g.fillStyle='#8a9a92'; g.fillText(k+' T₁₀', x, h-6); }
     sel.forEach(([m,nn],k)=>{
-      const md=modeAt(m,nn), mid=lane*(k+0.5)+2, A=lane*0.38;
+      const md=modeAt(m,nn), mid=lane*(k+0.5)+2, A=lane*0.38*ampOf(m,nn);   // the time factor times the mode's amplitude
       g.strokeStyle='#eef3f0'; g.lineWidth=1; g.beginPath(); g.moveTo(L,mid); g.lineTo(w-Rr,mid); g.stroke();
       g.strokeStyle=SCOL[k]; g.lineWidth=1.8; g.beginPath();
       const NS=Math.ceil(w-L);
@@ -686,7 +693,7 @@ if (window.QUBLITZ_STANDALONE) {
   // FFT of the ideal (undamped) pickup signal: 4096 samples over 64 T10, Hann window, in units of the signal
   let pfftCache={key:null};
   function pickupSpectrum(comps){
-    const key=JSON.stringify([src,sel,strikeAt,pickup,senseVel]);
+    const key=JSON.stringify([src,sel,sel.map(([m,n])=>ampOf(m,n)),strikeAt,pickup,senseVel]);
     if(pfftCache.key===key) return pfftCache;
     const N=4096, span=64, re=new Float64Array(N), im=new Float64Array(N); let sw=0;
     for(let i=0;i<N;i++){ const w=0.5-0.5*Math.cos(2*Math.PI*i/N); re[i]=w*pickSig(comps,span*i/N); sw+=w; }
@@ -748,7 +755,41 @@ if (window.QUBLITZ_STANDALONE) {
       return comps.filter(c=>c.amp>0.02*mx).map(c=>{ const si=sel.findIndex(([m,n])=>m===c.md.m&&n===c.md.n);
         return {f:c.md.ratio*f10, label:'('+c.md.m+','+c.md.n+')', color: src==='modes'&&si>=0? SCOL[si] : '#7fa8c9'}; }); }});
 
-  function drawAll(){ drawDrum(); drawTiles(); drawRace(); drawTraces(); drawScope(); drawPFFT(); drawLadder(); }
+  // ---------- amplitude bars for the selected modes (like the string's Fourier bars) ----------
+  let ampGeo=null;
+  function drawAmps(){
+    const {w,h,g}=AM; g.clearRect(0,0,w,h); ampGeo=null;
+    if(!sel.length){ g.fillStyle='#8a9a92'; g.font='12px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillText('Select modes to set their amplitudes', w/2, h/2); return; }
+    const L=34, Rr=8, top=18, bot=h-18, mid=(top+bot)/2, half=(bot-top)/2, n=sel.length, cw=(w-L-Rr)/n, bw=Math.min(46,cw*0.55);
+    ampGeo={L,cw,mid,half,n};
+    g.globalAlpha = src==='modes'? 1 : 0.35;
+    g.font='10px Helvetica,Arial,sans-serif'; g.fillStyle='#8a9a92'; g.textAlign='right';
+    [[1,'+1'],[0,'0'],[-1,'−1']].forEach(([v,t])=>{ const y=mid-v*half; g.fillText(t, L-6, y+3);
+      g.strokeStyle=v?'#eef3f0':'#c9d6cf'; g.lineWidth=1; g.beginPath(); g.moveTo(L,y); g.lineTo(w-Rr,y); g.stroke(); });
+    sel.forEach(([m,nn],k)=>{ const a=ampOf(m,nn), x=L+cw*(k+0.5);
+      g.fillStyle=SCOL[k]; g.fillRect(x-bw/2, Math.min(mid,mid-a*half), bw, Math.max(1,Math.abs(a)*half));
+      g.textAlign='center'; g.font='11px Helvetica,Arial,sans-serif'; g.fillText('('+m+','+nn+')', x, h-4);
+      g.fillStyle='#1b2a24'; g.font='bold 10.5px Helvetica,Arial,sans-serif'; g.fillText((a>0?'+':a<0?'−':'')+Math.abs(a).toFixed(2), x, a>=0? mid-a*half-4 : mid-a*half+12); });
+    g.globalAlpha=1;
+    if(src!=='modes'){ g.fillStyle='#5a6b63'; g.font='12px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillText('Drag a bar to switch back to Selected modes', (L+w)/2, top+12); }
+  }
+  function ampAt(e){
+    if(!ampGeo) return null; const r=$('amps').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=ampGeo;
+    const k=Math.floor((x-G.L)/G.cw); if(k<0||k>=G.n) return null;
+    let v=(G.mid-y)/G.half; v=Math.max(-1,Math.min(1,Math.round(v*20)/20));   // steps of 0.05
+    return {k,v};
+  }
+  let ampDrag=false;
+  function ampEdit(e){ const h=ampAt(e); if(!h) return; const [m,n]=sel[h.k]; amps[''+m+n]=h.v;
+    if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); }
+    refreshScale(); if(!playing) drawAll(); else drawAmps(); }
+  $('amps').addEventListener('pointerdown',e=>{ ampDrag=true; $('amps').setPointerCapture(e.pointerId); ampEdit(e); });
+  $('amps').addEventListener('pointermove',e=>{ if(ampDrag) ampEdit(e);
+    else { const h=ampAt(e); $('ampRead').textContent= h? '('+sel[h.k].join(',')+'): '+ampOf(...sel[h.k]).toFixed(2) : 'hover a bar'; } });
+  ['pointerup','pointercancel'].forEach(t=>$('amps').addEventListener(t,()=>{ ampDrag=false; }));
+  $('ampReset').addEventListener('click',()=>{ sel.forEach(([m,n])=>{ amps[''+m+n]=1; }); refreshScale(); drawAll(); });
+
+  function drawAll(){ drawDrum(); drawTiles(); drawRace(); drawTraces(); drawScope(); drawPFFT(); drawLadder(); drawAmps(); }
 
   // ---------- sound ----------
   let actx=null, voice=null;
@@ -858,7 +899,8 @@ if (window.QUBLITZ_STANDALONE) {
   function shareQuery(){
     const q=new URLSearchParams();
     if(src==='strike' && strikeAt){ q.set('hit',[strikeAt.rho,strikeAt.theta,strikeAt.w].map(v=>+v.toFixed(3)).join(',')); q.set('kind',strikeAt.kind); }
-    else q.set('sel',sel.map(([m,n])=>''+m+n).join(','));
+    else { q.set('sel',sel.map(([m,n])=>''+m+n).join(','));
+      if(sel.some(([m,n])=>ampOf(m,n)!==1)) q.set('amp',sel.map(([m,n])=>+ampOf(m,n).toFixed(2)).join(',')); }
     if(view==='top') q.set('view','top');
     if(sand) q.set('sand','1');
     if(Math.abs(phys.a-0.178)>1e-9) q.set('a',+(phys.a*100).toFixed(1));
@@ -872,6 +914,7 @@ if (window.QUBLITZ_STANDALONE) {
     const P=PageKit.params(), st={};
     const s=P.raw.get('sel');
     if(s!=null){ const l=s? s.split(',').filter(c=>/^[1-4][0-4]$/.test(c)).map(c=>[+c[0],+c[1]]) : []; st.sel=l; }
+    const am=P.list('amp'); if(am && st.sel && am.length===st.sel.length && am.every(v=>v>=-1&&v<=1)) st.amp=am;
     const hit=P.list('hit',3); if(hit && hit[0]>=0 && hit[0]<0.97 && hit[2]>=0.04 && hit[2]<=0.3) st.hit=hit;
     const k=P.str('kind',['strike','press']); if(k) st.kind=k;
     const v=P.str('view',['3d','top']); if(v) st.view=v;
@@ -897,7 +940,7 @@ if (window.QUBLITZ_STANDALONE) {
     if(st.hit){ malletW=st.hit[2]; $('mw').value=malletW; $('mwv').textContent=malletW.toFixed(2)+' a';
       strikeAt={rho:st.hit[0],theta:st.hit[1],kind,w:malletW}; strikeState=D.strike(modes,st.hit[0],st.hit[1],malletW,kind);
       src='strike'; setSeg('srcSeg','src','strike'); refreshScale(); drawAll(); }
-    else if(st.sel) setSel(st.sel);
+    else if(st.sel){ if(st.amp) st.sel.forEach(([m,n],i)=>{ amps[''+m+n]=st.amp[i]; }); setSel(st.sel); }
     else drawAll();
     if(st.play!=null) setPlaying(st.play);
   }
