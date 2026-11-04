@@ -41,6 +41,9 @@ jobs:
         if: ${{ hashFiles('pages/_assets/tests/qphysics.test.js') != '' }}
         run: node pages/_assets/tests/qphysics.test.js pages/_assets/quantum_chess.html
 
+      - name: Photon Duel regression test
+        run: node pages/_assets/tests/duel_harness.test.js
+
       # The browser Qubit Simulator's engine must keep matching the Python
       # implementation; reference data comes from scripts/make_qubit_reference.py.
       - name: Qubit engine regression test

@@ -15,8 +15,8 @@ GAME_HTML="pages/_assets/quantum_chess.html"
 SHA_FILE="pages/_assets/VENDOR_SHA"
 
 if [ ! -f "$GAME_HTML" ] || [ ! -f "$SHA_FILE" ]; then
-  echo "vendor check: SKIPPED — $GAME_HTML not vendored yet"
-  exit 0
+  echo "vendor check: FAIL — required game or VENDOR_SHA is missing" >&2
+  exit 1
 fi
 
 EXPECTED="$(tr -d '[:space:]' < "$SHA_FILE")"
