@@ -41,6 +41,8 @@ if [ -f "$GAME_TEST" ]; then
   fi
 fi
 
+run "Photon Duel regression" node pages/_assets/tests/duel_harness.test.js
+
 # BE-7 — the vendored copy has no enforcement beyond a "golden rule"
 # comment; this catches drift before it's committed, not just in CI.
 run "vendor hash (BE-7)" bash scripts/check_vendor.sh

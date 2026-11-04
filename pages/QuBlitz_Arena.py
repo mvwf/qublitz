@@ -1,23 +1,12 @@
-"""QuBlitz Arena — David Mukuruva's contribution to the Fitzpatrick Lab platform.
+"""Photon Duel and Duel Training, embedded as the platform's QuBlitz Arena.
 
-Embeds the QuBlitz battle game (a self-contained quantum_chess.html) and frames
-it as an academic learning companion: every game action maps to a real quantum
-concept, and the in-engine physics is the same unit-tested open-quantum-system
-model the simulator pages use. The game ties decoherence and relative phase to
-real tactical stakes and motivates engagement with the concepts; the formal
-teaching happens on the Physics Lab screen and the concept map/cross-links
-below. Whether play transfers to durable understanding is a design goal this
-project intends to measure later, not a claim this page asserts as proven.
-
-Sage AI: the embedded game's Sage is a smart offline heuristic, permanently — no
-key, no server-side proxy, nothing to configure. The live-LLM Sage path (a
-server-side Anthropic proxy this docstring used to describe injecting via
-``window.QB_SAGE_PROXY``) was removed from the game repo on 2026-07-08; this file
-is the fork-side cleanup of that same removal (the JS side stopped reading that
-global the same day — see the game repo's CLAUDE.md/HANDOFF.md for the full
-rationale).
+The retired board game remains in Git history. The fitted-T1 bridge affects
+Physics Lab diagnostics only; duel combat uses its own fixed time constants.
 """
+import json
+import math
 from pathlib import Path
+from typing import Optional
 
 import streamlit as st
 
@@ -25,24 +14,35 @@ from utils.branding import load_logo
 from utils.ui import page_header
 
 _GAME_HTML = Path(__file__).parent / "_assets" / "quantum_chess.html"
-# Frame height tuned so the board + side panels + event log sit on one screen
-# without inner scroll on a typical laptop; the game caps the board by viewport
-# height (CSS min(...,100vh-…)) so it scales to fit this frame.
-#
-# Was 860 — an LLM-council review found the Sage panel/event log clipped at the
-# bottom at that height. The game side responded by trimming vertical chrome
-# and adding a Sage-panel collapse toggle, which should reduce (not eliminate)
-# the pressure on this fixed frame. Bumped to 920 as a modest, judgment-call
-# increase: a slightly taller default with a collapse option to fall back on
-# beats a cramped fixed height with no give. This wasn't visually verified
-# against the trimmed layout (no Streamlit run in this pass) — re-check on a
-# typical laptop viewport and adjust if it still clips or now over-scrolls.
 _EMBED_HEIGHT = 920
 
 
 @st.cache_data(show_spinner=False)
 def _load_game_html() -> str:
     return _GAME_HTML.read_text(encoding="utf-8")
+
+
+def _measured_t1_ns() -> Optional[float]:
+    """Return only a converged student-fit T1, never the hidden simulator parameter.
+
+    The embedded game's receiver applies this to Physics Lab diagnostics, not
+    duel combat. Reject the solver's unconverged initial guess and malformed
+    values so the page cannot present either as a measured result.
+    """
+    fit = st.session_state.get("td_t1_fit")
+    if not isinstance(fit, dict) or not fit.get("ok"):
+        return None
+    raw = fit.get("T1_ns")
+    # Numbers only, and no bools (bool is an int subclass). _fit_t1_trace always writes a float,
+    # so a string here means something other than the simulator wrote this key — and quietly
+    # coercing unidentified input into the parameter that drives the game's physics is not a
+    # robustness win, it is an unowned number.
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    t1 = float(raw)
+    if not math.isfinite(t1) or t1 <= 0:
+        return None
+    return t1
 
 
 def _render_sidebar():
@@ -56,106 +56,80 @@ def _render_sidebar():
 
 
 def _render_embed():
-    # BR-1 — the game is injected via srcdoc, not a src= URL, so its own
-    # location.search is never this page's query string; ?t1= has to be
-    # relayed as an injected global, or quantum_chess.html's
-    # importSimulatorParams() never sees it. st.query_params values are
-    # always strings; validated numeric before injecting so a malformed URL
-    # can't inject anything but a number into the page.
     inject = ""
-    t1_param = st.query_params.get("t1")
-    if t1_param is not None:
-        try:
-            t1_ns = float(t1_param)
-            inject += f"<script>window.QB_INITIAL_T1_NS={t1_ns};</script>"
-        except (TypeError, ValueError):
-            pass
-    st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
-    st.info(
-        "The offline heuristic Sage is active — concept-linked, per-unit advice with no API key "
-        "and no third-party service anywhere in this project.",
-        icon=":material/auto_awesome:",
-    )
 
+    # srcdoc cannot read the parent query string; relay only the student's fitted value.
+    t1_ns = _measured_t1_ns()
+    if t1_ns is not None:
+        inject += f"<script>window.QB_INITIAL_T1_NS={json.dumps(t1_ns)};</script>"
+
+    st.components.v1.html(inject + _load_game_html(), height=_EMBED_HEIGHT, scrolling=True)
+
+    if t1_ns is not None:
+        st.success(
+            f"Your measured **T₁ = {t1_ns:.1f} ns** is driving the **Physics Lab** decoherence "
+            "model in the game above — open Physics Lab to see the relaxation curves redrawn "
+            "against your own value, scaled to a 200 ns reference so a qubit with twice the "
+            "reference T₁ decays twice as slowly there.\n\n"
+            "It does **not** change duel combat: the duel evolves on its own fixed T₁/T₂ "
+            "(90 s / 30 s in open space), and whether an imported T₁ should set duel balance is "
+            "an open design question, not something this page quietly decides.",
+            icon=":material/link:",
+        )
+    else:
+        st.info(
+            "The Physics Lab in the game above is showing its default decoherence model. Run a "
+            "time-domain simulation on **Qubit Simulator** and fit T₁ from the relaxation tail — "
+            "your fitted value will then drive those curves. The bridge uses the T₁ *you "
+            "measure*, never the simulator's hidden parameter.",
+            icon=":material/science:",
+        )
 
 def _render_academic_framing():
     st.markdown(
-        "**QuBlitz** is a quantum tactics game where every unit on the board is a **qubit**, "
-        "every action is a **quantum gate**, and combat resolves via the **Born rule**. It is "
-        "the interactive companion to this simulator: the same T₁/T₂ physics you explore on the "
-        "other pages drive the game's decoherence — so decoherence and relative phase carry real "
-        "tactical stakes here, not just flavor text. Building intuition for the math is the goal; "
-        "the Physics Lab and concept map below do the formal teaching."
+        "**Photon Duel** is a real-time laser duel against a bot: each ship carries a qubit, "
+        "laser pulses rotate its Bloch vector, and measurement resolves through the **Born rule**. "
+        "**Duel Training** teaches the same mechanics through guided missions. Building quantum "
+        "intuition is a learning goal; durable learning gains have not been established."
     )
-
-    with st.expander(":material/track_changes: Learning objectives — what you'll reason about", expanded=True):
+    with st.expander(":material/track_changes: Learning objectives", expanded=True):
         st.markdown(
-            "- **Superposition & state preparation** — drive a qubit between |0⟩, |1⟩, and |+⟩.\n"
-            "- **The Born rule** — measurement outcomes are probabilistic in the qubit's amplitudes.\n"
-            "- **Bloch-sphere state** — read a live qubit as a vector (the panel shows it each turn).\n"
-            "- **T₁/T₂ decoherence** — watch charge relax exponentially when a unit sits idle.\n"
-            "- **Relative phase** — discover why Z/S/T gates matter only through interference.\n"
-            "- **Entanglement & the no-communication theorem** — Bell pairs that collapse together."
+            "- **State preparation and phase** — choose X, Y, or T beams and hold a pulse to set its rotation.\n"
+            "- **Measurement** — read P(|1⟩) before committing to a measurement shot.\n"
+            "- **Decoherence** — observe T₁ relaxation and T₂ dephasing during real-time play.\n"
+            "- **Entanglement** — explore correlated collapse through the duel's Bell link.\n"
+            "- **Physics Lab** — inspect the state and compare diagnostic relaxation curves."
         )
-
-    with st.expander(":material/schema: Concept map — every action maps to real quantum mechanics"):
-        # Kets contain '|', the markdown table delimiter, so each is escaped as \| .
+    with st.expander(":material/schema: Concept map"):
         st.markdown(
-            "| In-game action | Quantum concept | In-engine rule |\n"
-            "|---|---|---|\n"
-            "| Charge with **X** / **H** | State preparation, superposition | X → \\|1⟩ (100%); H → \\|+⟩ (≈50%) |\n"
-            "| **Attack** | Born rule | P(hit) = charge = P(\\|1⟩); a target in \\|1⟩ takes a CRITICAL |\n"
-            "| **Idle** a turn | T₁/T₂ relaxation (Lindblad) | charge ∝ e^(−t/T₁), coherence ∝ e^(−t/T₂) |\n"
-            "| **GUARD** | X-basis measurement, relative phase | crit risk = (1−x)/2; \\|+⟩ safe, \\|−⟩ exposed |\n"
-            "| **Z / S / T** | relative-phase rotation | invisible to charge — matters only via the GUARD's X-basis |\n"
-            "| **CNOT** | entanglement (Bell pair) | \\|Φ⁺⟩; measuring one collapses both; no signalling |\n"
-            "| **MEASURE** | projective collapse | \\|ψ⟩ → \\|0⟩ or \\|1⟩, then stabilizes the unit |\n"
+            "| Action | Quantum concept |\n|---|---|\n"
+            "| X / Y / T laser pulse | Rotation of the qubit's Bloch vector |\n"
+            "| Self-pulse | Apply the selected rotation to your own qubit |\n"
+            "| Measurement shot | Born-rule collapse; a target measured in \\|1⟩ loses |\n"
+            "| Bell link | Entanglement and correlated measurement |\n"
+            "| Time passing | Amplitude damping and dephasing |"
         )
-
-    with st.expander(":material/science: The physics is real — and unit-tested"):
-        st.markdown(
-            "QuBlitz is not hand-waving flavor. Each unit evolves under the **exact Lindblad "
-            "master-equation solution** for amplitude damping (T₁) plus dephasing (T₂), the same "
-            "open-quantum-system model behind the simulator. Open the in-game **Physics Lab** to "
-            "inspect a live density matrix ρ. The engine ships with a regression suite that asserts:\n\n"
-            "- decoherence is **exponential** (R² > 0.99) and the fit recovers the input T₁ to within 1%,\n"
-            "- a CNOT makes a true Bell pair with **perfectly correlated** collapse, and\n"
-            "- a local gate on one half **never** changes the partner's marginal (no-communication)."
-        )
-
-    with st.expander(":material/school: Research context"):
-        st.markdown(
-            "Built by **David Mukuruva** within the **Fitzpatrick Lab, Dartmouth College** "
-            "(PI: Prof. Mattias Fitzpatrick), as the game companion to the lab's qubit simulator. "
-            "The roadmap calibrates the game's decoherence to **real measured T₁/T₂**, connecting "
-            "the proposal's research questions — mapping BCTDS parameters to T₂ degradation, and "
-            "characterizing non-Markovian (HEOM) memory effects — to an interactive learning tool."
-        )
-
-    with st.expander(":material/privacy_tip: Data & consent posture (GOV-2)"):
-        st.markdown(
-            "The short version: **no automatic network calls, ever.** Nothing is collected "
-            "unless a student explicitly clicks the in-game **EXPORT MY GATE LOG** button, and "
-            "even then the result is a local file download the student controls -- QuBlitz never "
-            "transmits it anywhere itself. Full posture, exact export schema, and a FERPA note "
-            "for classroom use: "
-            "[`docs/DATA_AND_CONSENT.md`](https://github.com/dmukuruva-creator/Qublitz_Draft/blob/main/docs/DATA_AND_CONSENT.md) "
-            "in the canonical game repo."
-        )
+    st.caption(
+        "Built by David Mukuruva in the Fitzpatrick Lab, Dartmouth College. "
+        "The game has physics regression tests; the simulator remains available through the links below."
+    )
 
 
 def _render_quickstart():
-    st.markdown("#### How to play in 30 seconds")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("**1 · Charge**")
-        st.caption("Apply **X** (→ |1⟩, 100%) or **H** (→ |+⟩, 50%). A unit's charge *is* its P(|1⟩).")
-    with c2:
-        st.markdown("**2 · Close in**")
-        st.caption("Move adjacent to a foe — but hurry: idle charge relaxes as e^(−t/T₁) every turn.")
-    with c3:
-        st.markdown("**3 · Collapse**")
-        st.caption("**Attack** fires with probability = charge; a target caught in |1⟩ takes a CRITICAL.")
+    st.markdown("#### How to play")
+    st.markdown(
+        "1. Choose **Duel Training** to learn, or **Photon Duel** for a match.\n"
+        "2. Focus the game. **WASD** moves; **arrow keys** or the pointer aim. "
+        "Hold and release **Shift** to fire, or **F** to self-pulse. "
+        "Mouse left-hold/right-hold provide the same pulse actions.\n"
+        "3. Select beams with **1 / 2 / 3**; **Space** measures; **E** entangles; **Esc** pauses. "
+        "Read the live state before measuring."
+    )
+    st.caption(
+        "Standard gamepad: left/right sticks move/aim, right/left triggers attack/self-pulse, "
+        "LB/RB or D-pad select beams, A/Cross measures, X/Square entangles, Menu pauses. "
+        "Keyboard and virtual standard-gamepad input are tested; physical controllers are not certified."
+    )
 
 
 def _render_related_links():
@@ -194,24 +168,22 @@ def _render_related_links():
 def main():
     page_header(
         "QuBlitz Arena", "⚔️",
-        "Command qubit armies in real time — charge, strike, and collapse with the same "
-        "Lindblad physics engine the simulator pages use.",
+        "Photon Duel and Duel Training — laser pulses, qubit rotations, and Born-rule measurement.",
         "Play",
     )
     _render_sidebar()
-
     st.caption(
-        "Quantum mechanics with real stakes — every unit is a qubit, every move is a gate.  "
-        "Click the board, then **A** attack · **H/X/Y/Z** charge · **M** measure · **C** entangle · "
-        "**G** guard · **E** explain · **?** Sage."
+        "The former board game is deprecated and replaced here by Photon Duel and Duel Training. "
+        "Historical versions remain in Git history; the Arena URL is unchanged."
     )
-
-    # Game first, so it sits within the screen; the academic depth follows below.
+    st.caption(
+        "Focus the game: WASD move · arrow keys aim · Shift attack · F self-pulse · "
+        "1/2/3 beams · Space measure · E entangle · Esc pause."
+    )
     _render_embed()
-
     st.divider()
-    _render_academic_framing()
     _render_quickstart()
+    _render_academic_framing()
     st.divider()
     _render_related_links()
 
