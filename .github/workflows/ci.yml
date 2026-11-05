@@ -76,3 +76,7 @@ jobs:
       # Qubit Copter: on-resonance rotations, the steering rule, and that every target can be reached in time.
       - name: Qubit Copter engine test
         run: node web/qublitz/tests/copter-engine.test.js
+
+      # Beamline: rotation conventions against the other engines, the pieces, and that every level is solvable at par.
+      - name: Beamline engine test
+        run: node web/qublitz/tests/beamline-engine.test.js

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f1930'/%3E%3Cpath d='M8 20 H40 V48 H58' fill='none' stroke='%23ff7a8a' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='34' r='8' fill='none' stroke='%23ffd166' stroke-width='4'/%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beamline — route a laser pulse to set each qubit</title>
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --night:#0b1220;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  .page{max-width:1240px;margin:0 auto;padding:18px 20px 44px}
+  @media(max-width:600px){.page{padding:12px 16px 32px}}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700}
+  h1 span{font-weight:400;color:var(--muted);font-size:17px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;max-width:940px}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:6px 11px;cursor:pointer}
+  button:disabled{opacity:.35;cursor:not-allowed}
+
+  .game{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+  @media(max-width:900px){.game{grid-template-columns:1fr}}
+  .stage{position:relative;border-radius:12px;overflow:hidden;background:var(--night);box-shadow:0 8px 30px rgba(11,18,32,.25);
+    user-select:none;-webkit-user-select:none;min-height:340px}
+  @media(min-width:901px){.stage{min-height:600px}}
+  #board{display:block;width:100%;touch-action:manipulation;cursor:pointer}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;color:#c7d3e6;font-size:13px;border-bottom:1px solid rgba(160,190,230,.15)}
+  .bar b{color:#fff}
+  .bar .goal{color:#ffd166}
+  .bar .sp{flex:1}
+  .bar button{background:transparent;color:#e8eef7;border-color:rgba(255,255,255,.3);padding:4px 10px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;text-align:center;
+    background:rgba(8,13,25,.9);color:#e8eef7;padding:18px;overflow:auto;z-index:2}
+  .overlay>:first-child{margin-top:auto} .overlay>:last-child{margin-bottom:auto}
+  .overlay[hidden]{display:none}
+  .overlay h2{margin:0 0 2px;font-size:30px;color:#fff}
+  .overlay h2 small{display:block;font-size:12.5px;font-weight:400;color:#9fb2cc;letter-spacing:.04em;margin-top:2px}
+  .overlay p{max-width:620px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
+  .overlay p b{color:#fff}
+  .levels{display:grid;grid-template-columns:repeat(4,minmax(0,160px));gap:8px;margin:10px 0 4px}
+  @media(max-width:700px){.levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .levels button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 10px;text-align:left}
+  .levels button b{display:block;font-size:13.5px}
+  .levels button span{font-size:12px;color:#ffd166;letter-spacing:.1em}
+  .levels button span i{color:#4a5577;font-style:normal}
+  .levels button.next{border-color:#ffd166;background:rgba(255,209,102,.12)}
+  .overlay .go{font-size:15px;padding:9px 22px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;align-items:center}
+  .overlay .row button:not(.go),.overlay .row a.btn{background:transparent;color:#e8eef7;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:6px 11px;font-size:13px;text-decoration:none}
+  .overlay .stars{font-size:38px;letter-spacing:.15em;color:#ffd166;line-height:1.1}
+  .overlay .stars i{color:#3a4166;font-style:normal}
+  .overlay .stats{display:grid;grid-template-columns:repeat(3,auto);gap:4px 22px;font-size:13px;color:#c7d3e6;margin:8px 0}
+  .overlay .stats b{display:block;font-size:18px;color:#fff}
+  .overlay .learn{max-width:620px;font-size:13.5px;color:#e8eef7;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.35);border-radius:10px;padding:8px 12px;margin:6px auto;text-align:left}
+  .overlay .best{font-size:12.5px;color:#9fb2cc}
+  .overlay .legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:640px;margin:6px auto}
+  .overlay .legend span{font-size:12.5px;color:#c7d3e6;border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 9px;text-align:left;max-width:300px}
+  .overlay .legend span b{color:#ffd166}
+  .note{position:absolute;left:50%;top:52px;transform:translateX(-50%);width:max-content;max-width:min(640px,92%);background:rgba(8,13,25,.94);
+    border:1px solid rgba(255,209,102,.45);color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:7px 12px;text-align:center;
+    pointer-events:none;transition:opacity .4s;z-index:1}
+  .note b{color:#ffd166} .note.fade{opacity:0}
+
+  .side{display:flex;flex-direction:column;gap:12px}
+  .box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:13px}
+  .box h3{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+  .box h3 span{text-transform:none;letter-spacing:0;font-weight:400}
+  .tray{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .tray button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;min-height:62px}
+  .tray button .g{font-size:20px;font-weight:700;line-height:1.1}
+  .tray button small{font-size:11px;color:var(--muted)}
+  .tray button[aria-pressed=true]{border-color:#e0b040;background:#fff6dc;box-shadow:0 0 0 2px #ffd166 inset}
+  .tray button.empty{opacity:.4}
+  .tray .what{grid-column:1/-1;font-size:12px;color:var(--muted);min-height:3em;margin:2px 0 0}
+  .actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+  .actions .fire{grid-column:1/-1;background:#ffd166;border-color:#e0b040;font-weight:700;font-size:15px;padding:9px}
+  .q{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+  .q:first-of-type{border-top:0}
+  .q .nm{font-weight:700}
+  .q .st{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:15px}
+  .q .fb{grid-column:1/-1;height:8px;background:var(--panel);border:1px solid var(--line);border-radius:5px;overflow:hidden}
+  .q .fb i{display:block;height:100%;background:#e0b040}
+  .q .fb i.ok{background:var(--green2)}
+  .q .tag{font-size:11.5px;color:var(--muted)}
+  .lab{display:inline-block;border:1px solid var(--green);color:var(--green);border-radius:7px;padding:5px 10px;text-decoration:none;font-size:13px;margin-top:6px}
+  .lab.empty{pointer-events:none;opacity:.45}
+  .keys{font-size:12px;color:var(--muted);margin:6px 0 0}
+  kbd{font:12px ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:0 5px}
+  .overlay kbd{border-color:rgba(160,180,210,.5);background:transparent;color:#e8eef7}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px 12px;margin-top:16px}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .card p,.card li{font-size:13.5px;max-width:960px}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto}
+  .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="page">
+<script src="../shared/sitebar.js"></script>
+<a class="back" href="../index.html#labs">&larr; All demos</a>
+<h1>🔦 Beamline <span>route a laser pulse to set each qubit</span></h1>
+<p class="sub">A puzzle about pulses. The laser is a resonant drive: a pulse turns every qubit it passes through, about an axis set by its
+  <b>drive phase</b> and by an angle equal to its <b>pulse area</b>. Place mirrors to route it, phase plates to change the axis and attenuators
+  to change the angle, then fire and bring every qubit to its gold target. Nothing turns unless the beam crosses it.</p>
+
+<div class="game">
+  <div class="stage" id="stage">
+    <div class="bar"><span id="barTitle"><b>Beamline</b></span><span class="sp"></span><span id="barPar"></span>
+      <button id="toMenuTop" title="Levels (Esc)">Levels</button></div>
+    <canvas id="board" aria-label="The board: lasers, mirrors and pieces, and a Bloch sphere for each qubit with its gold target"></canvas>
+
+    <div class="overlay" id="menu">
+      <h2>Beamline<small>ROUTE THE PULSE · SET THE PHASE · CHOOSE THE AREA</small></h2>
+      <p>Each level teaches one idea about driving qubits. Earn <b>★★</b> by using no more than par pieces and <b>★★★</b> by also firing no more than par times. <b>Sandbox</b> has no targets and as many pieces as you like.</p>
+      <div class="levels" id="levelGrid"></div>
+      <div class="row"><button class="go" id="sandbox">Sandbox ▶</button></div>
+      <p class="best" id="menuStars"></p>
+    </div>
+
+    <div class="overlay" id="brief" hidden>
+      <h2 id="briefTitle"></h2>
+      <p id="briefText"></p>
+      <div class="legend" id="briefLegend"></div>
+      <p class="best">Pick a piece on the right, then click an empty square to place it. Click a mirror to flip it (a second click removes it); click any other piece to remove it. <kbd>F</kbd> fires, <kbd>U</kbd> undoes.</p>
+      <div class="row"><button class="go" id="briefGo">Start ▶</button><button id="briefBack">Levels</button></div>
+    </div>
+
+    <div class="overlay" id="won" hidden>
+      <h2 id="wonTitle">Solved!</h2>
+      <div class="stars" id="wonStars"></div>
+      <div class="stats" id="wonStats"></div>
+      <div class="learn" id="wonLearn"></div>
+      <div class="row">
+        <button class="go" id="next">Next level ▶</button>
+        <button id="again">Play again</button>
+        <button id="toMenu">Levels</button>
+        <a class="btn" id="wonLab" target="_blank" rel="noopener" href="qubit-simulator.html">Run these pulses in the lab ↗</a>
+      </div>
+      <p class="best" id="wonBest"></p>
+    </div>
+    <div class="note fade" id="note"></div>
+  </div>
+
+  <div class="side">
+    <div class="box">
+      <h3>Pieces <span id="trayInfo"></span></h3>
+      <div class="tray" id="tray"></div>
+      <div class="actions">
+        <button class="fire" id="fire" title="Fire the lasers (F)">Fire ⚡</button>
+        <button id="undo" title="Undo (U)">Undo</button>
+        <button id="reset" title="Remove all pieces (R)">Reset</button>
+        <button id="hint" title="Place one piece of a solution (H). Caps this level at ★★">Hint</button>
+        <button id="clearRun" title="Show the start states again">Rewind</button>
+      </div>
+      <p class="keys">Beam colour is the drive phase: <span style="color:#d9475a">■ x</span> <span style="color:#1f9a4a">■ y</span> <span style="color:#d9822b">■ −x</span> <span style="color:#2a8fc4">■ −y</span>. Thicker is more area: π, then π/2, π/4.</p>
+    </div>
+    <div class="box">
+      <h3>Qubits <span id="qInfo"></span></h3>
+      <div id="qList"></div>
+      <a class="lab empty" id="labGo" target="_blank" rel="noopener" href="qubit-simulator.html">Open qubit pulses in the Virtual Qubit Lab ↗</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>The physics</h2>
+  <p>Seen from a frame that rotates with the drive, a qubit driven exactly on resonance feels only the drive: there is no free precession, so a
+    qubit's state changes only while a pulse is passing through it. A pulse with drive phase φ and Rabi rate Ω, on for a time t, turns the
+    Bloch vector about the equatorial axis (cos φ, sin φ, 0) by its area:</p>
+  <div class="eq">H = (ħΩ/2)(cos φ σ<sub>x</sub> + sin φ σ<sub>y</sub>), &nbsp;&nbsp; θ = ∫Ω dt, &nbsp;&nbsp; P(1) = sin²(θ/2) starting from |0⟩</div>
+  <ul>
+    <li><b>Mirror</b>: changes where the pulse goes, not the pulse. In a chip the drive arrives down a wire; only its phase and area reach the qubit.</li>
+    <li><b>Phase plate</b>: delays the drive by a quarter period, so φ → φ + 90°. That turns an x rotation into a y rotation; two plates reverse the sense of the turn.</li>
+    <li><b>Attenuator</b>: −6 dB halves the field amplitude Ω. The pulse is just as long, so its area θ = Ω·t halves: π → π/2 → π/4.</li>
+    <li><b>Order</b>: lasers fire one after another (1 then 2), and a beam that crosses a qubit twice turns it twice, in the order it arrives. Turns about different axes do not commute.</li>
+  </ul>
+  <p><b>What the game leaves out.</b> The beam keeps its full strength along the board (each qubit absorbs a negligible share), pulses are short
+    enough that nothing decays while they fly (no T₁ or T₂ here), and there is no beam splitter: a passive 50/50 splitter would send θ/√2 down each
+    branch. A qubit's global phase is not shown: after a 2π turn the state is −|0⟩, which no measurement of that qubit alone can tell from |0⟩.</p>
+  <p class="dl">Your best stars stay in this browser. Each solved level can open its pulses in the <a href="qubit-simulator.html">Virtual Qubit Lab</a>
+    as square σx/σy pulses on a 50 MHz Rabi drive, where an attenuated pulse is the same length at half the amplitude.</p>
+</div>
+</div>
+
+<script src="beamline-engine.js"></script>
+<script>
+'use strict';
+const E = window.BeamlineEngine;
+const $ = s => document.querySelector(s);
+const LAB = 'qubit-simulator.html';
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const PHASE_COL = ['#ff7a8a', '#7ee08a', '#ffb36b', '#6fd0ff'];
+const S = { stars: store.get('beamline:stars', {}) };
+let level = null, idx = -1, sandbox = false;
+let placed = [], undoStack = [], tool = 'mirror', fires = 0, hinted = false;
+let result = null;        // last fired run
+let shown = [];           // Bloch vectors drawn on each qubit (animated)
+let anim = null;          // { history, paths, t0, ... }
+
+/* ---------- levels and modes ---------- */
+const SANDBOX = { id: 'sandbox', title: 'Sandbox', w: 9, h: 6,
+  lasers: [{ x: 0, y: 2, dir: 0 }], qubits: [{ x: 4, y: 2, start: '|0⟩' }, { x: 6, y: 4, start: '|0⟩' }, { x: 6, y: 0, start: '|+⟩' }],
+  inv: { mirror: 99, phase: 99, atten: 99 }, par: null };
+
+function nextLevelIndex() {
+  for (let i = 0; i < E.LEVELS.length; i++) if (!S.stars[E.LEVELS[i].id]) return i;
+  return -1;
+}
+function starSpan(n) { return '★'.repeat(n) + `<i>${'★'.repeat(3 - n)}</i>`; }
+function showMenu() {
+  hideAll(); $('#menu').hidden = false; anim = null;
+  const nx = nextLevelIndex();
+  $('#levelGrid').innerHTML = E.LEVELS.map((L, i) => `<button data-i="${i}" class="${i === nx ? 'next' : ''}"><b>${i + 1}. ${L.title}</b><span>${starSpan(S.stars[L.id] || 0)}</span></button>`).join('');
+  $('#levelGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => showBrief(+b.dataset.i)));
+  const got = Object.values(S.stars).reduce((a, b) => a + b, 0);
+  $('#menuStars').textContent = `${got} of ${3 * E.LEVELS.length} stars` + (nx < 0 ? ' · every level solved' : ` · next: level ${nx + 1}`);
+}
+function hideAll() { ['#menu', '#brief', '#won'].forEach(s => $(s).hidden = true); }
+function showBrief(i) {
+  load(i);
+  hideAll(); $('#brief').hidden = false;
+  $('#briefTitle').innerHTML = `${i + 1}. ${level.title}<small>${level.par ? `PAR ${level.par.pieces} PIECE${level.par.pieces > 1 ? 'S' : ''} · ${level.par.fires} FIRE${level.par.fires > 1 ? 'S' : ''}` : ''}</small>`;
+  $('#briefText').innerHTML = level.brief;
+  $('#briefLegend').innerHTML = Object.keys(level.inv).map(k => `<span><b>${E.PIECES[k].label} ×${level.inv[k]}</b> · ${E.PIECES[k].what}</span>`).join('');
+}
+function load(i) {
+  sandbox = i < 0; idx = i; level = sandbox ? JSON.parse(JSON.stringify(SANDBOX)) : E.LEVELS[i];
+  placed = []; undoStack = []; fires = 0; hinted = false; result = null; anim = null;
+  tool = Object.keys(level.inv)[0];
+  resetShown(); layout(); syncUI();
+}
+function resetShown() { shown = level.qubits.map(q => E.vec(q.start || '|0⟩')); result = null; anim = null; }
+
+/* ---------- placement ---------- */
+const keyOf = (x, y) => x + ',' + y;
+function occupiedBy(x, y) {
+  if ((level.walls || []).some(([a, b]) => a === x && b === y)) return 'wall';
+  if (level.qubits.some(q => q.x === x && q.y === y)) return 'qubit';
+  if (level.lasers.some(l => l.x === x && l.y === y)) return 'laser';
+  if ((level.fixed || []).some(p => p.x === x && p.y === y)) return 'fixed';
+  return null;
+}
+const remaining = t => (level.inv[t] || 0) - placed.filter(p => p.type === t).length;
+function edit(fn) {
+  undoStack.push(JSON.stringify(placed));
+  fn(); resetShown(); syncUI();
+}
+function clickCell(x, y) {
+  if (anim) return;
+  const occ = occupiedBy(x, y);
+  if (sandbox && tool === 'qubit') {
+    if (occ === 'qubit') { edit(() => { level.qubits = level.qubits.filter(q => !(q.x === x && q.y === y)); }); return; }
+    if (!occ && !placed.some(p => p.x === x && p.y === y)) { edit(() => level.qubits.push({ x, y, start: '|0⟩' })); }
+    return;
+  }
+  if (occ) { if (occ === 'qubit') note(qubitText(level.qubits.findIndex(q => q.x === x && q.y === y))); return; }
+  const at = placed.findIndex(p => p.x === x && p.y === y);
+  if (at >= 0) {
+    const p = placed[at];
+    if (p.type === 'mirror' && p.o === '/') edit(() => { placed[at] = { ...p, o: '\\' }; });
+    else edit(() => placed.splice(at, 1));
+    return;
+  }
+  if (remaining(tool) <= 0) { note(`No ${E.PIECES[tool].label.toLowerCase()}s left. Click a placed piece to pick it back up.`); return; }
+  edit(() => placed.push({ x, y, type: tool, o: tool === 'mirror' ? '/' : undefined }));
+}
+function undo() { if (anim || !undoStack.length) return; placed = JSON.parse(undoStack.pop()); resetShown(); syncUI(); }
+function resetBoard() { if (anim || !placed.length) return; edit(() => { placed = []; }); }
+function hint() {
+  if (anim || sandbox) return;
+  const sol = level.solution;
+  // first take away a piece that is not part of the solution, then add the next missing one, in beam order
+  const wrong = placed.find(p => !sol.some(s => s.x === p.x && s.y === p.y && s.type === p.type && (s.o || null) === (p.o || null)));
+  hinted = true;
+  if (wrong) { edit(() => { placed = placed.filter(p => p !== wrong); }); note(`Hint: the ${E.PIECES[wrong.type].label.toLowerCase()} at that square is not part of the solution, so it was taken off.`); return; }
+  const miss = sol.find(s => !placed.some(p => p.x === s.x && p.y === s.y && p.type === s.type && (p.o || null) === (s.o || null)));
+  if (!miss) { note('Every piece is in place: press <b>Fire</b>.'); return; }
+  edit(() => placed.push({ ...miss }));
+  note(`Hint: a ${E.PIECES[miss.type].label.toLowerCase()} ${miss.type === 'mirror' ? `(${miss.o}) ` : ''}goes there. This level can now earn at most ★★.`);
+}
+
+/* ---------- firing ---------- */
+function fire() {
+  if (anim) return;
+  fires++;
+  resetShown();
+  result = E.run(level, placed);
+  if (REDUCE) { shown = result.states.slice(); anim = null; finish(); syncUI(); return; }
+  // timeline: each laser's beam travels its path at CELLS_PER_S; a hit animates that qubit's turn over TURN_S
+  const CELLS_PER_S = 9, TURN_S = 0.45;
+  let t = 0; const beams = [], turns = [];
+  for (const p of result.paths) {
+    const start = t, len = p.cells.length;
+    const hitsHere = result.history.filter(h => h.laser === p.laser);
+    beams.push({ path: p, start, len, speed: CELLS_PER_S });
+    for (const h of hitsHere) turns.push({ ...h, t0: start + (h.at + 0.5) / CELLS_PER_S, dur: TURN_S });
+    t = start + len / CELLS_PER_S + 0.25;
+    const lastTurn = turns.length ? turns[turns.length - 1].t0 + TURN_S : 0;
+    t = Math.max(t, lastTurn);
+  }
+  anim = { beams, turns, t0: performance.now(), total: t + 0.3 };
+  syncUI();
+}
+function finish() {
+  syncUI();
+  if (sandbox || !result) return;
+  if (result.solved) {
+    const n = E.stars(level, placed.length, fires, hinted), prev = S.stars[level.id] || 0;
+    if (n > prev) { S.stars[level.id] = n; store.set('beamline:stars', S.stars); }
+    setTimeout(() => showWon(n, prev), 500);
+  } else {
+    const bad = result.fid.map((f, i) => [f, i]).filter(([f]) => f < E.WIN);
+    const [f, i] = bad[0];
+    const q = level.qubits[i];
+    note(q.spectator ? `<b>${qName(i)}</b> is a spectator and was moved: the beam must miss it, or turn it all the way back.`
+      : `<b>${qName(i)}</b> reached ${(100 * f).toFixed(0)} % of its target. ${f > 0.6 ? 'Close: check the phase and the area of the last pulse it got.' : 'Look at which pulses it received, and in what order.'}`, 4.5);
+  }
+}
+function showWon(n, prev) {
+  hideAll(); $('#won').hidden = false;
+  $('#wonTitle').textContent = n > prev && prev ? 'New best!' : 'Solved!';
+  $('#wonStars').innerHTML = starSpan(n);
+  const par = level.par;
+  $('#wonStats').innerHTML = `<div><b>${placed.length}</b>pieces (par ${par.pieces})</div><div><b>${fires}</b>fire${fires > 1 ? 's' : ''} (par ${par.fires})</div><div><b>${hinted ? 'yes' : 'no'}</b>hint</div>`;
+  $('#wonLearn').innerHTML = level.learn;
+  $('#next').hidden = idx >= E.LEVELS.length - 1;
+  const why = n === 3 ? 'Perfect run.' : hinted ? 'A hint caps the level at ★★.' : placed.length > par.pieces ? `★★ needs at most ${par.pieces} piece${par.pieces > 1 ? 's' : ''}.` : `★★★ needs at most ${par.fires} fire${par.fires > 1 ? 's' : ''}: plan the whole beamline first.`;
+  const got = Object.values(S.stars).reduce((a, b) => a + b, 0);
+  $('#wonBest').textContent = `${why} · ${got} of ${3 * E.LEVELS.length} stars`;
+  const qi = level.qubits.findIndex(q => !q.spectator);
+  $('#wonLab').href = labUrl(qi);
+}
+
+/* ---------- lab link ---------- */
+function labUrl(qi) {
+  const run = result || E.run(level, placed);
+  const pulses = E.labPulses(run.history, qi, { fGHz: 0.05 }), items = [];
+  for (const p of pulses) for (const [ch, a] of [['x', p.sx], ['y', p.sy]]) if (Math.abs(a) > 1e-4) items.push(`${ch}:${a.toFixed(4)}:${p.start.toFixed(3)}:${p.dur.toFixed(3)}`);
+  const u = new URL(LAB, location.href); u.searchParams.set('free', '5,50,10000,20000'); u.searchParams.set('tab', 'time');
+  if (items.length) u.searchParams.set('pulses', items.join(','));
+  return u.href;
+}
+
+/* ---------- side panel ---------- */
+const qName = i => String.fromCharCode(65 + i);
+function qubitText(i) {
+  const q = level.qubits[i];
+  return `<b>Qubit ${qName(i)}</b>: starts in ${q.start || '|0⟩'}` + (q.target != null ? `, target ${typeof q.target === 'string' ? q.target : E.stateName(E.vec(q.target))}${q.spectator ? ' (a spectator: keep it there)' : ''}` : '') + '.';
+}
+function syncUI() {
+  $('#barTitle').innerHTML = sandbox ? '<b>Sandbox</b> · no targets' : `<b>${idx + 1}. ${level.title}</b>`;
+  $('#barPar').innerHTML = sandbox ? '' : `pieces <b>${placed.length}</b>/${level.par.pieces} · fires <b>${fires}</b>/${level.par.fires}` + (hinted ? ' · hint used' : '');
+  const types = sandbox ? ['mirror', 'phase', 'atten', 'qubit'] : Object.keys(level.inv);
+  $('#tray').innerHTML = types.map(t => {
+    const P = E.PIECES[t] || { label: 'Qubit', glyph: '◯', what: 'Sandbox only: click an empty square to add a qubit in |0⟩, click a qubit to remove it.' };
+    const left = t === 'qubit' ? '∞' : sandbox ? '∞' : remaining(t);
+    return `<button data-t="${t}" aria-pressed="${tool === t}" class="${left === 0 ? 'empty' : ''}"><span class="g">${P.glyph}</span>${P.label}<small>${left} left</small></button>`;
+  }).join('') + `<p class="what">${(E.PIECES[tool] || { what: 'Click an empty square to add a qubit; click a qubit to remove it.' }).what}</p>`;
+  $('#tray').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { tool = b.dataset.t; syncUI(); }));
+  $('#trayInfo').textContent = sandbox ? 'unlimited' : `${placed.length} placed`;
+  $('#undo').disabled = !undoStack.length || !!anim; $('#reset').disabled = !placed.length || !!anim;
+  $('#hint').disabled = sandbox || !!anim; $('#fire').disabled = !!anim; $('#clearRun').disabled = !result || !!anim;
+  const run = result && !anim ? result : null;
+  $('#qList').innerHTML = level.qubits.map((q, i) => {
+    const r = shown[i], hasT = q.target != null, t = hasT ? E.vec(q.target) : null, f = hasT ? E.fidelity(r, t) : null;
+    return `<div class="q"><span class="nm">${qName(i)}</span><span class="st">${E.stateName(r)}${hasT ? ` <span class="tag">→ ${typeof q.target === 'string' ? q.target : 'gold mark'}</span>` : ''}</span>`
+      + `<span class="tag">${q.spectator ? 'spectator' : hasT ? (f >= E.WIN ? '✓' : `${(100 * f).toFixed(0)} %`) : ''}</span>`
+      + (hasT ? `<div class="fb"><i class="${f >= E.WIN ? 'ok' : ''}" style="width:${(100 * f).toFixed(1)}%"></i></div>` : '') + `</div>`;
+  }).join('');
+  $('#qInfo').textContent = run ? (sandbox ? 'after firing' : run.solved ? 'all on target ✓' : 'after firing') : 'start states';
+  const qi = Math.max(0, level.qubits.findIndex(q => !q.spectator));
+  const hasHits = run && run.history.some(h => h.qubit === qi);
+  $('#labGo').classList.toggle('empty', !hasHits);
+  $('#labGo').textContent = `Open qubit ${qName(qi)}'s pulses in the Virtual Qubit Lab ↗`;
+  if (hasHits) $('#labGo').href = labUrl(qi);
+}
+
+/* ---------- drawing ---------- */
+const cv = $('#board'), g = cv.getContext('2d');
+let CELL = 70, OX = 0, OY = 0, W = 0, H = 0, DPR = 1;
+function layout() {
+  if (!level) return;
+  const w = cv.parentElement.clientWidth;
+  CELL = Math.max(34, Math.min(96, Math.floor((w - 24) / level.w)));
+  W = w; H = CELL * level.h + 24;
+  OX = Math.round((W - CELL * level.w) / 2); OY = 12;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.height = H + 'px';
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+const cx = x => OX + (x + 0.5) * CELL, cy = y => OY + (y + 0.5) * CELL;
+function draw(now) {
+  if (!level) return;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#0b1220'; g.fillRect(0, 0, W, H);
+  // grid
+  for (let y = 0; y < level.h; y++) for (let x = 0; x < level.w; x++) {
+    g.fillStyle = (x + y) % 2 ? '#101a2e' : '#0e1729'; g.fillRect(OX + x * CELL, OY + y * CELL, CELL, CELL);
+  }
+  g.strokeStyle = 'rgba(160,190,230,.10)'; g.lineWidth = 1;
+  g.strokeRect(OX + 0.5, OY + 0.5, CELL * level.w - 1, CELL * level.h - 1);
+  for (const [x, y] of level.walls || []) {
+    const X = OX + x * CELL, Y = OY + y * CELL;
+    g.fillStyle = '#2a3348'; g.fillRect(X + 3, Y + 3, CELL - 6, CELL - 6);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.beginPath();
+    for (let k = -CELL; k < CELL; k += 10) { g.moveTo(X + 3 + Math.max(0, k), Y + 3 + Math.max(0, -k)); g.lineTo(X + CELL - 3 - Math.max(0, -k), Y + CELL - 3 - Math.max(0, k)); }
+    g.stroke();
+  }
+  // preview path (live), drawn under the pieces
+  const preview = E.trace(level, placed);
+  for (const p of preview) drawPath(p, 1, true);
+  // firing animation: the pulse front
+  let t = 0;
+  if (anim) {
+    t = (now - anim.t0) / 1000;
+    for (const b of anim.beams) {
+      const k = (t - b.start) * b.speed;
+      if (k <= 0) continue;
+      drawPath(b.path, Math.min(b.len + 0.5, k), false);
+    }
+    // qubit turns
+    shown = level.qubits.map(q => E.vec(q.start || '|0⟩'));
+    for (const tr of anim.turns) {
+      const f = Math.max(0, Math.min(1, (t - tr.t0) / tr.dur));
+      if (f <= 0) continue;
+      shown[tr.qubit] = E.rotate(tr.from, E.axisOf(tr.phase * Math.PI / 2), tr.area * Math.PI * (f < 1 ? f : 1));
+      if (f >= 1) shown[tr.qubit] = tr.to;
+    }
+    if (t >= anim.total) { shown = result.states.slice(); anim = null; finish(); }
+  }
+  // pieces
+  for (const p of level.fixed || []) drawPiece(p, true);
+  for (const p of placed) drawPiece(p, false);
+  for (const [i, L] of level.lasers.entries()) drawLaser(L, i);
+  level.qubits.forEach((q, i) => drawQubit(q, i, now));
+  requestAnimationFrame(draw);
+}
+// Draw a beam path up to k cells (fractional). Width by area, colour by phase.
+function drawPath(p, k, ghost) {
+  const L = level.lasers[p.laser];
+  let px = cx(L.x), py = cy(L.y), phase = L.phase || 0, area = L.area == null ? 1 : L.area;
+  g.lineCap = 'round';
+  for (let i = 0; i < p.cells.length && i < k; i++) {
+    const c = p.cells[i], ex = cx(c.x), ey = cy(c.y);
+    const frac = Math.min(1, k - i);
+    // from the previous point to the centre of this cell (entering), with the incoming pulse
+    seg(px, py, px + (ex - px) * frac, py + (ey - py) * frac, phase, area, ghost);
+    px = ex; py = ey; phase = c.phase; area = c.area;
+    if (c.dOut == null) return;
+  }
+  // after the last cell, run to the board edge
+  if (p.end === 'edge' && k >= p.cells.length) {
+    const last = p.cells[p.cells.length - 1];
+    if (last && last.dOut != null) seg(px, py, px + E.DX[last.dOut] * CELL * 0.5, py + E.DY[last.dOut] * CELL * 0.5, phase, area, ghost);
+  }
+}
+function seg(x0, y0, x1, y1, phase, area, ghost) {
+  const col = PHASE_COL[((phase % 4) + 4) % 4], w = Math.max(1.5, 7 * area);
+  if (ghost) { g.setLineDash([5, 6]); g.globalAlpha = 0.38; g.strokeStyle = col; g.lineWidth = Math.max(1.2, w * 0.45); }
+  else { g.setLineDash([]); g.globalAlpha = 1; g.strokeStyle = col; g.lineWidth = w; g.shadowColor = col; g.shadowBlur = 12; }
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  g.setLineDash([]); g.globalAlpha = 1; g.shadowBlur = 0;
+}
+function drawPiece(p, fixed) {
+  const X = cx(p.x), Y = cy(p.y), s = CELL * 0.36;
+  if (p.type === 'mirror') {
+    g.strokeStyle = fixed ? '#9aa8c4' : '#e8eef7'; g.lineWidth = Math.max(3, CELL * 0.07); g.lineCap = 'round';
+    g.beginPath();
+    if (p.o === '/') { g.moveTo(X - s, Y + s); g.lineTo(X + s, Y - s); } else { g.moveTo(X - s, Y - s); g.lineTo(X + s, Y + s); }
+    g.stroke();
+    g.strokeStyle = 'rgba(160,200,255,.35)'; g.lineWidth = 2; g.beginPath();
+    const o = 4; if (p.o === '/') { g.moveTo(X - s + o, Y + s + o); g.lineTo(X + s + o, Y - s + o); } else { g.moveTo(X - s + o, Y - s - o); g.lineTo(X + s + o, Y + s - o); }
+    g.stroke();
+  } else if (p.type === 'phase') {
+    g.fillStyle = 'rgba(177,140,255,.28)'; g.strokeStyle = '#b18cff'; g.lineWidth = 2;
+    roundRect(X - s * 0.55, Y - s, s * 1.1, s * 2, 5); g.fill(); g.stroke();
+    label('+90°', X, Y, '#e9ddff', CELL * 0.2);
+  } else if (p.type === 'atten') {
+    g.fillStyle = 'rgba(200,210,230,.18)'; g.strokeStyle = '#c7d3e6'; g.lineWidth = 2;
+    roundRect(X - s * 0.55, Y - s, s * 1.1, s * 2, 5); g.fill(); g.stroke();
+    g.strokeStyle = 'rgba(199,211,230,.4)'; g.lineWidth = 1;
+    for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(X - s * 0.4, Y + k * s * 0.35); g.lineTo(X + s * 0.4, Y + k * s * 0.35); g.stroke(); }
+    label('½', X, Y, '#ffffff', CELL * 0.3);
+  }
+}
+function drawLaser(L, i) {
+  const X = cx(L.x), Y = cy(L.y), s = CELL * 0.34, col = PHASE_COL[L.phase || 0];
+  g.save(); g.translate(X, Y); g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][L.dir]);
+  g.fillStyle = '#1c2742'; g.strokeStyle = col; g.lineWidth = 2;
+  roundRect(-s, -s * 0.62, s * 1.6, s * 1.24, 6); g.fill(); g.stroke();
+  g.fillStyle = col; g.beginPath(); g.moveTo(s * 0.6, -s * 0.3); g.lineTo(s * 1.05, 0); g.lineTo(s * 0.6, s * 0.3); g.fill();
+  g.restore();
+  const a = L.area == null ? 1 : L.area;
+  label(`${level.lasers.length > 1 ? (L.order || 0) + 1 + ' · ' : ''}${a === 1 ? 'π' : a === 0.5 ? 'π/2' : 'π/4'} ${E.phaseName(L.phase || 0)}`, X, Y + CELL * 0.4, '#c7d3e6', CELL * 0.16);
+}
+// A mini Bloch sphere in the cell: oblique view, gold target mark, the state vector.
+function drawQubit(q, i, now) {
+  const X = cx(q.x), Y = cy(q.y) - CELL * 0.04, R = CELL * 0.33;
+  const P = v => [X + R * (0.94 * v[1] - 0.36 * v[0]), Y - R * (0.94 * v[2] - 0.22 * v[0])];
+  const grd = g.createRadialGradient(X - R * 0.3, Y - R * 0.35, R * 0.1, X, Y, R);
+  grd.addColorStop(0, q.spectator ? '#3a4256' : '#2a3c66'); grd.addColorStop(1, q.spectator ? '#1b2030' : '#141f3a');
+  g.fillStyle = grd; g.beginPath(); g.arc(X, Y, R, 0, 7); g.fill();
+  g.strokeStyle = q.spectator ? 'rgba(200,200,210,.55)' : 'rgba(160,200,255,.55)'; g.lineWidth = 1.2; g.stroke();
+  g.beginPath(); for (let k = 0; k <= 40; k++) { const a = k / 40 * 2 * Math.PI, p = P([Math.cos(a), Math.sin(a), 0]); k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }
+  g.strokeStyle = 'rgba(160,200,255,.25)'; g.stroke();
+  const top = P([0, 0, 1.18]), bot = P([0, 0, -1.18]);
+  g.fillStyle = 'rgba(190,210,240,.7)'; g.font = `${Math.max(8, CELL * 0.13)}px Helvetica,Arial`; g.textAlign = 'center';
+  g.fillText('0', top[0], top[1] + 2); g.fillText('1', bot[0], bot[1] + 6);
+  const r = shown[i] || [0, 0, 1];
+  if (q.target != null) {
+    const t = E.vec(q.target), tp = P(t), f = E.fidelity(r, t), pulse = 0.7 + 0.3 * Math.sin(now / 250);
+    g.strokeStyle = f >= E.WIN ? '#9cf09f' : `rgba(255,209,102,${pulse})`; g.lineWidth = 2.5;
+    g.beginPath(); g.arc(tp[0], tp[1], Math.max(4, R * 0.2), 0, 7); g.stroke();
+  }
+  const tip = P(r);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(X, Y); g.lineTo(tip[0], tip[1]); g.stroke();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(tip[0], tip[1], 3.2, 0, 7); g.fill();
+  // name and fidelity
+  const lab = q.target != null ? `${qName(i)} ${q.spectator ? 'keep' : (100 * E.fidelity(r, E.vec(q.target))).toFixed(0) + '%'}` : qName(i);
+  label(lab, X, Y + R + CELL * 0.13, q.spectator ? '#c0c6d4' : '#ffd166', Math.max(9, CELL * 0.15));
+}
+function label(text, x, y, col, size) {
+  g.font = `700 ${Math.round(size)}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = col; g.fillText(text, x, y); g.textBaseline = 'alphabetic';
+}
+function roundRect(x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+/* ---------- notes, input ---------- */
+let noteTimer = 0;
+function note(html, secs = 3.5) {
+  const n = $('#note'); n.innerHTML = html; n.classList.remove('fade');
+  clearTimeout(noteTimer); noteTimer = setTimeout(() => n.classList.add('fade'), secs * 1000);
+}
+cv.addEventListener('click', e => {
+  if (!level || !$('#menu').hidden || !$('#brief').hidden || !$('#won').hidden) return;
+  const b = cv.getBoundingClientRect(), x = Math.floor((e.clientX - b.left - OX) / CELL), y = Math.floor((e.clientY - b.top - OY) / CELL);
+  if (x < 0 || y < 0 || x >= level.w || y >= level.h) return;
+  clickCell(x, y);
+});
+$('#fire').addEventListener('click', fire);
+$('#undo').addEventListener('click', undo);
+$('#reset').addEventListener('click', resetBoard);
+$('#hint').addEventListener('click', hint);
+$('#clearRun').addEventListener('click', () => { resetShown(); syncUI(); });
+$('#toMenuTop').addEventListener('click', showMenu);
+$('#toMenu').addEventListener('click', showMenu);
+$('#briefBack').addEventListener('click', showMenu);
+$('#briefGo').addEventListener('click', () => { hideAll(); note(level.brief.replace(/<\/?b>/g, m => m), 5); });
+$('#again').addEventListener('click', () => showBrief(idx));
+$('#next').addEventListener('click', () => showBrief(idx + 1));
+$('#sandbox').addEventListener('click', () => { load(-1); hideAll(); note('Sandbox: unlimited pieces. Add qubits with the <b>Qubit</b> tool, then fire and watch the states.', 5); });
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,select,textarea')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { showMenu(); return; }
+  if (!$('#menu').hidden || !$('#brief').hidden || !$('#won').hidden) { if (k === 'enter' && !$('#brief').hidden) $('#briefGo').click(); return; }
+  if (k === 'f' || k === ' ') { e.preventDefault(); fire(); }
+  else if (k === 'u' || ((e.ctrlKey || e.metaKey) && k === 'z')) { e.preventDefault(); undo(); }
+  else if (k === 'r') resetBoard();
+  else if (k === 'h') hint();
+  else if (k === '1' || k === '2' || k === '3') { const types = Object.keys(level.inv); if (types[+k - 1]) { tool = types[+k - 1]; syncUI(); } }
+});
+window.addEventListener('resize', layout);
+
+// Start on the menu, with the first unsolved level loaded behind it.
+load(Math.max(0, nextLevelIndex()));
+showMenu();
+requestAnimationFrame(draw);
+// Test hooks (used by the browser checks; harmless in play).
+window.BEAMLINE = { get level() { return level; }, get placed() { return placed; }, get result() { return result; }, get anim() { return anim; },
+  get fires() { return fires; }, clickCell, fire, load: showBrief, start: () => $('#briefGo').click() };
+</script>
+</body>
+</html>
