@@ -12,6 +12,7 @@ Welcome!
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Outreach usage dashboard](#outreach-usage-dashboard)
 - [Contributing](#contributing)
 - [Contact](#contact)
 
@@ -89,6 +90,12 @@ Each page will also need to import `run_quantum_simulation` from `quantum_simula
 Find the current website here:
 https://qublitz-qubit-lab.streamlit.app/
 [![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](https://unitary.fund)
+
+## Outreach usage dashboard
+
+- Live: [mvwf.github.io/qublitz/outreach/dashboard.html](https://mvwf.github.io/qublitz/outreach/dashboard.html) · demo with synthetic data: [`…/dashboard.html?demo=1`](https://mvwf.github.io/qublitz/outreach/dashboard.html?demo=1)
+- Shows aggregate, anonymous usage of the web demos, the debrief results, insights on what to fix, a report for proposals and redesign briefs per game. It is linked only from here, not from the site.
+- Collection is off until a collector endpoint is set; see [tools/outreach-collector/README.md](tools/outreach-collector/README.md).
 
 ## Contributing 
 ### General Steps 

@@ -34,8 +34,9 @@ and use **Deploy → Manage deployments → Edit → New version** so the URL st
 
 ## The dashboard
 
-[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public (linked as "Usage & feedback" in the hub's
-footer, not indexed by search engines) and shows only what `?summary=1` returns: counts and averages, never free text.
+[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public but deliberately out of sight: it is reached
+from the repository's [README](../../README.md#outreach-usage-dashboard), not from any page of the site, and search
+engines are asked not to index it. It shows only what `?summary=1` returns: counts and averages, never free text.
 
 - `?demo=1` shows realistic synthetic data, labelled **DEMO DATA**, so you can see it before collection starts.
 - `?days=7|30|90|365` picks the period; `?since=YYYY-MM-DD` shows everything since a date (each entry in
