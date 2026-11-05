@@ -96,6 +96,8 @@
   .read .num{font-variant-numeric:tabular-nums;text-align:right}
   .read .move{margin:8px 0 0;padding:6px 8px;background:var(--panel);border-radius:7px;min-height:2.6em}
   .read .move b{color:var(--green)}
+  .goal{margin-top:8px;padding:5px 8px;border-left:3px solid #e0b040;background:#fffaf0;border-radius:0 6px 6px 0}
+  .goal b{color:#8a6a10}
   .lesson{margin-top:10px}
   .lesson .title{font-weight:700;color:var(--green)}
   .labrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
@@ -123,12 +125,13 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/copter.js"></script>
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>🚁 Qubit Copter <span>turn a qubit about x, y and z</span></h1>
 <p class="sub">The drive is exactly on resonance, so <b>nothing moves unless you drive it</b>: no hidden precession. Each control turns the
   Bloch vector about one axis, the way a real pulse does, and the three strips scroll its projections ⟨σx⟩, ⟨σy⟩ and ⟨σz⟩, which are what
   repeated measurements along x, y and z would average to. Start with <b>Learn</b>, play in <b>Free flight</b>, then fly the courses.
-  Your moves open as a real pulse schedule in the <a id="labLinkTop" href="qubit-simulator.html">Virtual Qubit Lab</a>.</p>
+  Your moves open as a real pulse schedule in the <a id="labLinkTop" href="qubit-simulator.html">Virtual Qubit Lab</a>. <a href="#learnPanel">What you will learn, how to play and the goals ↓</a></p>
 
 <div class="stage" id="stage">
   <canvas id="sphere" aria-label="The Bloch sphere: your qubit, the axis you are turning about, and the goal"></canvas>
@@ -137,9 +140,9 @@
   <div class="overlay" id="menu">
     <h2>Qubit Copter<small>NO PRECESSION · YOU DRIVE EVERY ROTATION</small></h2>
     <div class="modes" role="group" aria-label="Mode">
-      <button data-mode="learn" aria-pressed="true"><b>📘 Learn</b><span>six short lessons on X, Y and Z</span></button>
-      <button data-mode="free" aria-pressed="false"><b>🧪 Free flight</b><span>no clock: try any rotation</span></button>
-      <button data-mode="targets" aria-pressed="false"><b>🎯 Play</b><span>reach each target state in time; it speeds up</span></button>
+      <button data-mode="learn" aria-pressed="true"><b>📘 Learn</b><span>Goal: finish six short lessons by resting in the gold ring</span></button>
+      <button data-mode="free" aria-pressed="false"><b>🧪 Free flight</b><span>No goal or clock: try any rotation, then replay it in the lab</span></button>
+      <button data-mode="targets" aria-pressed="false"><b>🎯 Play</b><span>Goal: hit as many targets as you can before 3 hearts run out</span></button>
     </div>
     <label id="circuitOpt" style="font-size:13px;color:#c7d3e6"><input type="checkbox" id="optCircuit"> targets from a real gate circuit (H, S, T, √X…)</label>
     <div class="lessons" id="lessonPick" role="group" aria-label="Lesson"></div>
@@ -193,12 +196,15 @@
       <span>P(1)</span><div class="bar"><i id="bP1"></i></div><span class="num" id="nP1"></span>
     </div>
     <div class="move" id="move">Press a control to see what it does.</div>
+    <div class="goal" id="goalLine"></div>
     <div class="lesson" id="lessonBox" hidden><span class="title" id="lessonTitle"></span> · <span id="lessonBrief"></span></div>
     <div class="labrow" id="freeRow" hidden><span class="chips" id="chips"><span style="font-size:12px;color:var(--muted)">Start from</span></span></div>
     <div class="labrow" id="labRow" hidden><a class="lab empty" id="labGo" target="_blank" rel="noopener" href="qubit-simulator.html">Open my moves in the Virtual Qubit Lab ↗</a>
       <span style="font-size:12px;color:var(--muted)" id="labInfo"></span></div>
   </div>
 </div>
+
+<div id="learnPanel"></div>
 
 <div class="help">
   <div class="panel"><h3>A rotation keeps its own axis</h3>Turning about x leaves ⟨σx⟩ alone and trades ⟨σy⟩ against ⟨σz⟩: watch the strip
@@ -248,7 +254,7 @@ const S = { circuit: store.get('copter:circuit', false), mode: store.get('copter
 if (!C.LESSONS.some(l => l.id === S.lesson)) S.lesson = C.LESSONS[0].id;
 if (S.mode === 'circuit') { S.mode = 'targets'; S.circuit = true; }
 $('#optCircuit').checked = S.circuit;
-$('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); });
+$('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); if (window.QL) QL.event('mode', { level: gameMode() }); });
 const gameMode = () => S.mode === 'targets' && S.circuit ? 'circuit' : S.mode;
 const AXC = ['#ff7a8a', '#7ee08a', '#7fb8ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'], AXL = ['x', 'y', 'z'];
 const isGame = () => S.mode === 'targets' || S.mode === 'circuit';
@@ -408,11 +414,22 @@ let world = null, phase = 'menu', hist = [], marks = [], overAt = 0, noteT = 0, 
 const STEP = 1 / 120, PAST = 2.5, FUTURE = 7;
 function show(id) { ['#menu', '#over', '#paused', '#won'].forEach(o => { $(o).hidden = o !== id; }); }
 const MENU_HELP = {
-  learn: 'Each lesson starts somewhere on the sphere and asks you to reach the <b>gold ring</b>, with only some of the axes. No clock, no lives.',
-  free: 'Hold <b>X</b>, <b>Y</b> or <b>Z</b> (or use the pad below) and watch which strip stays flat. Fire exact π/2 and π pulses. Then open your moves in the lab.',
-  targets: 'Be inside all three gold windows when they reach the copter. Hold on the sphere to <b>point and steer</b>, or drive by axis. A red block on a strip is a forbidden cap on the sphere.',
-  circuit: 'Each target is the state after the gate written above it, starting from |0⟩. Reach it in time, by axis or by pointing.',
+  learn: '<b>Goal: bring the state into the gold ring and stop driving.</b> Each lesson starts somewhere on the sphere and lets you use only some of the axes. No clock, no lives. Do all six to unlock the quiz.',
+  free: '<b>No goal: explore.</b> Hold <b>X</b>, <b>Y</b> or <b>Z</b> (or use the pad below) and watch which strip stays flat. Fire exact π/2 and π pulses. Then open your moves in the lab.',
+  targets: '<b>Goal: be inside all three gold windows when they reach the copter.</b> A miss or a wall costs a heart (you have 3); every 10 targets gives one back. Hold on the sphere to <b>point and steer</b>, or drive by axis. A red block on a strip is a forbidden cap on the sphere.',
+  circuit: '<b>Goal: reach each target in time.</b> Each one is the state after the gate written above it, starting from |0⟩. A miss or a wall costs a heart (you have 3). Steer by axis or by pointing.',
 };
+// One line under "Your qubit" that says what counts as success in the current mode.
+function goalText() {
+  const w = world;
+  if (!w) return '<b>Goal:</b> pick a mode in the game menu and press Start.';
+  if (w.lesson) {
+    const g = w.lesson.goal, name = typeof g === 'string' ? g : `θ = ${g[0]}°, φ = ${g[1]}°`;
+    return `<b>Goal:</b> rest at ${name} (the gold ring) using ${w.lesson.axes.map(a => a.toUpperCase()).join(', ')}.`;
+  }
+  if (S.mode === 'free') return '<b>No goal:</b> explore, then open your moves in the Virtual Qubit Lab.';
+  return '<b>Goal:</b> be in the gold windows when they arrive. 3 hearts; a miss or a wall costs one.';
+}
 function syncMenu() {
   document.querySelectorAll('#menu .modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === S.mode));
   $('#lessonPick').hidden = S.mode !== 'learn'; $('#circuitOpt').hidden = S.mode !== 'targets';
@@ -422,7 +439,11 @@ function syncMenu() {
   const b = isGame() ? store.get('copter:best:' + gameMode(), 0) : 0;
   $('#menuBest').textContent = b ? `Best ${gameMode() === 'circuit' ? 'circuit' : ''} score: ${b}` : S.mode === 'learn' ? `${S.learned.length} of ${C.LESSONS.length} lessons done` : '';
 }
-document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.mode; store.set('copter:mode2', S.mode); syncMenu(); }));
+const ev = (name, data) => { if (window.QL) QL.event(name, data); };
+document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => {
+  const was = gameMode(); S.mode = b.dataset.mode; store.set('copter:mode2', S.mode); syncMenu();
+  if (gameMode() !== was) ev('mode', { level: gameMode() });
+}));
 function start() {
   world = new C.World({ seed: 'r' + Math.random().toString(36).slice(2, 8), mode: gameMode(), lesson: S.lesson });
   hist = []; marks = []; noteT = 0; flash = 0; aim = null; move = lastMove = null; phase = 'play'; show(null); acc = 0; last = performance.now();
@@ -435,6 +456,8 @@ function start() {
     note(world.lesson.brief, 6);
   } else if (S.mode === 'free') note('<b>Free flight.</b> Nothing moves until you drive it. Hold X, Y or Z, or fire a pulse from the pad.', 5);
   else note(gameMode() === 'circuit' ? '<b>Circuit.</b> Each target is the state after the gate written above it, starting from |0⟩.' : '<b>Targets.</b> Be inside all three gold windows when they reach the copter.', 4);
+  $('#goalLine').innerHTML = goalText();
+  if (world.lesson) ev('level_start', { level: world.lesson.id }); else ev('start', { level: gameMode() });
   syncPad(); syncLab();
 }
 function pause() { phase = 'paused'; show('#paused'); }
@@ -458,12 +481,18 @@ function gameOver() {
   $('#overBest').textContent = `Best ${Math.max(score, prev)}`;
   $('#overTip').textContent = w.wallHits > w.misses ? 'A wall on one strip is a cap on the sphere: steer around the red cap, not through it.'
     : 'Try pointing to steer: hold where you want to go, slightly early, and let the drive take you.';
+  ev('lose', { level: gameMode(), value: score, dur_s: w.t });
+  ev('targets', { level: gameMode(), value: w.hits });
+  if (window.QL) setTimeout(() => QL.offerQuiz('Good flight! Want to check what you learned about qubit rotations? It takes about a minute.'), 1200);
   setTimeout(() => { if (phase === 'over') show('#over'); }, 600);
 }
 function lessonDone(e) {
   phase = 'won'; overAt = performance.now(); SND.goal();
   const l = world.lesson, i = C.LESSONS.indexOf(l);
   if (!S.learned.includes(l.id)) { S.learned.push(l.id); store.set('copter:learned', S.learned); }
+  ev('level_complete', { level: l.id, value: Math.round(1000 * e.fidelity) / 1000 });
+  if (window.QL && C.LESSONS.every(x => S.learned.includes(x.id)))
+    setTimeout(() => QL.offerQuiz('All six lessons done! Want to check what you learned? It takes about a minute.'), 1200);
   $('#wonTitle').textContent = `✓ ${l.title}`;
   $('#wonLearn').innerHTML = l.learn + `<br><span style="color:#9fb2cc">Fidelity with the goal: ${(100 * e.fidelity).toFixed(1)} %.</span>`;
   $('#wonMoves').textContent = 'Your moves: ' + describeLog(world.log);
@@ -477,6 +506,7 @@ function handle(ev) {
     else if (e.type === 'hit') {
       SND.hit(world.combo, e.perfect);
       marks.push({ t: world.t, ok: [true, true, true], pts: e.pts, perfect: e.perfect });
+      if (world.hits % 10 === 0) ev('target', { level: gameMode(), value: world.hits });
       if (e.o.gate) note(`<b>${C.GATES[e.o.gate].label}</b> is ${C.GATES[e.o.gate].what}: ${C.stateName(e.o.from)} → ${e.o.label}.`, 4);
     } else if (e.type === 'miss') {
       SND.miss(); flash = 0.2;
@@ -496,7 +526,7 @@ function inWindow(x, o, i) { const [lo, hi] = windowOf(o, i); return x >= lo && 
 /* ---------------- free flight: start states, and the lab link ---------------- */
 C.KETS.forEach(([v, n]) => {
   const b = document.createElement('button'); b.textContent = n; b.title = `Put the qubit in ${n} and clear the moves`;
-  b.addEventListener('click', () => { if (world && S.mode === 'free') { world.reset(v); hist = []; move = lastMove = null; startState = v; syncLab(); } });
+  b.addEventListener('click', () => { if (world && S.mode === 'free') { world.reset(v); hist = []; move = lastMove = null; startState = v; syncLab(); ev('reset', { level: n.replace('−', '-').replace(/[|⟩]/g, '') }); } });
   $('#chips').appendChild(b);
 });
 let startState = [0, 0, 1];
@@ -788,6 +818,9 @@ function frame(now) {
   drawSphere(now / 1000); drawStrips(now / 1000); drawReadout();
   requestAnimationFrame(frame);
 }
+['#labGo', '#wonLab'].forEach(id => $(id).addEventListener('click', () => ev('lab_open', { level: gameMode() })));
+if (window.QL) QL.panel('#learnPanel');
+$('#goalLine').innerHTML = goalText();
 resize(); syncMenu(); syncPad(); requestAnimationFrame(frame);
 </script>
 </body>
