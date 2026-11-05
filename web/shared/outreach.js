@@ -30,6 +30,9 @@
  *   QL.answer(itemId, pick)     record an answer given INSIDE the game (fly through a ring, shoot a target...)
  *                               for quiz item itemId; returns { ok, answer, choice, explain } so the game can
  *                               react. Items answered in-game are skipped by the debrief.
+ *   QL.addItems([item, ...])    add question items at runtime (e.g. a guided step's prediction), same shape as
+ *                               spec.quiz entries; duplicates by id are ignored
+ *   QL.answered(itemId)         true once that item has been answered in this page load
  *   QL.showQuiz()               open the debrief: any unanswered items, two ratings and two free-text boxes
  *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
  *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
@@ -145,6 +148,8 @@
     place = str([d.level, d.step].filter(v => v != null && v !== '').map(String).join('|'), 40) || '';
   }
   function event(name, data) {
+    // A new level resets the place, but a page that already set this level's step keeps it.
+    if (name === 'level_start' && data && data.level != null && place.split('|')[0] !== String(data.level)) context({ level: data.level });
     if (name === 'level_start' && data && data.level != null) context({ level: data.level });
     if (name === 'level_complete') completedThisVisit++;
     if (!enabled() || !game || sentCount >= MAX_EVENTS) return;
@@ -225,6 +230,8 @@
         el('div', {}, el('h4', {}, 'You will learn to'), list((spec.objectives || []).map(x => x.text))),
         spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
+      spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
+      o.noDebrief ? null : el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun }) : null,
       el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
@@ -234,6 +241,11 @@
 
   // ── In-game answers ──────────────────────────────────────────────────────────────────────────────────
   const answered = new Set();
+  function addItems(list) {
+    if (!spec) return;
+    spec.quiz = spec.quiz || [];
+    for (const it of list || []) if (it && it.id && !spec.quiz.some(q => q.id === it.id)) spec.quiz.push(it);
+  }
   function answer(itemId, pick) {
     const items = (spec && spec.quiz) || [], q = items.find(x => x.id === itemId);
     if (!q) return null;
@@ -278,7 +290,11 @@
         : 'Tell us how it went: it helps us make this more fun and clearer.'));
     const qs = items.map((q, qi) => {
       const box = el('fieldset', { class: 'ql-q', style: 'border:0;margin:0' }, el('legend', { style: 'padding:0' }, el('p', { html: `${qi + 1}. ${q.q}` })));
-      q.choices.forEach((c, ci) => {
+      // Shown in a shuffled order (recorded by the original index), so no file can leave every answer first.
+      const order = q.choices.map((c, ci) => ci);
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      order.forEach(ci => {
+        const c = q.choices[ci];
         const id = `ql-${qi}-${ci}`;
         box.append(el('label', { for: id }, el('input', { type: 'radio', name: `ql-${qi}`, id, onchange: () => { picks[qi] = ci; } }), ' ', el('span', { html: c })));
       });
@@ -356,6 +372,7 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
+  root.QL = { event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
   root.QL = { event, context, answer, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
