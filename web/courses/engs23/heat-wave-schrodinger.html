@@ -57,6 +57,7 @@
 <script src="../../shared/outreach-config.js"></script>
 <script src="../../learning/manifest.js"></script>
 <script src="../../shared/outreach.js"></script>
+<script src="../../learning/trio.js"></script>
 <a class="back" id="back" href="../../index.html#engs23">&larr; All demos</a>
 <h1>Three Equations, One Eigenbasis</h1>
 <p class="sub" id="intro">Heat, wave, and Schr&ouml;dinger all live on the same interval with the same walls, so they share one spatial
@@ -65,6 +66,7 @@ differs is only how each equation turns a spatial eigenvalue &lambda;<sub>n</sub
 their own constants (&alpha;, <i>v</i>, &hbar;/2<i>m</i>), so the page picks one time unit for all of them: at t = 1 the heat
 fundamental has decayed to 1/e, the wave fundamental has made one full period, and (at Schr&ouml;dinger rate 1) the Schr&ouml;dinger
 fundamental has turned its phase once. With that fixed, the contrast between the panels is the real content.</p>
+<div id="qlPanel"></div>
 
 <div class="card">
   <h2>The one idea</h2>
@@ -177,6 +179,9 @@ fundamental has turned its phase once. With that fixed, the contrast between the
     <canvas id="cSch"></canvas>
     <div class="legend"><span><i class="sw" style="background:#2d6fb3"></i>Re&Psi;</span><span><i class="sw" style="background:#c84b31"></i>Im&Psi;</span><span><i class="sw" style="background:var(--sch)"></i>|&Psi;|&sup2;</span></div>
     <div class="mini" id="mSch"></div>
+    <p class="mini" style="margin-top:4px">Two modes beat at their energy <i>difference</i>. A qubit is the two-level version:
+      its |0&rang;, |1&rang; phase turns at (E<sub>1</sub> &minus; E<sub>0</sub>)/&hbar;.
+      <a id="qlLab" href="../../qublitz/qubit-simulator.html" style="color:var(--green)">Drive one in the Virtual Qubit Lab &rsaquo;</a></p>
   </div>
 </div>
 
@@ -329,7 +334,7 @@ function frame(ts){ if(!playing) return; if(!last) last=ts; const dt=(ts-last)/1
   t+=dt*speed*0.15; if(t>+$("time").max) t=0; $("time").value=t; drawAll(); requestAnimationFrame(frame); }
 function setPlay(on){ playing=on; $("play").innerHTML=on?"&#10073;&#10073; Pause":"&#9658; Play"; if(on){ last=0; requestAnimationFrame(frame); } }
 
-$("play").addEventListener("click",()=>setPlay(!playing));
+$("play").addEventListener("click",()=>{ setPlay(!playing); if(playing) qlNote("start"); });
 $("reset").addEventListener("click",()=>{ t=0; $("time").value=0; drawAll(); });
 $("time").addEventListener("input",()=>{ t=+$("time").value; drawAll(); });
 $("speed").addEventListener("input",()=>{ speed=+$("speed").value; $("speedLbl").textContent=speed.toFixed(2); });
@@ -337,7 +342,7 @@ $("speed").addEventListener("input",()=>{ speed=+$("speed").value; $("speedLbl")
 function setTimeMax(){ $("time").max=Math.max(1.25, +(1.05/schRate).toFixed(2)); }
 $("schrate").addEventListener("input",()=>{ schRate=+$("schrate").value; $("schrateLbl").textContent=schRate.toFixed(2); setTimeMax(); drawAll(); });
 $("nmodes").addEventListener("input",()=>{ Nmax=+$("nmodes").value; $("nmodesLbl").textContent=Nmax; buildModes(); rebuildState(); drawAll(); });
-$("preset").addEventListener("change",()=>{ rebuildState(); drawAll(); });
+$("preset").addEventListener("change",()=>{ rebuildState(); drawAll(); qlNote("preset",{level:$("preset").value}); });
 $("x0").addEventListener("input",()=>{ params.x0=+$("x0").value; $("x0Lbl").textContent=params.x0.toFixed(2);
   if($("preset").value!=="gauss") $("preset").value="gauss"; rebuildState(); drawAll(); });
 window.addEventListener("resize",()=>{ drawAll(); drawEditor(); drawBars(); });
@@ -455,6 +460,32 @@ function applyState(st){
 }
 $("copyLink").addEventListener("click",e=>PageKit.copyLink(e.target,"courses/engs23/heat-wave-schrodinger.html",shareQuery()));
 
+/* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/<id>.js) ---------- */
+const QLK = window.QL || { event(){}, panel(){}, offerQuiz(){}, context(){}, answer(){ return null; } };
+QLK.panel(document.getElementById('qlPanel'));
+let qlActs = 0; const qlT0 = Date.now();
+// Counted actions (preset, mode, play, sound); after a few minutes of exploring, offer the debrief once.
+function qlNote(name, data){ QLK.event(name, data); if(name === 'preset' || name === 'mode') QLK.context({ level: 'explore', step: data && data.level }); if(++qlActs >= 6 && Date.now() - qlT0 > 150000) QLK.offerQuiz(); }
+// Guided mode is the page's predict-then-reveal: each step sets the quit-map context, and every multiple-choice
+// prediction is recorded with QL.answer as a question item (added when answered, so the debrief skips it).
+// obj maps a 1-based step number to the learning objective it checks.
+function qlGuided(steps, key, obj) { return {
+  onStep: i => QLK.context({ level: 'guided', step: i < steps.length ? 'step' + (i + 1) : 'done' }),
+  onAnswer: (i, ok, pick) => {
+    QLK.event('level_complete', { level: 'step' + (i + 1), value: ok ? 1 : 0 });
+    const st = steps[i], sp = window.QL && QL.spec, id = key + '-g' + (i + 1);
+    if (!st.choices || !obj[i + 1] || !sp || !QLK.answer) return;
+    sp.quiz = sp.quiz || [];
+    if (!sp.quiz.some(q => q.id === id))
+      sp.quiz.push({ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain });
+    QLK.answer(id, pick);
+  },
+  onDone: (right, total) => { QLK.event('win', { value: right });
+    QLK.offerQuiz('You finished the guided predictions (' + right + ' of ' + total + ' held up). A 1-minute debrief: a few more questions and what you thought.'); },
+}; }
+QLK.context({ level: 'explore' });
+if(QLK.toLab) QLK.toLab(document.getElementById('qlLab'));
+
 /* ---------- guided predictions (?guided=1) ---------- */
 const GUIDED=[
   { title:"Same start, three fates",
@@ -493,7 +524,8 @@ const GUIDED=[
     answer:1.111, tol:0.03, unit:"",
     explain:"|Ψ|² contains the cross term cos(2π(2² − 1²) r t) = cos(2π·3·0.3·t), so the period is 1/(3 × 0.3) = 1.111. The page is now at half that, t = 0.556, with the packet on the opposite side. A transition frequency is an energy <i>difference</i>, not either energy." },
 ];
-function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector(".trip"), key:"three-equations" }); }
+function startGuided(){ QLK.event("mode",{level:"guided"});
+  PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector(".trip"), key:"three-equations", ...qlGuided(GUIDED, "three-equations", {1:'heat',3:'wave',4:'sch',5:'sch'}) }); }
 
 buildModes(); setTimeMax(); rebuildState();
 { const st=readQuery(); if(Object.keys(st).length) applyState(st); else drawAll(); }

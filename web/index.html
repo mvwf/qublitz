@@ -88,6 +88,17 @@
   .card.soon p{color:var(--muted);font-size:13px;margin:4px 0 0;max-width:280px}
   .empty{color:var(--muted);font-size:14px;padding:30px 0;text-align:center}
 
+  /* ---------- outreach intro ---------- */
+  .howto{margin:18px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 16px}
+  .howto summary{cursor:pointer;font-weight:700;color:var(--green);font-size:15.5px}
+  .howto summary span{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+  .howto p{font-size:13.5px;margin:8px 0;max-width:900px}
+  .howto .paths{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 22px;margin:6px 0}
+  .howto h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 2px}
+  .howto ol{margin:0;padding-left:20px;font-size:13.5px}.howto li{margin:2px 0}
+  .howto .note{color:var(--muted);font-size:12.5px}
+  .howto code{background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
+
   footer{border-top:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12.5px}
   footer .wrap{padding-top:18px;padding-bottom:22px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
 
@@ -108,6 +119,7 @@
 <script src="shared/outreach-config.js"></script>
 <script src="learning/manifest.js"></script>
 <script src="shared/outreach.js"></script>
+<script src="learning/hub.js"></script>
 <header class="hero">
   <canvas id="heroCanvas" aria-hidden="true"></canvas>
   <div class="wrap">
@@ -130,6 +142,37 @@
     </label>
   </div>
 </nav>
+
+<div class="wrap">
+  <details class="howto" id="outreach" open>
+    <summary>Using these demos for outreach <span>a suggested path, and how each activity works</span></summary>
+    <p>Every activity opens with a short panel: what you will learn, how to play, and what counts as done. Many ask short questions
+      along the way, inside the game, and each one ends with a <b>1-minute debrief</b>: any remaining questions, with the answer and a
+      short explanation shown right away, and two optional boxes for what you learned and what was confusing. Work in pairs and say your prediction out loud before you press anything.</p>
+    <div class="paths">
+      <div><h3>Quantum: learn a qubit by playing</h3>
+        <ol>
+          <li><a href="qublitz/qubit-copter.html">Qubit Copter</a>: turn a qubit about x, y and z on the Bloch sphere.</li>
+          <li><a href="qublitz/rabi-rider.html">Rabi Rider</a>: drive many runs toward |1⟩ while T₁ decay knocks them back.</li>
+          <li><a href="qublitz/beamline.html">Beamline</a>: a laser puzzle about pulse area and phase.</li>
+          <li><a href="qublitz/arena.html">QuBlitz Arena</a>: a two-player duel where you measure at the right moment.</li>
+          <li><a id="hubLab" href="qublitz/qubit-simulator.html">Virtual Qubit Lab</a>: finish by running your own pulse sequences on a simulated qubit.</li>
+        </ol></div>
+      <div><h3>Waves and sound: ENGS 23</h3>
+        <ol>
+          <li><a href="courses/engs23/vibrating-string.html">The Vibrating String</a>: harmonics, a guitar pickup and distortion.</li>
+          <li><a href="courses/engs23/drum-head.html">The Drum Head</a>: why a drum is not a string.</li>
+          <li><a href="courses/engs23/heat-wave-schrodinger.html">Three Equations, One Eigenbasis</a>: heat, waves and quantum on one set of modes.</li>
+          <li><a href="courses/engs23/spectrogram.html">Spectrogram Explorer</a>: read sound as a picture, with your own voice.</li>
+        </ol>
+        <p class="note" style="margin:4px 0 0">The ENGS 23 pages also have a guided version with predict-then-reveal steps: the
+          <i>Try the guided predictions</i> link under each title.</p></div>
+    </div>
+    <p class="note">Running a session? Add <code>?event=NAME</code> to the link you hand out (letters, digits and hyphens), and the
+      anonymous usage counts and answers from that session can be grouped together. No names or accounts are involved.</p>
+  </details>
+</div>
+<script>if (window.QL) { QL.context({ level: 'hub' }); QL.toLab(document.getElementById('hubLab')); }</script>
 
 <main class="wrap" id="main"></main>
 

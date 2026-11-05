@@ -1,0 +1,55 @@
+/* sonify.js: learning material for Sonify Images (qublitz/sonify.html).
+ * The page's model: one row of the grayscale image is an envelope e(t) in [0, 1] over the chosen duration
+ * (columns are time). The sound is e(t)·cos(2πft) with f the modulation (carrier) frequency, so its spectrum
+ * is centred on f, spread by the envelope's own spectrum (amplitude-modulation sidebands). */
+if (window.QL) QL.learning({
+  id: 'sonify',
+  title: 'Sonify Images',
+  tagline: 'Turn a picture into sound. Each row of the image is played as one tone whose loudness follows the brightness of the pixels from left to right.',
+  fun: 'you get to hear the Mona Lisa, a black-hole merger and a lab logo, and to guess what a picture will sound like before you press play.',
+  objectives: [
+    { id: 'map', text: 'Explain the mapping: columns are time, and a pixel\'s brightness is the loudness of the row\'s tone at that moment.' },
+    { id: 'carrier', text: 'Relate the modulation (carrier) frequency to the pitch you hear and to the peak of the spectrum.' },
+    { id: 'sidebands', text: 'Explain why a row with sharp changes in brightness spreads the spectrum to either side of the carrier.' },
+    { id: 'spectro', text: 'Predict what a spectrogram of one sonified row looks like: a single horizontal line at the carrier whose brightness follows the row.' },
+  ],
+  howTo: [
+    'Pick an image from the <b>Gallery</b>. A random row is chosen and drawn as a dashed line.',
+    'Press play on the <b>Audio</b> player to hear that row. Watch the <i>Row signal</i> plot: that is the loudness over time.',
+    'Click another row on the image, or move the <b>Row</b> slider, and play again. Bright rows are loud, dark rows are quiet.',
+    'Change the <b>Modulation frequency</b> (try 130.81 Hz, one octave up) and see the spectrum peak move.',
+    'Press <b>Flip horizontally</b> and listen: the same sound, played in reverse order.',
+  ],
+  goals: [
+    'Predict, before pressing play, whether a row will get louder or quieter over time, then check.',
+    'Find a row whose spectrum is one narrow peak, and one whose spectrum has wide side peaks.',
+    'Finish with the 1-minute debrief.',
+  ],
+  quiz: [
+    { id: 'fade', objective: 'map',
+      q: 'A row is bright on the left and fades to black on the right. What do you hear?',
+      choices: ['A steady pitch that fades out', 'A pitch that falls', 'Silence that gets louder', 'A pitch that rises'],
+      answer: 0,
+      explain: 'Columns are time and brightness is amplitude, so the tone starts loud and fades. The pitch is the carrier frequency, which is the same for the whole row.' },
+    { id: 'octave', objective: 'carrier',
+      q: 'You change the modulation frequency from 65.41 Hz to 130.81 Hz. What changes?',
+      choices: ['The pitch goes up an octave and the spectrum peak moves to 130.81 Hz', 'The sound gets twice as loud', 'The sound lasts half as long', 'Nothing; the image sets the pitch'],
+      answer: 0,
+      explain: 'The sound is e(t)·cos(2πft), so f is the pitch and the centre of the spectrum. Doubling f is one octave. The duration is set separately and the loudness by the pixels.' },
+    { id: 'stripes', objective: 'sidebands',
+      q: 'Compared with a row of uniform grey, a row of sharp black and white stripes has a spectrum that is…',
+      choices: ['still centred on the carrier, but with side peaks above and below it', 'moved to a higher centre frequency', 'a single narrower peak', 'empty at the carrier frequency'],
+      answer: 0,
+      explain: 'Multiplying by cos(2πft) shifts the envelope\'s spectrum to ±f. A uniform row has only a constant part, so one peak at f. Stripes add the stripe frequency F and its harmonics, which appear as sidebands at f ± F, f ± 3F, …; the stripes\' average brightness keeps the peak at f.' },
+    { id: 'spectro', objective: 'spectro',
+      q: 'You record one sonified row and put it into the Spectrogram Explorer. What do you see?',
+      choices: ['One horizontal line at the carrier, bright where the row is bright and dark where it is dark', 'The whole image, drawn in frequency', 'A diagonal line rising in frequency', 'Vertical stripes at every column'],
+      answer: 0,
+      explain: 'Each moment of the sound is the same tone with a different loudness, so the spectrogram is one line at f whose colour follows the row (slightly widened where the brightness changes fast). To paint a whole picture in a spectrogram you would give every row its own frequency and play them all at once.' },
+    { id: 'flip', objective: 'map',
+      q: 'You press <b>Flip horizontally</b>. What happens to the sound?',
+      choices: ['The loud and quiet parts swap ends in time; the pitch stays the same', 'The pitch is inverted, high becomes low', 'The sound is unchanged', 'Bright and dark swap, so loud becomes quiet'],
+      answer: 0,
+      explain: 'Flipping left to right reverses the order of the columns, which are time. The carrier is the same, so the pitch does not change. Inverting brightness would be a different operation.' },
+  ],
+});
