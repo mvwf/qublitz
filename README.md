@@ -49,6 +49,9 @@ The physics lives in `web/qublitz/rabi-engine.js` and is checked by `node web/qu
 ### Home
 The landing page with a welcome message and navigation to all available apps.
 
+### Resonator Lab (web only)
+An interactive page on internal and coupling quality factors of microwave resonators ([open it](https://mvwf.github.io/qublitz/qublitz/resonator.html)). Students move Qi and Qc and watch the resonance change in magnitude, phase and the IQ plane, then fit a resonance: a mystery resonator with a hidden answer, or their own network-analyzer data (CSV or Touchstone) with the hanger, reflection or transmission model or a formula they type. Every fit can be exported as a Python script.
+
 ### Sonify Images
 This app allows you to turn images into sound by mapping image data to audio signals. Upload your own image or use a premade one, and explore the sonification process interactively.
 

@@ -200,6 +200,11 @@ const DEMOS = [
     eq:'<i>n&#772;</i><sub>out</sub> = <span class="fr"><span><i>n&#772;</i><sub>in</sub></span><span><i>L</i></span></span> + (1 &minus; <span class="fr"><span>1</span><span><i>L</i></span></span>) <i>n&#772;</i>(<i>T<sub>i</sub></i>, <i>f</i>)',
     desc:'Follow room-temperature noise down a dilution fridge drive line. Set each stage\'s temperature and attenuation and see how many thermal photons reach the qubit.',
     tags:['cryogenics','thermal noise','microwave'] },
+  { group:'research', title:'Resonator Lab', thumb:'resonator',
+    href:'qublitz/resonator.html', repo:'https://github.com/mvwf/qublitz',
+    eq:'<span class="fr"><span>1</span><span><i>Q</i><sub>l</sub></span></span> = <span class="fr"><span>1</span><span><i>Q</i><sub>i</sub></span></span> + <span class="fr"><span>1</span><span><i>Q</i><sub>c</sub></span></span>',
+    desc:'See how internal and coupling quality factors shape a resonance in magnitude, phase and the IQ plane, then fit one: a mystery resonator with a hidden answer, or your own VNA data (CSV or Touchstone) with built-in models or a formula you type. Exports a Python script.',
+    tags:['resonators','quality factor','fitting','microwave'] },
   { group:'research', title:'Exceptional Points & TPDs', thumb:'ep',
     href:'qublitz/ep-tpd.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>K&#772;</i><sub>2</sub> = <span class="fr"><span><i>&Delta;</i><sub>f</sub><sup>2</sup> + <i>&Delta;</i><sub>&kappa;</sub><sup>2</sup> + |<i>&Delta;</i><sub>&lambda;</sub>|<sup>2</sup> + 4</span><span>2|<i>&Delta;</i><sub>&lambda;</sub>|<sup>2</sup></span></span>',
@@ -410,6 +415,24 @@ const THUMBS = {
     g.fillText(u<TM? `P(1) ${Math.round(p1*100)}%` : hit? 'MEASURE → |1⟩ hit' : 'MEASURE → |0⟩ dud', op[0], op[1]+R+13);
     if(u>=TM&&u<TM+0.9){ const a=(u-TM)/0.9; g.strokeStyle=`rgba(255,255,255,${1-a})`; g.lineWidth=2; g.beginPath(); g.arc(op[0],op[1],R+a*26,0,7); g.stroke(); }
     g.textAlign='left';
+  },
+  resonator(g,w,h,t){
+    // a hanger dip and its IQ circle, with the probe frequency sweeping across
+    const k=0.5+0.4*Math.sin(t*0.6), u=Math.sin(t*0.9)*2.4;
+    const S=y=>{const d=k/(1+y*y);return [1-d,d*y];};
+    const pw=w*0.56, y0=14, y1=h-14;
+    g.strokeStyle=C.grid; g.lineWidth=1; g.beginPath(); g.moveTo(10,y0); g.lineTo(pw,y0); g.stroke();
+    g.lineWidth=2.4; g.strokeStyle=C.green; g.beginPath();
+    for(let i=0;i<=80;i++){const y=-3+6*i/80, s=S(y), m=Math.hypot(s[0],s[1]); const px=10+(pw-10)*i/80, py=y0+(1-m)*(y1-y0); i?g.lineTo(px,py):g.moveTo(px,py);}
+    g.stroke();
+    const su=S(u), mu=Math.hypot(su[0],su[1]);
+    g.fillStyle=C.gold; g.beginPath(); g.arc(10+(pw-10)*(u+3)/6,y0+(1-mu)*(y1-y0),4,0,7); g.fill();
+    const cx=pw+(w-pw)/2+4, cy=h/2, R=Math.min((w-pw)/2-10,h/2-12);
+    g.strokeStyle=C.grid; g.lineWidth=1; g.beginPath(); g.moveTo(pw+12,cy); g.lineTo(w-6,cy); g.stroke();
+    const X=re=>cx+R*(re-1+k/2)/0.5, Y=im=>cy-R*im/0.5;
+    g.strokeStyle=C.blue; g.lineWidth=2.2; g.beginPath(); g.arc(X(1-k/2),cy,R*k,0,7); g.stroke();
+    g.fillStyle=C.red; g.beginPath(); g.arc(X(1-k),cy,3.5,0,7); g.fill();
+    g.fillStyle=C.gold; g.beginPath(); g.arc(X(su[0]),Y(su[1]),4,0,7); g.fill();
   },
   chain(g,w,h,t){
     // photon number stepping down through the attenuators, log scale

@@ -44,6 +44,7 @@ so a handout can say "open this setup" instead of listing slider values:
 | `courses/engs23/spectrogram.html` | `rec` (gong, tones, clicks, chirp, alias, or an archive key), `N`, `scale`, `fmax`, `dr` |
 | `qublitz/qubit-simulator.html` | `qubit` code (+ `assigned=1`), or `free=ωq GHz,Ω_R MHz,T1 ns,T2 ns` |
 | `qublitz/fridge-noise.html`, `qublitz/ep-tpd.html` | everything on the page |
+| `qublitz/resonator.html` | Explore: `g` hanger, reflection or transmission, `qi`, `qc`, `fr` GHz, `phi` degrees, `env=1`. Fit: `seed`, `pl` difficulty 1–3, `pm` geometry (one mystery resonator for a whole class). Tabs by hash: `#explore`, `#fit`, `#learn` |
 
 Adding `?guided=1` to an ENGS 23 page opens predict-then-reveal checkpoints: each step sets
 the page up, hides the plots that would give the answer away, asks for a prediction, and
