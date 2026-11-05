@@ -22,7 +22,7 @@ if (window.QL) QL.learning({
     'The big map is drawn over two knobs of the dimer: the frequency detuning Δ̃<sub>f</sub> (up) and the damping difference Δ̃<sub>κ</sub> (across), both in units of the coupling J.',
     'Red × is the primary EP and red ○ is the primary TPD. Color is the Petermann factor (1 means two independent, orthogonal modes); gray means unstable, where one mode grows instead of decaying.',
     'Move the <b>Cavity damping κ̃<sub>c</sub></b> and <b>Coupling phase φ</b> sliders on the right and watch the markers move. The table lists their exact positions and the distance between the primary EP and TPD.',
-    'The lower plot cuts through the primary EP: purple lines are the transmission peaks, black dashed lines are the eigenfrequencies |Im λ±|.',
+    'The lower plot cuts through the primary EP: purple lines are the transmission peaks, dashed lines are the eigenfrequencies |Im λ±|.',
     'Work through the challenges above the map. Each one ticks itself.',
   ],
   goals: [

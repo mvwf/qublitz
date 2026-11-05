@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../shared/retro-fonts.js"></script>
+<script src="../shared/retro.js"></script>
 <title>Fridge Noise Explorer — Qublitz</title>
 <!-- Everything this page needs ships with it (no CDN), so it also works offline.
      scripts/build_standalone.py inlines these two scripts into a single downloadable file. -->
@@ -49,6 +51,7 @@
   .plate,.wire,.out{padding:10px 12px;border-top:1px solid var(--line)}
   .fridge>.hdr{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:0 12px 6px;border:none}
   .plate{border-left:5px solid var(--c);background:linear-gradient(90deg,color-mix(in srgb,var(--c) 9%,#fff),#fff)}
+  html.retro .plate{background:linear-gradient(90deg,color-mix(in srgb,var(--c) 16%,transparent),transparent 85%)}
   .plate b{display:block;font-size:14.5px}
   .plate .field{margin-top:5px}
   .plate input{width:110px}
