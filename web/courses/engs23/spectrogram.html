@@ -46,11 +46,13 @@
 <script src="../../shared/outreach-config.js"></script>
 <script src="../../learning/manifest.js"></script>
 <script src="../../shared/outreach.js"></script>
+<script src="../../learning/spectrogram.js"></script>
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>Spectrogram Explorer</h1>
 <p class="sub" id="intro">Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws
 magnitude in decibels on an <i>inferno</i> color scale, frequency versus time. Press play to hear it and a white playhead tracks the audio. You can also stream your microphone live and
 watch the spectrum scroll past. Everything runs locally in the browser and nothing is uploaded.</p>
+<div id="qlPanel"></div>
 
 <div class="card">
   <h2>Source</h2>
@@ -647,7 +649,7 @@ function liveLoop(){
   live.raf=requestAnimationFrame(liveLoop);
 }
 
-$("btnLive").addEventListener("click", ()=>{ if(live.on) stopLive(); else startLive(); });
+$("btnLive").addEventListener("click", ()=>{ if(live.on) stopLive(); else { startLive(); qlNote("mode",{level:"mic"}); } });
 
 /* ---------- UI wiring ---------- */
 function refreshSelect(){
@@ -659,7 +661,7 @@ function addEntry(entry, select){
   if(select){ $("fileSel").value=entries.length-1; loadEntry(entry); }
 }
 
-$("fileSel").addEventListener("change", e=>{ selectEntry(+e.target.value); });
+$("fileSel").addEventListener("change", e=>{ selectEntry(+e.target.value); const en=entries[+e.target.value]; qlNote("preset",{level:(en&&en.key)||"own-file"}); });
 
 $("btnUpload").addEventListener("click",()=>$("fileInput").click());
 $("fileInput").addEventListener("change", e=>{
@@ -682,7 +684,7 @@ $("folderInput").addEventListener("change", e=>{
 
 $("btnPlay").addEventListener("click", async ()=>{
   if(actx&&actx.state==="suspended") await actx.resume();
-  if(audio.paused){ audio.play(); }
+  if(audio.paused){ audio.play(); qlNote("start"); }
   else audio.pause();
 });
 audio.addEventListener("play", ()=>{ $("btnPlay").textContent="❚❚ Pause"; $("btnPlay").className="sound"; raf(); });
@@ -701,7 +703,7 @@ specCv.addEventListener("click", e=>{
   audio.currentTime=frac*duration; drawPlayhead(); updateFileSpectrum();
 });
 
-$("fftSel").addEventListener("change", ()=>{ if(live.on){ live.analyser.fftSize=Math.min(32768,Math.max(32,+$("fftSel").value)); } else recompute(); });
+$("fftSel").addEventListener("change", ()=>{ qlNote("mode",{level:"N"+$("fftSel").value}); if(live.on){ live.analyser.fftSize=Math.min(32768,Math.max(32,+$("fftSel").value)); } else recompute(); });
 ["scaleSel","fmax","drange"].forEach(id=>$(id).addEventListener("input", ()=>{ if(spec) draw(); updateFileSpectrum(); }));
 $("fmax").addEventListener("input",()=>$("fmaxLbl").textContent=(+$("fmax").value)+" Hz");
 $("drange").addEventListener("input",()=>$("drangeLbl").textContent=(+$("drange").value)+" dB");
@@ -790,6 +792,31 @@ function applyState(st){
 }
 $("copyLink").addEventListener("click",e=>PageKit.copyLink(e.target,"courses/engs23/spectrogram.html",shareQuery()));
 
+/* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/<id>.js) ---------- */
+const QLK = window.QL || { event(){}, panel(){}, offerQuiz(){}, context(){}, answer(){ return null; } };
+QLK.panel(document.getElementById('qlPanel'));
+let qlActs = 0; const qlT0 = Date.now();
+// Counted actions (preset, mode, play, sound); after a few minutes of exploring, offer the debrief once.
+function qlNote(name, data){ QLK.event(name, data); if(name === 'preset' || name === 'mode') QLK.context({ level: 'explore', step: data && data.level }); if(++qlActs >= 6 && Date.now() - qlT0 > 150000) QLK.offerQuiz(); }
+// Guided mode is the page's predict-then-reveal: each step sets the quit-map context, and every multiple-choice
+// prediction is recorded with QL.answer as a question item (added when answered, so the debrief skips it).
+// obj maps a 1-based step number to the learning objective it checks.
+function qlGuided(steps, key, obj) { return {
+  onStep: i => QLK.context({ level: 'guided', step: i < steps.length ? 'step' + (i + 1) : 'done' }),
+  onAnswer: (i, ok, pick) => {
+    QLK.event('level_complete', { level: 'step' + (i + 1), value: ok ? 1 : 0 });
+    const st = steps[i], sp = window.QL && QL.spec, id = key + '-g' + (i + 1);
+    if (!st.choices || !obj[i + 1] || !sp || !QLK.answer) return;
+    sp.quiz = sp.quiz || [];
+    if (!sp.quiz.some(q => q.id === id))
+      sp.quiz.push({ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain });
+    QLK.answer(id, pick);
+  },
+  onDone: (right, total) => { QLK.event('win', { value: right });
+    QLK.offerQuiz('You finished the guided predictions (' + right + ' of ' + total + ' held up). A 1-minute debrief: a few more questions and what you thought.'); },
+}; }
+QLK.context({ level: 'explore' });
+
 /* ---------- guided predictions (?guided=1) ---------- */
 const GUIDED=[
   { title:"A gong is not a string",
@@ -822,9 +849,10 @@ const GUIDED=[
     intro:"This file is sampled at f<sub>s</sub> = 8000 Hz, so nothing above the Nyquist frequency of 4000 Hz can be represented. For the first second the source was a 5 kHz tone.",
     ask:"At what frequency does the 5 kHz tone appear?",
     answer:3000, tol:60, unit:"Hz",
-    explain:"Sampled at 8 kHz, a 5 kHz sine gives exactly the same samples as a 3 kHz one, since cos(2π·5000·k/8000) = cos(2π·3000·k/8000). The tone folds to |f − f<sub>s</sub>| = 3 kHz. In the second half the 7 kHz tone folds to 1 kHz. Real recorders filter out everything above Nyquist before sampling for this reason." },
+    explain:"Sampled at 8 kHz, a 5 kHz tone is indistinguishable from a 3 kHz one: cos(2π·5000·k/8000) = cos(2π·3000·k/8000) for every sample k (a sine only flips sign). The tone folds to |f − f<sub>s</sub>| = 3 kHz. In the second half the 7 kHz tone folds to 1 kHz. Real recorders filter out everything above Nyquist before sampling for this reason." },
 ];
-function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:$("specCard"), key:"spectrogram" }); }
+function startGuided(){ QLK.event("mode",{level:"guided"});
+  PageKit.guided({ steps:GUIDED, apply:applyState, before:$("specCard"), key:"spectrogram", ...qlGuided(GUIDED, "spectrogram", {1:'harmonic',2:'tradeoff',3:'tradeoff'}) }); }
 
 { const st=readQuery();
   if(PageKit.wantsGuided()) startGuided();

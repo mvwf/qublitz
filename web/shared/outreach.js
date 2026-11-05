@@ -25,8 +25,15 @@
  *       { id, title, tagline, fun, objectives: [{ id, text }], howTo: [text], goals: [text],
  *         quiz: [{ id, objective, q, choices: [text], answer: index, explain }] }
  *   QL.panel(el, opts)          render the "What you'll learn / How to play / Goals" panel into el
- *   QL.showQuiz()               open the quiz dialog for this page
- *   QL.offerQuiz(message)       a small prompt that opens the quiz (once per page load)
+ *   QL.context({ level, step }) where the player is now; the "leave" event reports the last place, so the
+ *                               dashboard can show where people stop (set it on every level/step change)
+ *   QL.answer(itemId, pick)     record an answer given INSIDE the game (fly through a ring, shoot a target...)
+ *                               for quiz item itemId; returns { ok, answer, choice, explain } so the game can
+ *                               react. Items answered in-game are skipped by the debrief.
+ *   QL.showQuiz()               open the debrief: any unanswered items, two ratings and two free-text boxes
+ *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
+ *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
+ *   QL.toLab(anchor, query)     the same, set on a link, counting the click as a to_lab event
  *   QL.enabled(), QL.optOut(on), QL.code()
  */
 (function (root) {
@@ -65,7 +72,8 @@
     const out = { kind: 'quiz', game, day: c.day, dev: c.dev === 'touch' ? 'touch' : 'desktop', answers,
       score: answers.filter(a => a.ok).length, n: answers.length,
       fun: num(rec.fun, 1, 5), learned: num(rec.learned, 1, 5),
-      txt_learned: redact(rec.txt_learned || ''), txt_confusing: redact(rec.txt_confusing || '') };
+      txt_learned: redact(rec.txt_learned || ''), txt_confusing: redact(rec.txt_confusing || ''),
+      src: rec.src === 'ingame' ? 'ingame' : 'debrief' };
     if (c.code && CODE.test(c.code)) out.code = c.code;
     return out;
   }
@@ -130,7 +138,15 @@
     send({ v: V, events: batch }, beacon);
     if (queue.length) flush(beacon);
   }
+  // Where the player is (for the quit map) and how far they got this visit.
+  let place = '', completedThisVisit = 0;
+  function context(c) {
+    const d = c || {};
+    place = str([d.level, d.step].filter(v => v != null && v !== '').map(String).join('|'), 40) || '';
+  }
   function event(name, data) {
+    if (name === 'level_start' && data && data.level != null) context({ level: data.level });
+    if (name === 'level_complete') completedThisVisit++;
     if (!enabled() || !game || sentCount >= MAX_EVENTS) return;
     const e = cleanEvent(game, name, data, ctx());
     if (!e) return;
@@ -149,7 +165,7 @@
   });
   root.addEventListener('pagehide', () => {
     if (since != null) { activeMs += performance.now() - since; since = null; }
-    if (!leftSent) { leftSent = true; event('leave', { dur_s: activeMs / 1000 }); }
+    if (!leftSent) { leftSent = true; event('leave', { dur_s: activeMs / 1000, level: place || 'menu', value: completedThisVisit }); }
     flush(true);
   });
 
@@ -210,19 +226,45 @@
         spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun }) : null,
-      spec.quiz && spec.quiz.length ? el('div', { class: 'ql-row', style: 'margin-top:8px' },
-        el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Check what you learned (1 min) ▸')) : null);
+      el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
+        el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
     if (o.replace) host.replaceChildren(box); else host.append(box);
     return box;
   }
 
-  // ── Quiz ─────────────────────────────────────────────────────────────────────────────────────────────
+  // ── In-game answers ──────────────────────────────────────────────────────────────────────────────────
+  const answered = new Set();
+  function answer(itemId, pick) {
+    const items = (spec && spec.quiz) || [], q = items.find(x => x.id === itemId);
+    if (!q) return null;
+    const ok = pick === q.answer;
+    answered.add(itemId);
+    const rec = cleanQuiz(game, { answers: [{ q: q.id, obj: q.objective, pick, ok }], src: 'ingame' }, ctx());
+    if (rec) send({ v: V, quiz: rec }, false);
+    return { ok, answer: q.answer, choice: q.choices[q.answer], explain: q.explain || '' };
+  }
+
+  // ── Lab links: every activity can send people on to the Virtual Qubit Lab ────────────────────────────
+  const kitBase = (() => { const me = doc.currentScript; return me && me.src ? me.src.replace(/shared\/outreach\.js(?:[?#].*)?$/, '') : ''; })();
+  function labLink(query) {
+    const q = (query ? String(query).replace(/^\?/, '') + '&' : '') + 'from=' + encodeURIComponent(game || 'site');
+    const base = offline ? 'https://mvwf.github.io/qublitz/' : kitBase;
+    return base + 'qublitz/qubit-simulator.html?' + q;
+  }
+  function toLab(a, query) {
+    if (!a) return;
+    a.href = labLink(query);
+    a.addEventListener('click', () => { event('to_lab'); flush(true); });
+  }
+
+  // ── Debrief (the end-of-activity card) ───────────────────────────────────────────────────────────────
   let quizOpen = false;
   function showQuiz() {
-    if (!spec || !spec.quiz || !spec.quiz.length || quizOpen) return;
+    if (!spec || quizOpen) return;
     quizOpen = true;
     event('quiz_open');
-    const picks = spec.quiz.map(() => -1), rate = { fun: 0, learned: 0 };
+    const items = (spec.quiz || []).filter(q => !answered.has(q.id));
+    const picks = items.map(() => -1), rate = { fun: 0, learned: 0 };
     const prevFocus = doc.activeElement;
     const veil = el('div', { class: 'ql-veil' });
     const dlg = el('div', { class: 'ql-dlg', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ql-title' });
@@ -230,9 +272,11 @@
     const onKey = e => { if (e.key === 'Escape') close(); };
     doc.addEventListener('keydown', onKey);
 
-    dlg.append(el('h2', { id: 'ql-title' }, `${spec.title || 'Quick check'}: what did you learn?`),
-      el('p', { class: 'ql-sub' }, `${spec.quiz.length} short questions, then two optional boxes. You see the answers right away.`));
-    const qs = spec.quiz.map((q, qi) => {
+    dlg.append(el('h2', { id: 'ql-title' }, `${spec.title || 'Activity'}: debrief`),
+      el('p', { class: 'ql-sub' }, items.length
+        ? `${items.length} quick question${items.length > 1 ? 's' : ''}, then tell us how it went. You see the answers right away.`
+        : 'Tell us how it went: it helps us make this more fun and clearer.'));
+    const qs = items.map((q, qi) => {
       const box = el('fieldset', { class: 'ql-q', style: 'border:0;margin:0' }, el('legend', { style: 'padding:0' }, el('p', { html: `${qi + 1}. ${q.q}` })));
       q.choices.forEach((c, ci) => {
         const id = `ql-${qi}-${ci}`;
@@ -255,7 +299,7 @@
       el('p', { class: 'ql-note' }, 'Please do not write your name, email or anything that identifies you. ' +
         (enabled() ? `Answers are sent anonymously to ${CFG.owner || 'the site owners'} to improve these activities.` : 'Nothing is sent from this copy; your answers stay in this browser.'))));
     const msg = el('p', { class: 'ql-note', 'aria-live': 'polite' });
-    const btnCheck = el('button', { class: 'ql-btn', type: 'button' }, 'Check my answers');
+    const btnCheck = el('button', { class: 'ql-btn', type: 'button' }, items.length ? 'Check my answers' : 'Send');
     const btnClose = el('button', { class: 'ql-btn ql-ghost', type: 'button', onclick: close }, 'Close');
     dlg.append(msg, el('div', { class: 'ql-row' }, btnClose, btnCheck));
     let checked = false;
@@ -263,17 +307,21 @@
       if (!checked) {
         checked = true;
         let score = 0;
-        spec.quiz.forEach((q, qi) => {
+        items.forEach((q, qi) => {
           const ok = picks[qi] === q.answer; if (ok) score++;
           qs[qi].querySelectorAll('input').forEach(i => { i.disabled = true; });
           qs[qi].append(el('div', { class: 'ql-why ' + (ok ? 'ok' : 'no'), html: (ok ? '✓ Right. ' : `✗ The answer is: ${q.choices[q.answer]}. `) + (q.explain || '') }));
         });
-        const rec = cleanQuiz(game, { answers: spec.quiz.map((q, qi) => ({ q: q.id, obj: q.objective, pick: picks[qi], ok: picks[qi] === q.answer })),
+        const rec = cleanQuiz(game, { answers: items.map((q, qi) => ({ q: q.id, obj: q.objective, pick: picks[qi], ok: picks[qi] === q.answer })),
           fun: rate.fun || undefined, learned: rate.learned || undefined, txt_learned: tLearned.value, txt_confusing: tConf.value }, ctx());
         const sent = rec && send({ v: V, quiz: rec }, false);
         store.set(`ql_quiz_done:${game}`, String(score));
-        msg.textContent = `You got ${score} of ${spec.quiz.length}. ` + (sent ? 'Thank you, your answers were sent anonymously.' : '');
+        msg.textContent = (items.length ? `You got ${score} of ${items.length}. ` : '') + (sent ? 'Thank you, your answers were sent anonymously.' : 'Thank you!');
         btnCheck.textContent = 'Done'; btnClose.remove();
+        if (game !== 'qubit-lab') {
+          const a = el('a', { class: 'ql-btn ql-ghost', style: 'text-decoration:none' }, 'Now try it on a lab-style qubit: the Virtual Qubit Lab ↗');
+          toLab(a); msg.after(el('div', { class: 'ql-row', style: 'justify-content:flex-start' }, a));
+        }
       } else close();
     });
     veil.addEventListener('click', e => { if (e.target === veil) close(); });
@@ -283,13 +331,13 @@
 
   let offered = false;
   function offerQuiz(message) {
-    if (offered || !spec || !spec.quiz || !spec.quiz.length || quizOpen) return;
+    if (offered || !spec || quizOpen) return;
     offered = true;
     const box = el('div', { class: 'ql-offer', role: 'status' },
-      el('div', { html: message || 'Nice work! Want to check what you learned? It takes about a minute.' }),
+      el('div', { html: message || 'Nice work! A 1-minute debrief helps us make this better.' }),
       el('div', { class: 'ql-row' },
         el('button', { class: 'ql-btn ql-ghost', type: 'button', onclick: () => box.remove() }, 'Later'),
-        el('button', { class: 'ql-btn', type: 'button', onclick: () => { box.remove(); showQuiz(); } }, 'Take the quiz')));
+        el('button', { class: 'ql-btn', type: 'button', onclick: () => { box.remove(); showQuiz(); } }, 'Debrief')));
     doc.body.append(box);
     setTimeout(() => box.remove(), 20000);
   }
@@ -308,10 +356,16 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
-  root.QL = { event, learning, panel, showQuiz, offerQuiz, enabled, optOut, code, get game() { return game; }, get spec() { return spec; },
+  root.QL = { event, context, answer, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+              get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', privacyNote); else privacyNote();
   // Counted once per page load, after the page's own learning file has had a chance to set the id.
-  setTimeout(() => event('open'), 0);
+  // Arrivals from another activity (?from=beamline) are counted by source, so the dashboard can show which
+  // activities send people on to the Virtual Qubit Lab.
+  setTimeout(() => {
+    const m = /[?&]from=([a-z0-9-]{1,32})/.exec(location.search);
+    event('open', m ? { level: 'from:' + m[1] } : undefined);
+  }, 0);
 })(typeof window !== 'undefined' ? window : globalThis);

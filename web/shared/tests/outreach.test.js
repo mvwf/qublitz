@@ -50,6 +50,21 @@ check('summary has quiz accuracy per item and ratings', S.quiz.beamline.items.q1
 check('summary counts free text but never includes it', S.feedbackCount.beamline === 1 && !JSON.stringify(S).includes('phase sets the axis'));
 check('summary splits by outreach code', S.codes.SCIFAIR26 === 1);
 
+// quit map, visit depth, in-game answers and lab arrivals
+const rows2 = [
+  gs.cleanEventRow({ game: 'rider', ev: 'leave', level: 'photon', value: 1, dur_s: 90, day: '2026-11-05' }, now),
+  gs.cleanEventRow({ game: 'rider', ev: 'leave', level: 'photon', value: 1, dur_s: 60, day: '2026-11-05' }, now),
+  gs.cleanEventRow({ game: 'rider', ev: 'leave', level: 'menu', value: 0, dur_s: 10, day: '2026-11-05' }, now),
+  gs.cleanEventRow({ game: 'qubit-lab', ev: 'open', level: 'from:beamline', day: '2026-11-05' }, now),
+];
+const ing = gs.cleanQuizRows({ game: 'rider', day: '2026-11-05', src: 'ingame', answers: [{ q: 'q1', obj: 'o1', pick: 2, ok: true }] }, now);
+const S2 = gs.summarize(rows2, [ing.quiz], [], 90, now);
+check('summary maps where visits end and how far they got', S2.games.rider.quits.photon === 2 && S2.games.rider.quits.menu === 1 && S2.games.rider.completedPerVisit[1] === 2);
+check('in-game answers count toward items but not debriefs', S2.quiz.rider.items.q1.correct === 1 && S2.quiz.rider.n === 0 && S2.quiz.rider.ingame === 1);
+check('summary counts lab arrivals by source activity', S2.labFrom.beamline === 1);
+const qi = kit.cleanQuiz('rider', { answers: [{ q: 'q1', obj: 'o1', pick: 2, ok: true }], src: 'ingame' }, ctx);
+check('cleanQuiz keeps the in-game source', qi.src === 'ingame');
+
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);
 

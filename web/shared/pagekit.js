@@ -5,12 +5,15 @@
  *     Copies a link that reopens the page with the given settings. In the offline download the link
  *     points at the live site, since a file:// path means nothing to whoever receives it.
  *
- *   PageKit.guided({ steps, apply, before, key })
+ *   PageKit.guided({ steps, apply, before, key, onStep, onAnswer, onDone })
  *     Predict-then-reveal checkpoints, shown when the page is opened with ?guided=1. Each step sets
  *     the page up (apply(step.setup)), hides the plots that would give the answer away (step.cover,
  *     a list of selectors), asks for a prediction (step.choices with step.answer = index, or a
  *     number with step.answer, step.tol and step.unit), and only then reveals: apply(step.reveal),
  *     uncover, and show step.explain. Progress is kept in localStorage when the browser allows it.
+ *     Optional hooks: onStep(index) whenever a step (or, with index = steps.length, the summary) is shown,
+ *     onAnswer(index, right, pick) when a prediction is locked in, onDone(right, total) when the last
+ *     step's Finish is pressed.
  */
 (function (root) {
   'use strict';
@@ -150,7 +153,11 @@
         else { const inp = panel.querySelector('.gd-num input');
           inp.addEventListener('input', () => { pick = parseFloat(inp.value); lock.disabled = !Number.isFinite(pick); });
           inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !lock.disabled) lock.click(); }); }
-        lock.addEventListener('click', () => { answers[k] = pick; save(); showStep(false); });
+        lock.addEventListener('click', () => {
+          answers[k] = pick; save();
+          if (opts.onAnswer) try { opts.onAnswer(k, isRight(s, pick), pick); } catch (e) { /* a hook must not break the step */ }
+          showStep(false);
+        });
       }
     }
 
@@ -164,7 +171,11 @@
           <button type="button" class="gd-btn primary" data-act="restart">Start over</button></div>`;
     }
 
-    function render(fresh) { if (k >= steps.length) showSummary(); else showStep(fresh); save(); }
+    function render(fresh) {
+      if (k >= steps.length) showSummary(); else showStep(fresh);
+      save();
+      if (opts.onStep) try { opts.onStep(k); } catch (e) { /* a hook must not break the step */ }
+    }
 
     panel.addEventListener('click', e => {
       const a = e.target.closest('[data-act]'); if (!a) return;
@@ -175,7 +186,11 @@
         if (opts.onExit) opts.onExit();
         return;
       }
-      if (act === 'next') k++;
+      if (act === 'next') {
+        k++;
+        if (k >= steps.length && opts.onDone)
+          try { opts.onDone(steps.filter((s, i) => isRight(s, answers[i])).length, steps.length); } catch (err) { /* hook */ }
+      }
       if (act === 'back') k = Math.max(0, k - 1);
       if (act === 'restart') { k = 0; answers.fill(null); }
       render(true);

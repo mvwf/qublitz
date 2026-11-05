@@ -76,6 +76,7 @@
 <script src="../../shared/outreach-config.js"></script>
 <script src="../../learning/manifest.js"></script>
 <script src="../../shared/outreach.js"></script>
+<script src="../../learning/drum.js"></script>
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>The Drum Head</h1>
 <p class="sub" id="intro">A circular membrane of radius <span class="mvar">a</span> is clamped to a rigid rim, like a drum head, and its
@@ -83,6 +84,7 @@
   Separating variables in polar coordinates gives Bessel functions in <span class="mvar">r</span>, and the clamped rim allows only the
   zeros <span class="mvar">k<sub>mn</sub></span> of <span class="mvar">J<sub>n</sub></span>. Pick normal modes and watch them oscillate side by side on one clock,
   or strike the head and see which modes it rings.</p>
+<div id="qlPanel"></div>
 <div class="eqns">
   <div class="eqn-wrap"><span class="eqn"><span>&nabla;<sup>2</sup><i>z</i></span><span class="eqop">=</span><span class="frac"><span class="num">1</span><span class="den"><i>v</i><sup>2</sup></span></span><span class="frac"><span class="num">&part;<sup>2</sup><i>z</i></span><span class="den">&part;<i>t</i><sup>2</sup></span></span></span><span class="eqnum">(6.1)</span></div>
   <div class="eqn-wrap"><span class="eqn"><i>z</i><span class="eqop">=</span><span><i>J<sub>n</sub></i>(<i>k<sub>mn</sub>r</i>/<i>a</i>)</span><span class="brace"><span>sin <i>n</i>θ</span><span>cos <i>n</i>θ</span></span><span class="brace"><span>sin <i>k<sub>mn</sub>vt</i>/<i>a</i></span><span>cos <i>k<sub>mn</sub>vt</i>/<i>a</i></span></span></span><span class="eqnum">(6.6)</span></div>
@@ -853,13 +855,13 @@ if (window.QUBLITZ_STANDALONE) {
     if(!playing) setPlaying(true); else drawAll();
   }
   $('srcSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
-    if(b.dataset.src==='strike' && !strikeAt){ doStrike(0.55,0.5,kind,malletW); return; }
-    setSrc(b.dataset.src); });
-  $('viewSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; view=b.dataset.view; setSeg('viewSeg','view',view); drawAll(); });
+    if(b.dataset.src==='strike' && !strikeAt){ doStrike(0.55,0.5,kind,malletW); qlNote('mode',{level:'strike'}); return; }
+    setSrc(b.dataset.src); qlNote('mode',{level:b.dataset.src}); });
+  $('viewSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; view=b.dataset.view; setSeg('viewSeg','view',view); drawAll(); qlNote('mode',{level:view}); });
   $('kindSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; kind=b.dataset.kind; setSeg('kindSeg','kind',kind);
     if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
   $('sand').addEventListener('change',e=>{ sand=e.target.checked; sandDirty=true; drawAll(); });
-  $('play').addEventListener('click',()=>setPlaying(!playing));
+  $('play').addEventListener('click',()=>{ setPlaying(!playing); if(playing) qlNote('start'); });
   $('reset').addEventListener('click',()=>{ clock=0; drawAll(); });
   $('sync').addEventListener('click',()=>{ clock=0; drawAll(); });
   $('speed').addEventListener('input',e=>{ speed=+e.target.value; $('speedv').textContent=speed.toFixed(2)+' T₁₀ per second'; });
@@ -873,13 +875,13 @@ if (window.QUBLITZ_STANDALONE) {
   $('sense').addEventListener('change',e=>{ senseVel=e.target.value==='vel'; if(!playing) drawAll(); });
   $('mw').addEventListener('input',e=>{ malletW=+e.target.value; $('mwv').textContent=malletW.toFixed(2)+' a'; });
   $('mw').addEventListener('change',()=>{ if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
-  $('listen').addEventListener('click',()=>playPartials(drumPartials()));
+  $('listen').addEventListener('click',()=>{ playPartials(drumPartials()); qlNote('sound',{level:'drum'}); });
   $('fcut').addEventListener('input',e=>{ fcut=+e.target.value; showFcut(); live.clear(); });
-  $('listenDrum').addEventListener('click',()=>playPartials(drumPartials()));
-  $('listenString').addEventListener('click',()=>playPartials(harmonicPartials()));
-  $('selLowest').addEventListener('click',()=>setSel([[1,0],[1,1],[1,2],[2,0]]));
-  $('selFig').addEventListener('click',()=>setSel([[1,0],[2,0],[1,1],[2,1]]));
-  $('selRadial').addEventListener('click',()=>setSel([[1,0],[2,0],[3,0],[4,0]]));
+  $('listenDrum').addEventListener('click',()=>{ playPartials(drumPartials()); qlNote('sound',{level:'drum'}); });
+  $('listenString').addEventListener('click',()=>{ playPartials(harmonicPartials()); qlNote('sound',{level:'harmonic'}); });
+  $('selLowest').addEventListener('click',()=>{ setSel([[1,0],[1,1],[1,2],[2,0]]); qlNote('preset',{level:'lowest'}); });
+  $('selFig').addEventListener('click',()=>{ setSel([[1,0],[2,0],[1,1],[2,1]]); qlNote('preset',{level:'fig61'}); });
+  $('selRadial').addEventListener('click',()=>{ setSel([[1,0],[2,0],[3,0],[4,0]]); qlNote('preset',{level:'radial'}); });
   $('selClear').addEventListener('click',()=>setSel([]));
   [['pa','a',0.01],['pT','T',1],['ps','s',1]].forEach(([id,key,f])=>$(id).addEventListener('input',e=>{ phys[key]=+e.target.value*f; updatePhys(); drawDrum(); drawScope(); drawPFFT(); live.redraw(); }));
 
@@ -907,6 +909,7 @@ if (window.QUBLITZ_STANDALONE) {
     else { const X=(px-C.cx)/C.S, Y=(C.cy-py)/C.S/C.se; x=X*C.ca+Y*C.sa; y=-X*C.sa+Y*C.ca; }
     const rho=Math.hypot(x,y); if(rho>=0.97) return;
     doStrike(rho, Math.atan2(y,x), kind, malletW);
+    if(Date.now()-qlLastStrike>20000){ qlLastStrike=Date.now(); qlNote('strike',{value:+rho.toFixed(2)}); }   // at most one per 20 s
   });
 
   window.addEventListener('resize',()=>{ layout(); mainMesh.camKey=''; miniMesh.camKey=''; drawAll(); live.redraw(); });
@@ -963,6 +966,32 @@ if (window.QUBLITZ_STANDALONE) {
   }
   $('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/drum-head.html',shareQuery()));
 
+  /* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/<id>.js) ---------- */
+  const QLK = window.QL || { event(){}, panel(){}, offerQuiz(){}, context(){}, answer(){ return null; } };
+  QLK.panel(document.getElementById('qlPanel'));
+  let qlActs = 0; const qlT0 = Date.now();
+  // Counted actions (preset, mode, play, sound); after a few minutes of exploring, offer the debrief once.
+  function qlNote(name, data){ QLK.event(name, data); if(name === 'preset' || name === 'mode') QLK.context({ level: 'explore', step: data && data.level }); if(++qlActs >= 6 && Date.now() - qlT0 > 150000) QLK.offerQuiz(); }
+  // Guided mode is the page's predict-then-reveal: each step sets the quit-map context, and every multiple-choice
+  // prediction is recorded with QL.answer as a question item (added when answered, so the debrief skips it).
+  // obj maps a 1-based step number to the learning objective it checks.
+  function qlGuided(steps, key, obj) { return {
+    onStep: i => QLK.context({ level: 'guided', step: i < steps.length ? 'step' + (i + 1) : 'done' }),
+    onAnswer: (i, ok, pick) => {
+      QLK.event('level_complete', { level: 'step' + (i + 1), value: ok ? 1 : 0 });
+      const st = steps[i], sp = window.QL && QL.spec, id = key + '-g' + (i + 1);
+      if (!st.choices || !obj[i + 1] || !sp || !QLK.answer) return;
+      sp.quiz = sp.quiz || [];
+      if (!sp.quiz.some(q => q.id === id))
+        sp.quiz.push({ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain });
+      QLK.answer(id, pick);
+    },
+    onDone: (right, total) => { QLK.event('win', { value: right });
+      QLK.offerQuiz('You finished the guided predictions (' + right + ' of ' + total + ' held up). A 1-minute debrief: a few more questions and what you thought.'); },
+  }; }
+  QLK.context({ level: 'explore' });
+  let qlLastStrike = 0;
+
   /* ---------- guided predictions (?guided=1) ---------- */
   const k=(m,n)=>modeAt(m,n).k;
   const f10def=D.frequencyHz(modes[0],0.178,2000,0.26);
@@ -990,7 +1019,8 @@ if (window.QUBLITZ_STANDALONE) {
       choices:['Yes, after one fundamental period','Yes, after two fundamental periods','Not in any time you could watch','Yes, after 1.593 periods'], answer:2,
       explain:'The head is back where it started only when both modes have made whole numbers of oscillations: t = p T<sub>10</sub> = q T<sub>11</sub>, which needs k<sub>11</sub>/k<sub>10</sub> = 1.59334… = q/p. Its best fractions, 3/2, 8/5, 43/27, 51/32, 94/59 …, all miss, by less each time, so the shape never quite comes back: the motion is quasi-periodic. A string\'s ratios are whole numbers, so it repeats every T<sub>1</sub>. Press Play and watch the traces: the crest dots of (1,1) drift across the T<sub>10</sub> grid lines.' },
   ];
-  function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'drum-head' }); }
+  function startGuided(){ QLK.event('mode',{level:'guided'});
+    PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'drum-head', ...qlGuided(GUIDED, 'drum-head', {3:'strike',4:'inharm'}) }); }
 
   layout(); updatePhys(); refreshScale();
   { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
