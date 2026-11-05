@@ -4,6 +4,8 @@
  *         Rows go to three tabs: events, quiz, feedback (the free text, kept apart so the dashboard never
  *         shows it). Everything is validated and capped again here; the browser is not trusted.
  *   GET   ?summary=1[&days=90]   aggregate counts as JSON for web/outreach/dashboard.html (no free text).
+ *   GET   ?review=1&key=K[&days=90]   the summary plus the free-text feedback rows, for the owner only: K must equal
+ *         the Script Property REVIEW_KEY (Project Settings > Script properties). Otherwise the answer is "forbidden".
  *
  * Setup: tools/outreach-collector/README.md. The pure functions at the bottom (cleanEventRow, summarize) are
  * also loaded by tools/outreach-collector/collector.test.js in Node.
@@ -41,8 +43,13 @@ function doPost(e) {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  if (!p.summary) return text_('outreach collector: ok');
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
+  if (p.review) {                                   // never cached: the cache is shared and the text is private
+    var expected = PropertiesService.getScriptProperties().getProperty('REVIEW_KEY');
+    var rv = reviewFeed(p.key, expected, read_('events'), read_('quiz'), read_('feedback'), days, new Date());
+    return rv ? json_(JSON.stringify(rv)) : text_('forbidden');
+  }
+  if (!p.summary) return text_('outreach collector: ok');
   var cache = CacheService.getScriptCache(), key = 'summary' + days, hit = cache.get(key);
   if (hit) return json_(hit);
   var out = JSON.stringify(summarize(read_('events'), read_('quiz'), read_('feedback'), days, new Date()));
@@ -66,6 +73,12 @@ function s_(v, n) { return (typeof v === 'string') ? v.replace(/[^\w .:/|+-]/g, 
 function n_(v, lo, hi) { return (typeof v === 'number' && isFinite(v) && v >= lo && v <= hi) ? v : ''; }
 function day_(v, now) { return (typeof v === 'string' && RE_DAY.test(v)) ? v : Utilities_formatDay_(now); }
 function Utilities_formatDay_(d) { return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2); }
+/* A sheet cell that looks like a date comes back from getValues() as a Date at midnight in the sheet's time zone,
+ * so read the day back with local getters; plain strings pass through. */
+function dayKey_(v) {
+  if (v && typeof v.getFullYear === 'function') return v.getFullYear() + '-' + ('0' + (v.getMonth() + 1)).slice(-2) + '-' + ('0' + v.getDate()).slice(-2);
+  return String(v);
+}
 function redact_(t) {
   if (typeof t !== 'string') return '';
   return t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[removed]').replace(/(\+?\d[\d\s().-]{7,}\d)/g, '[removed]')
@@ -89,26 +102,36 @@ function cleanQuizRows(q, now) {
   return { quiz: quiz, feedback: (l || c) ? [now, day, q.game, code, l, c] : null };
 }
 
-/* Aggregate the three tabs for the dashboard. Rows are arrays in TABS order. Returns only counts and averages. */
+/* Aggregate the three tabs for the dashboard. Rows are arrays in TABS order. Returns only counts and averages:
+ *   games{id: {opens, starts, completes, wins, losses, quizOpens, leaves, avgMinutes, levels{name: {starts, completes,
+ *     starsSum}}, events{name: n}, quits{place: n}, completedPerVisit{k: n}}}, byDay{day: {game: opens}},
+ *   codes{code: opens}, devices{dev: opens}, labFrom{game: arrivals at the lab},
+ *   codeGames{code: {game: opens}}, codeQuiz{code: {n, ingame, avgScore, avgFun, avgLearned}},
+ *   quiz{game: {n (debriefs), ingame, avgScore, avgFun, avgLearned,
+ *     items{q: {objective, n, correct, picks{choice: n}, wrong{choice: n}, ingame{n, correct}}}}},
+ *   feedbackCount{game: n}. Free text never leaves the sheet. */
 function summarize(events, quiz, feedback, days, now) {
   var cutoff = new Date(now.getTime() - days * 86400000);
   var since = Utilities_formatDay_(cutoff);
   var inRange = function (d) { return String(d) >= since; };
   var out = { generated: now.toISOString ? now.toISOString() : String(now), days: days, since: since,
-              games: {}, byDay: {}, codes: {}, devices: {}, quiz: {}, feedbackCount: {}, labFrom: {} };
+              games: {}, byDay: {}, codes: {}, devices: {}, codeGames: {}, codeQuiz: {}, quiz: {}, feedbackCount: {}, labFrom: {} };
   var g = function (id) {
     return out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0,
       leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
   };
   events.forEach(function (r) {
-    var day = String(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9];
+    var day = dayKey_(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9];
     if (!inRange(day)) return;
     var G = g(game);
     G.events[ev] = (G.events[ev] || 0) + 1;
     if (ev === 'open') {
       G.opens++;
       var D = out.byDay[day] || (out.byDay[day] = {}); D[game] = (D[game] || 0) + 1;
-      if (code) out.codes[code] = (out.codes[code] || 0) + 1;
+      if (code) {
+        out.codes[code] = (out.codes[code] || 0) + 1;
+        var CG = out.codeGames[code] || (out.codeGames[code] = {}); CG[game] = (CG[game] || 0) + 1;
+      }
       if (String(level).indexOf('from:') === 0) { var src = String(level).slice(5); out.labFrom[src] = (out.labFrom[src] || 0) + 1; }
       out.devices[dev] = (out.devices[dev] || 0) + 1;
     }
@@ -132,30 +155,59 @@ function summarize(events, quiz, feedback, days, now) {
   Object.keys(out.games).forEach(function (id) {
     var G = out.games[id]; G.avgMinutes = G.leaves ? Math.round(G.durSum / G.leaves / 6) / 10 : null; delete G.durSum;
   });
-  quiz.forEach(function (r) {
-    var day = String(r[1]), game = r[2];
-    if (!inRange(day)) return;
-    var Q = out.quiz[game] || (out.quiz[game] = { n: 0, ingame: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0], items: {} });
-    // In-game answers (one question each) feed the item accuracy but are not counted as debriefs.
+  // In-game answers (one question each, r[10] === 'ingame') feed the score and the item accuracy but are not
+  // counted as debriefs: n counts debriefs, ingame counts in-game answers.
+  var tally = function (Q, r) {
     if (r[10] === 'ingame') Q.ingame++; else Q.n++;
     Q.scoreSum += Number(r[5]) || 0; Q.itemsSum += Number(r[6]) || 0;
     if (r[7] !== '') { Q.fun[0] += Number(r[7]); Q.fun[1]++; }
     if (r[8] !== '') { Q.learned[0] += Number(r[8]); Q.learned[1]++; }
-    var answers = []; try { answers = JSON.parse(r[9] || '[]'); } catch (e) {}
-    answers.forEach(function (a) {
-      var I = Q.items[a.q] || (Q.items[a.q] = { objective: a.obj, n: 0, correct: 0, picks: {} });
-      I.n++; if (a.ok) I.correct++; I.picks[a.pick] = (I.picks[a.pick] || 0) + 1;
-    });
-  });
-  Object.keys(out.quiz).forEach(function (id) {
-    var Q = out.quiz[id];
+  };
+  var finish = function (Q) {
     Q.avgScore = Q.itemsSum ? Math.round(Q.scoreSum / Q.itemsSum * 1000) / 1000 : null;
     Q.avgFun = Q.fun[1] ? Math.round(Q.fun[0] / Q.fun[1] * 100) / 100 : null;
     Q.avgLearned = Q.learned[1] ? Math.round(Q.learned[0] / Q.learned[1] * 100) / 100 : null;
     delete Q.scoreSum; delete Q.itemsSum; delete Q.fun; delete Q.learned;
+  };
+  var blank = function () { return { n: 0, ingame: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0] }; };
+  quiz.forEach(function (r) {
+    var day = dayKey_(r[1]), game = r[2], code = r[3];
+    if (!inRange(day)) return;
+    var Q = out.quiz[game] || (out.quiz[game] = blank());
+    if (!Q.items) Q.items = {};
+    tally(Q, r);
+    if (code) tally(out.codeQuiz[code] || (out.codeQuiz[code] = blank()), r);
+    var answers = []; try { answers = JSON.parse(r[9] || '[]'); } catch (e) {}
+    answers.forEach(function (a) {
+      var I = Q.items[a.q] || (Q.items[a.q] = { objective: a.obj, n: 0, correct: 0, picks: {}, wrong: {}, ingame: { n: 0, correct: 0 } });
+      I.n++; if (a.ok) I.correct++; I.picks[a.pick] = (I.picks[a.pick] || 0) + 1;
+      if (!a.ok) I.wrong[a.pick] = (I.wrong[a.pick] || 0) + 1;
+      if (r[10] === 'ingame') { I.ingame.n++; if (a.ok) I.ingame.correct++; }
+    });
   });
-  feedback.forEach(function (r) { if (inRange(String(r[1]))) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
+  Object.keys(out.quiz).forEach(function (id) { finish(out.quiz[id]); });
+  Object.keys(out.codeQuiz).forEach(function (c) { finish(out.codeQuiz[c]); });
+  feedback.forEach(function (r) { if (inRange(dayKey_(r[1]))) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_ };
+/* The review key check. An unset or short REVIEW_KEY (under 16 characters) keeps the feed shut for everyone. The
+ * comparison looks at every character so its timing does not reveal how much of a guess was right. */
+function reviewKeyOk(given, expected) {
+  if (typeof expected !== 'string' || expected.length < 16 || typeof given !== 'string' || given.length !== expected.length) return false;
+  var diff = 0;
+  for (var i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
+  return diff === 0;
+}
+/* The private review feed: the summary plus the window's free-text rows, or null when the key does not match. */
+function reviewFeed(given, expected, events, quiz, feedback, days, now) {
+  if (!reviewKeyOk(given, expected)) return null;
+  var out = summarize(events, quiz, feedback, days, now);
+  out.feedback = feedback.filter(function (r) { return dayKey_(r[1]) >= out.since; }).map(function (r) {
+    return { day: dayKey_(r[1]), game: r[2], code: r[3], learned: r[4], confusing: r[5] };
+  });
+  return out;
+}
+
+if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_,
+  reviewKeyOk: reviewKeyOk, reviewFeed: reviewFeed };
