@@ -14,8 +14,8 @@
  *     "beamline level 'half' solved with 3 stars", "rider left after 412 s". No cookies, no identifiers, no IP
  *     address (Apps Script never sees it), no timestamps finer than the day.
  *   - quiz: which choice was picked for each question, whether it was right, and two optional 1-5 ratings (fun,
- *     learned). There is NO free text: nothing a visitor types is collected, so no one (including a child) can
- *     hand over a name, school or email this way. See web/privacy.html.
+ *     learned). There is NO free text: nothing a visitor types is collected, so no one can hand over a name,
+ *     school or email this way. See web/privacy.html.
  *   `code` is an optional outreach-session label from the link (?event=SCIFAIR26), so a dashboard can split
  *   counts by event. It is kept for the browser tab only (sessionStorage).
  *
