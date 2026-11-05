@@ -1016,12 +1016,18 @@ if (free && !assigned) {
   }
 }
 // ?tab=time&pulses=x:amp:start:dur,y:amp:start:dur (ns) opens a pulse schedule, e.g. moves sent from Qubit Copter.
+// Optional ?dt=<ns> sets the time-domain duration (at least the end of the last pulse); without it the run ends 10 ns
+// after the last pulse, as before.
 try {
   const sp = new URL(location.href).searchParams, list = (sp.get('pulses') || '').split(',').map(p => p.split(':'))
     .filter(p => p.length === 4 && /^[xy]$/.test(p[0]) && p.slice(1).every(v => Number.isFinite(+v)))
     .map(([target, amp, start, dur]) => ({ type: 'square', target, amp: clamp(+amp, -1, 1), start: Math.max(0, +start), dur: Math.max(0.01, +dur) }));
+  const dt = parseFloat(sp.get('dt'));
+  const dtOk = Number.isFinite(dt) && dt >= 1 && dt <= 2000;
+  if (dtOk && !list.length) { $('#tdT').value = dt; syncSchedule(); }
   if (list.length) {
-    $('#tdT').value = Math.min(2000, Math.ceil(Math.max(...list.map(p => p.start + p.dur)) + 10));
+    const end = Math.max(...list.map(p => p.start + p.dur));
+    $('#tdT').value = Math.min(2000, dtOk ? Math.max(dt, Math.ceil(end)) : Math.ceil(end + 10));
     $('#sqStart').value = Math.min(1990, Math.ceil(Math.max(...list.map(p => p.start + p.dur)) + 2));
     list.forEach(addPulse);
   }
@@ -1047,6 +1053,19 @@ syncQuickPulses();
   const name = from === 'arena' ? 'the QuBlitz Arena' : game ? game.title : null;
   if (!name) return;
   const tab = t => () => document.querySelector(`.tab[data-tab="${t}"]`).click();
+  // Rabi Rider sends one of its presets: a π, π/2 or 60° pulse, or a T₁ run (free= plus dt=).
+  function riderWelcome() {
+    let sp = null; try { sp = new URL(location.href).searchParams; } catch (e) {}
+    const free = !!(sp && sp.get('free')) && state.qubit.code === 'FREE', dt = sp && sp.get('dt');
+    const xs = state.td.sx, n = xs.length, step = state.td.tFinal / n;
+    let area = 0; for (let i = 0; i < n; i++) area += Math.abs(xs[i]) * step;
+    const deg = Math.round(360 * state.qubit.omegaRabi * area), rad = deg * Math.PI / 180;
+    const name = Math.abs(deg - 180) <= 2 ? 'π' : Math.abs(deg - 90) <= 2 ? 'π/2' : `${deg}°`;
+    if (!hasPulses) return ['Coming from Rabi Rider? Measure T₁ for real: find the resonance with a frequency sweep, then on the Time Domain tab add a π pulse and fit the decay.', ['Start with the sweep', tab('freq')]];
+    if (free && dt) return [`Coming from Rabi Rider? This is your T₁ run on the Time Domain tab: a ${name} pulse flips the qubit, then it relaxes. The red dotted curve is the T₁ fit: P(|1⟩) falls to 1/e ≈ 0.37 one T₁ after the pulse.`, null];
+    if (free) return [`Coming from Rabi Rider? Your ${name} pulse is loaded on the Time Domain tab, on a lab qubit driven on resonance. When the pulse ends, P(|1⟩) should be close to sin²(θ/2) = ${(Math.sin(rad / 2) ** 2).toFixed(2)}, a little less once the qubit starts to decay.`, null];
+    return ['Coming from Rabi Rider? Your pulse is loaded on the Time Domain tab, but this mystery qubit’s frequency is hidden, so the drive is probably off resonance. Find the resonance with a frequency sweep, then press Use sweep peak.', ['Start with the sweep', tab('freq')]];
+  }
   const W = {
     copter: hasPulses
       ? ['Coming from Qubit Copter? Your moves are loaded on the Time Domain tab as a pulse schedule. Replay them on a lab qubit, where the drive is a real microwave tone and the state decays while you watch.', null]
@@ -1054,7 +1073,7 @@ syncQuickPulses();
     beamline: hasPulses
       ? ['Coming from Beamline? Here is the same pulse on a lab qubit, on the Time Domain tab, now with a real resonance to hit, decay and measurement noise.', null]
       : ['Coming from Beamline? A pulse’s area and phase work the same way here. Find the resonance, then try a π and a π/2 pulse on the Time Domain tab.', ['Go to Time Domain', tab('time')]],
-    rider: ['Coming from Rabi Rider? Measure T₁ for real: find the resonance with a frequency sweep, then on the Time Domain tab add a π pulse and fit the decay.', ['Start with the sweep', tab('freq')]],
+    rider: riderWelcome(),
     arena: ['Coming from the QuBlitz Arena? Every P(|1⟩) here is counted from single-shot measurements, each one giving 0 or 1 with the Born-rule probability: the Born rule in a real measurement. Try 32 shots, then 4096, and watch the noise shrink.', null],
   }[from] || [`Coming from ${name}? This is the lab version: four experiments, in the checklist below, that pin down a qubit’s frequency, Rabi rate and lifetimes.`, null];
   $('#welcomeText').textContent = W[0];
