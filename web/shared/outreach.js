@@ -21,7 +21,15 @@
  *
  * API (window.QL):
  *   QL.event(name, data)        name: lower_snake (open, start, level_start, level_complete, win, lose, ...)
- *                               data: { level, value, stars, dur_s } (all optional)
+ *                               data: { level, value, stars, dur_s } (all optional), plus ANY other keys a game
+ *                               wants to log (e.g. { theta_pi: 0.5, beam: 'x', hinted: true }). Extra keys go to
+ *                               a flexible `x` object: up to 12 lower_snake keys, each a number, true/false or a
+ *                               single-word label (letters, digits, _ . : | + -, at most 40 characters, no spaces).
+ *                               Anything else is dropped, so no sentence or typed input can be stored. Never pass
+ *                               anything a visitor typed. New event names and keys need no collector change.
+ *   Every event and question record also carries `gv`, the version of the page that sent it (the date and commit
+ *   of the last change to its own files), stamped automatically at deploy time, so analyses can compare a game
+ *   before and after an update.
  *   QL.learning(spec)           register this page's learning material:
  *       { id, title, tagline, fun, objectives: [{ id, text }], howTo: [text], goals: [text],
  *         quiz: [{ id, objective, q, choices: [text], answer: index, explain }] }
@@ -57,6 +65,22 @@
   }
   const num = (v, lo, hi) => (typeof v === 'number' && isFinite(v) && v >= lo && v <= hi) ? Math.round(v * 1000) / 1000 : undefined;
   const str = (v, n) => (typeof v === 'string' && v.length) ? v.replace(/[^\w .:/|+-]/g, '').slice(0, n) : undefined;
+  // Extra, game-specific fields: numbers, booleans and single-word labels only (never free text).
+  const XKEY = /^[a-z][a-z0-9_]{0,31}$/, XTOK = /^[A-Za-z0-9_.:|+-]{1,40}$/, GV = /^[A-Za-z0-9_.:+-]{1,40}$/;
+  const RESERVED = { level: 1, value: 1, stars: 1, dur_s: 1 };
+  function cleanExtra(d) {
+    const x = {}; let n = 0;
+    for (const k of Object.keys(d || {})) {
+      if (RESERVED[k] || !XKEY.test(k) || n >= 12) continue;
+      const v = d[k];
+      if (typeof v === 'boolean') x[k] = v;
+      else if (typeof v === 'number' && isFinite(v) && Math.abs(v) <= 1e9) x[k] = Math.round(v * 1e4) / 1e4;
+      else if (typeof v === 'string' && XTOK.test(v)) x[k] = v;
+      else continue;
+      n++;
+    }
+    return n ? x : null;
+  }
   function cleanEvent(game, ev, data, ctx) {
     if (!ID.test(game || '') || !EV.test(ev || '')) return null;
     const d = data || {}, c = ctx || {};
@@ -65,7 +89,9 @@
     const value = num(d.value, -1e6, 1e6); if (value !== undefined) out.value = value;
     const stars = num(d.stars, 0, 3); if (stars !== undefined) out.stars = Math.round(stars);
     const dur = num(d.dur_s, 0, 86400); if (dur !== undefined) out.dur_s = Math.round(dur);
+    const x = cleanExtra(d); if (x) out.x = x;
     if (c.code && CODE.test(c.code)) out.code = c.code;
+    if (c.gv && GV.test(c.gv)) out.gv = c.gv;
     return out;
   }
   function cleanQuiz(game, rec, ctx) {
@@ -78,11 +104,12 @@
       fun: num(rec.fun, 1, 5), learned: num(rec.learned, 1, 5),
       src: rec.src === 'ingame' ? 'ingame' : 'debrief' };   // no free-text fields, by design
     if (c.code && CODE.test(c.code)) out.code = c.code;
+    if (c.gv && GV.test(c.gv)) out.gv = c.gv;
     return out;
   }
 
   if (typeof root.document === 'undefined') {           // Node: export the pure parts for the tests
-    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz };
+    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra };
     return;
   }
 
@@ -110,7 +137,14 @@
   const code = () => sess.get('ql_code') || '';
   const day = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const dev = () => (root.matchMedia && root.matchMedia('(pointer: coarse)').matches) ? 'touch' : 'desktop';
-  const ctx = () => ({ day: day(), dev: dev(), code: code() });
+  // Page version, stamped into outreach-config.js by the Pages build (scripts/stamp_build.py): the date and
+  // commit of the last change to this page's own files, e.g. '2026-11-05+1a2b3c4'. Falls back to the site commit.
+  let pagePath = '';
+  const gv = () => {
+    const B = root.QUBLITZ_BUILD; if (!B) return '';
+    return (B.pages && B.pages[pagePath]) || B.sha || '';
+  };
+  const ctx = () => ({ day: day(), dev: dev(), code: code(), gv: gv() });
 
   // Which page is this? Match the page path against the manifest (the hub is '').
   function detectGame() {
@@ -121,6 +155,7 @@
       path = location.href.startsWith(base) ? location.href.slice(base.length).replace(/[?#].*$/, '') : '';
     }
     path = (path || '').replace(/^index\.html$/, '');
+    pagePath = path;
     const hit = list.find(g => g.path === path);
     return hit ? hit.id : null;
   }

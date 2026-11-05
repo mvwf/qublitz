@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history: the build stamp needs each page's last-changed date
 
       - name: Assemble site
         run: |
@@ -37,6 +39,8 @@ jobs:
           # The Arena is vendored byte-for-byte; the site adds the outreach kit to its copy here, not to the source.
           sed -i 's#</body>#<script src="../shared/outreach-config.js"></script><script src="../learning/manifest.js"></script><script src="../shared/outreach.js"></script><script src="../learning/arena.js"></script></body>#' _site/qublitz/arena.html
           rm -rf _site/qublitz/tests _site/courses/engs23/tests _site/shared/tests _site/README.md
+          # Stamp each page's version into outreach-config.js, so the data can be split by game version.
+          python3 scripts/stamp_build.py _site
           # Single-file copies for the pages' "Download" links (they run offline).
           for page in qubit-simulator fridge-noise ep-tpd sonify rabi-rider qubit-copter beamline resonator; do
             python3 scripts/build_standalone.py web/qublitz/$page.html _site/qublitz/$page-offline.html

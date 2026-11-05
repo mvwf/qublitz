@@ -12,8 +12,10 @@
  * also loaded by web/shared/tests/outreach.test.js in Node.
  */
 var TABS = {
-  events:   ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device'],
-  quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source'],
+  // New columns only ever go at the END, so older rows and the summary's column numbers stay valid.
+  // gv = page version ('<files last changed>+<site commit>'); extra = the game's own fields as JSON.
+  events:   ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device', 'gv', 'extra'],
+  quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source', 'gv'],
   feedback: ['received', 'day', 'game', 'code', 'learned_text', 'confusing_text'],
 };
 var MAX_BODY = 20000, MAX_EVENTS = 60, CACHE_S = 300;
@@ -84,11 +86,27 @@ function redact_(t) {
   return t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[removed]').replace(/(\+?\d[\d\s().-]{7,}\d)/g, '[removed]')
           .replace(/https?:\/\/\S+/g, '[link]').replace(/\s+/g, ' ').trim().slice(0, 600);
 }
+// The game's own fields: up to 12 lower_snake keys, values number / boolean / single-word label. No free text.
+var RE_XKEY = /^[a-z][a-z0-9_]{0,31}$/, RE_XTOK = /^[A-Za-z0-9_.:|+-]{1,40}$/, RE_GV = /^[A-Za-z0-9_.:+-]{1,40}$/;
+function cleanExtra_(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return '';
+  var out = {}, n = 0;
+  Object.keys(x).forEach(function (k) {
+    if (n >= 12 || !RE_XKEY.test(k)) return;
+    var v = x[k];
+    if (typeof v === 'boolean') out[k] = v;
+    else if (typeof v === 'number' && isFinite(v) && Math.abs(v) <= 1e9) out[k] = v;
+    else if (typeof v === 'string' && RE_XTOK.test(v)) out[k] = v;
+    else return;
+    n++;
+  });
+  return n ? JSON.stringify(out) : '';
+}
 function cleanEventRow(ev, now) {
   if (!ev || !RE_ID.test(ev.game || '') || !RE_EV.test(ev.ev || '')) return null;
   // `received` is the server's day, not its time: nothing finer than the day is ever stored.
   return [Utilities_formatDay_(now), day_(ev.day, now), ev.game, ev.ev, s_(ev.level, 40), n_(ev.value, -1e6, 1e6), n_(ev.stars, 0, 3),
-          n_(ev.dur_s, 0, 86400), RE_CODE.test(ev.code || '') ? ev.code : '', ev.dev === 'touch' ? 'touch' : 'desktop'];
+          n_(ev.dur_s, 0, 86400), RE_CODE.test(ev.code || '') ? ev.code : '', ev.dev === 'touch' ? 'touch' : 'desktop', RE_GV.test(ev.gv || '') ? ev.gv : '', cleanExtra_(ev.x)];
 }
 function cleanQuizRows(q, now) {
   if (!q || !RE_ID.test(q.game || '')) return null;
@@ -99,7 +117,7 @@ function cleanQuizRows(q, now) {
   var code = RE_CODE.test(q.code || '') ? q.code : '', day = day_(q.day, now);
   var score = answers.filter(function (a) { return a.ok; }).length;
   var quiz = [Utilities_formatDay_(now), day, q.game, code, q.dev === 'touch' ? 'touch' : 'desktop', score, answers.length,
-              n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers), q.src === 'ingame' ? 'ingame' : 'debrief'];
+              n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers), q.src === 'ingame' ? 'ingame' : 'debrief', RE_GV.test(q.gv || '') ? q.gv : ''];
   return { quiz: quiz, feedback: null };   // free text is never stored
 }
 
@@ -236,4 +254,60 @@ function purgeRows_(name, keepDays) {
   return gone;
 }
 
-if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_ };
+/* ── Export for AI ────────────────────────────────────────────────────────────────────────────────────
+ * A menu in the Sheet ("Qublitz outreach > Export for AI") writes every row as one JSON object per line (JSONL)
+ * to a file in your Google Drive, next to a short field dictionary. It runs as you and never touches the public
+ * web app, so the raw rows are never served to anyone. Hand the two files, plus web/learning/*.js and
+ * tools/outreach-collector/AI-GUIDE.md from the repo, to an AI to analyse (see AI-GUIDE.md for a prompt). */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Qublitz outreach')
+    .addItem('Export for AI (JSONL to Drive)', 'exportForAI')
+    .addItem('Install daily retention clean-up', 'setupRetention')
+    .addToUi();
+}
+var DICTIONARY = [
+  '# Qublitz outreach export: field dictionary',
+  'One JSON object per line. "table" says which tab it came from.',
+  'events: day (YYYY-MM-DD), game (page id), event (lower_snake name), level (level/step/place, may be "a|b"),',
+  '  value (number; meaning depends on the event: score, P at measure, levels completed this visit for "leave"),',
+  '  stars (0-3), dur_s (active seconds, on "leave"), code (outreach session label), device (desktop|touch),',
+  '  gv (page version: date its files last changed + site commit), extra (object of game-specific fields).',
+  'quiz: day, game, code, device, score and n (right / answered), fun and learned (1-5 ratings, may be empty),',
+  '  answers (list of {q: question id, obj: learning objective id, pick: choice index, ok: right?}),',
+  '  source (ingame: answered inside the game; debrief: end card), gv.',
+  'Question and objective text: web/learning/<game>.js in https://github.com/mvwf/qublitz (the quiz list,',
+  '  choices in index order). There are no identifiers: rows cannot be linked to a person or to each other.',
+].join('\n');
+/* Pure: header row + data rows → plain objects, with the JSON columns parsed. Also used by the Node test. */
+function rowsToRecords_(table, header, rows) {
+  return rows.map(function (r) {
+    var o = { table: table };
+    header.forEach(function (h, i) {
+      var v = r[i];
+      if (v instanceof Date) v = Utilities_formatDay_(v);
+      if ((h === 'extra' || h === 'answers') && typeof v === 'string' && v) { try { v = JSON.parse(v); } catch (e) {} }
+      if (h === 'received') return;                       // the day is already in "day"
+      if (v === '' || v == null) return;
+      o[h] = v;
+    });
+    return o;
+  });
+}
+function exportForAI() {
+  var lines = [];
+  ['events', 'quiz'].forEach(function (name) {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+    if (!sh || sh.getLastRow() < 2) return;
+    var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, header.length).getValues();
+    rowsToRecords_(name, header, rows).forEach(function (o) { lines.push(JSON.stringify(o)); });
+  });
+  var stamp = Utilities_formatDay_(new Date());
+  var data = DriveApp.createFile('qublitz-outreach-' + stamp + '.jsonl', lines.join('\n'), 'application/json');
+  var dict = DriveApp.createFile('qublitz-outreach-' + stamp + '-README.md', DICTIONARY, 'text/markdown');
+  var msg = 'Wrote ' + lines.length + ' records to "' + data.getName() + '" and the field dictionary to "' + dict.getName() + '" in My Drive.';
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return msg;
+}
+
+if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };
