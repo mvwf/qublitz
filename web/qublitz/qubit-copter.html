@@ -14,7 +14,7 @@
     color-scheme: light;
     --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
     --line:#d8e2dc; --panel:#f5f9f6; --night:#0b1220;
-    --cx:#ff7a8a; --cy:#7ee08a; --cz:#7fb8ff;
+    --cx:#ff5fa8; --cy:#40e6b4; --cz:#8fb0ff;
     --dx:#c8384c; --dy:#1f8a3a; --dz:#2f6fc4;
   }
   *{box-sizing:border-box}
@@ -276,7 +276,9 @@ if (S.mode === 'circuit') { S.mode = 'targets'; S.circuit = true; }
 $('#optCircuit').checked = S.circuit;
 $('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); if (window.QL) { QL.event('mode', { level: gameMode() }); where(); } });
 const gameMode = () => S.mode === 'targets' && S.circuit ? 'circuit' : S.mode;
-const AXC = ['#ff7a8a', '#7ee08a', '#7fb8ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'], AXL = ['x', 'y', 'z'];
+// x / y / z: pink, mint and periwinkle stay apart for red-green and blue-yellow colour blindness (ΔE ≥ 10.5);
+// every use also carries a label (⟨σx⟩, +x |+⟩, the X/Y/Z pad rows)
+const AXC = ['#ff5fa8', '#40e6b4', '#8fb0ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'], AXL = ['x', 'y', 'z'];
 const isGame = () => S.mode === 'targets' || S.mode === 'circuit';
 
 /* ---------------- canvases ---------------- */
@@ -711,7 +713,7 @@ function drawSphere(t) {
   sg.font = '600 13px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
   for (const [v, lab, col] of [[[0, 0, 1], '|0⟩  +z', AXC[2]], [[0, 0, -1], '|1⟩  −z', AXC[2]], [[1, 0, 0], '+x |+⟩', AXC[0]], [[-1, 0, 0], '−x', AXC[0]], [[0, 1, 0], '+y |+i⟩', AXC[1]], [[0, -1, 0], '−y', AXC[1]]]) {
     const a = P(v), b = P(v.map(q => q * 1.2));
-    sg.strokeStyle = col; sg.lineWidth = 1; sg.globalAlpha = a.front ? 0.8 : 0.3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(a.x, a.y); sg.stroke(); sg.globalAlpha = a.front ? 1 : 0.55;
+    sg.strokeStyle = col; sg.lineWidth = 1; sg.globalAlpha = a.front ? 0.8 : 0.3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(a.x, a.y); sg.stroke(); sg.globalAlpha = a.front ? 1 : 0.9;
     sg.fillStyle = col; sg.fillText(lab, b.x, b.y); sg.globalAlpha = 1;
   }
   if (!w) return;
@@ -815,7 +817,7 @@ function drawStrips(t) {
     for (const v of [-0.5, 0.5]) { tg.beginPath(); tg.moveTo(L, Y(v)); tg.lineTo(TW - 10, Y(v)); tg.stroke(); }
     tg.strokeStyle = 'rgba(160,190,230,.3)'; tg.beginPath(); tg.moveTo(L, Y(0)); tg.lineTo(TW - 10, Y(0)); tg.stroke();
     tg.fillStyle = AXC[i]; tg.font = '700 13px Helvetica,Arial'; tg.textAlign = 'left'; tg.textBaseline = 'middle'; tg.fillText(AXN[i], 6, top + h / 2);
-    tg.font = '10px Helvetica,Arial'; tg.fillStyle = 'rgba(190,210,240,.5)'; tg.textAlign = 'right';
+    tg.font = '10px Helvetica,Arial'; tg.fillStyle = 'rgba(190,210,240,.62)'; tg.textAlign = 'right';
     tg.fillText('+1', L - 4, Y(1) + 5); tg.fillText('−1', L - 4, Y(-1) - 5);
     if (i === 2) { tg.textAlign = 'left'; tg.fillText('P(1)=0', L + 4, Y(1) + 6); tg.fillText('P(1)=1', L + 4, Y(-1) - 6); }
     if (!w) continue;

@@ -242,10 +242,13 @@ function drawHeat() {
     height, margin: { t: 8, r: 8, b: 44, l: 54 },
     xaxis: { title: { text: 'Column' } },
     yaxis: { title: { text: 'Row' }, autorange: 'reversed' },
-    shapes: [rowLine()], font: FONT,
+    shapes: rowLine(), font: FONT,
   }, CONFIG);
 }
-const rowLine = () => ({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: row, y1: row, line: { color: '#e0245e', dash: 'dash', width: 2 } });
+// the chosen row: a dark underlay under a gold dashed line, so it reads on black, grey and white pixels alike
+const rowLine = () => [
+  { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: row, y1: row, line: { color: 'rgba(7,10,22,0.9)', width: 5 } },
+  { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: row, y1: row, line: { color: '#f5b73c', dash: 'dash', width: 2 } }];
 
 let audioUrl = null;
 function update() {
@@ -254,7 +257,7 @@ function update() {
   const clampIn = (sel, lo, hi, dflt) => { let v = parseFloat($(sel).value); v = isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt; if (+$(sel).value !== v) $(sel).value = v; return v; };
   const dur = clampIn('#dur', 0.1, 30, 4), f = clampIn('#freq', 0, 10000, 65.41);
   $('#rowV').textContent = row;
-  Plotly.relayout('heat', { shapes: [rowLine()] });
+  Plotly.relayout('heat', { shapes: rowLine() });
   const env = img.data.subarray(row * img.cols, (row + 1) * img.cols);
   const t = S.timeAxis(img.cols, 0, dur), mod = S.modulate(env, t, f);
   const mag = S.rfftMag(mod), fr = S.rfftFreq(img.cols, dur / img.cols);

@@ -62,7 +62,7 @@
 html.retro{color-scheme:dark;
   --green:${p.accent};--green2:${p.accent2};--ink:${p.ink};--muted:${p.dim};--line:${p.line};--panel:${p.panel2};
   --night:${p.bg};--accent:${p.red};--blue:${p.blue};--gold:${p.gold};--int:${p.red};--ext:${p.blue};--heat:${p.red};--wave:${p.blue};--sch:${p.accent};
-  --cx:#ff7a8a;--cy:#7ee08a;--cz:#7fb8ff;--dx:#ff7a8a;--dy:#7ee08a;--dz:#7fb8ff;
+  --cx:#ff5fa8;--cy:#40e6b4;--cz:#8fb0ff;--dx:#ff5fa8;--dy:#40e6b4;--dz:#8fb0ff;
   --r-bg:${p.bg};--r-panel:${p.panel};--r-panel2:${p.panel2};--r-line:${p.line};--r-line-hi:${p.lineHi};--r-ink:${p.ink};
   --r-dim:${p.dim};--r-accent:${p.accent};--r-gold:${p.gold};--r-rose:${p.rose};--r-indigo:${p.indigo};--r-input:${p.input};
   --r-pixel:${PIX};--r-body:${BODY};background:${p.bg}}
@@ -91,15 +91,17 @@ html.retro .card{background:${p.panel};border:1px solid ${p.line};border-radius:
 html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-family:${PIX};font-weight:400;font-size:9.5px;
   letter-spacing:.08em;line-height:1.6;color:${p.accent};text-shadow:0 0 10px ${p.accent}55}
 html.retro button,html.retro .btn{font-family:${BODY};background:rgba(255,255,255,.035);color:${p.ink};border:1px solid ${p.lineHi};border-radius:8px}
-html.retro button:hover,html.retro .btn:hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
+/* hover glow, except on buttons that are already a bright fill (gold Start/Fire, held pads, pressed chips) */
+html.retro button:not(.go):not(.fire):not(.on):not([aria-pressed="true"]):not(.primary):hover,html.retro .btn:not(.primary):hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
 html.retro button.primary,html.retro .btn.primary{background:${p.accent};border-color:${p.accent};color:${p.onAccent};font-weight:700;
   box-shadow:0 0 16px ${p.accent}55}
 html.retro button.primary:hover{background:${p.accent2};color:${p.onAccent}}
-html.retro button:focus-visible{outline:2px solid ${p.gold};outline-offset:2px}
+html.retro button:focus-visible,html.retro a:focus-visible,html.retro summary:focus-visible,html.retro [tabindex]:focus-visible,
+html.retro input:focus-visible,html.retro select:focus-visible,html.retro textarea:focus-visible{outline:2px solid ${p.gold};outline-offset:2px}
 html.retro input[type=number],html.retro input[type=text],html.retro select,html.retro textarea{background:${p.input};color:${p.ink};
   border:1px solid ${p.lineHi};font-family:${BODY}}
 html.retro select option{background:${p.bg2};color:${p.ink}}
-html.retro input:focus,html.retro select:focus,html.retro textarea:focus{outline:2px solid ${p.accent}44;border-color:${p.accent}}
+html.retro input:focus,html.retro select:focus,html.retro textarea:focus{border-color:${p.accent}}
 html.retro input[type=range],html.retro input[type=checkbox],html.retro input[type=radio]{accent-color:${p.accent}}
 html.retro .code{background:${p.input};border-color:${p.lineHi};color:${p.gold};font-family:${PIX};font-size:14px}
 html.retro table th,html.retro table td{border-color:${p.line}}
@@ -110,6 +112,10 @@ html.retro kbd{background:${p.input};border:1px solid ${p.lineHi};color:${p.ink}
 html.retro .tabs{border-color:${p.line}}
 html.retro .tab{color:${p.dim}}
 html.retro .tab[aria-selected="true"],html.retro .tab.on,html.retro .tab.active{background:${p.panel};color:${p.accent};border-color:${p.line}}
+/* small labels on bright fills: dark text (white on cyan/sky/red fails contrast) */
+html.retro .tab[aria-selected="true"] .n,html.retro .regime .tag,html.retro .budget i,html.retro .chip[aria-pressed="true"],
+html.retro .ctrl button.on,html.retro .ctrl button.on small,html.retro .segbar div{color:${p.onAccent}}
+html.retro .chip[aria-pressed="true"] .n{opacity:.8}
 html.retro .seg{border-color:${p.lineHi}}
 html.retro .seg button{border-color:${p.line};background:transparent}
 html.retro .seg button[aria-pressed="true"]{background:${p.accent};color:${p.onAccent}}
@@ -177,7 +183,9 @@ html.retro body::before{opacity:.35;background-image:
       '#444': p.dim, '#555': p.dim, '#666': p.dim, '#000': p.ink, '#000000': p.ink, 'black': p.ink, '#111': p.ink,
       '#2d6fb3': p.blue, '#1f77b4': p.blue, '#c84b31': p.red, '#d9a521': p.gold, '#d8e2dc': p.line, '#ccc': p.line,
       '#e5e5e5': p.line, '#eee': p.line, '#ddd': p.line, '#888': p.dim, '#999': p.dim, '#aaa': p.dim,
-      '#7a4b12': p.gold, 'purple': '#c77dff', '#800080': '#c77dff', 'gray': '#9aa3b8', 'grey': '#9aa3b8', '#1f4a73': p.blue, '#b5531e': p.rose,
+      '#7a4b12': p.gold, '#7d8f86': p.blue, '#c3cec8': 'rgba(154,163,207,0.40)', '#c9d6cf': p.lineHi,
+      '#9fb0a8': p.ink, '#c9a26b': p.gold, '#a58fc0': '#c77dff',
+      'magenta': p.rose, 'cyan': p.accent, 'chartreuse': p.gold, 'red': p.red, '#ff0000': p.red, '#f00': p.red, 'purple': '#c77dff', '#800080': '#c77dff', 'gray': '#9aa3b8', 'grey': '#9aa3b8', '#1f4a73': p.blue, '#b5531e': p.rose,
     };
   }
   const isColorKey = k => /colou?r$|^(bgcolor|bordercolor|gridcolor|zerolinecolor|linecolor|tickcolor|fillcolor|outlinecolor)$/i.test(k);
@@ -214,7 +222,7 @@ html.retro body::before{opacity:.35;background-image:
     for (const k of Object.keys(L)) if (/^(x|y)axis\d*$/.test(k) && L[k] && typeof L[k] === 'object') axisDefaults(L[k], p);
     if (!Object.keys(L).some(k => /^(x|y)axis/.test(k))) { L.xaxis = L.xaxis || {}; L.yaxis = L.yaxis || {}; axisDefaults(L.xaxis, p); axisDefaults(L.yaxis, p); }
     if (L.scene) for (const ax of ['xaxis', 'yaxis', 'zaxis']) { L.scene[ax] = L.scene[ax] || {}; axisDefaults(L.scene[ax], p); L.scene[ax].backgroundcolor = 'rgba(0,0,0,0)'; }
-    if (L.legend) { L.legend.bgcolor = 'rgba(0,0,0,0)'; L.legend.font = Object.assign({ color: p.ink }, L.legend.font); }
+    if (L.legend) { if (!L.legend.bgcolor || LIGHT_BG.test(L.legend.bgcolor)) L.legend.bgcolor = 'rgba(0,0,0,0)'; L.legend.font = Object.assign({ color: p.ink }, L.legend.font); }
     if (L.hoverlabel == null) L.hoverlabel = { bgcolor: p.bg2, bordercolor: p.accent, font: { color: p.ink, family: BODY } };
     if (L.polar) { L.polar.bgcolor = 'rgba(0,0,0,0)'; }
     return L;
@@ -302,6 +310,8 @@ html.retro body::before{opacity:.35;background-image:
       if (c.l > 0.9 && c.s < 0.25) st.setProperty(bgProp, p.panel2, st.getPropertyPriority(bgProp));          // white-ish
       else if (c.l > 0.86) st.setProperty(bgProp, `hsla(${c.h.toFixed(0)},70%,60%,0.13)`, st.getPropertyPriority(bgProp)); // pale tint
       else if (c.l > 0.45) brightChip = true;                                                                    // a coloured chip
+      // a bright chip whose text colour comes from elsewhere would get the theme's light ink: give it dark text
+      if (brightChip && c.l > 0.6 && !st.getPropertyValue('color')) st.setProperty('color', '#14110a');
     }
     const col = rgbOf(st.getPropertyValue('color'));
     if (col && !brightChip) {
@@ -387,6 +397,8 @@ html.retro body::before{opacity:.35;background-image:
     b.type = 'button'; b.className = 'rt-theme';
     b.title = 'Change the look (Arena, Synthwave, Phosphor, Classic). Remembered in this browser only.';
     b.textContent = '◐ ' + LABEL[theme];
+    const nextT = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    b.setAttribute('aria-label', `Theme: ${LABEL[theme]}. Switch to ${LABEL[nextT]}`);
     if (theme === 'classic') b.style.cssText = 'font:600 11.5px Helvetica,Arial,sans-serif;padding:2px 9px;border-radius:999px;border:1px solid #d8e2dc;background:#fff;color:#5a6b63;cursor:pointer';
     b.addEventListener('click', () => {
       const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
@@ -397,7 +409,10 @@ html.retro body::before{opacity:.35;background-image:
     const sp = bar.querySelector('.sp');
     if (sp && sp.nextSibling) bar.insertBefore(b, sp.nextSibling); else bar.appendChild(b);
   }
-  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', addSwitch); else addSwitch();
+  // the bar may be added during DOMContentLoaded (pages without <body>), so try again just after it and at load
+  const trySwitch = () => { addSwitch(); setTimeout(addSwitch, 0); };
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', trySwitch); else trySwitch();
+  root.addEventListener('load', addSwitch);
 
   root.RETRO = { theme, themes: THEMES.slice(), palette: P[theme] || null };
 })(window);

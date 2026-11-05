@@ -193,7 +193,7 @@
   <div class="card" id="fftCard">
     <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal</h2>
       <span class="pill">frequency components</span></div>
-    <p class="cap">Each string's own pickup FFT (its colour) plus the FFT of the superimposed, clipped output (dark). Raw spectra.</p>
+    <p class="cap">Each string's own pickup FFT (its colour) plus the FFT of the superimposed, clipped output (bold). Raw spectra.</p>
     <div id="fftPlot" style="width:100%;height:220px"></div>
     <canvas id="spectrum" data-retro-ink height="200" style="display:none"></canvas>
     <p class="legend">Each string's FFT is one trace, with the superimposed total overlaid. Click a name in the legend to
@@ -273,7 +273,8 @@ if (window.QUBLITZ_STANDALONE) {
   const AMP_MAX=2.6;                      // full-scale amplitude for the mode bars
   const pickupPos=0.09;   // fixed, realistic bridge pickup: ~1.7 in from the bridge on a 25.5 in scale (fraction of full scale)
   const FREF=82.41;                 // reference pitch (low-E open) that sets the visual animation rate
-  const SCOL=['#00693e','#1f7ab0','#c84b31','#8a5cc4','#cc8800','#0f766e'];
+  // one colour per string (E A D G B e). Dark theme: a neon set checked for every kind of colour vision (worst ΔE 10.4).
+  const SCOL=window.RETRO&&window.RETRO.palette?['#2fe0d0','#5fb4ff','#ff5a72','#8b7dff','#ffa83c','#f5f07a']:['#00693e','#1f7ab0','#c84b31','#8a5cc4','#a86f00','#0f766e'];
   const SNAME=['6·E','5·A','4·D','3·G','2·B','1·e'];
   let played=[0,null,null,null,null,null];   // fret per string (low E .. high e, player's looking-down order); null = muted
   const vis=[true,true,true,true,true,true];  // show/hide each string in the plots (display only; sound is unchanged)

@@ -374,7 +374,7 @@ function draw(){
 }
 
 function drawAxes(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range){
-  sctx.strokeStyle="#cdd8d2"; sctx.fillStyle="#3a4a43";
+  sctx.strokeStyle="#cdd8d2"; sctx.fillStyle="#9aa3cf";
   sctx.lineWidth=1*dpr;
   sctx.font=(12*dpr)+"px Helvetica, Arial, sans-serif";
   sctx.textBaseline="middle"; sctx.textAlign="right";
@@ -420,7 +420,7 @@ function drawAxes(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range){
   sctx.drawImage(tmp, cbx, m.t, cbw, ph);
   sctx.strokeStyle="#cdd8d2"; sctx.globalAlpha=.5;
   sctx.strokeRect(cbx,m.t,cbw,ph); sctx.globalAlpha=1;
-  sctx.fillStyle="#3a4a43"; sctx.textAlign="left"; sctx.textBaseline="middle";
+  sctx.fillStyle="#9aa3cf"; sctx.textAlign="left"; sctx.textBaseline="middle";
   for(let k=0;k<=4;k++){
     const db=hi-(range*k/4);
     const y=m.t+(k/4)*ph;
@@ -524,7 +524,7 @@ function updateFileSpectrum(){
 
 /* ---------- shared frequency grid + colorbar (used by file and live views) ---------- */
 function drawFreqGridAndBar(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range){
-  sctx.strokeStyle="#cdd8d2"; sctx.fillStyle="#3a4a43";
+  sctx.strokeStyle="#cdd8d2"; sctx.fillStyle="#9aa3cf";
   sctx.lineWidth=1*dpr;
   sctx.font=(12*dpr)+"px Helvetica, Arial, sans-serif";
   sctx.textBaseline="middle"; sctx.textAlign="right";
@@ -552,7 +552,7 @@ function drawFreqGridAndBar(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range){
   sctx.imageSmoothingEnabled=false;
   sctx.drawImage(tmp, cbx, m.t, cbw, ph);
   sctx.strokeStyle="#cdd8d2"; sctx.globalAlpha=.5; sctx.strokeRect(cbx,m.t,cbw,ph); sctx.globalAlpha=1;
-  sctx.fillStyle="#3a4a43"; sctx.textAlign="left"; sctx.textBaseline="middle";
+  sctx.fillStyle="#9aa3cf"; sctx.textAlign="left"; sctx.textBaseline="middle";
   for(let k=0;k<=4;k++){ const db=hi-(range*k/4); const y=m.t+(k/4)*ph; sctx.fillText(Math.round(db)+"", cbx+cbw+4*dpr, y); }
   sctx.save(); sctx.translate(cbx+cbw+34*dpr, m.t+ph/2); sctx.rotate(-Math.PI/2);
   sctx.textAlign="center"; sctx.fillText("dB",0,0); sctx.restore();
@@ -644,7 +644,7 @@ function liveLoop(){
   sctx.imageSmoothingEnabled=false;
   sctx.drawImage(live.off, m.l, m.t);
   drawFreqGridAndBar(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range);
-  sctx.fillStyle="#3a4a43"; sctx.textAlign="center"; sctx.textBaseline="top";
+  sctx.fillStyle="#9aa3cf"; sctx.textAlign="center"; sctx.textBaseline="top";
   sctx.font=(12*dpr)+"px Helvetica, Arial, sans-serif";
   sctx.fillText("← earlier        time        now →", m.l+pw/2, m.t+ph+5*dpr);
   drawSpectrumLine(buf, nBins, sr, hi, lo);

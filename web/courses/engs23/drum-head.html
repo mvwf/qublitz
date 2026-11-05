@@ -57,6 +57,7 @@
   .srcBanner.hit{background:#fdf1e6;border-color:#e3b083;color:#5c3412}
   .srcBanner b{letter-spacing:.04em}
   .srcBanner.flash{box-shadow:0 0 0 3px #ffd166}
+  html.retro .srcTag{font-family:var(--r-body);font-size:11px;letter-spacing:0;text-shadow:none;white-space:normal}
   .srcTag{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;white-space:nowrap}
   .srcTag.sup{background:#eef4fb;color:#1d3b5e;border:1px solid #9fbbe0}
   .srcTag.hit{background:#fdf1e6;color:#5c3412;border:1px solid #e3b083}
@@ -151,7 +152,7 @@
   <div class="card" id="tilesCard">
     <div class="flexcap"><h2 style="margin:0" id="tilesTitle">Normal modes, seen from above: click to build your superposition</h2>
       <span class="pill" id="selPill">4 selected</span></div>
-    <canvas id="tiles" height="380"></canvas>
+    <canvas id="tiles" data-retro-ink height="380"></canvas>
     <div class="row tight">
       <button id="selLowest">Lowest four</button>
       <button id="selFig">Figure 6.1</button>
@@ -194,7 +195,7 @@
       <span class="pill" id="pickPill">pickup at the centre</span></div>
     <canvas id="scope" data-retro-ink height="200"></canvas>
     <p class="legend">The head's displacement (or velocity) at the pickup, over the last four fundamental periods of the animation
-      clock, with time in milliseconds for the drum set below. The dark curve is the sum; each mode's own
+      clock, with time in milliseconds for the drum set below. The bold curve is the sum; each mode's own
       contribution is drawn faintly in its colour (with <b>Your superposition</b>). Mode (<span class="mvar">m</span>,<span class="mvar">n</span>) reaches the pickup with weight
       <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span><sub>p</sub>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ<sub>p</sub>,
       so at the centre, where <span class="mvar">J<sub>n</sub></span>(0) = 0 for every <span class="mvar">n</span> ≥ 1, only the <span class="mvar">n</span> = 0 modes are heard.</p>
@@ -317,7 +318,9 @@ if (window.QUBLITZ_STANDALONE) {
   const NMAX=23, MMAX=9, FMODEL=12, TILE_N=5, TILE_M=4, MAXSEL=6;
   const modes = D.buildModes(NMAX, MMAX).filter(md=>md.ratio<=FMODEL+1e-9);
   const modeAt = (m,n) => modes.find(md=>md.m===m && md.n===n);
-  const SCOL=['#00693e','#2d6fb3','#c84b31','#8a5cc4','#cc8800','#0f766e'];
+  const DKD=!!(window.RETRO&&window.RETRO.palette);   // retro theme: dark drum shell and light rims
+  // one colour per string (E A D G B e). Dark theme: a neon set checked for every kind of colour vision (worst ΔE 10.4).
+  const SCOL=window.RETRO&&window.RETRO.palette?['#2fe0d0','#5fb4ff','#ff5a72','#8b7dff','#ffa83c','#f5f07a']:['#00693e','#2d6fb3','#c84b31','#8a5cc4','#a86f00','#0f766e'];
 
   // ---------- state ----------
   let src='modes', view='3d', sand=false, kind='strike', malletW=0.08;
@@ -411,13 +414,13 @@ if (window.QUBLITZ_STANDALONE) {
     for(let j=0;j<=96;j++){ const th=2*Math.PI*j/96; project(C,Math.cos(th),Math.sin(th),0,tmp); rimPts.push([tmp[0],tmp[1],tmp[2]]);
       project(C,Math.cos(th),Math.sin(th),-H,tmp); bot.push([tmp[0],tmp[1]]); }
     if(opts.shell!==false){
-      g.fillStyle='#dfe7e2'; g.strokeStyle='#b9c8bf'; g.lineWidth=1;
+      g.fillStyle=DKD?'#2a3358':'#dfe7e2'; g.strokeStyle=DKD?'#5b6aa8':'#b9c8bf'; g.lineWidth=1;
       g.beginPath(); rimPts.forEach((p,j)=>j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));
       for(let j=96;j>=0;j--) g.lineTo(bot[j][0],bot[j][1]); g.closePath(); g.fill();
       g.beginPath(); bot.forEach((p,j)=>j?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.stroke();
     }
     // rim, back half
-    g.lineWidth=opts.rimW||3; g.strokeStyle='#5f6f67'; g.lineCap='round';
+    g.lineWidth=opts.rimW||3; g.strokeStyle=DKD?'#9aa3cf':'#5f6f67'; g.lineCap='round';
     g.beginPath(); let on=false;
     rimPts.forEach(p=>{ if(p[2]>=0){ on?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]); on=true; } else on=false; }); g.stroke();
     // membrane
@@ -522,7 +525,7 @@ if (window.QUBLITZ_STANDALONE) {
       renderTop(st,clock,zMax);
       const S=Math.min(w,h)-28, x0=(w-S)/2, y0=(h-S)/2;
       g.imageSmoothingEnabled=true; g.drawImage(top.cv,x0,y0,S,S);
-      g.strokeStyle='#4a5852'; g.lineWidth=3; g.beginPath(); g.arc(x0+S/2,y0+S/2,S/2,0,7); g.stroke();
+      g.strokeStyle=DKD?'#9aa3cf':'#4a5852'; g.lineWidth=3; g.beginPath(); g.arc(x0+S/2,y0+S/2,S/2,0,7); g.stroke();
       if(sand){ g.fillStyle='rgba(120,92,48,0.9)'; grains.forEach(([x,y])=>g.fillRect(x0+(x+1)/2*S-0.7,y0+(1-y)/2*S-0.7,1.4,1.4)); }
       if(strikeAt && src==='strike'){ g.strokeStyle='#1b2a24'; g.lineWidth=1.2; g.beginPath();
         g.arc(x0+(strikeAt.rho*Math.cos(strikeAt.theta)+1)/2*S, y0+(1-strikeAt.rho*Math.sin(strikeAt.theta))/2*S, 4,0,7); g.stroke(); }

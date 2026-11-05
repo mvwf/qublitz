@@ -227,6 +227,8 @@ const STAGES = [
   { name:'Still',        short:'Still', T:0.7,  A:20, mK:true,  c:'#2d6fb3' },
   { name:'MXC',          short:'MXC',   T:0.01, A:20, mK:true,  c:'#00693e' },
 ];
+// Dark theme: a set that stays distinct for every kind of colour vision (checked deutan/protan/tritan), all ≥5.6:1.
+if (window.RETRO && window.RETRO.palette) ['#ff5a72','#ffa83c','#eaf0ff','#8b7dff','#2fe0d0'].forEach((c, i) => { STAGES[i].c = c; });
 const DEFAULTS = { T:STAGES.map(s=>s.T), A:STAGES.map(s=>s.A), fMin:3, fMax:6, fRef:5, nPts:200, pIn:-60, cable:15 };
 
 const PRESETS = [
@@ -339,7 +341,7 @@ function compute(st){
 function drawPlot(){
   const m = model, p = PLOTS.find(q=>q.id===plotId), x = Array.from(m.freqs);
   const ys = { n:m.nEff, T:m.TEff, dB:m.red, P:m.P.map(v=>x.map(()=>v)), flux:m.flux }[plotId];
-  const traces = STAGES.map((s,i)=>({ x, y:Array.from(ys[i]), mode:'lines', name:s.name, line:{color:s.c, width:i===4?3:2},
+  const traces = STAGES.map((s,i)=>({ x, y:Array.from(ys[i]), mode:'lines', name:s.name, line:{color:s.c, width:i===4?3:2, dash:i===1?'dash':'solid'},   // 50 K dashed: at 0 dB it sits on top of 300 K
     hovertemplate:`${s.short}: %{y:.4g}<extra>%{x:.3f} GHz</extra>` }));
   $('#logY').checked = logPref[plotId];
   Plotly.react('plot', traces, {

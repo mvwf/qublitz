@@ -100,7 +100,8 @@
   .q .fb i{display:block;height:100%;background:#e0b040}
   .q .fb i.ok{background:var(--green2)}
   .q .tag{font-size:11.5px;color:var(--muted)}
-  .q .ok{color:var(--green2);font-weight:700} .q .no{color:#b4561a;font-weight:600}
+  .q .ok{color:var(--green2);font-weight:700} .q .no{color:#ffa83c;font-weight:600}
+  #phaseKey i{font-style:normal;font-weight:700;margin-right:6px}
   .rule{margin:0 0 6px} .rule b{color:var(--ink)}
   .bar .goal{font-size:12.5px}
   .lab{display:inline-block;border:1px solid var(--green);color:var(--green);border-radius:7px;padding:5px 10px;text-decoration:none;font-size:13px;margin-top:6px}
@@ -180,7 +181,7 @@
         <button id="hint" title="Place one piece of a solution (H). Caps this level at ★★">Hint</button>
         <button id="clearRun" title="Show the start states again">Rewind</button>
       </div>
-      <p class="keys">Beam colour is the drive phase: <span style="color:#d9475a">■ x</span> <span style="color:#1f9a4a">■ y</span> <span style="color:#d9822b">■ −x</span> <span style="color:#2a8fc4">■ −y</span>. Thicker is more area: π, then π/2, π/4.</p>
+      <p class="keys">Beam colour is the drive phase, and a tag names it after each plate: <span id="phaseKey"></span>. Thicker is more area: π, then π/2, π/4.</p>
     </div>
     <div class="box">
       <h3>Qubits <span id="qInfo"></span></h3>
@@ -224,7 +225,11 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ==
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const PHASE_COL = ['#ff7a8a', '#7ee08a', '#ffb36b', '#6fd0ff'];
+// drive phase x, y, −x, −y: a set that stays distinct for red-green and blue-yellow colour blindness (worst ΔE 12.6),
+// and each change of phase on the board also gets a text tag (see phaseTag), so colour is never the only cue
+const PHASE_COL = ['#ff4d9d', '#40e6b4', '#ff8a3c', '#5fb4ff'];
+// the legend uses the same colours as the beams
+document.getElementById('phaseKey').innerHTML = ['x', 'y', '−x', '−y'].map((n, i) => `<i style="color:${window.RETRO && window.RETRO.palette ? PHASE_COL[i] : ['#c4307e', '#0f7d62', '#b5530f', '#246fae'][i]}">■ ${n}</i>`).join('');
 const S = { stars: store.get('beamline:stars', {}) };
 let level = null, idx = -1, sandbox = false;
 let placed = [], undoStack = [], tool = 'mirror', fires = 0, hinted = false;
@@ -579,8 +584,10 @@ function drawPath(p, k, ghost) {
     const frac = Math.min(1, k - i);
     // from the previous point to the centre of this cell (entering), with the incoming pulse
     seg(px, py, px + (ex - px) * frac, py + (ey - py) * frac, phase, area, ghost);
+    const changed = c.phase !== phase;
     px = ex; py = ey; phase = c.phase; area = c.area;
     if (c.dOut == null) return;
+    if (changed && !ghost && k > i + 1) phaseTag(ex + E.DX[c.dOut] * CELL * 0.3, ey + E.DY[c.dOut] * CELL * 0.3, phase);
   }
   // after the last cell, run to the board edge
   if (p.end === 'edge' && k >= p.cells.length) {
@@ -616,6 +623,14 @@ function drawPiece(p, fixed) {
     for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(X - s * 0.4, Y + k * s * 0.35); g.lineTo(X + s * 0.4, Y + k * s * 0.35); g.stroke(); }
     label('½', X, Y, '#ffffff', CELL * 0.3);
   }
+}
+// a small pill naming the drive phase where a plate changed it
+function phaseTag(x, y, phase) {
+  const t = E.phaseName(((phase % 4) + 4) % 4), fs = Math.max(10, CELL * 0.13);
+  g.save(); g.font = `700 ${fs}px Helvetica,Arial`; const w = g.measureText(t).width + fs * 0.9, h = fs * 1.45;
+  g.fillStyle = 'rgba(7,10,22,0.82)'; g.strokeStyle = PHASE_COL[((phase % 4) + 4) % 4]; g.lineWidth = 1.5;
+  roundRect(x - w / 2, y - h / 2, w, h, h / 2); g.fill(); g.stroke();
+  g.fillStyle = '#eaf0ff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, y + 0.5); g.restore();
 }
 function drawLaser(L, i) {
   const X = cx(L.x), Y = cy(L.y), s = CELL * 0.34, col = PHASE_COL[L.phase || 0];
@@ -658,7 +673,7 @@ function drawQubit(q, i, now) {
   g.fillStyle = '#ffffff'; g.beginPath(); g.arc(tip[0], tip[1], 3.2, 0, 7); g.fill();
   // name and fidelity
   const lab = q.target != null ? `${qName(i)} ${q.spectator ? 'keep' : (100 * E.fidelity(r, E.vec(q.target))).toFixed(0) + '%'}` : qName(i);
-  label(lab, X, Y + R + CELL * 0.13, q.spectator ? '#c0c6d4' : '#ffd166', Math.max(9, CELL * 0.15));
+  label(lab, X, Y + R + CELL * 0.13, q.spectator ? '#c0c6d4' : '#ffd166', Math.max(11, CELL * 0.15));
 }
 function label(text, x, y, col, size) {
   g.font = `700 ${Math.round(size)}px Helvetica,Arial`; g.textAlign = 'center'; g.textBaseline = 'middle';
