@@ -617,6 +617,29 @@ const MINUS = { x: -1, y: 0, z: 0 };
     DuelCore.PICKUP_CYCLE.includes('calib') && DuelCore.PICKUP_CYCLE.includes('tgate'));
 }
 
+// ── Case C — the coach's best shot is the true optimum ────────────────
+{
+  const rng = DuelCore.mulberry32(31);
+  let worst = 0;
+  for (let i = 0; i < 300; i++) {
+    const u = 2 * rng() - 1, ph = 2 * Math.PI * rng(), len = 0.2 + 0.8 * rng();
+    const r = { x: len * Math.sqrt(1 - u * u) * Math.cos(ph), y: len * Math.sqrt(1 - u * u) * Math.sin(ph), z: len * u };
+    for (const beam of ['X', 'Y']) {
+      const bp = DuelCore.bestPulse(r, beam);
+      let brute = 0;
+      for (let k = 0; k <= 2000; k++)
+        brute = Math.max(brute, DuelCore.odds(DuelCore.rotateBloch(r, DuelCore.AXES[beam], k / 2000 * Math.PI)));
+      const got = DuelCore.odds(DuelCore.rotateBloch(r, DuelCore.AXES[beam], bp.theta));
+      worst = Math.max(worst, brute - got, Math.abs(got - bp.p1));
+    }
+  }
+  check('C1. bestPulse finds the best reachable θ ∈ [0, π] (vs brute force, 300 states)', worst < 1e-5, `worst gap ${worst.toExponential(1)}`);
+  const fromZero = DuelCore.bestPulse(KET0, 'X'), fromEq = DuelCore.bestPulse({ x: 0, y: -1, z: 0 }, 'X');
+  check('C2. from |0⟩ the best shot is a π-pulse; from the equator it is π/2, not π',
+    approx(fromZero.theta, Math.PI, 1e-9) && approx(fromEq.theta, Math.PI / 2, 1e-9) &&
+    approx(DuelCore.odds(DuelCore.rotateBloch({ x: 0, y: -1, z: 0 }, DuelCore.AXES.X, Math.PI)), 0.5, 1e-9));
+}
+
 // ── Case E — the entangled pair is an exact two-qubit density matrix ──
 {
   const Pr = DuelCore.Pair;

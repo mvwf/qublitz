@@ -1455,6 +1455,28 @@ const DuelCore = (() => {
   const isEigenstate = (r, axisName, tolDeg = K.EIGEN_TOL_DEG) =>
     eigenstateAngleDeg(r, axisName) <= tolDeg;
 
+  // Best shot: the attack-beam angle θ ∈ [0, π] (what a charge can deliver)
+  // that leaves the target most likely to read |1⟩. For an X or Y axis n,
+  // z(θ) = z·cosθ + w·sinθ with w = (n × r)_z, so the unconstrained best is
+  // θ* = atan2(−w, −z); if that needs more than π, the best reachable angle
+  // is an endpoint. This is why a full π-pulse is right from |0⟩ but does
+  // nothing useful from the equator (there you want π/2).
+  function bestPulse(r, beamKey) {
+    const b = BEAMS[beamKey];
+    if (!b || b.kind !== 'attack') return null;
+    const n = AXES[b.axis], w = n.x * r.y - n.y * r.x;
+    const zAt = th => r.z * Math.cos(th) + w * Math.sin(th);
+    let th = Math.atan2(-w, -r.z);
+    if (th < 0) th += 2 * Math.PI;
+    if (th > Math.PI) th = zAt(Math.PI) < zAt(0) ? Math.PI : 0;
+    return { beam: beamKey, theta: th, p1: (1 - zAt(th)) / 2 };
+  }
+  function bestAttack(r, prefer) {
+    const a = bestPulse(r, 'X'), b = bestPulse(r, 'Y');
+    const first = prefer === 'Y' ? b : a, second = prefer === 'Y' ? a : b;
+    return second.p1 > first.p1 + 0.03 ? second : first;   // stick with the selected beam unless clearly worse
+  }
+
   // Off-resonant drive (FLUX DETUNE power-up). A qubit detuned by Δ from a
   // drive of Rabi rate Ω turns about the tilted axis (Ω·n̂ + Δ·ẑ)/Ω′ at the
   // generalised Rabi rate Ω′ = √(Ω² + Δ²). A pulse that would have been θ on
@@ -1922,7 +1944,7 @@ const DuelCore = (() => {
   return { debriefLines, parkPulse,
            K, AXES, BEAMS, ZONE, ZENO, DUEL_MISSIONS, missionGate,
            mulberry32, chargeToTheta, driveTheta, rotateBloch,
-           detunedRotate, reducedBloch, Pair, PICKUPS, PICKUP_CYCLE,
+           detunedRotate, reducedBloch, Pair, PICKUPS, PICKUP_CYCLE, bestPulse, bestAttack,
            eigenstateAngleDeg, isEigenstate, isCardinal, applyBeamHit,
            resolveBeam, decayStep, zoneAt, odds, measureRoll,
            sigmaFor, applyFidelity, bellPair, bellOdds, bellMeasure };
@@ -2207,7 +2229,16 @@ const GAME = {
   evQuizEnabled:false, evQuizResults:[],   // EV-1 — off by default
   importedT1Ns:null,                       // BR-1 — ?t1=<ns> deep link
   difficulty:1,                            // 0=Cadet 1=Duelist 2=Menace
+  // Beginner help, both on by default and both disclosed in the HUD:
+  // aim assist bends YOUR projectiles toward Sage (never Sage's toward you);
+  // coach shows the next step and the physics behind it.
+  aimAssist:loadFlag('qb_aim_assist', true),
+  coach:loadFlag('qb_coach', true),
 };
+function loadFlag(key, dflt) {
+  try { const v = localStorage.getItem(key); return v == null ? dflt : v === '1'; } catch (e) { return dflt; }
+}
+function saveFlag(key, on) { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) {} }
 
 
 // ═══════════════════════════════════════════════════════
@@ -2864,6 +2895,7 @@ const DUEL = (() => {
   // Ship k of the pair is qubit bellIdx; its .bloch is always its reduced
   // state, so every reader (odds, spheres, bot) sees the real marginal.
   const LINK_ENT_MIN = 0.05;          // negativity that counts as entangled (Bell = 0.5)
+  const AIM_CONE = 0.6, AIM_TURN = 0.5;   // aim assist: ±35° cone, turn rate in rad/s
   function syncPair() {
     if (!S.bell) return;
     for (const sh of S.ships) if (sh.bellIdx >= 0) sh.bloch = DuelCore.Pair.reduced(S.bell, sh.bellIdx);
@@ -3286,6 +3318,20 @@ const DUEL = (() => {
     // Projectiles
     for (const p of S.proj) {
       if (!p.live) continue;
+      // Aim assist (player only): a beam takes ~0.7 s to cross the arena and
+      // Sage moves several ship-widths in that time, so unassisted shots at
+      // where Sage IS almost always miss. Steer toward Sage inside a 60° cone.
+      if (p.owner === 0 && GAME.aimAssist) {
+        const tg = S.ships[1];
+        const cur = Math.atan2(p.vy, p.vx);
+        let da = Math.atan2(tg.y - p.y, tg.x - p.x) - cur;
+        da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (Math.abs(da) < AIM_CONE) {
+          const a = cur + Math.max(-AIM_TURN * dt, Math.min(AIM_TURN * dt, da));
+          const sp = Math.hypot(p.vx, p.vy);
+          p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp;
+        }
+      }
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.ttl -= dt;
       if (p.ttl <= 0 || p.x < -40 || p.x > K.WORLD_W + 40 || p.y < -40 || p.y > K.WORLD_H + 40) {
@@ -3555,6 +3601,7 @@ const DUEL = (() => {
     }
     ctx.restore();
     drawHud();
+    drawCoach();
     drawReveal();
     drawAnnouncer();
     if (S.paused) banner('PAUSED', 'ESC / MENU to resume');
@@ -3660,6 +3707,20 @@ const DUEL = (() => {
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, R * 1.5, 0, Math.PI * 2); ctx.stroke();
     }
+    // P(|1⟩) ring: the qubit's state, drawn where the action is. A MEASURE
+    // on this ship hits with exactly this probability.
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.beginPath(); ctx.arc(x, y, R * 1.35, 0, Math.PI * 2); ctx.stroke();
+    if (od > 0.005) {
+      ctx.strokeStyle = od > 0.75 ? '#3fe08a' : od > 0.4 ? '#f5b73c' : '#ff8fa0';
+      ctx.beginPath(); ctx.arc(x, y, R * 1.35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * od); ctx.stroke();
+    }
+    ctx.font = `700 ${Math.round(BOARD * 0.0138)}px ${CANVAS_BODY}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(230,235,255,0.85)';
+    ctx.fillText(`${sh.owner === 0 ? 'YOU' : 'SAGE'} ${Math.round(od * 100)}%`, x, y + R * 1.35 + 14);
+    ctx.textAlign = 'left';
     ctx.save();
     ctx.translate(x, y); ctx.rotate(sh.ang);
     ctx.fillStyle = sh.hitFlash > 0 ? '#ffffff' : sh.col;
@@ -3711,8 +3772,8 @@ const DUEL = (() => {
     const zz = S.pairZZ || 0, ent = (S.pairNeg || 0) > LINK_ENT_MIN;
     const corr = zz > 0.3 ? 'outcomes MATCH' : zz < -0.3 ? 'outcomes OPPOSITE' : 'outcomes uncorrelated';
     hudText(S.bell ? `${ent ? `ENTANGLED ${Math.round(S.pairNeg * 200)}%` : 'CORRELATED, no entanglement left'} · ${corr} (⟨ZZ⟩ ${zz >= 0 ? '+' : ''}${zz.toFixed(2)})`
-                   : 'their qubit — rotate it to |1⟩, then MEASURE',
-            118, 112, S.bell ? '#c97bff' : '#6f79a8');
+                   : 'GOAL: rotate Sage\'s qubit to |1⟩, then MEASURE it · don\'t get measured at |1⟩ yourself',
+            118, 112, S.bell ? '#c97bff' : '#cfd6ee');
     if (S.bell && Math.abs(zz) > 0.3)
       hudText(zz > 0 ? 'a dud MEASURE on them drops you to |0⟩ too · hotspots break the link'
                      : 'careful: a dud MEASURE on them leaves YOU at |1⟩ · π self-pulse to re-match',
@@ -3785,6 +3846,13 @@ const DUEL = (() => {
       ctx.fillStyle = frac >= 0.999 ? '#3fe08a' : '#f5b73c';
       roundRect(bx, byy, bw * frac, bh, 3); ctx.fill();
     }
+    // Green mark: the best charge for the selected beam, from Sage's current state.
+    const bp = (GAME.coach && !S.bell) ? DuelCore.bestPulse(foe.bloch, S.beam) : null;
+    if (bp && bp.theta > 0.02 && bp.p1 > DuelCore.odds(foe.bloch) + 0.05) {
+      const tx = bx + bw * (bp.theta / Math.PI);
+      ctx.fillStyle = '#3fe08a';
+      ctx.fillRect(tx - 2, byy - 3, 4, bh + 6);
+    }
     ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
     [[0.25,'π/4'],[0.5,'π/2'],[0.75,'3π/4'],[1,'π']].forEach(([f, lab]) => {
       const tx = bx + bw * f;
@@ -3815,6 +3883,7 @@ const DUEL = (() => {
     if (me.driveUntil > S.t) boosts.push([`DRIVE ×2 ${(me.driveUntil - S.t).toFixed(0)}s`, DuelCore.PICKUPS.drive.color]);
     if (me.detuneUntil > S.t) boosts.push([`DETUNED ${(me.detuneUntil - S.t).toFixed(0)}s`, DuelCore.PICKUPS.detune.color]);
     if (me.fastReadout) boosts.push(['FAST READOUT armed', DuelCore.PICKUPS.readout.color]);
+    if (GAME.aimAssist) boosts.push(['AIM ASSIST on', '#6f79a8']);
     let bxx = rx;
     for (const [txt, col] of boosts) {
       hudText(txt, bxx, ry + 20, col);
@@ -3836,6 +3905,61 @@ const DUEL = (() => {
             kx, by + 102, measReady ? '#3fe08a' : '#6f79a8');
     hudText(`${S.gamepad.index == null ? 'PAD' : 'PAD CONNECTED'} · LS/RS move/aim · RT/LT pulses`,
             kx, by + 122, S.gamepad.index == null ? '#6f79a8' : '#2fe0d0');
+  }
+
+  // Coach: the single most useful next step, with the physics reason.
+  // Pure function of state so it is cheap and testable in the browser.
+  function coachHint() {
+    const me = S.ships[0], foe = S.ships[1];
+    if (!me || !foe || S.over) return null;
+    const pf = DuelCore.odds(foe.bloch), pm = DuelCore.odds(me.bloch), pct = v => Math.round(v * 100);
+    const kb = DUEL_CONTROLS.keyboard;
+    const spec = DuelCore.BEAMS[S.beam] || DuelCore.BEAMS.X;
+    if (S.charging) {
+      const th = DuelCore.driveTheta(S.chargeT, rabiMult(me)) / Math.PI;
+      return [`Release to ${S.selfAim ? 'pulse yourself' : 'fire'}: a ${th.toFixed(2)}π rotation${th > 0.97 ? ' (a π-pulse flips |0⟩ ↔ |1⟩)' : ''}`, '#f5b73c'];
+    }
+    if (foe.winding > 0) return ['Sage is winding up a MEASURE: dodge the white orb, or drop your odds first', '#ff5a72'];
+    if (pm > 0.6 && !S.bell)
+      return [`You are ${pct(pm)}% |1⟩, so a MEASURE on you likely hits. Self-pulse (${kb.selfPulse}) back toward |0⟩, or fly into a hotspot: decay pulls you to |0⟩`, '#ff5a72'];
+    if (S.bell) {
+      const zz = S.pairZZ || 0;
+      if (zz < -0.3) return [`Linked, outcomes OPPOSITE: a dud would leave YOU at |1⟩. A π self-pulse (${kb.selfPulse}) makes them MATCH`, '#f5b73c'];
+      return [`Linked, outcomes MATCH: MEASURE now (${kb.measure}) is a safe 50% shot. If it is a dud you both go to |0⟩`, '#c97bff'];
+    }
+    if (pf >= 0.7 && me.measCd === 0 && me.winding === 0)
+      return [`Sage is ${pct(pf)}% |1⟩. MEASURE (${kb.measure}) now, and stop firing: another π-pulse would rotate them back toward |0⟩`, '#3fe08a'];
+    if (pf >= 0.7)
+      return [`Sage is ${pct(pf)}% |1⟩. Hold fire: rotations are cyclic, and a π-pulse from here undoes your work`, '#3fe08a'];
+    if (spec.kind === 'attack' && DuelCore.isEigenstate(foe.bloch, spec.axis) && pf > 0.02)
+      return [`Sage sits on the ${spec.axis} axis, where an ${spec.axis}-rotation does nothing. Switch beam (1/2) or use a T-phase (3)`, '#f5b73c'];
+    const best = DuelCore.bestAttack(foe.bloch, S.beam === 'Y' ? 'Y' : 'X');
+    const frac = (best.theta / Math.PI).toFixed(2);
+    const sw = (S.beam !== best.beam) ? ` (switch with ${best.beam === 'X' ? '1' : '2'})` : '';
+    const purity = Math.hypot(foe.bloch.x, foe.bloch.y, foe.bloch.z);
+    if (purity < 0.5 && pf > 0.2)
+      return [`Decoherence made Sage's qubit mixed: no rotation gets past ${pct((1 + purity) / 2)}%. MEASURE: a dud resets it to a clean |0⟩`, '#c97bff'];
+    if (best.p1 < pf + 0.05)
+      return [`Sage is ${pct(pf)}% |1⟩ and no single beam does much better. MEASURE (${kb.measure}) and trust the odds`, '#aeb8e6'];
+    if (pf < 0.1 && best.theta > 0.9 * Math.PI)
+      return [`Hold ${kb.attack} for a FULL charge and hit Sage: a π-pulse rotates their qubit from |0⟩ to |1⟩`, '#aeb8e6'];
+    return [`Best shot: ${best.beam}-beam${sw} charged to ${frac}π (green mark on your charge bar) takes Sage from ${pct(pf)}% to ${pct(best.p1)}%`, '#aeb8e6'];
+  }
+  function drawCoach() {
+    if (!GAME.coach || S.introT > 0) return;
+    const h = coachHint(); if (!h) return;
+    const y = BAND + VIEW_H - 14;
+    ctx.save();
+    let fs = Math.round(BOARD * 0.0163);
+    ctx.font = `600 ${fs}px ${CANVAS_BODY}`;
+    while (ctx.measureText(h[0]).width > BOARD - 64 && fs > 9) { fs--; ctx.font = `600 ${fs}px ${CANVAS_BODY}`; }
+    const w = Math.min(BOARD - 40, ctx.measureText(h[0]).width + 24);
+    ctx.fillStyle = 'rgba(5,7,15,0.78)';
+    roundRect((BOARD - w) / 2, y - 15, w, 22, 6); ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = h[1];
+    ctx.fillText(h[0], BOARD / 2, y);
+    ctx.restore();
   }
 
   // Measurement reveal: the Born rule, drawn. The bar is split at P(|1⟩); the
@@ -4270,7 +4394,7 @@ const DUEL = (() => {
   return { start, stop, frame, onKey, clearKeys:clearInput, clearInput,
            onMouseMove, onMouseDown, onMouseUp, onGamepadConnected, onGamepadDisconnected,
            setGamepadProvider, pollGamepad,
-           state: S, triggerFx, p95, telemetry: () => S.tele.slice(),
+           state: S, triggerFx, p95, coachHint, telemetry: () => S.tele.slice(),
            togglePerf: () => (S.showPerf = !S.showPerf) };
 })();
 
@@ -4318,11 +4442,11 @@ function openMenu() {
   <button class="mode-card" data-play-mode="photon-duel" onclick="startDuel()">
     <span class="mode-kicker">COMPETITIVE · BEST OF 3</span>
     <strong>⚡ PHOTON DUEL</strong>
-    <span class="mode-copy">Outfly Sage, rotate their live Bloch vector, grab power-ups, and risk the MEASURE when the odds are yours.</span>
+    <span class="mode-copy">Rotate Sage's qubit toward |1⟩ with pulse beams, then MEASURE it before they measure you. The coach tells you the best shot and why.</span>
     <span class="mode-status">PLAY FREE DUEL →</span>
   </button>
   <button class="mode-card training" data-play-mode="duel-training" onclick="openDuelMissions()">
-    <span class="mode-kicker">GUIDED · ${total} CONCEPT MISSIONS</span>
+    <span class="mode-kicker">${cleared === 0 ? 'NEW? START HERE · ' : ''}GUIDED · ${total} CONCEPT MISSIONS</span>
     <strong>◈ DUEL TRAINING</strong>
     <span class="mode-copy">Master the same arena through missions that refuse the win until you use the quantum concept.</span>
     <span class="mode-status">${cleared}/${total} CLEARED${next == null ? ' · TRAINING COMPLETE' : ` · NEXT: MISSION ${next + 1}`} →</span>
@@ -4344,6 +4468,16 @@ ${duelPickupsHTML()}
 
 <h3>SETTINGS</h3>
 <p style="color:var(--dim);font-size:var(--fs-0);margin-bottom:6px;">
+  <label style="cursor:pointer">
+    <input type="checkbox" id="aim-assist-toggle" ${GAME.aimAssist?'checked':''}
+      onchange="GAME.aimAssist=this.checked;saveFlag('qb_aim_assist',this.checked)">
+    Aim assist: your shots curve toward Sage (on by default)
+  </label><br>
+  <label style="cursor:pointer">
+    <input type="checkbox" id="coach-toggle" ${GAME.coach?'checked':''}
+      onchange="GAME.coach=this.checked;saveFlag('qb_coach',this.checked)">
+    Coach: show the next step and the quantum reason (on by default)
+  </label><br>
   <label style="cursor:pointer">
     <input type="checkbox" id="ev-quiz-toggle" ${GAME.evQuizEnabled?'checked':''}
       onchange="GAME.evQuizEnabled=this.checked">
