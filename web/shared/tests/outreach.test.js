@@ -68,6 +68,38 @@ check('summary reads day cells that Sheets stored as dates', S3.byDay['2026-11-0
 
 // the private review feed was removed with the free text: the collector exports no review helpers
 check('no review feed is exported', !('reviewFeed' in gs) && !('reviewKeyOk' in gs));
+// engagement totals, months, date ranges and the outreach-code filter (for the dashboard's report)
+const ER = [
+  gs.cleanEventRow({ game: 'copter', ev: 'open', day: '2026-10-30', code: 'FAIR' }, now),
+  gs.cleanEventRow({ game: 'copter', ev: 'level_complete', level: 'hover', day: '2026-10-30', code: 'FAIR' }, now),
+  gs.cleanEventRow({ game: 'copter', ev: 'leave', dur_s: 600, day: '2026-10-30', code: 'FAIR' }, now),
+  gs.cleanEventRow({ game: 'copter', ev: 'open', day: '2026-11-02' }, now),
+  gs.cleanEventRow({ game: 'copter', ev: 'leave', dur_s: 300, day: '2026-11-02' }, now),
+  gs.cleanEventRow({ game: 'rider', ev: 'leave', dur_s: 120, day: '2026-11-03' }, now),
+];
+const EQ = [gs.cleanQuizRows({ game: 'copter', day: '2026-10-30', code: 'FAIR', answers: [{ q: 'q1', pick: 0, ok: true }], fun: 5 }, now).quiz,
+  gs.cleanQuizRows({ game: 'copter', day: '2026-11-02', src: 'ingame', answers: [{ q: 'q1', pick: 1, ok: false }] }, now).quiz];
+const E1 = gs.summarize(ER, EQ, [], 90, now);
+check('summary totals active minutes per game and overall', E1.games.copter.totalMinutes === 15 && E1.games.rider.totalMinutes === 2 && E1.totalMinutes === 17, JSON.stringify([E1.games.copter.totalMinutes, E1.totalMinutes]));
+check('summary groups visits, minutes, completions and answers by month', E1.byMonth['2026-10'].copter.opens === 1 && E1.byMonth['2026-10'].copter.minutes === 10 &&
+  E1.byMonth['2026-10'].copter.completes === 1 && E1.byMonth['2026-10'].copter.debriefs === 1 && E1.byMonth['2026-11'].copter.ingame === 1 && E1.byMonth['2026-11'].copter.minutes === 5);
+check('summary totals minutes and completions per outreach code', E1.codeTotals.FAIR.minutes === 10 && E1.codeTotals.FAIR.completes === 1);
+const E2 = gs.summarize(ER, EQ, [], 90, now, { from: '2026-11-01', to: '2026-11-02' });
+check('summary honours from/to (inclusive)', E2.since === '2026-11-01' && E2.until === '2026-11-02' && E2.games.copter.opens === 1 && !E2.games.rider && E2.quiz.copter.ingame === 1 && E2.quiz.copter.n === 0);
+const E3 = gs.summarize(ER, EQ, [[now, '2026-10-30', 'copter', 'FAIR', 'x', ''], [now, '2026-11-02', 'copter', '', 'y', '']], 90, now, { code: 'FAIR' });
+check('summary keeps only one outreach code when asked', E3.code === 'FAIR' && E3.games.copter.opens === 1 && E3.totalMinutes === 10 && E3.quiz.copter.n === 1 && !E3.quiz.copter.ingame && E3.feedbackCount.copter === 1);
+check('summary ignores a malformed range or code', gs.summarize(ER, EQ, [], 90, now, { from: 'yesterday', code: '<x>' }).games.rider.leaves === 1);
+
+// the private review feed: free text only with the matching key, never in the summary
+const KEY = 'k3y-0f-at-least-16-chars';
+const fb = [qz.feedback];
+check('review key must match exactly', gs.reviewKeyOk(KEY, KEY) && !gs.reviewKeyOk(KEY.slice(0, -1) + 'X', KEY) && !gs.reviewKeyOk(undefined, KEY) && !gs.reviewKeyOk('', ''));
+check('review key check refuses an unset or short key', !gs.reviewKeyOk('short', 'short') && !gs.reviewKeyOk(null, null));
+const R = gs.reviewFeed(KEY, KEY, rows, [qz.quiz], fb, 90, now);
+check('review feed returns the free text with the right key', R && R.feedback.length === 1 && R.feedback[0].learned === 'phase sets the axis' && R.games.beamline.opens === 1);
+check('review feed returns nothing with a wrong or missing key', gs.reviewFeed('wrong-key-wrong-key-wrong', KEY, rows, [qz.quiz], fb, 90, now) === null &&
+  gs.reviewFeed(undefined, KEY, rows, [qz.quiz], fb, 90, now) === null && gs.reviewFeed(KEY, null, rows, [qz.quiz], fb, 90, now) === null);
+check('review feed respects the window', gs.reviewFeed(KEY, KEY, [], [], [[now, '2025-01-01', 'rider', '', 'old', '']], 90, now).feedback.length === 0);
 
 // insights: each rule fires below its threshold once enough people were measured, and flags rank by n × gap
 const IN = require(path.join(root, 'web/outreach/insights.js'));
@@ -128,6 +160,33 @@ check('collector stores the received day, not a time', /^\d{4}-\d{2}-\d{2}$/.tes
 const sk = kit.cleanQuiz('rider', { answers: [{ q: 'a', obj: 'o', pick: 1, ok: true }, { q: 'b', obj: 'o', pick: -1, ok: false }] }, ctx);
 const skg = gs.cleanQuizRows({ game: 'rider', answers: [{ q: 'a', pick: 1, ok: true }, { q: 'b', pick: -1, ok: false }] }, now);
 check('blank answers are dropped in the browser and the collector', sk.n === 1 && sk.score === 1 && skg.quiz[6] === 1);
+// report, redesign brief, issue link and before/after (web/outreach/report.js)
+const RP = require(path.join(root, 'web/outreach/report.js'));
+const repS = Object.assign({}, sum, { since: '2026-08-07', until: '2026-11-05', byMonth: { '2026-10': { beamline: { opens: 50, minutes: 200, completes: 30, debriefs: 10, ingame: 5 }, hub: { opens: 99, minutes: 9, completes: 0, debriefs: 0, ingame: 0 } },
+  '2026-11': { beamline: { opens: 30, minutes: 100, completes: 20, debriefs: 20, ingame: 2 } } }, codes: { FAIR: 12 }, codeTotals: { FAIR: { minutes: 90, completes: 4 } },
+  codeQuiz: { FAIR: { n: 5, ingame: 1, avgScore: 0.6, avgFun: 4.4, avgLearned: 4 } }, labFrom: { beamline: 7 } });
+repS.games = JSON.parse(JSON.stringify(sum.games)); repS.games.beamline.totalMinutes = 300; repS.games.beamline.completes = 51; repS.games.rider.totalMinutes = 60; repS.games.hub.totalMinutes = 600;
+const NB = RP.numbers(repS, specs, { beamline: 'Beamline', rider: 'Rabi Rider' });
+check('report numbers leave the hub out of activity totals', NB.visits === 100 && NB.hubVisits === 300 && NB.activities.length === 2 && NB.hours === 6 && NB.completes === 51, JSON.stringify([NB.visits, NB.hours]));
+check('report numbers total answers, ratings, lab arrivals and months', NB.answers === 86 && NB.debriefs === 33 && NB.labArrivals === 7 && NB.months.length === 2 && NB.months[0].visits === 50 && NB.codes[0].minutes === 90);
+const TX = RP.reportText(repS, specs, { beamline: 'Beamline' });
+check('report text states the range and the caveats', /From Aug 7, 2026 to Nov 5, 2026/.test(TX) && /not unique people/.test(TX) && /lower bound/.test(TX) && !/DEMO/.test(TX));
+check('report text labels demo data', /^\[DEMO DATA/.test(RP.reportText(Object.assign({}, repS, { demo: true }))));
+const MC = RP.monthsCsv(repS, { beamline: 'Beamline' }).trim().split('\n');
+check('CSV per game per month', MC[0] === 'month,game,title,visits,active_minutes,levels_completed,debriefs,ingame_answers' && MC.length === 4 && MC[1] === '2026-10,beamline,Beamline,50,200,30,10,5');
+check('CSV per event code', RP.codesCsv(repS).trim().split('\n')[1] === 'FAIR,12,90,4,5,1,0.6,4.4,4');
+const BR = RP.brief(repS, specs, { beamline: 'Beamline' }, 'beamline');
+check('brief names the misconception, stops, ratings and experiments', /Redesign brief: Beamline/.test(BR.title) && /most-picked wrong answer “−x”/.test(BR.body) && /### Suggested next experiments\n1\. /.test(BR.body) && !/[Ww]ritten|free text/.test(BR.body), BR.body.slice(0, 200));
+const big = RP.issueUrl(BR.title, BR.body + '\n' + 'x'.repeat(20000), 6000);
+check('issue link stays under the limit and says it was truncated', big.truncated && big.url.length <= 6000 && /Truncated/.test(decodeURIComponent(big.url)) && /labels=feedback/.test(big.url));
+check('short issue link is not truncated', RP.issueUrl('t', 'body').truncated === false);
+const lv = (s, c) => ({ games: { beamline: { levels: { hard: { starts: s, completes: c } }, quizOpens: 40, leaves: 30, avgMinutes: 3 } }, quiz: { beamline: { n: 25, avgFun: 3.5, avgLearned: 3, items: { q3: item(40, 12, {}) } } } });
+const CMP = RP.compare(lv(30, 6), lv(25, 15), { game: 'beamline', level: 'hard', objective: 'axis' }, specs);
+const row = k => CMP.find(r => r.key === k);
+check('before/after compares the level and the objective with n on each side', row('level').before.v === 0.2 && row('level').after.v === 0.6 && row('level').enough && row('correct').before.n === 40 && /phase/.test(row('correct').label));
+check('before/after greys out rows with too few answers', !RP.compare(lv(30, 6), lv(5, 4), { game: 'beamline', level: 'hard' }, specs).find(r => r.key === 'level').enough);
+const W = RP.windows('2026-10-20', '2026-11-05');
+check('before/after windows are equal and adjacent', W.before.to === '2026-10-19' && W.after.from === '2026-10-20' && W.after.to === '2026-11-05' && W.before.from === '2026-10-03' && W.days === 17, JSON.stringify(W));
 
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);

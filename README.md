@@ -12,6 +12,7 @@ Welcome!
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Outreach usage dashboard](#outreach-usage-dashboard)
 - [Contributing](#contributing)
 - [Contact](#contact)
 
@@ -48,6 +49,9 @@ The physics lives in `web/qublitz/rabi-engine.js` and is checked by `node web/qu
 
 ### Home
 The landing page with a welcome message and navigation to all available apps.
+
+### Resonator Lab (web only)
+An interactive page on internal and coupling quality factors of microwave resonators ([open it](https://mvwf.github.io/qublitz/qublitz/resonator.html)). Students move Qi and Qc and watch the resonance change in magnitude, phase and the IQ plane, then fit a resonance: a mystery resonator with a hidden answer, or their own network-analyzer data (CSV or Touchstone) with the hanger, reflection or transmission model or a formula they type. Every fit can be exported as a Python script.
 
 ### Sonify Images
 This app allows you to turn images into sound by mapping image data to audio signals. Upload your own image or use a premade one, and explore the sonification process interactively.
@@ -89,6 +93,12 @@ Each page will also need to import `run_quantum_simulation` from `quantum_simula
 Find the current website here:
 https://qublitz-qubit-lab.streamlit.app/
 [![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](https://unitary.fund)
+
+## Outreach usage dashboard
+
+- Live: [mvwf.github.io/qublitz/outreach/dashboard.html](https://mvwf.github.io/qublitz/outreach/dashboard.html) · demo with synthetic data: [`…/dashboard.html?demo=1`](https://mvwf.github.io/qublitz/outreach/dashboard.html?demo=1)
+- Shows aggregate, anonymous usage of the web demos, the debrief results, insights on what to fix, a report for proposals and redesign briefs per game. It is linked only from here, not from the site.
+- Collection is off until a collector endpoint is set; see [tools/outreach-collector/README.md](tools/outreach-collector/README.md).
 
 ## Contributing 
 ### General Steps 

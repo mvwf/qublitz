@@ -6,6 +6,12 @@
  *         old `feedback` tab (from earlier versions) is only ever emptied, by purgeOld (see RETAIN_DAYS).
  *         Everything is validated and capped again here; the browser is not trusted.
  *   GET   ?summary=1[&days=90]   aggregate counts as JSON for web/outreach/dashboard.html (no free text).
+ *         Rows go to three tabs: events, quiz, feedback (the free text, kept apart so the dashboard never
+ *         shows it). Everything is validated and capped again here; the browser is not trusted.
+ *   GET   ?summary=1[&days=90][&from=YYYY-MM-DD&to=YYYY-MM-DD][&code=SCIFAIR26]   aggregate counts as JSON for
+ *         web/outreach/dashboard.html (no free text). from/to replace days; code keeps only that outreach session.
+ *   GET   ?review=1&key=K[&days=90]   the summary plus the free-text feedback rows, for the owner only: K must equal
+ *         the Script Property REVIEW_KEY (Project Settings > Script properties). Otherwise the answer is "forbidden".
  *
  * Setup: tools/outreach-collector/README.md. The pure functions at the bottom (cleanEventRow, summarize) are
  * also loaded by web/shared/tests/outreach.test.js in Node.
@@ -50,6 +56,10 @@ function doGet(e) {
   var cache = CacheService.getScriptCache(), key = 'summary' + days + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
   var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date()));
+  var opts = { from: RE_DAY.test(p.from || '') ? p.from : '', to: RE_DAY.test(p.to || '') ? p.to : '', code: RE_CODE.test(p.code || '') ? p.code : '' };
+  var cache = CacheService.getScriptCache(), key = ['summary', days, opts.from, opts.to, opts.code].join('|'), hit = cache.get(key);
+  if (hit) return json_(hit);
+  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), read_('feedback'), days, new Date(), opts));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
   return json_(out);
 }
@@ -107,24 +117,35 @@ function cleanQuizRows(q, now) {
  *   codeGames{code: {game: opens}}, codeQuiz{code: {n, ingame, avgScore, avgFun, avgLearned}},
  *   quiz{game: {n (debriefs), ingame, avgScore, avgFun, avgLearned,
  *     items{q: {objective, n, correct, picks{choice: n}, wrong{choice: n}, ingame{n, correct}}}}},
- *   feedbackCount{game: n}. Free text never leaves the sheet. */
-function summarize(events, quiz, feedback, days, now) {
-  var cutoff = new Date(now.getTime() - days * 86400000);
-  var since = Utilities_formatDay_(cutoff);
-  var inRange = function (d) { return String(d) >= since; };
-  var out = { generated: now.toISOString ? now.toISOString() : String(now), days: days, since: since,
-              games: {}, byDay: {}, codes: {}, devices: {}, codeGames: {}, codeQuiz: {}, quiz: {}, feedbackCount: {}, labFrom: {} };
+ *   feedbackCount{game: n}, totalMinutes (active minutes over every reported visit end, also per game),
+ *   byMonth{YYYY-MM: {game: {opens, minutes, completes, debriefs, ingame}}}, codeTotals{code: {minutes, completes}}.
+ *   Free text never leaves the sheet.
+ * opts (optional): { from, to: 'YYYY-MM-DD' (inclusive; from replaces days), code: keep only that outreach session }. */
+function summarize(events, quiz, feedback, days, now, opts) {
+  var o = opts || {};
+  var since = RE_DAY.test(o.from || '') ? o.from : Utilities_formatDay_(new Date(now.getTime() - days * 86400000));
+  var until = RE_DAY.test(o.to || '') ? o.to : '';
+  var only = RE_CODE.test(o.code || '') ? o.code : '';
+  var inRange = function (d) { return String(d) >= since && (!until || String(d) <= until); };
+  var out = { generated: now.toISOString ? now.toISOString() : String(now), days: days, since: since, until: until || Utilities_formatDay_(now),
+              code: only, games: {}, byDay: {}, byMonth: {}, codes: {}, devices: {}, codeGames: {}, codeQuiz: {}, codeTotals: {}, quiz: {},
+              feedbackCount: {}, labFrom: {}, totalMinutes: 0 };
   var g = function (id) {
     return out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0,
       leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
   };
+  var month = function (day, game) {
+    var M = out.byMonth[day.slice(0, 7)] || (out.byMonth[day.slice(0, 7)] = {});
+    return M[game] || (M[game] = { opens: 0, minutes: 0, completes: 0, debriefs: 0, ingame: 0 });
+  };
+  var codeT = function (c) { return out.codeTotals[c] || (out.codeTotals[c] = { minutes: 0, completes: 0 }); };
   events.forEach(function (r) {
     var day = dayKey_(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9];
-    if (!inRange(day)) return;
+    if (!inRange(day) || (only && code !== only)) return;
     var G = g(game);
     G.events[ev] = (G.events[ev] || 0) + 1;
     if (ev === 'open') {
-      G.opens++;
+      G.opens++; month(day, game).opens++;
       var D = out.byDay[day] || (out.byDay[day] = {}); D[game] = (D[game] || 0) + 1;
       if (code) {
         out.codes[code] = (out.codes[code] || 0) + 1;
@@ -142,17 +163,28 @@ function summarize(events, quiz, feedback, days, now) {
       var at = level || 'unknown', done = r[5] === '' ? 0 : Number(r[5]);
       G.quits[at] = (G.quits[at] || 0) + 1;
       G.completedPerVisit[done] = (G.completedPerVisit[done] || 0) + 1;
-      if (dur !== '') { G.leaves++; G.durSum += Number(dur); }
+      if (dur !== '') {
+        G.leaves++; G.durSum += Number(dur); month(day, game).minutes += Number(dur) / 60;
+        if (code) codeT(code).minutes += Number(dur) / 60;
+      }
     }
     if (level && (ev === 'level_start' || ev === 'level_complete')) {
       var L = G.levels[level] || (G.levels[level] = { starts: 0, completes: 0, starsSum: 0 });
       if (ev === 'level_start') L.starts++;
-      else { L.completes++; G.completes++; if (stars !== '') L.starsSum += Number(stars); }
+      else {
+        L.completes++; G.completes++; month(day, game).completes++; if (code) codeT(code).completes++;
+        if (stars !== '') L.starsSum += Number(stars);
+      }
     }
   });
   Object.keys(out.games).forEach(function (id) {
-    var G = out.games[id]; G.avgMinutes = G.leaves ? Math.round(G.durSum / G.leaves / 6) / 10 : null; delete G.durSum;
+    var G = out.games[id]; G.avgMinutes = G.leaves ? Math.round(G.durSum / G.leaves / 6) / 10 : null;
+    G.totalMinutes = Math.round(G.durSum / 6) / 10; out.totalMinutes += G.durSum / 60; delete G.durSum;
   });
+  out.totalMinutes = Math.round(out.totalMinutes * 10) / 10;
+  var r1 = function (x) { return Math.round(x * 10) / 10; };
+  Object.keys(out.byMonth).forEach(function (m) { Object.keys(out.byMonth[m]).forEach(function (id) { out.byMonth[m][id].minutes = r1(out.byMonth[m][id].minutes); }); });
+  Object.keys(out.codeTotals).forEach(function (c) { out.codeTotals[c].minutes = r1(out.codeTotals[c].minutes); });
   // In-game answers (one question each, r[10] === 'ingame') feed the score and the item accuracy but are not
   // counted as debriefs: n counts debriefs, ingame counts in-game answers.
   var tally = function (Q, r) {
@@ -170,7 +202,8 @@ function summarize(events, quiz, feedback, days, now) {
   var blank = function () { return { n: 0, ingame: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0] }; };
   quiz.forEach(function (r) {
     var day = dayKey_(r[1]), game = r[2], code = r[3];
-    if (!inRange(day)) return;
+    if (!inRange(day) || (only && code !== only)) return;
+    if (r[10] === 'ingame') month(day, game).ingame++; else month(day, game).debriefs++;
     var Q = out.quiz[game] || (out.quiz[game] = blank());
     if (!Q.items) Q.items = {};
     tally(Q, r);
@@ -185,7 +218,7 @@ function summarize(events, quiz, feedback, days, now) {
   });
   Object.keys(out.quiz).forEach(function (id) { finish(out.quiz[id]); });
   Object.keys(out.codeQuiz).forEach(function (c) { finish(out.codeQuiz[c]); });
-  feedback.forEach(function (r) { if (inRange(dayKey_(r[1]))) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
+  feedback.forEach(function (r) { if (inRange(dayKey_(r[1])) && (!only || r[3] === only)) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
   return out;
 }
 

@@ -40,6 +40,9 @@ and use **Deploy → Manage deployments → Edit → New version** so the URL st
 [`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public but not linked from the site: it is reached
 from the repository's README, and it is not indexed by search engines. It shows only what `?summary=1` returns: counts
 and averages.
+[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public but deliberately out of sight: it is reached
+from the repository's [README](../../README.md#outreach-usage-dashboard), not from any page of the site, and search
+engines are asked not to index it. It shows only what `?summary=1` returns: aggregate counts and averages.
 
 - `?demo=1` shows realistic synthetic data, labelled **DEMO DATA**, so you can see it before collection starts.
 - `?days=7|30|90|365` picks the period; `?since=YYYY-MM-DD` shows everything since a date (each entry in
@@ -49,6 +52,15 @@ and averages.
   whose thresholds are constants with comments there (and listed on the page). They flag questions under 50% right,
   levels people rarely finish, places where many visits stop, ratings below 3 of 5, debriefs opened but not sent, and
   very short visits, each with its evidence and a suggested kind of fix, ranked by people measured × gap.
+- The **Report** tab is for proposals and grant reports: a date range and optionally one event code, headline numbers
+  (page visits, which are not unique people; activities used; active hours; levels completed; in-game answers and
+  debriefs; share right by learning objective; ratings; lab arrivals; growth by month; one row per outreach event),
+  "Copy as text" (a paragraph and bullets with the range and caveats), CSV downloads (games by month, events), the raw
+  JSON, and a print stylesheet for "Print / Save as PDF".
+- The **Redesign & compare** tab builds a markdown redesign brief for one game (stop places, weakest objectives with
+  the most-picked wrong answer, ratings, minutes, flags and suggested experiments) and a before/after comparison for
+  any `improvements.json` entry or date. `improvements.json` entries may add `"level"` or `"objective"` (ids) to
+  name what the change targets.
 - Question and objective text come from each page's `web/learning/<id>.js`; a missing file only means the dashboard
   shows question ids instead of text.
 
@@ -61,6 +73,12 @@ The point of the counts is to make the games more fun and more educational. The 
 2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as
    the dashboard states it (e.g. "question q3: 38% correct of 52 answers; possible misconception: …", or
    "level crosstalk: 9 completions of 31 starts"), and the proposed change.
+1. **Review** the dashboard's Insights, weekly during term and after each outreach event (filter the Report by its
+   `?event=` code).
+2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as
+   the dashboard states it (e.g. "question q3: 38% correct of 52 answers; possible misconception: …", or
+   "level crosstalk: 9 completions of 31 starts"), and the proposed change. The **Redesign & compare** tab builds this
+   as a brief for one game, with a button that opens the issue prefilled.
 3. **Fix** it in a pull request that links the issue.
 4. **Log the change** in [`web/outreach/improvements.json`](../../web/outreach/improvements.json), which the dashboard
    shows as "You said, we did":
@@ -68,8 +86,9 @@ The point of the counts is to make the games more fun and more educational. The 
    [{ "date": "2026-11-20", "game": "beamline", "change": "Hint added to the crosstalk level", "because": "level crosstalk: 29% of starts completed" }]
    ```
    `date` is the day the change went live, `game` a manifest id, `because` the evidence type and number.
-5. **Compare** the same metric afterwards: the entry's "Show the numbers since …" button sets `?since=` to that
-   date, so the dashboard covers only visits after the change. Give it enough visits to clear the rule's minimum
+5. **Compare** the same metric afterwards: the entry's "Compare before / after" button shows the level, objective and
+   ratings in equal windows before and after that date, with n on each side (greyed out until both sides have enough
+   answers); "Show the numbers since …" sets `?since=` to that date. Give it enough visits to clear the rule's minimum
    count before calling it fixed, and note the result on the issue.
 
 ## Things to know

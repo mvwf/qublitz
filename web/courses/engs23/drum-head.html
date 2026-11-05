@@ -50,6 +50,14 @@
   .seg button.on{background:var(--green);color:#fff}
   input[type=range]{accent-color:var(--green);vertical-align:middle}
   .val{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink);min-width:60px;display:inline-block;text-align:right}
+  .srcBanner{margin:8px 0 4px;padding:8px 12px;border-radius:8px;font-size:13.5px;line-height:1.45;border:1px solid}
+  .srcBanner.sup{background:#eef4fb;border-color:#9fbbe0;color:#1d3b5e}
+  .srcBanner.hit{background:#fdf1e6;border-color:#e3b083;color:#5c3412}
+  .srcBanner b{letter-spacing:.04em}
+  .srcBanner.flash{box-shadow:0 0 0 3px #ffd166}
+  .srcTag{font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;white-space:nowrap}
+  .srcTag.sup{background:#eef4fb;color:#1d3b5e;border:1px solid #9fbbe0}
+  .srcTag.hit{background:#fdf1e6;color:#5c3412;border:1px solid #e3b083}
   .pill{font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);
     border-radius:20px;padding:2px 9px;font-variant-numeric:tabular-nums}
   .legend{font-size:12px;color:var(--muted);margin:6px 0 0}
@@ -93,14 +101,15 @@
 
 <div class="wrap">
   <div class="card" id="drumCard">
-    <div class="flexcap"><h2 style="margin:0">Drum head — <span class="mvar">z</span>(<span class="mvar">r</span>, θ, <span class="mvar">t</span>)</h2>
+    <div class="flexcap"><h2 style="margin:0" id="drumTitle">Drum head: your superposition</h2>
       <span class="pill" id="timePill">t = 0.00 T₁₀</span></div>
     <div class="row tight" style="margin-top:6px">
-      <label class="lbl">Show</label>
-      <span class="seg" id="srcSeg"><button data-src="modes" class="on">Selected modes</button><button data-src="strike">Mallet strike</button></span>
+      <label class="lbl">The head shows</label>
+      <span class="seg" id="srcSeg"><button data-src="modes" class="on">Your superposition</button><button data-src="strike">Mallet strike</button></span>
       <span class="seg" id="viewSeg"><button data-view="3d" class="on">3D</button><button data-view="top">Top</button></span>
       <label class="lbl"><input type="checkbox" id="sand"> sand</label>
     </div>
+    <div class="srcBanner sup" id="srcBanner" role="status" aria-live="polite"></div>
     <canvas id="drum" height="380"></canvas>
     <div class="row">
       <button id="play" class="primary">❚❚ Pause</button>
@@ -110,10 +119,10 @@
     </div>
     <div class="row tight">
       <label class="lbl">Slow motion</label>
-      <input id="speed" type="range" min="0.05" max="2" step="0.01" value="0.4" style="flex:1">
-      <span class="val" id="speedv" style="min-width:150px">0.40 T₁₀ per second</span>
+      <input id="speed" type="range" min="0.02" max="1" step="0.01" value="0.15" style="flex:1">
+      <span class="val" id="speedv" style="min-width:150px">0.15 T₁₀ per second</span>
     </div>
-    <div class="row tight">
+    <div class="row tight" id="strikeRow">
       <label class="lbl">Click the head to</label>
       <span class="seg" id="kindSeg"><button data-kind="strike" class="on">strike it</button><button data-kind="press">press &amp; release</button></span>
       <label class="lbl">mallet width</label>
@@ -130,13 +139,15 @@
       <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:3px 5px">
         <option value="pos" selected>senses position</option><option value="vel">senses velocity</option></select>
     </div>
-    <p class="legend" id="drumLegend">Height and colour are the displacement (red up, blue down). Drag to turn the drum. With
-      <b>Selected modes</b> the head shows the sum of the modes picked on the right; click the head to strike it instead.
-      The green square is the pickup: it reads the head at that one point, and that is what you hear.</p>
+    <p class="legend" id="drumLegend">Height and colour are the displacement (red up, blue down). Drag to turn the drum. The head
+      shows one of two things, never both: <b>Your superposition</b> is the sum of the modes you pick in the tiles, at the amplitudes
+      set by the bars, all starting at a crest at <span class="mvar">t</span> = 0 (nothing struck the drum). <b>Mallet strike</b> simulates a blow
+      where you click: the strike's shape is split into every normal mode, and all of them ring at once. The green square is the
+      pickup: it reads the head at that one point, and that is what you hear.</p>
   </div>
 
   <div class="card" id="tilesCard">
-    <div class="flexcap"><h2 style="margin:0">Normal modes, seen from above — click to select</h2>
+    <div class="flexcap"><h2 style="margin:0" id="tilesTitle">Normal modes, seen from above: click to build your superposition</h2>
       <span class="pill" id="selPill">4 selected</span></div>
     <canvas id="tiles" height="380"></canvas>
     <div class="row tight">
@@ -150,8 +161,8 @@
       <span><span class="pill" id="ampRead">hover a bar</span> <button id="ampReset" title="Set every selected mode back to +1">All +1</button></span></div>
     <canvas id="amps" height="120" style="margin-top:6px;cursor:ns-resize"></canvas>
     <p class="legend" id="tilesLegend">Laid out as Boas's Figure 6.1: <span class="mvar">m</span> across, <span class="mvar">n</span> down. Each tile is
-      <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ, animated at its own
-      frequency. It has <span class="mvar">n</span> nodal diameters and <span class="mvar">m</span> − 1 nodal circles inside the rim. The number is
+      <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ, drawn still at a crest
+      (each one would oscillate at its own frequency; the drum and the panel below show that motion). It has <span class="mvar">n</span> nodal diameters and <span class="mvar">m</span> − 1 nodal circles inside the rim. The number is
       ν<sub><span class="mvar">mn</span></sub>/ν<sub>10</sub>. Every mode with <span class="mvar">n</span> ≥ 1 has a twin, sin <span class="mvar">n</span>θ, turned by
       90°/<span class="mvar">n</span>, with the same frequency. After a strike each tile shows its mode's share of the energy
       (the cos and sin twins together). The bars set how much of each selected mode is in the superposition, from −1 to +1
@@ -159,7 +170,7 @@
   </div>
 
   <div class="card full" id="raceCard">
-    <div class="flexcap"><h2 style="margin:0">The selected modes side by side, on one clock</h2>
+    <div class="flexcap"><h2 style="margin:0">Your selected modes side by side, on one clock<span class="srcTag sup" id="raceTag">your superposition</span></h2>
       <span class="pill" id="racePill">after 1 T₁₀</span></div>
     <canvas id="race" height="230"></canvas>
     <canvas id="traces" height="190" style="margin-top:8px"></canvas>
@@ -177,18 +188,18 @@
   </div>
 
   <div class="card" id="scopeCard">
-    <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
+    <div class="flexcap"><h2 style="margin:0">Pickup signal: this is what you hear<span class="srcTag sup"></span></h2>
       <span class="pill" id="pickPill">pickup at the centre</span></div>
     <canvas id="scope" height="200"></canvas>
     <p class="legend">The head's displacement (or velocity) at the pickup, over the last four fundamental periods of the animation
-      clock, with time in milliseconds for the drum set below. The dark curve is the sum; with <b>Selected modes</b> each mode's own
-      contribution is drawn faintly in its colour. Mode (<span class="mvar">m</span>,<span class="mvar">n</span>) reaches the pickup with weight
+      clock, with time in milliseconds for the drum set below. The dark curve is the sum; each mode's own
+      contribution is drawn faintly in its colour (with <b>Your superposition</b>). Mode (<span class="mvar">m</span>,<span class="mvar">n</span>) reaches the pickup with weight
       <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span><sub>p</sub>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ<sub>p</sub>,
       so at the centre, where <span class="mvar">J<sub>n</sub></span>(0) = 0 for every <span class="mvar">n</span> ≥ 1, only the <span class="mvar">n</span> = 0 modes are heard.</p>
   </div>
 
   <div class="card" id="pfftCard">
-    <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal</h2>
+    <div class="flexcap"><h2 style="margin:0">FFT of the pickup signal<span class="srcTag sup"></span></h2>
       <span class="pill">frequency components</span></div>
     <canvas id="pfft" height="200"></canvas>
     <p class="legend">The Fourier transform of the pickup signal (64 fundamental periods, Hann window), in units of the signal.
@@ -200,7 +211,7 @@
   </div>
 
   <div class="card full" id="liveCard">
-    <div class="flexcap"><h2 style="margin:0">Live spectrogram of the pickup</h2>
+    <div class="flexcap"><h2 style="margin:0">Live spectrogram of the pickup<span class="srcTag sup"></span></h2>
       <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
     <canvas id="lspec" height="230"></canvas>
     <canvas id="lline" height="170" style="margin-top:8px"></canvas>
@@ -311,7 +322,7 @@ if (window.QUBLITZ_STANDALONE) {
   let sel=[[1,0],[1,1],[1,2],[2,0]];                 // selected (m,n), in the order picked
   let strikeAt=null;                                  // {rho, theta, kind, w} of the last strike
   let strikeState=D.emptyState(modes);
-  let clock=0, playing=!window.matchMedia('(prefers-reduced-motion: reduce)').matches, lastTS=null, speed=0.4, win=3;
+  let clock=0, playing=!window.matchMedia('(prefers-reduced-motion: reduce)').matches, lastTS=null, speed=0.15, win=3;
   let cam={az:-0.62, el:0.6};
   let phys={a:0.178, T:2000, s:0.26};
   let pickup={rho:0, theta:0}, senseVel=false;   // pickup position (ρ = r/a, θ in radians) and what it senses
@@ -549,7 +560,7 @@ if (window.QUBLITZ_STANDALONE) {
     for(let n=0;n<TILE_N;n++) g.fillText('n = '+n, padL-6, padT+n*(chh+gap)+S/2+4);
     const shares = src==='strike' ? energyShares() : null;
     for(let n=0;n<TILE_N;n++) for(let m=1;m<=TILE_M;m++){
-      const md=modeAt(m,n), F=tileBase(md), osc=Math.cos(md.omega*clock), px=tileImg.data;
+      const md=modeAt(m,n), F=tileBase(md), osc=1, px=tileImg.data;   // still, at a crest: the shapes, not the motion
       for(let q=0;q<F.length;q++){ const o=4*q, f=F[q];
         if(f!==f){ px[o+3]=0; continue; }
         const u=f*osc, a=Math.min(1,Math.pow(Math.abs(u),0.75)), c=u>=0?POS:NEG;
@@ -846,12 +857,31 @@ if (window.QUBLITZ_STANDALONE) {
 
   // ---------- controls ----------
   function setSeg(id,attr,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset[attr]===val)); }
-  function setSrc(s){ src=s; setSeg('srcSeg','src',s); refreshScale(); drawAll(); }
-  function setSel(list){ sel=list.slice(0,MAXSEL); if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); } refreshScale(); drawAll(); }
+  function srcUI(){
+    const hit = src==='strike', B=$('srcBanner');
+    B.className='srcBanner '+(hit?'hit':'sup');
+    if(hit && strikeAt){
+      const deg=Math.round(((strikeAt.theta*180/Math.PI)%360+360)%360);
+      B.innerHTML='<b>MALLET STRIKE SIMULATION.</b> A '+(strikeAt.kind==='press'?'press-and-release':'strike')+' at <i>r</i> = '+strikeAt.rho.toFixed(2)+' <i>a</i>, θ = '+deg+
+        '°, '+strikeAt.w.toFixed(2)+' <i>a</i> wide. The blow is split into every normal mode and they all ring together; the tiles show each mode\'s share of the energy. Click the head to strike somewhere else.';
+    } else {
+      const n=sel.length;
+      B.innerHTML='<b>YOUR SUPERPOSITION.</b> '+(n? 'The sum of the '+n+' mode'+(n>1?'s':'')+' you picked in the tiles, at the amplitudes on the bars, all starting at a crest at <i>t</i> = 0. Nothing struck the drum: switch to <b>Mallet strike</b> to hit it.'
+        : 'No modes picked: click tiles on the right to add them, or switch to <b>Mallet strike</b> to hit the drum.');
+    }
+    $('drumTitle').textContent = hit ? 'Drum head: after a mallet strike' : 'Drum head: your superposition';
+    $('tilesTitle').textContent = hit ? 'Normal modes, seen from above: each one\'s share of the strike' : 'Normal modes, seen from above: click to build your superposition';
+    $('strikeRow').style.display = hit ? '' : 'none';
+    document.querySelectorAll('.srcTag').forEach(t=>{ if(t.id==='raceTag') return;
+      t.className='srcTag '+(hit?'hit':'sup'); t.textContent= hit ? 'from the strike' : 'from your superposition'; });
+    $('raceTag').textContent = hit ? 'your superposition, not the strike' : 'your superposition';
+  }
+  function setSrc(s){ src=s; setSeg('srcSeg','src',s); srcUI(); refreshScale(); drawAll(); }
+  function setSel(list){ sel=list.slice(0,MAXSEL); if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); } srcUI(); refreshScale(); drawAll(); }
   function doStrike(rho,theta,k,w){
     strikeAt={rho,theta,kind:k,w};
     strikeState=D.strike(modes,rho,theta,w,k);
-    src='strike'; setSeg('srcSeg','src','strike'); clock=0; refreshScale();
+    src='strike'; setSeg('srcSeg','src','strike'); clock=0; srcUI(); refreshScale();
     if(!playing) setPlaying(true); else drawAll();
   }
   $('srcSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
@@ -908,6 +938,11 @@ if (window.QUBLITZ_STANDALONE) {
     if(C.top){ x=(px-C.x0)/C.S*2-1; y=1-(py-C.y0)/C.S*2; }
     else { const X=(px-C.cx)/C.S, Y=(C.cy-py)/C.S/C.se; x=X*C.ca+Y*C.sa; y=-X*C.sa+Y*C.ca; }
     const rho=Math.hypot(x,y); if(rho>=0.97) return;
+    if(src!=='strike'){   // the superposition is not a strike: say how to strike instead of switching behind the user's back
+      const B=$('srcBanner'); B.classList.add('flash'); setTimeout(()=>B.classList.remove('flash'), 1400);
+      B.innerHTML='<b>YOUR SUPERPOSITION.</b> Clicking does not strike this view. Switch to <b>Mallet strike</b> above, then click where to hit the head.';
+      return;
+    }
     doStrike(rho, Math.atan2(y,x), kind, malletW);
     if(Date.now()-qlLastStrike>20000){ qlLastStrike=Date.now(); qlNote('strike',{value:+rho.toFixed(2)}); }   // at most one per 20 s
   });
@@ -959,9 +994,9 @@ if (window.QUBLITZ_STANDALONE) {
     updatePhys();
     if(st.hit){ malletW=st.hit[2]; $('mw').value=malletW; $('mwv').textContent=malletW.toFixed(2)+' a';
       strikeAt={rho:st.hit[0],theta:st.hit[1],kind,w:malletW}; strikeState=D.strike(modes,st.hit[0],st.hit[1],malletW,kind);
-      src='strike'; setSeg('srcSeg','src','strike'); refreshScale(); drawAll(); }
+      src='strike'; setSeg('srcSeg','src','strike'); srcUI(); refreshScale(); drawAll(); }
     else if(st.sel){ if(st.amp) st.sel.forEach(([m,n],i)=>{ amps[''+m+n]=st.amp[i]; }); setSel(st.sel); }
-    else drawAll();
+    else { srcUI(); drawAll(); }
     if(st.play!=null) setPlaying(st.play);
   }
   $('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/drum-head.html',shareQuery()));
@@ -1022,6 +1057,7 @@ if (window.QUBLITZ_STANDALONE) {
     PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'drum-head', ...qlGuided(GUIDED, 'drum-head', {3:'strike',4:'inharm'}) }); }
 
   layout(); updatePhys(); refreshScale();
+  srcUI();
   { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
   setPlaying(playing);
   if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry($('intro'), startGuided);
