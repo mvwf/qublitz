@@ -23,10 +23,10 @@ check('cleanEvent keeps game, event, level, stars, duration and code', e && e.le
 check('cleanEvent rejects bad ids', kit.cleanEvent('Beam Line', 'open', {}, ctx) === null && kit.cleanEvent('beamline', 'drop table', {}, ctx) === null);
 check('cleanEvent drops a bad outreach code', !('code' in kit.cleanEvent('rider', 'open', {}, { ...ctx, code: '<script>' })));
 
-// quiz: score is recomputed from the answers, free text is scrubbed
+// quiz: score is recomputed from the answers, and no text survives (there is no free text by design)
 const q = kit.cleanQuiz('copter', { answers: [{ q: 'q1', obj: 'o1', pick: 0, ok: true }, { q: 'q2', obj: 'o2', pick: 2, ok: false }],
   fun: 5, learned: 4, txt_learned: 'rotations! me@x.org', txt_confusing: '' }, ctx);
-check('cleanQuiz recomputes score and scrubs text', q.score === 1 && q.n === 2 && q.fun === 5 && !/@/.test(q.txt_learned));
+check('cleanQuiz recomputes score and drops any text fields', q.score === 1 && q.n === 2 && q.fun === 5 && !('txt_learned' in q) && !('txt_confusing' in q) && !JSON.stringify(q).includes('me@x.org'));
 
 // collector rows and summary
 const now = new Date('2026-11-05T12:00:00Z');
@@ -41,13 +41,13 @@ const rows = [
 check('collector rejects a bad event row', rows.length === 5);
 const qz = gs.cleanQuizRows({ game: 'beamline', day: '2026-11-05', answers: [{ q: 'q1', obj: 'o1', pick: 1, ok: true }, { q: 'q2', obj: 'o2', pick: 0, ok: false }],
   fun: 4, learned: 5, txt_learned: 'phase sets the axis', txt_confusing: 'call 603 555 0199' }, now);
-check('collector splits quiz and free text, scrubbing the text', qz.quiz[5] === 1 && qz.feedback && /\[removed\]/.test(qz.feedback[5]));
-const S = gs.summarize(rows, [qz.quiz], [qz.feedback], 90, now);
+check('collector stores no free text, even if a client sends it', qz.quiz[5] === 1 && qz.feedback === null && !JSON.stringify(qz).includes('phase sets the axis') && !JSON.stringify(qz).includes('555'));
+const S = gs.summarize(rows, [qz.quiz], [], 90, now);
 const B = S.games.beamline;
 check('summary counts opens, level funnel and average minutes', B.opens === 1 && B.levels.half.starts === 1 && B.levels.half.completes === 1 && B.avgMinutes === 2);
 check('summary skips rows outside the window', !S.games.rider);
 check('summary has quiz accuracy per item and ratings', S.quiz.beamline.items.q1.correct === 1 && S.quiz.beamline.avgScore === 0.5 && S.quiz.beamline.avgFun === 4);
-check('summary counts free text but never includes it', S.feedbackCount.beamline === 1 && !JSON.stringify(S).includes('phase sets the axis'));
+check('summary contains no free text', !JSON.stringify(S).includes('phase sets the axis'));
 check('summary splits by outreach code', S.codes.SCIFAIR26 === 1);
 check('summary splits outreach codes by game', S.codeGames.SCIFAIR26.beamline === 1 && Object.keys(S.codeGames).length === 1);
 check('summary records the wrong picks per item', S.quiz.beamline.items.q2.wrong[0] === 1 && Object.keys(S.quiz.beamline.items.q1.wrong).length === 0);
@@ -66,16 +66,8 @@ const dated = gs.cleanEventRow({ game: 'drum', ev: 'open', day: '2026-11-03' }, 
 const S3 = gs.summarize([dated], [], [], 7, now);
 check('summary reads day cells that Sheets stored as dates', S3.byDay['2026-11-03'] && S3.byDay['2026-11-03'].drum === 1, JSON.stringify(S3.byDay));
 
-// the private review feed: free text only with the matching key, never in the summary
-const KEY = 'k3y-0f-at-least-16-chars';
-const fb = [qz.feedback];
-check('review key must match exactly', gs.reviewKeyOk(KEY, KEY) && !gs.reviewKeyOk(KEY.slice(0, -1) + 'X', KEY) && !gs.reviewKeyOk(undefined, KEY) && !gs.reviewKeyOk('', ''));
-check('review key check refuses an unset or short key', !gs.reviewKeyOk('short', 'short') && !gs.reviewKeyOk(null, null));
-const R = gs.reviewFeed(KEY, KEY, rows, [qz.quiz], fb, 90, now);
-check('review feed returns the free text with the right key', R && R.feedback.length === 1 && R.feedback[0].learned === 'phase sets the axis' && R.games.beamline.opens === 1);
-check('review feed returns nothing with a wrong or missing key', gs.reviewFeed('wrong-key-wrong-key-wrong', KEY, rows, [qz.quiz], fb, 90, now) === null &&
-  gs.reviewFeed(undefined, KEY, rows, [qz.quiz], fb, 90, now) === null && gs.reviewFeed(KEY, null, rows, [qz.quiz], fb, 90, now) === null);
-check('review feed respects the window', gs.reviewFeed(KEY, KEY, [], [], [[now, '2025-01-01', 'rider', '', 'old', '']], 90, now).feedback.length === 0);
+// the private review feed was removed with the free text: the collector exports no review helpers
+check('no review feed is exported', !('reviewFeed' in gs) && !('reviewKeyOk' in gs));
 
 // insights: each rule fires below its threshold once enough people were measured, and flags rank by n × gap
 const IN = require(path.join(root, 'web/outreach/insights.js'));
@@ -128,6 +120,14 @@ check('summary counts lab arrivals by source activity', S2.labFrom.beamline === 
 check('items split in-game answers from debrief answers', S2.quiz.rider.items.q1.ingame.n === 1 && S2.quiz.rider.items.q1.ingame.correct === 1 && S.quiz.beamline.items.q1.ingame.n === 0);
 const qi = kit.cleanQuiz('rider', { answers: [{ q: 'q1', obj: 'o1', pick: 2, ok: true }], src: 'ingame' }, ctx);
 check('cleanQuiz keeps the in-game source', qi.src === 'ingame');
+
+// nothing finer than the day: the collector's received column is a day too
+check('collector stores the received day, not a time', /^\d{4}-\d{2}-\d{2}$/.test(rows[0][0]) && /^\d{4}-\d{2}-\d{2}$/.test(qz.quiz[0]));
+
+// skipped questions are not wrong answers
+const sk = kit.cleanQuiz('rider', { answers: [{ q: 'a', obj: 'o', pick: 1, ok: true }, { q: 'b', obj: 'o', pick: -1, ok: false }] }, ctx);
+const skg = gs.cleanQuizRows({ game: 'rider', answers: [{ q: 'a', pick: 1, ok: true }, { q: 'b', pick: -1, ok: false }] }, now);
+check('blank answers are dropped in the browser and the collector', sk.n === 1 && sk.score === 1 && skg.quiz[6] === 1);
 
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);

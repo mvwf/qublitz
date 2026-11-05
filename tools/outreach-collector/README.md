@@ -1,5 +1,8 @@
 # Outreach collector
 
+> **Before you switch collection on, work through [COMPLIANCE.md](COMPLIANCE.md)** (CPHS determination, privacy
+> review, organiser notice). Collection is off until `endpoint` is set in `web/shared/outreach-config.js`.
+
 A Google Apps Script web app, bound to a Google Sheet you own, that receives the anonymous usage counts and quiz
 answers sent by `web/shared/outreach.js` and serves aggregate counts to `web/outreach/dashboard.html`.
 
@@ -8,13 +11,13 @@ answers sent by `web/shared/outreach.js` and serves aggregate counts to `web/out
 | Tab | One row per | Columns |
 |---|---|---|
 | `events` | page event (open, level solved, left after N s, ...) | day, game, event, level, value, stars, dur_s, code, device |
-| `quiz` | submitted quiz | day, game, code, device, score, n, fun (1–5), learned (1–5), answers (question id, objective, choice, right/wrong) |
-| `feedback` | quiz with free text | day, game, code, "what did you learn", "what was confusing" |
+| `quiz` | question answered in a game, or a debrief | day, game, code, device, score, n, fun (1–5), learned (1–5), answers (question id, objective, choice, right/wrong), source (in-game or debrief) |
 
-No cookies, no identifiers, no IP addresses (Apps Script never sees them), and nothing finer than the day.
-Free text is scrubbed of email addresses, phone numbers and links in the browser *and* again here, and it lives
-only in the `feedback` tab: the summary endpoint returns counts, never the text. `code` is an optional
-outreach-session label from links like `…/beamline.html?event=SCIFAIR26`.
+No cookies, no identifiers, no IP addresses stored (Apps Script never sees them; Google's servers receive them as
+part of any web request, under Dartmouth's Google agreement), and nothing finer than the day. **No free text**: the
+pages have no text boxes, and the collector drops any text field a client might send, so nothing a visitor types,
+such as a name, school or email, can end up in the Sheet. `code` is an optional outreach-session label from links
+like `…/beamline.html?event=SCIFAIR26`. The privacy notice for visitors is [`web/privacy.html`](../../web/privacy.html).
 
 ## Set it up (about 10 minutes)
 
@@ -25,17 +28,18 @@ outreach-session label from links like `…/beamline.html?event=SCIFAIR26`.
 4. Paste that URL into `web/shared/outreach-config.js` as `endpoint`, commit, and let Pages deploy.
 5. Open the dashboard, [`https://mvwf.github.io/qublitz/outreach/dashboard.html`](https://mvwf.github.io/qublitz/outreach/dashboard.html)
    (source: [`web/outreach/dashboard.html`](../../web/outreach/dashboard.html)). It reads the same URL's `?summary=1`.
-6. Optional, for the private review feed below: **Project Settings (gear icon) → Script properties → Add script
-   property**, name `REVIEW_KEY`, value a long random string (at least 16 characters; e.g. the output of
-   `openssl rand -hex 24`). Keep it out of the repository.
+6. In the Apps Script editor pick **setupRetention** and press **Run** once. It installs a daily trigger that empties
+   any leftover `feedback` rows (from an older version of this script) after 365 days; the current version writes
+   none. **Share the Sheet with no one else** unless they need it, and keep it in a Dartmouth account.
 
 The tabs and their header rows are created on the first request. To change the code later, edit it in Apps Script
 and use **Deploy → Manage deployments → Edit → New version** so the URL stays the same.
 
 ## The dashboard
 
-[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public (linked as "Usage & feedback" in the hub's
-footer, not indexed by search engines) and shows only what `?summary=1` returns: counts and averages, never free text.
+[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public but not linked from the site: it is reached
+from the repository's README, and it is not indexed by search engines. It shows only what `?summary=1` returns: counts
+and averages.
 
 - `?demo=1` shows realistic synthetic data, labelled **DEMO DATA**, so you can see it before collection starts.
 - `?days=7|30|90|365` picks the period; `?since=YYYY-MM-DD` shows everything since a date (each entry in
@@ -48,26 +52,15 @@ footer, not indexed by search engines) and shows only what `?summary=1` returns:
 - Question and objective text come from each page's `web/learning/<id>.js`; a missing file only means the dashboard
   shows question ids instead of text.
 
-## Private review feed
-
-`<web app URL>?review=1&key=<REVIEW_KEY>&days=30` returns the summary **plus** the free-text rows of the `feedback`
-tab for the period. Without a `REVIEW_KEY` property, or with a key that does not match exactly, the answer is
-`forbidden` and no text is returned; the review answer is never cached. Open it in your own browser; do not paste
-the key into issues, chats or the repository, and change the property if it leaks.
-
-The text is from members of the public, some of them minors. When something from it leads to an issue or a
-change, **paraphrase the theme** ("several people found the phase step confusing"); never quote anyone, and never
-copy text that could identify a person or a school.
-
 ## Closing the loop
 
 The point of the counts is to make the games more fun and more educational. The cycle:
 
-1. **Review** the dashboard's Insights and the private review feed, weekly during term and after each outreach
+1. **Review** the dashboard's Insights, weekly during term and after each outreach
    event (filter by its `?event=` code in "Outreach sessions").
 2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as
    the dashboard states it (e.g. "question q3: 38% correct of 52 answers; possible misconception: …", or
-   "level crosstalk: 9 completions of 31 starts"), and the proposed change. Paraphrase free text, never quote it.
+   "level crosstalk: 9 completions of 31 starts"), and the proposed change.
 3. **Fix** it in a pull request that links the issue.
 4. **Log the change** in [`web/outreach/improvements.json`](../../web/outreach/improvements.json), which the dashboard
    shows as "You said, we did":
@@ -83,10 +76,10 @@ The point of the counts is to make the games more fun and more educational. The 
 
 - Anyone can POST to a public web app. The collector validates every field and caps sizes, but counts could be
   inflated by someone determined; treat them as indicative, and use `?event=` codes for sessions you run.
-- If you plan to publish anything from the quiz answers, ask Dartmouth's CPHS (IRB) for a determination first.
-  The data are anonymous, but outreach audiences can include minors.
+- If you plan to publish anything from the question answers, get Dartmouth's CPHS (IRB) determination first; see
+  [COMPLIANCE.md](COMPLIANCE.md). The data are anonymous, but outreach audiences can include minors.
 - To stop collecting, empty `endpoint` in `outreach-config.js` (pages then send nothing) and/or archive the
   deployment in Apps Script.
-- The pure functions (`cleanEventRow`, `cleanQuizRows`, `summarize`, `reviewKeyOk`, `reviewFeed`) and the dashboard's
+- The pure functions (`cleanEventRow`, `cleanQuizRows`, `summarize`) and the dashboard's
   insight rules are tested in Node by `web/shared/tests/outreach.test.js`.
 - Sheets turns a cell like `2026-11-05` into a date; `summarize()` reads such cells back as the same day.

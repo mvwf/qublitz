@@ -1,14 +1,14 @@
 /* Code.gs: the outreach collector, a Google Apps Script web app bound to a Google Sheet you own.
  *
  *   POST  (from web/shared/outreach.js)   { v: 1, events: [...] }  or  { v: 1, quiz: {...} }
- *         Rows go to three tabs: events, quiz, feedback (the free text, kept apart so the dashboard never
- *         shows it). Everything is validated and capped again here; the browser is not trusted.
+ *         Rows go to two tabs: events and quiz. No free text is accepted or stored (a decision made so that no
+ *         visitor, including a child, can hand over personal information); any text fields are dropped here. The
+ *         old `feedback` tab (from earlier versions) is only ever emptied, by purgeOld (see RETAIN_DAYS).
+ *         Everything is validated and capped again here; the browser is not trusted.
  *   GET   ?summary=1[&days=90]   aggregate counts as JSON for web/outreach/dashboard.html (no free text).
- *   GET   ?review=1&key=K[&days=90]   the summary plus the free-text feedback rows, for the owner only: K must equal
- *         the Script Property REVIEW_KEY (Project Settings > Script properties). Otherwise the answer is "forbidden".
  *
  * Setup: tools/outreach-collector/README.md. The pure functions at the bottom (cleanEventRow, summarize) are
- * also loaded by tools/outreach-collector/collector.test.js in Node.
+ * also loaded by web/shared/tests/outreach.test.js in Node.
  */
 var TABS = {
   events:   ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device'],
@@ -33,7 +33,7 @@ function doPost(e) {
       }
       if (msg.quiz) {
         var q = cleanQuizRows(msg.quiz, now);
-        if (q) { append_('quiz', [q.quiz]); if (q.feedback) append_('feedback', [q.feedback]); }
+        if (q) append_('quiz', [q.quiz]);
       }
     } finally { lock.releaseLock(); }
     CacheService.getScriptCache().remove('summary');
@@ -44,15 +44,10 @@ function doPost(e) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
-  if (p.review) {                                   // never cached: the cache is shared and the text is private
-    var expected = PropertiesService.getScriptProperties().getProperty('REVIEW_KEY');
-    var rv = reviewFeed(p.key, expected, read_('events'), read_('quiz'), read_('feedback'), days, new Date());
-    return rv ? json_(JSON.stringify(rv)) : text_('forbidden');
-  }
   if (!p.summary) return text_('outreach collector: ok');
   var cache = CacheService.getScriptCache(), key = 'summary' + days, hit = cache.get(key);
   if (hit) return json_(hit);
-  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), read_('feedback'), days, new Date()));
+  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date()));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
   return json_(out);
 }
@@ -86,20 +81,21 @@ function redact_(t) {
 }
 function cleanEventRow(ev, now) {
   if (!ev || !RE_ID.test(ev.game || '') || !RE_EV.test(ev.ev || '')) return null;
-  return [now, day_(ev.day, now), ev.game, ev.ev, s_(ev.level, 40), n_(ev.value, -1e6, 1e6), n_(ev.stars, 0, 3),
+  // `received` is the server's day, not its time: nothing finer than the day is ever stored.
+  return [Utilities_formatDay_(now), day_(ev.day, now), ev.game, ev.ev, s_(ev.level, 40), n_(ev.value, -1e6, 1e6), n_(ev.stars, 0, 3),
           n_(ev.dur_s, 0, 86400), RE_CODE.test(ev.code || '') ? ev.code : '', ev.dev === 'touch' ? 'touch' : 'desktop'];
 }
 function cleanQuizRows(q, now) {
   if (!q || !RE_ID.test(q.game || '')) return null;
-  var answers = (Array.isArray(q.answers) ? q.answers : []).slice(0, 20).map(function (a) {
+  // A blank (pick < 0) is not an answer: dropping it keeps unanswered questions out of the accuracy figures.
+  var answers = (Array.isArray(q.answers) ? q.answers : []).filter(function (a) { return a && typeof a.pick === 'number' && a.pick >= 0; }).slice(0, 20).map(function (a) {
     return { q: s_(String(a && a.q), 40), obj: s_(String(a && a.obj || ''), 40), pick: n_(a && a.pick, -1, 20), ok: !!(a && a.ok) };
   });
   var code = RE_CODE.test(q.code || '') ? q.code : '', day = day_(q.day, now);
   var score = answers.filter(function (a) { return a.ok; }).length;
-  var quiz = [now, day, q.game, code, q.dev === 'touch' ? 'touch' : 'desktop', score, answers.length,
+  var quiz = [Utilities_formatDay_(now), day, q.game, code, q.dev === 'touch' ? 'touch' : 'desktop', score, answers.length,
               n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers), q.src === 'ingame' ? 'ingame' : 'debrief'];
-  var l = redact_(q.txt_learned), c = redact_(q.txt_confusing);
-  return { quiz: quiz, feedback: (l || c) ? [now, day, q.game, code, l, c] : null };
+  return { quiz: quiz, feedback: null };   // free text is never stored
 }
 
 /* Aggregate the three tabs for the dashboard. Rows are arrays in TABS order. Returns only counts and averages:
@@ -191,23 +187,25 @@ function summarize(events, quiz, feedback, days, now) {
   return out;
 }
 
-/* The review key check. An unset or short REVIEW_KEY (under 16 characters) keeps the feed shut for everyone. The
- * comparison looks at every character so its timing does not reveal how much of a guess was right. */
-function reviewKeyOk(given, expected) {
-  if (typeof expected !== 'string' || expected.length < 16 || typeof given !== 'string' || given.length !== expected.length) return false;
-  var diff = 0;
-  for (var i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
-  return diff === 0;
+/* Retention. Nothing written is collected, but a deployment of an older version could have written free text
+ * to the `feedback` tab: purgeOld deletes every such row older than RETAIN_DAYS, and anything at all in that tab
+ * when purgeFeedbackNow is run. Run setupRetention once (Apps Script editor > Run) to install a daily trigger. */
+var RETAIN_DAYS = 365;
+function setupRetention() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'purgeOld') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('purgeOld').timeBased().everyDays(1).atHour(3).create();
 }
-/* The private review feed: the summary plus the window's free-text rows, or null when the key does not match. */
-function reviewFeed(given, expected, events, quiz, feedback, days, now) {
-  if (!reviewKeyOk(given, expected)) return null;
-  var out = summarize(events, quiz, feedback, days, now);
-  out.feedback = feedback.filter(function (r) { return dayKey_(r[1]) >= out.since; }).map(function (r) {
-    return { day: dayKey_(r[1]), game: r[2], code: r[3], learned: r[4], confusing: r[5] };
-  });
-  return out;
+function purgeOld() { purgeRows_('feedback', RETAIN_DAYS); }
+function purgeFeedbackNow() { purgeRows_('feedback', 0); }
+function purgeRows_(name, keepDays) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(name);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues(), cutoff = Date.now() - keepDays * 86400000, gone = 0;
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var t = rows[i][0] instanceof Date ? rows[i][0].getTime() : Date.parse(rows[i][0]);
+    if (!(t >= cutoff)) { sh.deleteRow(i + 2); gone++; }
+  }
+  return gone;
 }
 
-if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_,
-  reviewKeyOk: reviewKeyOk, reviewFeed: reviewFeed };
+if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_ };

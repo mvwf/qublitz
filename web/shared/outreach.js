@@ -13,8 +13,9 @@
  *   - events: { game, ev, level?, value?, stars?, dur_s?, code?, dev, day }, e.g. "beamline opened",
  *     "beamline level 'half' solved with 3 stars", "rider left after 412 s". No cookies, no identifiers, no IP
  *     address (Apps Script never sees it), no timestamps finer than the day.
- *   - quiz: which choice was picked for each question, whether it was right, two 1-5 ratings (fun, learned), and
- *     two optional free-text answers, scrubbed of anything that looks like an email address or phone number.
+ *   - quiz: which choice was picked for each question, whether it was right, and two optional 1-5 ratings (fun,
+ *     learned). There is NO free text: nothing a visitor types is collected, so no one (including a child) can
+ *     hand over a name, school or email this way. See web/privacy.html.
  *   `code` is an optional outreach-session label from the link (?event=SCIFAIR26), so a dashboard can split
  *   counts by event. It is kept for the browser tab only (sessionStorage).
  *
@@ -70,13 +71,12 @@
   function cleanQuiz(game, rec, ctx) {
     if (!ID.test(game || '') || !rec) return null;
     const c = ctx || {};
-    const answers = (rec.answers || []).slice(0, 20).map(a => ({
+    const answers = (rec.answers || []).filter(a => a && typeof a.pick === 'number' && a.pick >= 0).slice(0, 20).map(a => ({
       q: str(String(a.q), 40), obj: str(String(a.obj || ''), 40), pick: num(a.pick, -1, 20), ok: !!a.ok }));
     const out = { kind: 'quiz', game, day: c.day, dev: c.dev === 'touch' ? 'touch' : 'desktop', answers,
       score: answers.filter(a => a.ok).length, n: answers.length,
       fun: num(rec.fun, 1, 5), learned: num(rec.learned, 1, 5),
-      txt_learned: redact(rec.txt_learned || ''), txt_confusing: redact(rec.txt_confusing || ''),
-      src: rec.src === 'ingame' ? 'ingame' : 'debrief' };
+      src: rec.src === 'ingame' ? 'ingame' : 'debrief' };   // no free-text fields, by design
     if (c.code && CODE.test(c.code)) out.code = c.code;
     return out;
   }
@@ -303,13 +303,10 @@
         rate[key] = v; row.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); } }, String(v)));
       return row;
     };
-    const tLearned = el('textarea', { 'aria-label': 'What did you learn?', maxlength: String(MAX_TEXT), placeholder: 'In your own words, what did you learn? (optional)' });
-    const tConf = el('textarea', { 'aria-label': 'What was confusing?', maxlength: String(MAX_TEXT), placeholder: 'What was confusing, or what would you like to learn next? (optional)' });
     dlg.append(el('div', { class: 'ql-q' },
       rateRow('fun', 'How fun was it? (1 = not at all, 5 = very)'),
       rateRow('learned', 'How much did you learn? (1 = nothing new, 5 = a lot)'),
-      tLearned, el('div', { style: 'height:6px' }), tConf,
-      el('p', { class: 'ql-note' }, 'Please do not write your name, email or anything that identifies you. ' +
+      el('p', { class: 'ql-note' }, 'Nothing you type is collected: only which answers you picked and the two ratings. ' +
         (enabled() ? `Answers are sent anonymously to ${CFG.owner || 'the site owners'} to improve these activities.` : 'Nothing is sent from this copy; your answers stay in this browser.'))));
     const msg = el('p', { class: 'ql-note', 'aria-live': 'polite' });
     const btnCheck = el('button', { class: 'ql-btn', type: 'button' }, items.length ? 'Check my answers' : 'Send');
@@ -325,8 +322,9 @@
           qs[qi].querySelectorAll('input').forEach(i => { i.disabled = true; });
           qs[qi].append(el('div', { class: 'ql-why ' + (ok ? 'ok' : 'no'), html: (ok ? '✓ Right. ' : `✗ The answer is: ${q.choices[q.answer]}. `) + (q.explain || '') }));
         });
-        const rec = cleanQuiz(game, { answers: items.map((q, qi) => ({ q: q.id, obj: q.objective, pick: picks[qi], ok: picks[qi] === q.answer })),
-          fun: rate.fun || undefined, learned: rate.learned || undefined, txt_learned: tLearned.value, txt_confusing: tConf.value }, ctx());
+        // Only questions the visitor actually answered: a blank is not a wrong answer.
+        const rec = cleanQuiz(game, { answers: items.map((q, qi) => ({ q: q.id, obj: q.objective, pick: picks[qi], ok: picks[qi] === q.answer })).filter(a => a.pick >= 0),
+          fun: rate.fun || undefined, learned: rate.learned || undefined }, ctx());
         const sent = rec && send({ v: V, quiz: rec }, false);
         store.set(`ql_quiz_done:${game}`, String(score));
         msg.textContent = (items.length ? `You got ${score} of ${items.length}. ` : '') + (sent ? 'Thank you, your answers were sent anonymously.' : 'Thank you!');
@@ -363,7 +361,8 @@
       p.replaceChildren();
       if (dnt()) { p.append('Your browser asks not to be tracked, so this page sends nothing.'); return; }
       p.append(optedOut() ? 'You opted out: this page sends nothing. ' : `This page sends anonymous usage counts (no cookies, no personal data) to ${CFG.owner || 'its owners'}. `,
-        el('button', { type: 'button', onclick: () => { optOut(!optedOut()); draw(); } }, optedOut() ? 'Opt back in' : 'Opt out'));
+        el('button', { type: 'button', onclick: () => { optOut(!optedOut()); draw(); } }, optedOut() ? 'Opt back in' : 'Opt out'),
+        ' · ', el('a', { href: kitBase + 'privacy.html' }, 'Privacy'));
     };
     draw(); doc.body.append(p);
   }
