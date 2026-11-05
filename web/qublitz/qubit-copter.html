@@ -116,6 +116,17 @@
   .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;background:var(--panel);border:1px solid var(--line);
     border-radius:8px;padding:8px 12px;margin:8px 0;overflow-x:auto}
   .dl{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+  /* the prediction band: a question at the top of the stage at the start of a lesson, answered on the sphere */
+  /* it covers the strips, never the sphere, so every answer marker stays visible */
+  .ask{position:absolute;left:44.45%;right:0;top:0;bottom:0;z-index:3;background:rgba(8,13,25,.93);border-left:1px solid rgba(255,209,102,.45);
+    color:#e8eef7;padding:14px 16px;text-align:center;font-size:13.5px;display:flex;flex-direction:column;justify-content:center;overflow:auto}
+  @media(max-width:760px){.ask{left:0;top:auto;height:300px;border-left:0;border-top:1px solid rgba(255,209,102,.45)}}
+  .ask p{margin:2px auto 6px;max-width:760px} .ask p b{color:#ffd166}
+  .ask .row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  .ask .row button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:5px 10px;font-size:13px}
+  .ask .row button.ok{border-color:#9cf09f;background:rgba(156,240,159,.18)} .ask .row button.no{border-color:#ff7a8a;background:rgba(255,122,138,.18)}
+  .ask .row button.go{background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  .ask .why{font-size:13px;color:#c7d3e6}
   [hidden]{display:none !important}
 </style>
 </head>
@@ -157,6 +168,7 @@
     <div class="stats" id="overStats"></div>
     <p class="best" id="overBest"></p>
     <p id="overTip"></p>
+    <p><a class="btn" id="overLab" target="_blank" rel="noopener" href="qubit-simulator.html" style="color:#ffd166">Now drive a real π pulse in the Virtual Qubit Lab ↗</a></p>
     <div class="row"><button class="go" id="again">Play again ▶</button><button id="toMenu">Menu</button></div>
   </div>
 
@@ -168,6 +180,12 @@
       <a class="btn" id="wonLab" target="_blank" rel="noopener" href="qubit-simulator.html">Run these moves in the lab ↗</a><button id="toMenu2">Menu</button></div>
   </div>
 
+  <div class="ask" id="ask" hidden role="dialog" aria-label="Prediction">
+    <p id="askQ"></p>
+    <div class="row" id="askChoices"></div>
+    <p class="why" id="askWhy" aria-live="polite"></p>
+    <div class="row"><button id="askSkip">Skip (Esc)</button><button class="go" id="askGo" hidden>Fly it ▶</button></div>
+  </div>
   <div class="overlay" id="paused" hidden><h2>Paused</h2><p>Press <kbd>P</kbd> or tap to carry on.</p></div>
   <div class="note fade" id="note"></div>
 </div>
@@ -254,7 +272,7 @@ const S = { circuit: store.get('copter:circuit', false), mode: store.get('copter
 if (!C.LESSONS.some(l => l.id === S.lesson)) S.lesson = C.LESSONS[0].id;
 if (S.mode === 'circuit') { S.mode = 'targets'; S.circuit = true; }
 $('#optCircuit').checked = S.circuit;
-$('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); if (window.QL) QL.event('mode', { level: gameMode() }); });
+$('#optCircuit').addEventListener('change', e => { S.circuit = e.target.checked; store.set('copter:circuit', S.circuit); syncMenu(); if (window.QL) { QL.event('mode', { level: gameMode() }); where(); } });
 const gameMode = () => S.mode === 'targets' && S.circuit ? 'circuit' : S.mode;
 const AXC = ['#ff7a8a', '#7ee08a', '#7fb8ff'], AXN = ['⟨σx⟩', '⟨σy⟩', '⟨σz⟩'], AXL = ['x', 'y', 'z'];
 const isGame = () => S.mode === 'targets' || S.mode === 'circuit';
@@ -315,6 +333,11 @@ function input() {
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.target.closest('input,select,textarea')) return;
+  if (phase === 'ask') {
+    if (/^[1-4]$/.test(k)) pickAnswer(+k - 1);
+    else if (k === 'escape' || ((k === 'enter' || k === ' ') && askQ && askQ.picked >= 0 && !e.target.closest('button,a'))) { e.preventDefault(); endAsk(); }
+    return;
+  }
   if (phase !== 'play' && (k === ' ' || k === 'enter') && !e.target.closest('button,a')) {
     e.preventDefault(); if (phase === 'paused') resume(); else if (phase === 'menu') start();
     else if (performance.now() - overAt > 900) { if (phase === 'won') $('#next').click(); else start(); } return;
@@ -327,7 +350,13 @@ addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys.delete(k); 
 addEventListener('blur', () => { keys.clear(); aim = null; Object.keys(padHold).forEach(k => { padHold[k] = 0; }); if (phase === 'play') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') pause(); });
 const aimAt = e => { const b = sc.getBoundingClientRect(); aim = unproject(e.clientX - b.left, e.clientY - b.top); };
-sc.addEventListener('pointerdown', e => { if (phase !== 'play' || !isGame()) return; sc.setPointerCapture(e.pointerId); aimAt(e); });
+sc.addEventListener('pointerdown', e => {
+  if (phase === 'ask' && askQ && askQ.item.states && askQ.picked < 0) {
+    const b = sc.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = -1, bd = 24; askQ.item.states.forEach((v, i) => { const p = P(v), d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) pickAnswer(best); return;
+  }
+  if (phase !== 'play' || !isGame()) return; sc.setPointerCapture(e.pointerId); aimAt(e); });
 sc.addEventListener('pointermove', e => { if (aim) aimAt(e); });
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => sc.addEventListener(t, () => { aim = null; }));
 $('#stage').addEventListener('pointerdown', e => { if (phase === 'paused' && e.target.closest('.overlay')) resume(); });
@@ -414,7 +443,7 @@ let world = null, phase = 'menu', hist = [], marks = [], overAt = 0, noteT = 0, 
 const STEP = 1 / 120, PAST = 2.5, FUTURE = 7;
 function show(id) { ['#menu', '#over', '#paused', '#won'].forEach(o => { $(o).hidden = o !== id; }); }
 const MENU_HELP = {
-  learn: '<b>Goal: bring the state into the gold ring and stop driving.</b> Each lesson starts somewhere on the sphere and lets you use only some of the axes. No clock, no lives. Do all six to unlock the quiz.',
+  learn: '<b>Goal: bring the state into the gold ring and stop driving.</b> Each lesson starts somewhere on the sphere and lets you use only some of the axes. No clock, no lives. After all six, a 1-minute debrief.',
   free: '<b>No goal: explore.</b> Hold <b>X</b>, <b>Y</b> or <b>Z</b> (or use the pad below) and watch which strip stays flat. Fire exact π/2 and π pulses. Then open your moves in the lab.',
   targets: '<b>Goal: be inside all three gold windows when they reach the copter.</b> A miss or a wall costs a heart (you have 3); every 10 targets gives one back. Hold on the sphere to <b>point and steer</b>, or drive by axis. A red block on a strip is a forbidden cap on the sphere.',
   circuit: '<b>Goal: reach each target in time.</b> Each one is the state after the gate written above it, starting from |0⟩. A miss or a wall costs a heart (you have 3). Steer by axis or by pointing.',
@@ -442,7 +471,7 @@ function syncMenu() {
 const ev = (name, data) => { if (window.QL) QL.event(name, data); };
 document.querySelectorAll('#menu .modes button').forEach(b => b.addEventListener('click', () => {
   const was = gameMode(); S.mode = b.dataset.mode; store.set('copter:mode2', S.mode); syncMenu();
-  if (gameMode() !== was) ev('mode', { level: gameMode() });
+  if (gameMode() !== was) { ev('mode', { level: gameMode() }); where(); }
 }));
 function start() {
   world = new C.World({ seed: 'r' + Math.random().toString(36).slice(2, 8), mode: gameMode(), lesson: S.lesson });
@@ -452,19 +481,70 @@ function start() {
   $('#readMode').textContent = { learn: '· Learn', free: '· Free flight', targets: '· Play', circuit: '· Play (circuit)' }[gameMode()];
   if (world.lesson) {
     const i = C.LESSONS.indexOf(world.lesson);
-    $('#lessonTitle').textContent = `Lesson ${i + 1}: ${world.lesson.title}`; $('#lessonBrief').innerHTML = world.lesson.brief;
-    note(world.lesson.brief, 6);
+    $('#lessonTitle').textContent = `Lesson ${i + 1}: ${world.lesson.title}`; $('#lessonBrief').innerHTML = '';
   } else if (S.mode === 'free') note('<b>Free flight.</b> Nothing moves until you drive it. Hold X, Y or Z, or fire a pulse from the pad.', 5);
   else note(gameMode() === 'circuit' ? '<b>Circuit.</b> Each target is the state after the gate written above it, starting from |0⟩.' : '<b>Targets.</b> Be inside all three gold windows when they reach the copter.', 4);
-  $('#goalLine').innerHTML = goalText();
   if (world.lesson) ev('level_start', { level: world.lesson.id }); else ev('start', { level: gameMode() });
   syncPad(); syncLab();
+  if (!maybeAsk()) revealLesson();
 }
-function pause() { phase = 'paused'; show('#paused'); }
-function resume() { phase = 'play'; show(null); last = performance.now(); }
+// The lesson's brief and goal, shown once any prediction is answered or skipped (they would give the answer away).
+function revealLesson() {
+  $('#goalLine').innerHTML = goalText(); where('playing');
+  if (world.lesson) { $('#lessonBrief').innerHTML = world.lesson.brief; note(world.lesson.brief, 6); }
+}
+// QL.context: where the player is, for the quit map.
+function where(step) {
+  if (!window.QL || !QL.context) return;   // QL.context arrives with the kit update (feature/outreach-kit 5720e0c)
+  QL.context(phase === 'menu' ? { level: 'menu', step: gameMode() } : { level: world && world.lesson ? world.lesson.id : gameMode(), step });
+}
+
+/* ---------------- predict, then fly: one question at the start of a lesson (from web/learning/copter.js) ---------------- */
+const asked = new Set();
+let askQ = null;   // { item, goal, picked }
+function maybeAsk() {
+  const items = (window.QL && QL.spec && QL.spec.quiz) || [], q = world.lesson && items.find(x => x.lesson === world.lesson.id);
+  if (!q || asked.has(q.id)) return false;
+  asked.add(q.id);
+  askQ = { item: q, goal: world.goal, picked: -1 }; world.goal = null; phase = 'ask'; $('#note').classList.add('fade');
+  $('#askQ').innerHTML = '<b>Prediction</b> · ' + q.q + (q.states ? ' <span style="color:#9fb2cc">Tap a numbered state on the sphere, or press 1–4.</span>' : '');
+  const row = $('#askChoices'); row.replaceChildren();
+  q.choices.forEach((c, i) => { const b = document.createElement('button'); b.innerHTML = `${i + 1}. ${c}`; b.addEventListener('click', () => pickAnswer(i)); row.appendChild(b); });
+  $('#askWhy').textContent = ''; $('#askSkip').hidden = false; $('#askGo').hidden = true; $('#ask').hidden = false;
+  where('question');
+  return true;
+}
+function pickAnswer(i) {
+  if (!askQ || askQ.picked >= 0 || i < 0 || i >= askQ.item.choices.length) return;
+  askQ.picked = i;
+  const r = (QL.answer && QL.answer(askQ.item.id, i)) || { ok: i === askQ.item.answer, answer: askQ.item.answer, choice: askQ.item.choices[askQ.item.answer], explain: askQ.item.explain };
+  $('#askChoices').querySelectorAll('button').forEach((b, j) => { b.disabled = true; b.classList.toggle('ok', j === r.answer); b.classList.toggle('no', j === i && !r.ok); });
+  $('#askWhy').innerHTML = (r.ok ? '<b style="color:#9cf09f">✓ Right.</b> ' : `<b style="color:#ff9aa8">Not quite: it is ${r.choice}.</b> `) + r.explain + ' Now fly it and see.';
+  if (r.ok) SND.goal(); else SND.miss();
+  $('#askSkip').hidden = true; $('#askGo').hidden = false; $('#askGo').focus();
+}
+function endAsk() {
+  if (!askQ) return;
+  world.goal = askQ.goal; askQ = null; $('#ask').hidden = true; phase = 'play'; last = performance.now(); revealLesson();
+}
+$('#askSkip').addEventListener('click', endAsk); $('#askGo').addEventListener('click', endAsk);
+// The numbered answer markers, on the sphere (front and back).
+function drawAsk() {
+  if (!askQ || !askQ.item.states) return;
+  askQ.item.states.forEach((v, i) => {
+    const p = P(v), done = askQ.picked >= 0, right = i === askQ.item.answer;
+    sg.globalAlpha = p.front ? 1 : 0.6;
+    sg.fillStyle = done ? (right ? '#9cf09f' : i === askQ.picked ? '#ff7a8a' : 'rgba(160,180,210,.5)') : '#c58cff';
+    sg.beginPath(); sg.arc(p.x, p.y, 13, 0, Math.PI * 2); sg.fill();
+    sg.fillStyle = '#0b1220'; sg.font = '800 14px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle'; sg.fillText(String(i + 1), p.x, p.y + 1);
+  });
+  sg.globalAlpha = 1;
+}
+function pause() { phase = 'paused'; show('#paused'); where('paused'); }
+function resume() { phase = 'play'; show(null); last = performance.now(); where('playing'); }
 $('#play').addEventListener('click', start); $('#again').addEventListener('click', start); $('#retry').addEventListener('click', start);
 $('#toMenu').addEventListener('click', toMenu); $('#toMenu2').addEventListener('click', toMenu);
-function toMenu() { phase = 'menu'; show('#menu'); syncMenu(); }
+function toMenu() { phase = 'menu'; show('#menu'); syncMenu(); where(); }
 $('#next').addEventListener('click', () => {
   const i = C.LESSONS.findIndex(l => l.id === S.lesson);
   if (i + 1 < C.LESSONS.length) { S.lesson = C.LESSONS[i + 1].id; store.set('copter:lesson', S.lesson); start(); }
@@ -481,18 +561,20 @@ function gameOver() {
   $('#overBest').textContent = `Best ${Math.max(score, prev)}`;
   $('#overTip').textContent = w.wallHits > w.misses ? 'A wall on one strip is a cap on the sphere: steer around the red cap, not through it.'
     : 'Try pointing to steer: hold where you want to go, slightly early, and let the drive take you.';
+  where('game-over');
   ev('lose', { level: gameMode(), value: score, dur_s: w.t });
   ev('targets', { level: gameMode(), value: w.hits });
-  if (window.QL) setTimeout(() => QL.offerQuiz('Good flight! Want to check what you learned about qubit rotations? It takes about a minute.'), 1200);
+  if (window.QL) setTimeout(() => QL.offerQuiz('Good flight! A 1-minute debrief: a few questions about qubit rotations and how it went.'), 1200);
   setTimeout(() => { if (phase === 'over') show('#over'); }, 600);
 }
 function lessonDone(e) {
   phase = 'won'; overAt = performance.now(); SND.goal();
   const l = world.lesson, i = C.LESSONS.indexOf(l);
   if (!S.learned.includes(l.id)) { S.learned.push(l.id); store.set('copter:learned', S.learned); }
-  ev('level_complete', { level: l.id, value: Math.round(1000 * e.fidelity) / 1000 });
-  if (window.QL && C.LESSONS.every(x => S.learned.includes(x.id)))
-    setTimeout(() => QL.offerQuiz('All six lessons done! Want to check what you learned? It takes about a minute.'), 1200);
+  ev('level_complete', { level: l.id, value: Math.round(1000 * e.fidelity) / 1000 }); where('done');
+  const all = C.LESSONS.every(x => S.learned.includes(x.id));
+  $('#wonLab').textContent = all ? 'All six done: try these moves on a lab qubit in the Virtual Qubit Lab ↗' : 'Run these moves in the lab ↗';
+  if (window.QL && all) setTimeout(() => QL.offerQuiz('All six lessons done! A 1-minute debrief: a few questions and how it went. Then try your moves in the Virtual Qubit Lab.'), 1200);
   $('#wonTitle').textContent = `✓ ${l.title}`;
   $('#wonLearn').innerHTML = l.learn + `<br><span style="color:#9fb2cc">Fidelity with the goal: ${(100 * e.fidelity).toFixed(1)} %.</span>`;
   $('#wonMoves').textContent = 'Your moves: ' + describeLog(world.log);
@@ -543,10 +625,9 @@ function describeLog(log) {
 function labUrl() {
   const seq = C.labSequence(world.log, { fGHz: 0.05 }), items = [];
   for (const p of seq.pulses) for (const [ch, a] of [['x', p.sx], ['y', p.sy]]) if (Math.abs(a) > 1e-4) items.push(`${ch}:${a.toFixed(4)}:${p.start.toFixed(3)}:${p.dur.toFixed(3)}`);
-  const u = new URL(LAB, location.href); u.searchParams.set('free', '5,50,10000,20000'); u.searchParams.set('tab', 'time');
-  if (items.length) u.searchParams.set('pulses', items.join(','));
+  const q = 'free=5,50,10000,20000&tab=time' + (items.length ? '&pulses=' + items.join(',') : '');
   labSeq = seq;
-  return u.href;
+  return window.QL && QL.labLink ? QL.labLink(q) : new URL(LAB + '?' + q + '&from=copter', location.href).href;
 }
 let labSeq = null, labT = 0, labSig = '';
 function syncLab() {
@@ -714,6 +795,7 @@ function drawSphere(t) {
       if (h) { sg.font = '12px Helvetica,Arial'; sg.fillText(`fastest now: hold ${h.sign > 0 ? '+' : '−'}${h.name.toUpperCase()}`, 14, SW - 26); }
       showHint(h); } else if (!isGame()) showHint(null);
   }
+  drawAsk();
 }
 
 /* ---------------- drawing: the strips ---------------- */
@@ -818,7 +900,11 @@ function frame(now) {
   drawSphere(now / 1000); drawStrips(now / 1000); drawReadout();
   requestAnimationFrame(frame);
 }
-['#labGo', '#wonLab'].forEach(id => $(id).addEventListener('click', () => ev('lab_open', { level: gameMode() })));
+// every lab link goes through the kit (?from=copter, and a to_lab count on click); hrefs are refreshed as the moves change
+const PI_PULSE = 'free=5,50,10000,20000&tab=time&pulses=x:1.0000:5.000:10.000';   // one 10 ns π pulse at Ω_R/2π = 50 MHz
+if (window.QL && QL.toLab) { ['#labGo', '#wonLab'].forEach(id => QL.toLab($(id))); QL.toLab($('#labLinkTop')); QL.toLab($('#overLab'), PI_PULSE); }
+else $('#overLab').href = LAB + '?' + PI_PULSE + '&from=copter';
+where();
 if (window.QL) QL.panel('#learnPanel');
 $('#goalLine').innerHTML = goalText();
 resize(); syncMenu(); syncPad(); requestAnimationFrame(frame);
