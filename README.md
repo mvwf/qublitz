@@ -45,7 +45,7 @@ Click a picture to open the page.
 <tr>
 <td valign="top"><a href="https://mvwf.github.io/qublitz/courses/engs23/vibrating-string.html"><img src="images/readme/string.jpg" alt="The Vibrating String: the string, its Fourier modes and the pickup signal"></a><br><b>The Vibrating String</b><br>Pluck a string, read its Fourier modes and hear what the pickup hears.</td>
 <td valign="top"><a href="https://mvwf.github.io/qublitz/courses/engs23/drum-head.html"><img src="images/readme/drum.jpg" alt="The Drum Head: a superposition of Bessel modes on a 3D membrane"></a><br><b>The Drum Head</b><br>Bessel normal modes of a circular membrane, and why a drum is less musical than a string.</td>
-<td valign="top"><a href="https://mvwf.github.io/qublitz/courses/engs23/spectrogram.html"><img src="images/readme/spectro.jpg" alt="Spectrogram Explorer: a chirp on a logarithmic frequency axis"></a><br><b>Spectrogram Explorer</b><br>A short-time Fourier transform of a recording or the live microphone.</td>
+<td valign="top"><a href="https://mvwf.github.io/qublitz/courses/engs23/spectrogram.html"><img src="images/readme/spectro.jpg" alt="Spectrogram Explorer: a test chirp rising from 200 Hz"></a><br><b>Spectrogram Explorer</b><br>A short-time Fourier transform of a recording or the live microphone.</td>
 </tr>
 <tr>
 <td valign="top"><a href="https://mvwf.github.io/qublitz/qublitz/sonify.html"><img src="images/readme/sonify.jpg" alt="Sonify Images: a grayscale image and one row played as sound"></a><br><b>Sonify Images</b><br>Turn the rows of an image into sound.</td>
