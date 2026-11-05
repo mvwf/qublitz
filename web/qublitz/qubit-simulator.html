@@ -1025,7 +1025,8 @@ if (free && !assigned) {
     $('#mode [data-v="free"]').click();
   }
 }
-// ?tab=time&pulses=x:amp:start:dur,y:amp:start:dur (ns) opens a pulse schedule, e.g. moves sent from Qubit Copter.
+// ?tab=time&pulses=x:amp:start:dur,y:amp:start:dur (ns) opens a pulse schedule, e.g. moves sent from Qubit Copter,
+// optionally with ?wd=<GHz> for the drive frequency.
 // Optional ?dt=<ns> sets the time-domain duration (at least the end of the last pulse); without it the run ends 10 ns
 // after the last pulse, as before.
 try {
@@ -1034,6 +1035,9 @@ try {
     .map(([target, amp, start, dur]) => ({ type: 'square', target, amp: clamp(+amp, -1, 1), start: Math.max(0, +start), dur: Math.max(0.01, +dur) }));
   const dt = parseFloat(sp.get('dt'));
   const dtOk = Number.isFinite(dt) && dt >= 1 && dt <= 2000;
+  // ?wd=<GHz> sets the time-domain drive frequency (a detuned drive, e.g. a laser sequence sent from the Hydrogen Atom page)
+  const wdq = parseFloat(sp.get('wd'));
+  if (Number.isFinite(wdq) && wdq > 0.5 && wdq < 20) $('#tdWd').value = wdq;
   if (dtOk && !list.length) { $('#tdT').value = dt; syncSchedule(); }
   if (list.length) {
     const end = Math.max(...list.map(p => p.start + p.dur));

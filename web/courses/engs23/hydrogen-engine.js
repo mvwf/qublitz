@@ -8,10 +8,10 @@
  * Wavefunction plots use the Bohr radius a; the matrix elements use the reduced-mass radius a_μ = a(1 + m_e/m_p) and
  * the wavelengths use R_H = R_∞/(1 + m_e/m_p) (vacuum wavelengths: Lyman-α 121.568 nm, H-α 656.47 nm, 656.28 nm in air).
  * Fine structure, the Lamb shift and hyperfine structure are left out, as in §4.2: they move these lines by ~0.002 nm
- * (Lyman-α is measured at 121.5668 and 121.5673 nm, the two fine-structure components).
+ * (Lyman-α is measured at 121.5668 and 121.5674 nm, its two fine-structure components; NIST ASD).
  *
  * Spontaneous emission. Fermi's golden rule with the free-space density of photon modes ρ(ω) = ω²V/(π²c³), summed
- * over both polarizations and all directions, gives the Einstein A coefficient (Griffiths §11.3)
+ * over both polarizations and all directions, gives the Einstein A coefficient (Griffiths §11.3; the golden-rule route is §11.4)
  *   A = ω³|⟨b|q r|a⟩|² / (3π ε₀ ħ c³)  =  (4αω³ / 3c²) |⟨b|r|a⟩|²,
  * and summing over the final m with the angular integrals of the Y_l^m gives, for nl → n'l' (l' = l ± 1),
  *   A(nl → n'l') = (4αω³ / 3c²) · max(l, l') / (2l + 1) · |∫ R_nl R_n'l' r³ dr|².
@@ -34,8 +34,8 @@
  *       constants: 2018," Rev. Mod. Phys. 93, 025010 (2021): every constant in K.
  *   [5] A. Kramida, Yu. Ralchenko, J. Reader & NIST ASD Team, NIST Atomic Spectra Database (physics.nist.gov/asd):
  *       measured H I wavelengths used as test references.
- *   [6] L. Spitzer & J. L. Greenstein, Astrophys. J. 114, 407 (1951); S. P. Goldman & G. W. F. Drake, Phys. Rev. A 24,
- *       183 (1981): the 2s two-photon decay rate, 8.229 s⁻¹.
+ *   [6] S. P. Goldman & G. W. F. Drake, Phys. Rev. A 24, 183 (1981): the 2s two-photon decay rate, 8.229 s⁻¹; first
+ *       computed by L. Spitzer & J. L. Greenstein, Astrophys. J. 114, 407 (1951), 8.23 s⁻¹.
  *   [7] C. J. Foot, Atomic Physics (Oxford, 2005), ch. 7–8: optical Bloch equations, saturation intensity, power and
  *       Doppler broadening.
  *   [8] P. Thompson, D. E. Cox & J. B. Hastings, J. Appl. Cryst. 20, 79 (1987): the pseudo-Voigt approximation.
@@ -43,7 +43,7 @@
 (function (root) {
   'use strict';
 
-  // ---- constants (CODATA 2018, SI) ----
+  // ---- constants (CODATA 2018, SI; mH is the ¹H atomic mass from the atomic mass evaluation, unused since the atom table) ----
   const K = {
     c: 299792458, h: 6.62607015e-34, hbar: 1.054571817e-34, e: 1.602176634e-19, eps0: 8.8541878128e-12,
     kB: 1.380649e-23, alpha: 7.2973525693e-3, a0: 5.29177210903e-11, Rinf: 10973731.568160,
@@ -54,12 +54,39 @@
   K.eV = K.e;
   K.Ry_eV = K.h * K.c * K.RH / K.eV;           // 13.5983 eV
   const NMAX = 7;
-  const TWO_PHOTON_2S = 8.229;                 // s⁻¹, 2s → 1s + 2γ (Spitzer & Greenstein 1951; Goldman & Drake 1981)
+  const TWO_PHOTON_2S = 8.229;                 // s⁻¹, 2s → 1s + 2γ (Goldman & Drake 1981; Spitzer & Greenstein 1951 found 8.23)
+
+  // ---- one-electron atoms: the same solution with nuclear charge Z and nuclear mass M ----
+  // Every result scales exactly (Griffiths Problem 4.19 and §4.2): with the reduced mass μ = m_e M/(m_e + M),
+  //   E_n = −Z² (μ/m_e) hcR_∞ / n²,  lengths in a_μ/Z with a_μ = a₀ m_e/μ,  ω ∝ Z² μ,  so A ∝ Z⁴ μ and τ ∝ 1/(Z⁴ μ);
+  // the 2s two-photon rate scales as Z⁶ μ. Nuclear masses in u (CODATA 2018 / AME2016); the electron mass is
+  // 5.48579909065×10⁻⁴ u. Fine structure grows as Z⁴α², so it matters more for He⁺ and Li²⁺ (see the page).
+  const ME_U = 5.48579909065e-4, U = 1.66053906660e-27;
+  const ATOMS = {
+    H: { Z: 1, M: 1.007276466621, name: 'Hydrogen', sym: '¹H' },
+    D: { Z: 1, M: 2.013553212745, name: 'Deuterium', sym: '²H (D)' },
+    T: { Z: 1, M: 3.01550071621, name: 'Tritium', sym: '³H (T)' },
+    He: { Z: 2, M: 4.001506179127, name: 'Helium ion', sym: '⁴He⁺' },
+    Li: { Z: 3, M: 7.014357, name: 'Lithium ion', sym: '⁷Li²⁺' },
+  };
+  const AT = {};
+  function setAtom(key) {
+    const a = ATOMS[key] || ATOMS.H;
+    AT.key = ATOMS[key] ? key : 'H'; AT.Z = a.Z; AT.name = a.name; AT.sym = a.sym;
+    AT.muRatio = 1 / (1 + ME_U / a.M);                // μ / m_e
+    AT.R = K.Rinf * AT.muRatio;                       // Rydberg constant for this nucleus, m⁻¹
+    AT.a = K.a0 / AT.muRatio / AT.Z;                  // length unit of the wavefunctions, m
+    AT.mass = (a.M + ME_U) * U;                       // mass of the moving atom or ion, kg
+    AT.twoPhoton = TWO_PHOTON_2S * Math.pow(AT.Z, 6) * AT.muRatio / (1 / (1 + ME_U / ATOMS.H.M));
+    AT.Ry_eV = K.h * K.c * AT.R / K.e;
+    return AT;
+  }
+  setAtom('H');
   const L = ['s', 'p', 'd', 'f', 'g', 'h', 'i'];
 
   // ---- energies and wavelengths ----
-  const energyEV = n => -K.Ry_eV / (n * n);
-  const waveNumber = (n1, n2) => K.RH * Math.abs(1 / (n1 * n1) - 1 / (n2 * n2));   // m⁻¹
+  const energyEV = n => -AT.Z * AT.Z * AT.Ry_eV / (n * n);
+  const waveNumber = (n1, n2) => AT.Z * AT.Z * AT.R * Math.abs(1 / (n1 * n1) - 1 / (n2 * n2));   // m⁻¹
   const wavelength = (n1, n2) => 1 / waveNumber(n1, n2);                             // m (vacuum)
   const omega = (n1, n2) => 2 * Math.PI * K.c * waveNumber(n1, n2);
   const label = (n, l) => `${n}${L[l]}`;
@@ -119,7 +146,7 @@
   // A(nl → n'l'), s⁻¹, summed over final m (the same for every initial m).
   function einsteinA(n, l, n2, l2) {
     if (n2 >= n || Math.abs(l - l2) !== 1 || l2 >= n2) return 0;
-    const w = omega(n, n2), I = radialIntegral(n, l, n2, l2) * K.amu;
+    const w = omega(n, n2), I = radialIntegral(n, l, n2, l2) * AT.a;
     return 4 * K.alpha * w * w * w / (3 * K.c * K.c) * Math.max(l, l2) / (2 * l + 1) * I * I;
   }
   // every decay channel of nl, with rate, branching ratio and photon wavelength
@@ -130,7 +157,7 @@
       const A = einsteinA(n, l, n2, l2);
       if (A > 0) out.push({ n: n2, l: l2, A, lambda: wavelength(n, n2) });
     }
-    if (n === 2 && l === 0) out.push({ n: 1, l: 0, A: TWO_PHOTON_2S, lambda: null, twoPhoton: true });
+    if (n === 2 && l === 0) out.push({ n: 1, l: 0, A: AT.twoPhoton, lambda: null, twoPhoton: true });
     const tot = out.reduce((s, d) => s + d.A, 0);
     for (const d of out) d.branch = d.A / tot;
     return out;
@@ -164,10 +191,10 @@
   }
   const fieldFromIntensity = I => Math.sqrt(2 * I / (K.c * K.eps0));         // I in W/m² → E₀ in V/m
   function rabi(n, l, n2, l2, I) {                                          // Ω in rad/s
-    return K.e * zElement(n, l, n2, l2) * K.amu * fieldFromIntensity(I) / K.hbar;
+    return K.e * zElement(n, l, n2, l2) * AT.a * fieldFromIntensity(I) / K.hbar;
   }
   // Doppler FWHM (Hz) of a line at frequency nu0 for hydrogen atoms at temperature T
-  const dopplerFWHM = (nu0, T) => nu0 * Math.sqrt(8 * K.kB * Math.max(T, 0) * Math.LN2 / (K.mH * K.c * K.c));
+  const dopplerFWHM = (nu0, T) => nu0 * Math.sqrt(8 * K.kB * Math.max(T, 0) * Math.LN2 / (AT.mass * K.c * K.c));
 
   // Voigt profile (Lorentzian FWHM fL convolved with Gaussian FWHM fG) as an area-normalized density in 1/Hz, via the
   // pseudo-Voigt of Thompson, Cox & Hastings (1987), accurate to about 1%.
@@ -208,7 +235,7 @@
   }
   // saturation intensity of a line, W/m²: I_sat = ħ²Γ²cε₀ / (4 d²)  (from s = 2Ω²/Γ² = I/I_sat)
   function Isat(line, start) {
-    const d = K.e * zElement(start[0], start[1], line.n, line.l) * K.amu;
+    const d = K.e * zElement(start[0], start[1], line.n, line.l) * AT.a;
     return K.hbar * K.hbar * line.Gamma * line.Gamma * K.c * K.eps0 / (4 * d * d);
   }
 
@@ -216,7 +243,10 @@
   // Returns ρ_ee sampled at nOut points over [0, tEnd]. RK4 with a step well below 1/Ω, 1/Γ and 1/|Δ|.
   function bloch(Om, Delta, Gamma, tEnd, nOut) {
     const fastest = Math.max(Math.abs(Om), Math.abs(Delta), Gamma);
-    const steps = Math.min(400000, Math.max(nOut * 4, Math.ceil(tEnd * fastest / 0.05)));
+    // RK4 needs ω·dt below ~2.8 for every rate in the problem; far off resonance that would take too many steps,
+    // and the answer is known: ρ_ee stays ≈ Ω²/(4Δ²) (the caller checks farOff() first).
+    const steps = Math.max(nOut * 4, Math.ceil(tEnd * fastest / 0.05));
+    if (steps > 2e6) throw new RangeError('bloch: detuning too large for direct integration; use the steady state');
     const dt = tEnd / steps, every = steps / (nOut - 1);
     let u = 0, v = 0, w = -1;
     const f = (u, v, w) => [-Gamma / 2 * u - Delta * v, Delta * u - Gamma / 2 * v - Om * w, Om * v - Gamma * (w + 1)];
@@ -231,6 +261,35 @@
       if (i >= next - 1e-9 || i === steps) { t.push(i * dt); rho.push((w + 1) / 2); next += every; }
     }
     return { t, rho };
+  }
+
+  // Bloch equations with a pulse sequence. Each pulse {t0, dur, Om, phase}: Rabi frequency Om (rad/s) about the axis
+  // (cos φ, sin φ, 0) of the Bloch sphere; between pulses the atom only precesses at the detuning and decays.
+  //   du/dt = −Γu/2 − Δv + Ω_v w,   dv/dt = Δu − Γv/2 − Ω_u w,   dw/dt = Ω_u v − Ω_v u − Γ(w + 1),
+  // with (Ω_u, Ω_v) = Ω(cos φ, sin φ); φ = 0 gives the equations of bloch() above. Starts in the ground state.
+  function blochPulses(pulses, Delta, Gamma, tEnd, nOut) {
+    // integrate piece by piece between pulse edges, so every switch falls exactly on a step boundary
+    const edges = new Set([0, tEnd]);
+    for (const p of pulses) { if (p.t0 > 0 && p.t0 < tEnd) edges.add(p.t0); if (p.t0 + p.dur < tEnd) edges.add(p.t0 + p.dur); }
+    const cuts = [...edges].sort((a, b) => a - b), out = { t: [0], rho: [0], u: [0], v: [0], w: [-1] };
+    let u = 0, v = 0, w = -1;
+    const sampleDt = tEnd / (nOut - 1); let nextSample = sampleDt;
+    for (let s = 0; s < cuts.length - 1; s++) {
+      const a = cuts[s], b = cuts[s + 1], mid = (a + b) / 2;
+      const p = pulses.find(q => mid >= q.t0 && mid < q.t0 + q.dur);
+      const Ou = p ? p.Om * Math.cos(p.phase || 0) : 0, Ov = p ? p.Om * Math.sin(p.phase || 0) : 0;
+      const fastest = Math.max(Gamma, Math.abs(Delta), Math.hypot(Ou, Ov), 1e-30);
+      const n = Math.max(4, Math.min(200000, Math.max(Math.ceil((b - a) * fastest / 0.02), Math.ceil((b - a) / sampleDt) * 4))), dt = (b - a) / n;
+      const f = (u, v, w) => [-Gamma / 2 * u - Delta * v + Ov * w, Delta * u - Gamma / 2 * v - Ou * w, Ou * v - Ov * u - Gamma * (w + 1)];
+      for (let i = 1; i <= n; i++) {
+        const k1 = f(u, v, w), k2 = f(u + dt / 2 * k1[0], v + dt / 2 * k1[1], w + dt / 2 * k1[2]);
+        const k3 = f(u + dt / 2 * k2[0], v + dt / 2 * k2[1], w + dt / 2 * k2[2]), k4 = f(u + dt * k3[0], v + dt * k3[1], w + dt * k3[2]);
+        u += dt / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]); v += dt / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]); w += dt / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+        const T = a + i * dt;
+        if (T >= nextSample - 1e-15 || (s === cuts.length - 2 && i === n)) { out.t.push(T); out.rho.push((w + 1) / 2); out.u.push(u); out.v.push(v); out.w.push(w); nextSample += sampleDt; }
+      }
+    }
+    return out;
   }
 
   // ---- colours for photons: real spectral colours in the visible, labelled tints outside it ----
@@ -255,7 +314,9 @@
     return `${S[lo - 1] || 'n=' + lo}-${G[hi - lo - 1] || hi}`;
   }
 
-  const api = { K, NMAX, L, TWO_PHOTON_2S, label, energyEV, waveNumber, wavelength, omega, laguerre, radialR, meanR,
+  // far off resonance (|Δ| ≫ Ω, Γ), the Bloch solution is a tiny fast wiggle around ρ_ee ≈ Ω²/(4Δ²); no need to integrate
+  const farOff = (Om, Delta, Gamma, tEnd) => tEnd * Math.max(Math.abs(Om), Math.abs(Delta), Gamma) / 0.05 > 2e6;
+  const api = { K, NMAX, farOff, L, TWO_PHOTON_2S, ATOMS, setAtom, atom: () => AT, blochPulses, label, energyEV, waveNumber, wavelength, omega, laguerre, radialR, meanR,
     radialNodes, assocLegendre, Ylm2, radialIntegral, einsteinA, decays, totalRate, lifetime, cascade, zElement,
     fieldFromIntensity, rabi, dopplerFWHM, voigtDensity, voigtFWHM, lines, lineResponse, Isat, bloch, photonColor, seriesName };
   if (typeof module === 'object' && module.exports) module.exports = api;

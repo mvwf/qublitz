@@ -98,5 +98,27 @@ const rel = (a, b) => Math.abs(a - b) / Math.abs(b);
   check('Doppler broadening conserves the line area', rel(a1, a0) < 0.02, `${(a1 / a0).toFixed(4)}`);
 }
 
+// ---- one-electron atoms (Z and reduced-mass scaling) and pulsed driving ----
+{
+  const tauH = H.lifetime(2, 1), lyH = H.wavelength(1, 2), muH = H.atom().muRatio;
+  H.setAtom('D'); const lyD = H.wavelength(1, 2), muD = H.atom().muRatio;
+  // NIST ASD: D I Lyman-α 121.5337 nm (multiplet); the H–D shift comes from the reduced mass alone
+  check('H–D isotope shift of Lyman-α = λ_H(1 − μ_H/μ_D) ≈ 0.033 nm', Math.abs((lyH - lyD) * 1e9 - 0.03302) < 2e-4, `${((lyH - lyD) * 1e9).toFixed(5)} nm`);
+  check('D Lyman-α matches NIST (121.5337 nm)', rel(lyD * 1e9, 121.5337) < 2e-5);
+  H.setAtom('He'); const ly2 = H.wavelength(1, 2) * 1e9, tauHe = H.lifetime(2, 1), muHe = H.atom().muRatio;
+  // NIST ASD: He II 2→1 at 30.378 nm; fine structure scales as Z⁴, so allow 10⁻⁴ here
+  check('He⁺ Lyman-α ≈ 30.378 nm (NIST)', rel(ly2, 30.378) < 1e-4, `${ly2.toFixed(4)} nm`);
+  check('τ(He⁺ 2p) = τ(H 2p) / (Z⁴ μ_He/μ_H)', rel(tauHe, tauH / (16 * muHe / muH)) < 1e-9, `${(tauHe * 1e9).toFixed(4)} ns`);
+  check('He⁺ E_1 = −54.42 eV', Math.abs(H.energyEV(1) + 54.4178) < 0.01);
+  H.setAtom('H');
+  const line = H.lines([1, 0])[0], Om = H.rabi(1, 0, 2, 1, 1e9), tpi = Math.PI / Om;
+  const pi = H.blochPulses([{ t0: 0, dur: tpi, Om, phase: 0 }], 0, 0, tpi, 60);
+  check('a π pulse inverts the atom (no decay)', Math.abs(pi.rho.at(-1) - 1) < 1e-6);
+  const ram = H.blochPulses([{ t0: 0, dur: tpi / 2, Om, phase: 0 }, { t0: tpi / 2, dur: tpi / 2, Om, phase: Math.PI / 2 }], 0, 0, tpi, 60);
+  check('π/2 about x then π/2 about y stays on the equator', Math.abs(ram.rho.at(-1) - 0.5) < 1e-6);
+  const cw = H.bloch(Om, 2e9, line.Gamma, 5e-9, 50), pw = H.blochPulses([{ t0: 0, dur: 5e-9, Om, phase: 0 }], 2e9, line.Gamma, 5e-9, 50);
+  check('a single long pulse reproduces the CW Bloch solution', Math.abs(cw.rho.at(-1) - pw.rho.at(-1)) < 1e-6);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
