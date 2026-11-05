@@ -158,7 +158,6 @@
     const visits = sum(G.map(g => g.opens)), quizzes = sum(Q.map(q => q.n)), ingame = sum(Q.map(q => q.ingame || 0));
     const lab = sum(Object.values(S.labFrom || {}));
     const wavg = key => { let w = 0, t = 0; Q.forEach(q => { if (q[key] != null) { w += q.n; t += q[key] * q.n; } }); return w ? t / w : null; };
-    const fb = sum(Object.values(S.feedbackCount || {}));
     const tile = (k, v, d, hero) => h('div', { class: 'tile' + (hero ? ' hero' : '') }, h('div', { class: 'k', text: k }), h('div', { class: 'v' }, v), d ? h('div', { class: 'd', text: d }) : null);
     const score = wavg('avgScore');
     $('kpis').replaceChildren(
@@ -167,8 +166,7 @@
       tile('Questions right', score == null ? '–' : pct(score), `share of answers, debrief and in-game (${fmt(ingame)} in-game)`),
       tile('Fun', [fix1(wavg('avgFun')), h('small', { text: ' / 5' })], 'average rating'),
       tile('Learned', [fix1(wavg('avgLearned')), h('small', { text: ' / 5' })], 'average rating'),
-      tile('Lab arrivals', fmt(lab), 'visits to the Virtual Qubit Lab from an activity'),
-      tile('Written responses', fmt(fb), 'count only; the text stays in the Sheet'));
+      tile('Lab arrivals', fmt(lab), 'visits to the Virtual Qubit Lab from an activity'));
   }
 
   function renderInsights() {
@@ -179,7 +177,8 @@
       h('div', { class: 't' }, h('span', { class: 'ic', 'aria-hidden': 'true', text: '▲' }), f.title),
       f.question ? h('div', { class: 'q', text: '“' + f.question + '”' }) : null,
       h('div', { class: 'ev' }, h('b', { text: 'Evidence: ' }), f.evidence),
-      h('div', { class: 'fx' }, h('b', { text: 'Try: ' }), f.fix))) :
+      h('div', { class: 'fx' }, h('b', { text: 'Try: ' }), f.fix),
+      h('button', { type: 'button', class: 'brief-link', text: `Redesign brief for ${title(f.game)}`, onclick: () => openBrief(f.game) }))) :
       [h('li', { class: 'empty', text: 'Nothing crosses a threshold in this period. (Rules only fire once enough people were measured.)' })]));
     if (flags.length > 12) $('flags').append(h('li', { class: 'empty', text: `…and ${flags.length - 12} smaller flags.` }));
     $('rules').replaceChildren(h('ul', {},
@@ -199,7 +198,8 @@
       h('div', {},
         h('div', { class: 'ch' }, it.demo ? h('span', { class: 'demo-chip', text: 'DEMO' }) : null, title(it.game || '') + ': ' + (it.change || '')),
         h('div', { class: 'bc', text: 'Because: ' + (it.because || '') }),
-        /^\d{4}-\d{2}-\d{2}$/.test(it.date || '') ? h('button', { type: 'button', text: 'Show the numbers since ' + dLong(it.date), onclick: () => { setSince(it.date); } }) : null))) :
+        /^\d{4}-\d{2}-\d{2}$/.test(it.date || '') ? h('div', {}, h('button', { type: 'button', text: 'Show the numbers since ' + dLong(it.date), onclick: () => { setSince(it.date); } }),
+          ' · ', h('button', { type: 'button', text: 'Compare before / after', onclick: () => openCompare(improvements.indexOf(it)) })) : null))) :
       [h('li', { class: 'empty', text: 'No changes logged yet. When feedback leads to a change, it is listed here with the evidence behind it.' })]));
   }
 
@@ -251,7 +251,7 @@
   }
 
   function barRows(items, opt) {   // items: {label, frac, val, tag, tip:[head, rows]}
-    return h('div', { class: 'rows', role: 'list' }, items.map(it => {
+    return h('div', { class: 'rows' + (opt && opt.wrap ? ' wrap' : ''), role: 'list' }, items.map(it => {
       const r = h('div', { class: 'row', role: 'listitem', tabindex: '0', 'aria-label': it.aria },
         h('span', { class: 'lab', text: it.label, title: it.label }),
         h('div', { class: 'track', 'aria-hidden': 'true' },
@@ -470,11 +470,252 @@
     renderStops(); renderLab(); renderCodes(); renderDevices(); renderCodeGames();
   }
 
+  // ── fetching a summary (dashboard period, report range, before/after windows) ─────────────────────────────
+  async function fetchSummary(o) {   // o: { days, from?, to?, code? }
+    if (DEMO) return demoSummary(o);
+    const u = new URL(ENDPOINT, location.href);
+    u.searchParams.set('summary', '1'); u.searchParams.set('days', String(o.days || 90));
+    if (o.from) u.searchParams.set('from', o.from);
+    if (o.to) u.searchParams.set('to', o.to);
+    if (o.code) u.searchParams.set('code', o.code);
+    const r = await fetch(u.toString(), { redirect: 'follow', cache: 'no-store' });
+    if (!r.ok) throw new Error('The collector answered ' + r.status + '.');
+    const j = await r.json();
+    if (!j || typeof j !== 'object' || !j.games) throw new Error('The collector did not return a summary.');
+    if ((o.from && j.since !== o.from) || (o.code && j.code !== o.code))
+      throw new Error('This collector deployment is older than the dashboard (it ignores date ranges or event codes). Paste the current tools/outreach-collector/Code.gs into Apps Script and deploy a new version.');
+    const S = Object.assign({ byDay: {}, byMonth: {}, codes: {}, devices: {}, quiz: {}, labFrom: {}, codeTotals: {} }, j);
+    if (!S.generated) S.generated = new Date().toISOString();
+    if (!S.until) S.until = S.generated.slice(0, 10);
+    return S;
+  }
+
+  // ── tabs ─────────────────────────────────────────────────────────────────────────────────────────────────
+  const TABS = { main: 'tab-main', report: 'tab-report', redesign: 'tab-redesign' };
+  let tab = TABS[P.get('tab')] ? P.get('tab') : 'main';
+  function showTab(name, focus) {
+    tab = name;
+    Object.keys(TABS).forEach(k => {
+      const b = $(TABS[k]), on = k === name;
+      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1;
+      $(k).hidden = !on || !summary;
+      if (on && focus) b.focus();
+    });
+    $('filters').hidden = name === 'report';
+    const q = new URLSearchParams(location.search); if (name === 'main') q.delete('tab'); else q.set('tab', name);
+    history.replaceState(null, '', '?' + q.toString());
+    hideTip();
+    if (name === 'report' && summary && !report) runReport();
+    if (name === 'redesign' && summary) fillRedesign();
+  }
+  function initTabs() {
+    const keys = Object.keys(TABS);
+    keys.forEach(k => $(TABS[k]).addEventListener('click', () => showTab(k)));
+    $('tabs').addEventListener('keydown', e => {
+      const i = keys.indexOf(tab), d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (d) { e.preventDefault(); showTab(keys[(i + d + keys.length) % keys.length], true); }
+    });
+  }
+
+  // ── small output helpers ─────────────────────────────────────────────────────────────────────────────────
+  async function copyText(text, statusEl) {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+      const t = h('textarea', { style: { position: 'fixed', left: '-9999px' } }); t.value = text; document.body.append(t); t.select();
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } t.remove();
+    }
+    if (statusEl) statusEl.textContent = ok ? 'Copied.' : 'Could not copy; select the text and copy it by hand.';
+    return ok;
+  }
+  function download(name, text, type) {
+    const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+    document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  const RP = window.QL_REPORT;
+
+  // ── report (for proposals) ──────────────────────────────────────────────────────────────────────────────
+  let report = null;
+  function initReport() {
+    const today = new Date().toISOString().slice(0, 10);
+    $('rep-from').value = P.get('rfrom') || new Date(Date.now() - 364 * 86400000).toISOString().slice(0, 10);
+    $('rep-to').value = P.get('rto') || today;
+    $('rep-go').addEventListener('click', runReport);
+    $('rep-copy').addEventListener('click', () => report && copyText(RP.reportText(report, SPECS, TITLES), $('rep-status')));
+    const base = () => `qublitz-outreach-${report.since}-to-${report.until}${report.code ? '-' + report.code : ''}${report.demo ? '-DEMO' : ''}`;
+    $('rep-csv-m').addEventListener('click', () => report && download(base() + '-games-by-month.csv', RP.monthsCsv(report, TITLES), 'text/csv'));
+    $('rep-csv-e').addEventListener('click', () => report && download(base() + '-events.csv', RP.codesCsv(report), 'text/csv'));
+    $('rep-json').addEventListener('click', () => report && download(base() + '.json', JSON.stringify(report, null, 2), 'application/json'));
+    $('rep-print').addEventListener('click', () => window.print());
+  }
+  async function runReport() {
+    const from = $('rep-from').value, to = $('rep-to').value, code = $('rep-code').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) { $('rep-status').textContent = 'Pick a start date on or before the end date.'; return; }
+    $('rep-status').textContent = 'Loading…'; $('rep-body').classList.add('loading');
+    try {
+      report = await fetchSummary({ days: daysSince(from), from, to, code });
+      renderReport();
+      $('rep-status').textContent = '';
+    } catch (e) { $('rep-status').textContent = String(e && e.message || e); }
+    finally { $('rep-body').classList.remove('loading'); }
+  }
+  function fillCodes(sel, codes, keep) {
+    const v = keep != null ? keep : sel.value;
+    sel.replaceChildren(h('option', { value: '', text: 'All visits' }), ...codes.map(c => h('option', { value: c, text: c })));
+    sel.value = codes.includes(v) ? v : '';
+  }
+  function monthColumns(host, months) {
+    const W = Math.max(260, host.clientWidth || 600), H = 180, pad = { l: 38, r: 8, t: 18, b: 24 };
+    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, max = niceMax(Math.max(1, ...months.map(m => m.visits)));
+    const band = iw / Math.max(1, months.length), bw = Math.min(24, band * 0.6);
+    const Y = v => pad.t + ih - v / max * ih;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img',
+      'aria-label': 'Visits to activities by month: ' + months.map(m => `${m.month} ${m.visits}`).join(', ') });
+    for (let k = 0; k <= 4; k++) {
+      const v = max * k / 4, y = Y(v);
+      svg.append(s('line', { x1: pad.l, x2: W - pad.r, y1: y, y2: y, stroke: k ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+      const t = s('text', { x: pad.l - 6, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)', style: 'font-variant-numeric:tabular-nums' }); t.textContent = fmt(v); svg.append(t);
+    }
+    const peak = months.reduce((b, m, i) => m.visits > months[b].visits ? i : b, 0), every = Math.ceil(months.length / (W < 500 ? 4 : 12));
+    months.forEach((m, i) => {
+      const x = pad.l + band * i + (band - bw) / 2, y = Y(m.visits), hgt = pad.t + ih - y, r = Math.min(4, hgt / 2, bw / 2);
+      const d = hgt > 0 ? `M${x},${pad.t + ih}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${pad.t + ih}Z` : '';
+      const g = s('g', { tabindex: '0', role: 'img', 'aria-label': `${m.month}: ${m.visits} visits, ${fmt(m.minutes / 60)} hours, ${m.completes} levels completed` });
+      g.append(s('rect', { x: pad.l + band * i, y: pad.t, width: band, height: ih, fill: 'transparent' }));
+      if (d) g.append(s('path', { d, fill: 'var(--s1)' }));
+      if (i === peak || i === months.length - 1) { const t = s('text', { x: x + bw / 2, y: y - 5, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--ink-2)' }); t.textContent = fmt(m.visits); g.append(t); }
+      if (i % every === 0 || i === months.length - 1) { const t = s('text', { x: x + bw / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); t.textContent = MON[+m.month.slice(5) - 1] + (i === 0 || m.month.endsWith('-01') ? ' ' + m.month.slice(2, 4) : ''); g.append(t); }
+      hoverable(g, () => [m.month, [{ v: fmt(m.visits), l: 'visits' }, { v: fmt(m.minutes / 60), l: 'hours active', c: 'transparent' }, { v: fmt(m.completes), l: 'levels completed', c: 'transparent' },
+        { v: fmt(m.debriefs + m.ingame), l: 'answers', c: 'transparent' }]]);
+      svg.append(g);
+    });
+    host.replaceChildren(svg);
+  }
+  function renderReport() {
+    const R = report, N = RP.numbers(R, SPECS, TITLES), body = $('rep-body');
+    const full = n => n == null ? '–' : Math.round(n).toLocaleString('en-US');   // exact figures for proposals
+    if (!R.code) fillCodes($('rep-code'), N.codes.map(c => c.code));
+    const range = `${dLong(N.since)} – ${dLong(N.until)}`;
+    const tile = (k, v, d, hero) => h('div', { class: 'tile' + (hero ? ' hero' : '') }, h('div', { class: 'k', text: k }), h('div', { class: 'v' }, v), d ? h('div', { class: 'd', text: d }) : null);
+    const card = (title, note, ...kids) => h('section', { class: 'card' + (/^(Growth|Answers right|Activities|About)/.test(title) ? ' half' : '') }, h('h2', { text: title }), note ? h('p', { class: 'note', text: note }) : null, ...kids);
+    const months = h('div', { class: 'chart' });
+    const objRows = N.objectives.slice().sort((a, b) => b.n - a.n).slice(0, 14).sort((a, b) => b.acc - a.acc);
+    body.replaceChildren(
+      h('div', { class: 'rep-head' }, h('h2', {}, 'Qublitz outreach report', R.demo ? h('span', { class: 'rep-demo', text: 'DEMO DATA' }) : null),
+        h('p', { text: `${range}${N.code ? ' · outreach event ' + N.code : ''} · https://mvwf.github.io/qublitz/` }),
+        h('p', { text: 'Aggregate, anonymous counts. Visits are page visits, not unique people (there are no identifiers).' })),
+      h('div', { class: 'kpis rep' },
+        tile('Page visits to activities', full(N.visits), `not unique people · plus ${fmt(N.hubVisits)} to the hub`, true),
+        tile('Activities used', fmt(N.activities.length), N.activities.slice(0, 3).map(a => a.title).join(', ') + (N.activities.length > 3 ? ', …' : '')),
+        tile('Hours of active use', full(N.hours), 'a lower bound'),
+        tile('Levels or missions completed', full(N.completes), ''),
+        tile('Questions answered', full(N.answers), `${full(N.ingame)} in-game answers · ${full(N.debriefs)} debriefs`),
+        tile('Answers right', pct(N.correct), 'across all learning objectives'),
+        tile('Fun · learned', [fix1(N.fun), h('small', { text: ' · ' }), fix1(N.learned)], 'average ratings out of 5'),
+        tile('Lab arrivals', full(N.labArrivals), 'visits to the Virtual Qubit Lab from another activity')),
+      h('div', { class: 'grid' },
+        card('Growth by month', 'Visits to activities per calendar month in the range (partial months at either end).', months,
+          h('details', { class: 'tv' }, h('summary', { text: 'Table view' }), h('div', { class: 'tscroll' },
+            table(['Month', 'Visits', 'Hours', 'Levels', 'Debriefs', 'In-game answers'], N.months.map(m => [m.month, fmt(m.visits), fmt(m.minutes / 60), fmt(m.completes), fmt(m.debriefs), fmt(m.ingame)]))))),
+        card('Answers right by learning objective', `The ${objRows.length} objectives with the most answers, in-game and debrief together.`,
+          objRows.length ? barRows(objRows.map(o => ({ label: `${o.gameTitle}: ${o.text}`, frac: o.acc, val: `${pct(o.acc)} of ${fmt(o.n)}`,
+            aria: `${o.gameTitle}, ${o.text}: ${pct(o.acc)} right of ${o.n} answers`, tip: [o.gameTitle, [{ v: pct(o.acc), l: o.text }, { v: fmt(o.n), l: 'answers', c: 'transparent' }]] })), { ref: 0.5, wrap: true })
+            : h('div', { class: 'empty', text: 'No answers in this range.' })),
+        card('Outreach events', 'One row per event code in the range.', N.codes.length ? h('div', { class: 'tscroll' },
+          table(['Event', 'Visits', 'Active minutes', 'Levels', 'Answers right', 'Fun', 'Learned'],
+            N.codes.map(c => [c.code, fmt(c.visits), fmt(c.minutes), fmt(c.completes), pct(c.correct), fix1(c.fun), fix1(c.learned)]))) :
+          h('div', { class: 'empty', text: 'No visits with an event code in this range.' })),
+        card('Activities', 'Visits and active hours per activity.', h('div', { class: 'tscroll' },
+          table(['Activity', 'Visits', 'Hours'], N.activities.map(a => [a.title, fmt(a.visits), fix1(a.minutes / 60)])))),
+        card('About these numbers', '', h('ul', { class: 'caveats' }, RP.CAVEATS.map(c => h('li', { text: c })),
+          h('li', { text: `Generated ${dLong(R.generated.slice(0, 10))} from the outreach usage dashboard.` + (R.demo ? ' DEMO DATA: synthetic, not real usage.' : '') })))));
+    monthColumns(months, N.months);
+  }
+
+  // ── redesign briefs and before/after ─────────────────────────────────────────────────────────────────────
+  function gameOptions(sel, keep) {
+    const ids = Object.keys(summary.games).filter(g => g !== 'hub' && summary.games[g].opens).sort(byOpens);
+    GAMES.forEach(g => { if (g.id !== 'hub' && !ids.includes(g.id)) ids.push(g.id); });
+    const v = keep || sel.value;
+    sel.replaceChildren(...ids.map(g => h('option', { value: g, text: title(g) })));
+    if (ids.includes(v)) sel.value = v;
+  }
+  function fillRedesign() {
+    gameOptions($('brief-game')); gameOptions($('cmp-game'));
+    const sel = $('cmp-entry'), cur = sel.value;
+    sel.replaceChildren(h('option', { value: '', text: 'Pick a date…' }),
+      ...improvements.map((it, i) => /^\d{4}-\d{2}-\d{2}$/.test(it.date || '') ? h('option', { value: String(i), text: `${it.demo ? 'DEMO · ' : ''}${it.date} · ${title(it.game || '')}: ${String(it.change || '').slice(0, 60)}` }) : null));
+    sel.value = cur;
+    fillTargets();
+  }
+  function fillTargets() {
+    const g = $('cmp-game').value, G = (summary.games || {})[g] || {}, spec = SPECS[g] || {};
+    const lv = $('cmp-level'), ob = $('cmp-obj'), lvKeep = lv.value, obKeep = ob.value;
+    lv.replaceChildren(h('option', { value: '', text: 'All levels' }), ...Object.keys(G.levels || {}).map(l => h('option', { value: l, text: l })));
+    lv.value = (G.levels || {})[lvKeep] ? lvKeep : '';
+    ob.replaceChildren(h('option', { value: '', text: 'All questions' }), ...(spec.objectives || []).map(o => h('option', { value: o.id, text: plain(o.text).slice(0, 70) })));
+    ob.value = (spec.objectives || []).some(o => o.id === obKeep) ? obKeep : '';
+  }
+  function buildBrief(game) {
+    if (game) $('brief-game').value = game;
+    const g = $('brief-game').value;
+    if (!g) return;
+    const B = RP.brief(summary, SPECS, TITLES, g, { demo: DEMO });
+    $('brief-md').value = `# ${B.title}\n\n${B.body}\n`;
+    const link = RP.issueUrl(B.title, B.body, 7000);
+    $('brief-issue').href = link.url;
+    $('brief-status').textContent = link.truncated ? 'The issue link holds a shortened brief (URL length limit); paste the full text from the box.' : 'Opens a prefilled issue labelled feedback on GitHub.';
+    $('brief-out').hidden = false;
+    $('brief-copy').onclick = () => copyText($('brief-md').value, $('brief-status'));
+  }
+  async function runCompare() {
+    const date = $('cmp-date').value, g = $('cmp-game').value, out = $('cmp-out');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today()) { $('cmp-status').textContent = 'Pick a change date up to today.'; return; }
+    const w = RP.windows(date, today(), 180);
+    $('cmp-status').textContent = 'Loading…';
+    try {
+      const [b, a] = await Promise.all([fetchSummary({ days: daysSince(w.before.from), from: w.before.from, to: w.before.to }),
+        fetchSummary({ days: daysSince(w.after.from), from: w.after.from, to: w.after.to })]);
+      const rows = RP.compare(b, a, { game: g, level: $('cmp-level').value, objective: $('cmp-obj').value }, SPECS);
+      const val = (r, x) => x.v == null ? '–' : r.unit === 'pct' ? pct(x.v) : r.unit === 'rating' ? fix1(x.v) + ' / 5' : fix1(x.v) + ' min';
+      const frac = (r, x) => x.v == null ? 0 : r.unit === 'pct' ? x.v : r.unit === 'rating' ? (x.v - 1) / 4 : Math.min(1, x.v / 10);
+      const delta = r => { if (!r.enough) return '–'; const d = r.after.v - r.before.v; const t = r.unit === 'pct' ? Math.round(d * 100) + ' pts' : r.unit === 'rating' ? d.toFixed(1) : d.toFixed(1) + ' min'; return (d > 0 ? '+' : d < 0 ? '−' : '±') + t.replace('-', ''); };
+      const side = (r, x, cls) => h('div', { class: 'side' }, h('div', {}, h('span', { class: 'num', text: val(r, x) }), h('span', { class: 'sub', text: `  n = ${fmt(x.n)}` })),
+        h('div', { class: 'barbox', 'aria-hidden': 'true' }, h('div', { class: 'bar ' + cls, style: { width: (frac(r, x) * 100).toFixed(1) + '%' } })));
+      out.replaceChildren(
+        h('p', { class: 'note', text: `${title(g)} · before: ${dLong(w.before.from)} – ${dLong(w.before.to)} · after: ${dLong(w.after.from)} – ${dLong(w.after.to)} (${w.days} days each)` + (DEMO ? ' · DEMO DATA' : '') }),
+        h('div', { class: 'cmp', role: 'table', 'aria-label': 'Before and after' },
+          h('div', { class: 'cmp-row head', role: 'row' }, h('span', { role: 'columnheader', class: 'lab', text: 'Metric' }), h('span', { role: 'columnheader', text: 'Before' }), h('span', { role: 'columnheader', text: 'After' }), h('span', { role: 'columnheader', class: 'delta', text: 'Change' })),
+          rows.map(r => h('div', { class: 'cmp-row' + (r.enough ? '' : ' thin'), role: 'row' },
+            h('span', { class: 'lab', role: 'rowheader', text: r.label }), side(r, r.before, 'before'), side(r, r.after, 'after'), h('span', { class: 'delta', text: delta(r) }),
+            r.enough ? null : h('span', { class: 'why', text: `too few answers to compare (needs ${r.unit === 'rating' ? RP.COMPARE.MIN_RATINGS : RP.COMPARE.MIN_N} on each side)` })))),
+        h('p', { class: 'note', text: 'Before and after are different visitors and seasons; treat a change as a signal to look closer, not as proof.' }));
+      $('cmp-status').textContent = '';
+    } catch (e) { $('cmp-status').textContent = String(e && e.message || e); }
+  }
+  function initRedesign() {
+    $('brief-go').addEventListener('click', () => buildBrief());
+    $('cmp-game').addEventListener('change', fillTargets);
+    $('cmp-go').addEventListener('click', runCompare);
+    $('cmp-entry').addEventListener('change', () => {
+      const it = improvements[+$('cmp-entry').value];
+      if (!it) return;
+      $('cmp-date').value = it.date; if (it.game) $('cmp-game').value = it.game; fillTargets();
+      $('cmp-level').value = it.level || ''; $('cmp-obj').value = it.objective || '';
+      runCompare();
+    });
+  }
+  function openBrief(game) { showTab('redesign'); buildBrief(game); $('brief-h').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function openCompare(i) {
+    showTab('redesign'); $('cmp-entry').value = String(i);
+    $('cmp-entry').dispatchEvent(new Event('change')); $('cmp-h').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   // ── states ─────────────────────────────────────────────────────────────────────────────────────────────
   function setBanner(...nodes) { $('banner').replaceChildren(...nodes); }
   function offState() {
     $('main').hidden = true;
     $('days').closest('.filters').hidden = true;
+    $('tabs').hidden = true;
     setBanner(h('section', { class: 'banner', 'aria-labelledby': 'off-h' },
       h('h2', { id: 'off-h', text: 'Collection is off' }),
       h('p', {}, 'No collector endpoint is set in ', h('code', { text: 'web/shared/outreach-config.js' }),
@@ -516,21 +757,12 @@
     $('status').textContent = 'Loading…';
     main.classList.add('loading');
     try {
-      if (DEMO) summary = demoSummary(n);
-      else {
-        const u = new URL(ENDPOINT, location.href);
-        u.searchParams.set('summary', '1'); u.searchParams.set('days', String(n));
-        const r = await fetch(u.toString(), { redirect: 'follow', cache: 'no-store' });
-        if (!r.ok) throw new Error('The collector answered ' + r.status + '.');
-        const j = await r.json();
-        if (!j || typeof j !== 'object' || !j.games) throw new Error('The collector did not return a summary.');
-        summary = Object.assign({ byDay: {}, codes: {}, devices: {}, quiz: {}, feedbackCount: {}, labFrom: {} }, j);
-        if (!summary.generated) summary.generated = new Date().toISOString();
-      }
+      summary = await fetchSummary({ days: n });
       if (since) summary.since = since > summary.since ? since : summary.since;
-      main.hidden = false;
       if (!DEMO) setBanner();
+      showTab(tab);
       renderAll();
+      if (tab === 'redesign') fillRedesign();
       $('status').textContent = `${dLong(summary.since)} – ${dLong(summary.generated.slice(0, 10))}` + (DEMO ? ' · synthetic' : '');
     } catch (e) {
       $('status').textContent = '';
@@ -563,55 +795,72 @@
   }
 
   // ── demo data: synthetic, deterministic, clearly labelled ──────────────────────────────────────────────
+  // Every visit draws from its own seeded generator (day, page, visit number), so any date range or event-code
+  // filter gives the same visits as the full history: before/after windows and per-event reports stay consistent.
   function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-  function demoSummary(n) {
-    const rand = rng(53), now = new Date(), end = now.toISOString().slice(0, 10);
-    const start = new Date(now.getTime() - n * 86400000).toISOString().slice(0, 10);
-    const pois = m => { let L = Math.exp(-m), k = 0, p = 1; do { k++; p *= rand(); } while (p > L && k < 500); return k - 1; };
+  const hash = str => { let x = 2166136261; for (let i = 0; i < str.length; i++) { x ^= str.charCodeAt(i); x = Math.imul(x, 16777619); } return x >>> 0; };
+  const DEMO_CHANGES = { beamline: 45, arena: 90 };   // days ago of the two DEMO "you said, we did" entries
+  function demoSummary(o) {
+    const now = new Date(), today = now.toISOString().slice(0, 10);
+    const start = o.from || new Date(now.getTime() - o.days * 86400000).toISOString().slice(0, 10);
+    const end = o.to && o.to < today ? o.to : today, only = o.code || '';
     const W = { hub: 2.0, 'qubit-lab': 1.3, copter: 1.2, beamline: 1.1, rider: 1.0, arena: 0.8, sonify: 0.6, trio: 0.45, string: 0.45, spectrogram: 0.4, drum: 0.35, fridge: 0.3, 'ep-tpd': 0.25 };
-    const LV = { beamline: ['first-light', 'half-turn', 'phase', 'order', 'crosstalk', 'finale'], copter: ['hover', 'tilt', 'xyz', 'precise'], rider: ['1-1', '1-2', '1-3', '2-1', '2-2'] };
-    const HARD = { 'beamline:crosstalk': 0.3, 'rider:2-2': 0.35 };   // completion rate of the hard levels
-    const EVENTS = [{ code: 'SCIFAIR26', ago: 12, size: 70 }, { code: 'ENGS53-W26', ago: 40, size: 45 }, { code: 'OPENHOUSE', ago: 75, size: 55 }, { code: 'HSVISIT', ago: 200, size: 35 }];
-    const out = { generated: now.toISOString(), days: n, since: start, demo: true, games: {}, byDay: {}, codes: {}, devices: {}, codeGames: {}, codeQuiz: {}, quiz: {}, feedbackCount: {}, labFrom: {} };
-    const G = id => out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0, leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
-    const STEPS = { 'qubit-lab': ['rabi', 'ramsey', 't1', 'echo'], arena: ['training', 'duel', 'missions'], sonify: ['upload', 'play'], trio: ['heat', 'wave', 'schrodinger'] };
+    const LV = { beamline: ['first-light', 'half-turn', 'phase', 'order', 'crosstalk', 'finale'], copter: ['hover', 'tilt', 'xyz', 'precise'], rider: ['1-1', '1-2', '1-3', '2-1', '2-2'],
+      arena: ['training', 'duel-1', 'duel-2', 'mission'] };
+    const EVENTS = [{ code: 'SCIFAIR26', ago: 12, size: 70 }, { code: 'ENGS53-W26', ago: 40, size: 45 }, { code: 'OPENHOUSE', ago: 75, size: 55 },
+      { code: 'HSVISIT', ago: 130, size: 40 }, { code: 'SUMMERCAMP', ago: 200, size: 60 }, { code: 'LIBRARY', ago: 290, size: 30 }];
+    const STEPS = { 'qubit-lab': ['rabi', 'ramsey', 't1', 'echo'], sonify: ['upload', 'play'], trio: ['heat', 'wave', 'schrodinger'] };
     const STOP_AT = { 'beamline:crosstalk': '|third-mirror', 'rider:2-2': '|boss' };
-    const quizzable = id => id !== 'hub' && (LV[id] || (SPECS[id] && SPECS[id].quiz && SPECS[id].quiz.length) || ['qubit-lab', 'arena', 'trio'].includes(id));
+    const out = { generated: now.toISOString(), days: o.days, since: start, until: end, code: only, demo: true, games: {}, byDay: {}, byMonth: {}, codes: {}, devices: {},
+      codeGames: {}, codeQuiz: {}, codeTotals: {}, quiz: {}, labFrom: {}, totalMinutes: 0 };
+    const G = id => out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0, leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
+    const MO = (d, id) => { const M = out.byMonth[d.slice(0, 7)] = out.byMonth[d.slice(0, 7)] || {}; return M[id] || (M[id] = { opens: 0, minutes: 0, completes: 0, debriefs: 0, ingame: 0 }); };
+    const quizzable = id => id !== 'hub' && (LV[id] || (SPECS[id] && SPECS[id].quiz && SPECS[id].quiz.length) || ['qubit-lab', 'trio'].includes(id));
     // question items only where a learning file has them (the rest still get ratings), so no question is made up
     const items = id => (SPECS[id] && SPECS[id].quiz && SPECS[id].quiz.length) ? SPECS[id].quiz.map(q => ({ id: q.id, obj: q.objective, k: (q.choices || []).length || 4, ans: q.answer })) : [];
-    const diff = {};   // per item: chance of a right answer and the favourite wrong pick
+    const diff = (id, q, qi) => { const r = rng(hash('item:' + id + ':' + q.id)); const p = (qi === 1 && LV[id]) || (id === 'arena' && qi === 0) ? 0.34 : 0.55 + r() * 0.35;
+      return { p, fav: (q.ans + 1 + Math.floor(r() * (q.k - 1))) % q.k }; };
     const rate = { copter: [4.4, 3.6], beamline: [4.1, 4.0], rider: [4.3, 3.3], 'qubit-lab': [3.4, 4.2], arena: [4.5, 2.7], trio: [3.0, 3.9] };
+    const blankQ = () => ({ n: 0, ingame: 0, sc: 0, it: 0, f: [0, 0], l: [0, 0], items: {} });
     for (const d of dayList(start, end)) {
-      const ago = Math.round((Date.parse(end) - Date.parse(d)) / 86400000), wd = new Date(d + 'T00:00:00Z').getUTCDay();
-      const base = (wd === 0 || wd === 6 ? 4 : 9) * (1 + 0.4 * Math.sin(ago / 9));
+      const ago = Math.round((Date.parse(today) - Date.parse(d)) / 86400000), wd = new Date(d + 'T00:00:00Z').getUTCDay();
+      const base = (wd === 0 || wd === 6 ? 4 : 9) * (1 + 0.4 * Math.sin(ago / 9)) * (0.55 + 0.45 * Math.max(0, 1 - ago / 400));   // slow growth
       const ev = EVENTS.find(e => e.ago === ago);
       for (const id in W) {
+        const dr = rng(hash(d + ':' + id)), pois = m => { let L = Math.exp(-m), k = 0, p = 1; do { k++; p *= dr(); } while (p > L && k < 500); return k - 1; };
         const k = pois(base * W[id] / 2) + (ev ? pois(ev.size * W[id] / 6) : 0);
         for (let v = 0; v < k; v++) {
-          const g = G(id), code = ev && rand() < 0.85 ? ev.code : '';
-          g.opens++; g.events.open = (g.events.open || 0) + 1;
+          const rand = rng(hash(d + ':' + id + ':' + v));
+          const code = ev && rand() < 0.85 ? ev.code : '';
+          if (only && code !== only) continue;
+          const g = G(id), mo = MO(d, id);
+          g.opens++; mo.opens++; g.events.open = (g.events.open || 0) + 1;
           (out.byDay[d] = out.byDay[d] || {})[id] = (out.byDay[d][id] || 0) + 1;
           if (code) { out.codes[code] = (out.codes[code] || 0) + 1; const cg = out.codeGames[code] = out.codeGames[code] || {}; cg[id] = (cg[id] || 0) + 1; }
+          const CT = code ? (out.codeTotals[code] = out.codeTotals[code] || { minutes: 0, completes: 0 }) : null;
           const dev = rand() < (code ? 0.62 : 0.38) ? 'touch' : 'desktop'; out.devices[dev] = (out.devices[dev] || 0) + 1;
           let minutes = id === 'hub' ? 0.3 + rand() * 0.6 : id === 'sonify' ? 0.3 + rand() * 1.1 : 1 + rand() * 9;
           let place = 'menu', done = 0, ingameAsked = false;
+          // the DEMO change log: a hint on beamline's crosstalk level, and a shorter arena debrief
+          const hard = { 'beamline:crosstalk': ago < DEMO_CHANGES.beamline ? 0.62 : 0.3, 'rider:2-2': 0.35 };
           if (id !== 'hub' && rand() < 0.82) {
             g.starts++;
             if (STEPS[id]) place = STEPS[id][Math.min(STEPS[id].length - 1, Math.floor(rand() * rand() * STEPS[id].length * 1.6))];
             for (const lv of LV[id] || []) {
               const L = g.levels[lv] = g.levels[lv] || { starts: 0, completes: 0, starsSum: 0 };
               L.starts++; place = lv;
-              if (rand() > (HARD[id + ':' + lv] != null ? HARD[id + ':' + lv] : 0.85)) { if (STOP_AT[id + ':' + lv] && rand() < 0.7) place += STOP_AT[id + ':' + lv]; break; }
-              L.completes++; g.completes++; done++; L.starsSum += 1 + Math.floor(rand() * 3);
-              if (lv === 'half-turn' || lv === 'tilt' || lv === '1-2') ingameAsked = true;
+              if (rand() > (hard[id + ':' + lv] != null ? hard[id + ':' + lv] : 0.85)) { if (STOP_AT[id + ':' + lv] && rand() < 0.7) place += STOP_AT[id + ':' + lv]; break; }
+              L.completes++; g.completes++; mo.completes++; if (CT) CT.completes++; done++; L.starsSum += 1 + Math.floor(rand() * 3);
+              if (lv === 'half-turn' || lv === 'tilt' || lv === '1-2' || lv === 'duel-1') ingameAsked = true;
               if (rand() < 0.25) break;
             }
           }
           if (ingameAsked && items(id).length) {   // one question asked inside the game
-            const q = items(id)[0], Q = out.quiz[id] = out.quiz[id] || { n: 0, ingame: 0, sc: 0, it: 0, f: [0, 0], l: [0, 0], items: {} };
+            const q = items(id)[0], Q = out.quiz[id] = out.quiz[id] || blankQ();
             const I = Q.items[q.id] = Q.items[q.id] || { objective: q.obj, n: 0, correct: 0, picks: {}, wrong: {}, ingame: { n: 0, correct: 0 } };
             const ok = rand() < 0.74, pick = ok ? q.ans : (q.ans + 1) % q.k;
-            Q.ingame++; Q.sc += ok ? 1 : 0; Q.it++; I.n++; I.ingame.n++; I.picks[pick] = (I.picks[pick] || 0) + 1;
+            Q.ingame++; mo.ingame++; Q.sc += ok ? 1 : 0; Q.it++; I.n++; I.ingame.n++; I.picks[pick] = (I.picks[pick] || 0) + 1;
+            if (code) { const CQ = out.codeQuiz[code] = out.codeQuiz[code] || blankQ(); CQ.ingame++; CQ.sc += ok ? 1 : 0; CQ.it++; }
             if (ok) { I.correct++; I.ingame.correct++; } else I.wrong[pick] = (I.wrong[pick] || 0) + 1;
           }
           if (id !== 'qubit-lab' && id !== 'hub' && rand() < (id === 'copter' || id === 'rider' ? 0.16 : 0.07)) {
@@ -620,42 +869,46 @@
           }
           if (quizzable(id) && rand() < (id === 'arena' ? 0.3 : 0.24)) {
             g.quizOpens++;
-            if (rand() < (id === 'qubit-lab' ? 0.4 : 0.78)) {
-              const Q = out.quiz[id] = out.quiz[id] || { n: 0, ingame: 0, sc: 0, it: 0, f: [0, 0], l: [0, 0], items: {} };
-              const CQ = code ? (out.codeQuiz[code] = out.codeQuiz[code] || { n: 0, ingame: 0, sc: 0, it: 0, f: [0, 0], l: [0, 0] }) : null;
-              let right = 0; const its = items(id).slice(ingameAsked ? 1 : 0);
+            const sendP = id === 'qubit-lab' ? 0.4 : id === 'arena' ? (ago < DEMO_CHANGES.arena ? 0.8 : 0.42) : 0.78;
+            if (rand() < sendP) {
+              const Q = out.quiz[id] = out.quiz[id] || blankQ();
+              const CQ = code ? (out.codeQuiz[code] = out.codeQuiz[code] || blankQ()) : null;
+              let right = 0; const all = items(id), its = all.slice(ingameAsked ? 1 : 0);
               its.forEach(q => {
-                const key = id + ':' + q.id;
-                if (!diff[key]) diff[key] = { p: (items(id).findIndex(x => x.id === q.id) === 1 && LV[id]) || (id === 'arena' && q === items(id)[0]) ? 0.34 : 0.55 + rand() * 0.35, fav: (q.ans + 1 + Math.floor(rand() * (q.k - 1))) % q.k };
+                const df = diff(id, q, all.indexOf(q));
                 const I = Q.items[q.id] = Q.items[q.id] || { objective: q.obj, n: 0, correct: 0, picks: {}, wrong: {}, ingame: { n: 0, correct: 0 } };
-                const ok = rand() < diff[key].p;
+                const ok = rand() < df.p;
                 let pick = q.ans;
-                if (!ok) { pick = rand() < 0.65 ? diff[key].fav : (q.ans + 1 + Math.floor(rand() * (q.k - 1))) % q.k; if (pick === q.ans) pick = diff[key].fav; I.wrong[pick] = (I.wrong[pick] || 0) + 1; }
+                if (!ok) { pick = rand() < 0.65 ? df.fav : (q.ans + 1 + Math.floor(rand() * (q.k - 1))) % q.k; if (pick === q.ans) pick = df.fav; I.wrong[pick] = (I.wrong[pick] || 0) + 1; }
                 I.n++; if (ok) { I.correct++; right++; } I.picks[pick] = (I.picks[pick] || 0) + 1;
               });
               const rr = rate[id] || [3.8, 3.7];
               const fun = Math.max(1, Math.min(5, Math.round(rr[0] + (rand() - 0.5) * 2.4))), lea = Math.max(1, Math.min(5, Math.round(rr[1] + (rand() - 0.5) * 2.4)));
               for (const A of [Q, CQ]) if (A) { A.n++; A.sc += right; A.it += its.length; A.f[0] += fun; A.f[1]++; A.l[0] += lea; A.l[1]++; }
-              if (rand() < 0.35) out.feedbackCount[id] = (out.feedbackCount[id] || 0) + 1;
+              mo.debriefs++;
               minutes += 1.2;
             }
           }
           g.quits[place] = (g.quits[place] || 0) + 1; g.completedPerVisit[done] = (g.completedPerVisit[done] || 0) + 1;
-          if (rand() < 0.9) { g.leaves++; g.durSum += minutes * 60; }
+          if (rand() < 0.9) { g.leaves++; g.durSum += minutes * 60; mo.minutes += minutes; if (CT) CT.minutes += minutes; }
         }
       }
     }
-    for (const id in out.games) { const g = out.games[id]; g.avgMinutes = g.leaves ? Math.round(g.durSum / g.leaves / 6) / 10 : null; delete g.durSum; }
+    const r1 = x => Math.round(x * 10) / 10;
+    for (const id in out.games) { const g = out.games[id]; g.avgMinutes = g.leaves ? Math.round(g.durSum / g.leaves / 6) / 10 : null; g.totalMinutes = r1(g.durSum / 60); out.totalMinutes += g.durSum / 60; delete g.durSum; }
+    out.totalMinutes = r1(out.totalMinutes);
+    Object.values(out.byMonth).forEach(M => Object.values(M).forEach(x => { x.minutes = r1(x.minutes); }));
+    Object.values(out.codeTotals).forEach(x => { x.minutes = r1(x.minutes); });
     const fin = A => { A.avgScore = A.it ? Math.round(A.sc / A.it * 1000) / 1000 : null; A.avgFun = A.f[1] ? Math.round(A.f[0] / A.f[1] * 100) / 100 : null;
-      A.avgLearned = A.l[1] ? Math.round(A.l[0] / A.l[1] * 100) / 100 : null; delete A.sc; delete A.it; delete A.f; delete A.l; };
+      A.avgLearned = A.l[1] ? Math.round(A.l[0] / A.l[1] * 100) / 100 : null; delete A.sc; delete A.it; delete A.f; delete A.l; if (!A.items) delete A.items; };
     Object.values(out.quiz).forEach(fin); Object.values(out.codeQuiz).forEach(fin);
     return out;
   }
   function demoImprovements() {
     const d = k => new Date(Date.now() - k * 86400000).toISOString().slice(0, 10);
     return [
-      { date: d(20), game: 'beamline', change: 'Added a hint to the crosstalk level and moved it after “order”.', because: 'level crosstalk: 31% of starts completed', demo: true },
-      { date: d(55), game: 'arena', change: 'Shortened the debrief from six questions to four.', because: 'quiz drop-off: 38% of openings submitted', demo: true },
+      { date: d(DEMO_CHANGES.beamline), game: 'beamline', level: 'crosstalk', change: 'Added a hint to the crosstalk level and moved it after “order”.', because: 'level crosstalk: 31% of starts completed', demo: true },
+      { date: d(DEMO_CHANGES.arena), game: 'arena', change: 'Shortened the debrief from six questions to four.', because: 'debrief drop-off: 38% of openings sent', demo: true },
     ];
   }
 
@@ -669,12 +922,13 @@
   }
   document.querySelectorAll('#days input').forEach(i => i.addEventListener('change', () => { days = +i.value; since = ''; syncUrl(); load(); }));
   syncUrl();
+  initTabs(); initReport(); initRedesign();
   if (!DEMO && !ENDPOINT) { offState(); return; }
   Promise.all([loadSpecs(), loadImprovements()]).then(load);
   let rt = 0, lastW = 0;
   new ResizeObserver(ents => {
     const w = Math.round(ents[0].contentRect.width);
     if (w === lastW) return; lastW = w;
-    clearTimeout(rt); rt = setTimeout(renderAll, 120);
-  }).observe($('main'));
+    clearTimeout(rt); rt = setTimeout(() => { renderAll(); if (report && tab === 'report') renderReport(); }, 120);
+  }).observe(document.body);
 })();
