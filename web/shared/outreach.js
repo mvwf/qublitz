@@ -225,7 +225,7 @@
         el('div', {}, el('h4', {}, 'You will learn to'), list((spec.objectives || []).map(x => x.text))),
         spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
-      spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun }) : null,
+      spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
       el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
     if (o.replace) host.replaceChildren(box); else host.append(box);
@@ -278,7 +278,11 @@
         : 'Tell us how it went: it helps us make this more fun and clearer.'));
     const qs = items.map((q, qi) => {
       const box = el('fieldset', { class: 'ql-q', style: 'border:0;margin:0' }, el('legend', { style: 'padding:0' }, el('p', { html: `${qi + 1}. ${q.q}` })));
-      q.choices.forEach((c, ci) => {
+      // Shown in a shuffled order (recorded by the original index), so no file can leave every answer first.
+      const order = q.choices.map((c, ci) => ci);
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      order.forEach(ci => {
+        const c = q.choices[ci];
         const id = `ql-${qi}-${ci}`;
         box.append(el('label', { for: id }, el('input', { type: 'radio', name: `ql-${qi}`, id, onchange: () => { picks[qi] = ci; } }), ' ', el('span', { html: c })));
       });
