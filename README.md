@@ -98,7 +98,7 @@ https://qublitz-qubit-lab.streamlit.app/
 
 - Live: [mvwf.github.io/qublitz/outreach/dashboard.html](https://mvwf.github.io/qublitz/outreach/dashboard.html) · demo with synthetic data: [`…/dashboard.html?demo=1`](https://mvwf.github.io/qublitz/outreach/dashboard.html?demo=1)
 - Shows aggregate, anonymous usage of the web demos, the debrief results, insights on what to fix, a report for proposals and redesign briefs per game. It is linked only from here, not from the site.
-- Collection is off until a collector endpoint is set. Set-up guide: [tools/outreach-collector/SETUP.md](tools/outreach-collector/SETUP.md) (about 15 minutes); privacy checklist: [COMPLIANCE.md](tools/outreach-collector/COMPLIANCE.md).
+- Collection is off until a collector endpoint is set. Set-up guide: [tools/outreach-collector/SETUP.md](tools/outreach-collector/SETUP.md) (about 15 minutes); privacy notes: [COMPLIANCE.md](tools/outreach-collector/COMPLIANCE.md).
 - The data are an open, versioned record of how the games are played; to analyse them with an AI, see [AI-GUIDE.md](tools/outreach-collector/AI-GUIDE.md).
 
 ## Contributing 

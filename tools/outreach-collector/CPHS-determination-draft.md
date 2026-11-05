@@ -1,6 +1,6 @@
 # Draft: request for a CPHS determination
 
-*A starting point for Dartmouth's Committee for the Protection of Human Subjects. Edit the bracketed parts, and
+*Only needed if you plan to publish research findings from the data (see COMPLIANCE.md). A starting point for Dartmouth's Committee for the Protection of Human Subjects. Edit the bracketed parts, and
 attach `web/privacy.html` and screenshots of a debrief and an in-game question.*
 
 **Title.** Anonymous usage and learning-check counts for the Qublitz interactive physics demos.
