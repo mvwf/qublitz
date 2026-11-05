@@ -179,6 +179,25 @@ check('before/after greys out rows with too few answers', !RP.compare(lv(30, 6),
 const W = RP.windows('2026-10-20', '2026-11-05');
 check('before/after windows are equal and adjacent', W.before.to === '2026-10-19' && W.after.from === '2026-10-20' && W.after.to === '2026-11-05' && W.before.from === '2026-10-03' && W.days === 17, JSON.stringify(W));
 
+// flexible game fields: numbers, booleans and one-word labels only; never sentences or nested objects
+const xe = kit.cleanEvent('beamline', 'fire', { level: 'half', theta_pi: 0.5, beam: 'x', hinted: true, note: 'my name is Jo',
+  nested: { a: 1 }, BadKey: 1, list: [1, 2] }, { ...ctx, gv: '2026-11-05+abc1234' });
+check('extra fields keep numbers, booleans and single-word labels, and drop text, objects and bad keys',
+  xe.x && xe.x.theta_pi === 0.5 && xe.x.beam === 'x' && xe.x.hinted === true && !('note' in xe.x) && !('nested' in xe.x) &&
+  !('BadKey' in xe.x) && !('list' in xe.x) && !('level' in xe.x) && xe.level === 'half', JSON.stringify(xe.x));
+const many = {}; for (let i = 0; i < 20; i++) many['k' + i] = i;
+check('at most 12 extra fields', Object.keys(kit.cleanExtra(many)).length === 12);
+check('events and questions carry the page version', xe.gv === '2026-11-05+abc1234' &&
+  kit.cleanQuiz('rider', { answers: [{ q: 'a', obj: 'o', pick: 0, ok: true }] }, { ...ctx, gv: '2026-11-05+abc1234' }).gv === '2026-11-05+abc1234' &&
+  !('gv' in kit.cleanEvent('rider', 'open', {}, { ...ctx, gv: 'has space' })));
+const xr = gs.cleanEventRow({ game: 'beamline', ev: 'fire', day: '2026-11-05', gv: '2026-11-05+abc1234', x: { theta_pi: 0.5, beam: 'x', note: 'my name is Jo' } }, now);
+check('collector stores the version and the cleaned extra fields as JSON (no text)', xr[10] === '2026-11-05+abc1234' &&
+  JSON.parse(xr[11]).theta_pi === 0.5 && !xr[11].includes('Jo'));
+check('collector rows keep their old column positions', xr.length === 12 && xr[3] === 'fire' && xr[9] === 'desktop');
+const recs = gs.rowsToRecords_('events', ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device', 'gv', 'extra'], [xr]);
+check('export turns rows into JSON records with the extra fields parsed', recs[0].table === 'events' && recs[0].extra.beam === 'x' &&
+  recs[0].gv === '2026-11-05+abc1234' && !('received' in recs[0]) && !('code' in recs[0]));
+
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);
 

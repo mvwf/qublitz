@@ -1,7 +1,8 @@
 # Outreach collector
 
-> **Before you switch collection on, work through [COMPLIANCE.md](COMPLIANCE.md)** (CPHS determination, privacy
-> review, organiser notice). Collection is off until `endpoint` is set in `web/shared/outreach-config.js`.
+> **Start here: [SETUP.md](SETUP.md)**, a step-by-step guide (about 15 minutes). Before switching collection on,
+> work through [COMPLIANCE.md](COMPLIANCE.md). To analyse the data with an AI, see [AI-GUIDE.md](AI-GUIDE.md).
+> Collection is off until `endpoint` is set in `web/shared/outreach-config.js`.
 
 A Google Apps Script web app, bound to a Google Sheet you own, that receives the anonymous usage counts and quiz
 answers sent by `web/shared/outreach.js` and serves aggregate counts to `web/outreach/dashboard.html`.
@@ -10,8 +11,8 @@ answers sent by `web/shared/outreach.js` and serves aggregate counts to `web/out
 
 | Tab | One row per | Columns |
 |---|---|---|
-| `events` | page event (open, level solved, left after N s, ...) | day, game, event, level, value, stars, dur_s, code, device |
-| `quiz` | question answered in a game, or a debrief | day, game, code, device, score, n, fun (1–5), learned (1–5), answers (question id, objective, choice, right/wrong), source (in-game or debrief) |
+| `events` | page event (open, level solved, left after N s, ...) | day, game, event, level, value, stars, dur_s, code, device, gv (page version), extra (the game's own fields, JSON) |
+| `quiz` | question answered in a game, or a debrief | day, game, code, device, score, n, fun (1–5), learned (1–5), answers (question id, objective, choice, right/wrong), source (in-game or debrief), gv |
 
 No cookies, no identifiers, no IP addresses stored (Apps Script never sees them; Google's servers receive them as
 part of any web request, under Dartmouth's Google agreement), and nothing finer than the day. **No free text**: the
@@ -28,11 +29,12 @@ like `…/beamline.html?event=SCIFAIR26`. The privacy notice for visitors is [`w
 4. Paste that URL into `web/shared/outreach-config.js` as `endpoint`, commit, and let Pages deploy.
 5. Open the dashboard, [`https://mvwf.github.io/qublitz/outreach/dashboard.html`](https://mvwf.github.io/qublitz/outreach/dashboard.html)
    (source: [`web/outreach/dashboard.html`](../../web/outreach/dashboard.html)). It reads the same URL's `?summary=1`.
-6. In the Apps Script editor pick **setupRetention** and press **Run** once. It installs a daily trigger that empties
-   any leftover `feedback` rows (from an older version of this script) after 365 days; the current version writes
-   none. **Share the Sheet with no one else** unless they need it, and keep it in a Dartmouth account.
+6. Reload the Sheet and choose **Qublitz outreach → Install daily retention clean-up** once. It empties any
+   leftover `feedback` rows (from an older version of this script) after 365 days; the current version writes none.
+   **Share the Sheet with no one else** unless they need it, and keep it in a Dartmouth account.
 
-The tabs and their header rows are created on the first request. To change the code later, edit it in Apps Script
+The tabs and their header rows are created on the first request. The schema is open: new games, event names and
+`extra` fields are stored without any change here, and new columns are only ever added at the end of a tab. To change the code later, edit it in Apps Script
 and use **Deploy → Manage deployments → Edit → New version** so the URL stays the same.
 
 ## The dashboard
