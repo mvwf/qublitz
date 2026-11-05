@@ -10,7 +10,7 @@
  */
 var TABS = {
   events:   ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device'],
-  quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers'],
+  quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source'],
   feedback: ['received', 'day', 'game', 'code', 'learned_text', 'confusing_text'],
 };
 var MAX_BODY = 20000, MAX_EVENTS = 60, CACHE_S = 300;
@@ -84,7 +84,7 @@ function cleanQuizRows(q, now) {
   var code = RE_CODE.test(q.code || '') ? q.code : '', day = day_(q.day, now);
   var score = answers.filter(function (a) { return a.ok; }).length;
   var quiz = [now, day, q.game, code, q.dev === 'touch' ? 'touch' : 'desktop', score, answers.length,
-              n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers)];
+              n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers), q.src === 'ingame' ? 'ingame' : 'debrief'];
   var l = redact_(q.txt_learned), c = redact_(q.txt_confusing);
   return { quiz: quiz, feedback: (l || c) ? [now, day, q.game, code, l, c] : null };
 }
@@ -95,10 +95,10 @@ function summarize(events, quiz, feedback, days, now) {
   var since = Utilities_formatDay_(cutoff);
   var inRange = function (d) { return String(d) >= since; };
   var out = { generated: now.toISOString ? now.toISOString() : String(now), days: days, since: since,
-              games: {}, byDay: {}, codes: {}, devices: {}, quiz: {}, feedbackCount: {} };
+              games: {}, byDay: {}, codes: {}, devices: {}, quiz: {}, feedbackCount: {}, labFrom: {} };
   var g = function (id) {
     return out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0,
-      leaves: 0, durSum: 0, levels: {}, events: {} });
+      leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
   };
   events.forEach(function (r) {
     var day = String(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9];
@@ -109,13 +109,20 @@ function summarize(events, quiz, feedback, days, now) {
       G.opens++;
       var D = out.byDay[day] || (out.byDay[day] = {}); D[game] = (D[game] || 0) + 1;
       if (code) out.codes[code] = (out.codes[code] || 0) + 1;
+      if (String(level).indexOf('from:') === 0) { var src = String(level).slice(5); out.labFrom[src] = (out.labFrom[src] || 0) + 1; }
       out.devices[dev] = (out.devices[dev] || 0) + 1;
     }
     if (ev === 'start') G.starts++;
     if (ev === 'win') G.wins++;
     if (ev === 'lose') G.losses++;
     if (ev === 'quiz_open') G.quizOpens++;
-    if (ev === 'leave' && dur !== '') { G.leaves++; G.durSum += Number(dur); }
+    if (ev === 'leave') {
+      // Where visits end: the last place the page reported, and how many levels the visit completed.
+      var at = level || 'unknown', done = r[5] === '' ? 0 : Number(r[5]);
+      G.quits[at] = (G.quits[at] || 0) + 1;
+      G.completedPerVisit[done] = (G.completedPerVisit[done] || 0) + 1;
+      if (dur !== '') { G.leaves++; G.durSum += Number(dur); }
+    }
     if (level && (ev === 'level_start' || ev === 'level_complete')) {
       var L = G.levels[level] || (G.levels[level] = { starts: 0, completes: 0, starsSum: 0 });
       if (ev === 'level_start') L.starts++;
@@ -128,8 +135,10 @@ function summarize(events, quiz, feedback, days, now) {
   quiz.forEach(function (r) {
     var day = String(r[1]), game = r[2];
     if (!inRange(day)) return;
-    var Q = out.quiz[game] || (out.quiz[game] = { n: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0], items: {} });
-    Q.n++; Q.scoreSum += Number(r[5]) || 0; Q.itemsSum += Number(r[6]) || 0;
+    var Q = out.quiz[game] || (out.quiz[game] = { n: 0, ingame: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0], items: {} });
+    // In-game answers (one question each) feed the item accuracy but are not counted as debriefs.
+    if (r[10] === 'ingame') Q.ingame++; else Q.n++;
+    Q.scoreSum += Number(r[5]) || 0; Q.itemsSum += Number(r[6]) || 0;
     if (r[7] !== '') { Q.fun[0] += Number(r[7]); Q.fun[1]++; }
     if (r[8] !== '') { Q.learned[0] += Number(r[8]); Q.learned[1]++; }
     var answers = []; try { answers = JSON.parse(r[9] || '[]'); } catch (e) {}
