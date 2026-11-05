@@ -73,6 +73,11 @@ jobs:
       - name: Drum Head engine test
         run: node web/courses/engs23/tests/drum-engine.test.js
 
+      # Hydrogen Atom: R_nl normalization and nodes, wavelengths against NIST, A coefficients and lifetimes against
+      # Wiese & Fuhr / Bethe & Salpeter, saturation, Doppler width, and the optical Bloch equations.
+      - name: Hydrogen Atom engine test
+        run: node web/courses/engs23/tests/hydrogen-engine.test.js
+
       # Qubit Copter: on-resonance rotations, the steering rule, and that every target can be reached in time.
       - name: Qubit Copter engine test
         run: node web/qublitz/tests/copter-engine.test.js

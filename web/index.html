@@ -203,6 +203,7 @@
         <ol>
           <li><a href="courses/engs23/vibrating-string.html">The Vibrating String</a>: harmonics, a guitar pickup and distortion.</li>
           <li><a href="courses/engs23/drum-head.html">The Drum Head</a>: why a drum is not a string.</li>
+          <li><a href="courses/engs23/hydrogen.html">The Hydrogen Atom</a>: its states, lifetimes and spectral lines, found with a laser.</li>
           <li><a href="courses/engs23/heat-wave-schrodinger.html">Three Equations, One Eigenbasis</a>: heat, waves and quantum on one set of modes.</li>
           <li><a href="courses/engs23/spectrogram.html">Spectrogram Explorer</a>: read sound as a picture, with your own voice.</li>
         </ol>
@@ -320,6 +321,11 @@ const DEMOS = [
     eq:'|&int; <i>w</i>(<i>&tau;</i> &minus; <i>t</i>) <i>s</i>(<i>&tau;</i>) <i>e</i><sup>&minus;<i>i&omega;&tau;</i></sup> <i>d&tau;</i>|<sup>2</sup>',
     desc:'Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time.',
     tags:['STFT','signals','microphone'] },
+  { group:'engs23', title:'The Hydrogen Atom', thumb:'hydrogen',
+    href:'courses/engs23/hydrogen.html',
+    eq:'<i>E<sub>n</sub></i> = &minus;13.6 eV/<i>n</i><sup>2</sup>, &ensp;&tau; = 1/&Sigma;<i>A</i>',
+    desc:'Griffiths §4.2 in your browser: see every state ψnlm and how long it lives, then tune a laser to find the Lyman and Balmer lines, resolve a natural linewidth and watch an atom Rabi-flop.',
+    tags:['quantum','spectroscopy','lasers'] },
   { group:'fun', title:'Sonify Images', thumb:'sonify',
     href:'qublitz/sonify.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>s</i>(<i>t</i>) = <i>I</i><sub>row</sub>(<i>t</i>) cos(2&pi;<i>f</i><sub>mod</sub><i>t</i>)',
@@ -615,6 +621,25 @@ const THUMBS = {
     g.strokeStyle='#1b2a24'; g.lineWidth=1.5; g.beginPath(); g.moveTo(0,-4.5); g.lineTo(0,-7); g.stroke();
     const rw=11*Math.abs(Math.cos(t*30)); g.beginPath(); g.moveTo(-rw,-7); g.lineTo(rw,-7); g.stroke();                              // spinning rotor
     g.restore();
+  },
+  hydrogen(g,w,h,t){
+    // left: |ψ|² of 1s, 2p₀ and 3d₀ in the x–z plane (Inferno), cycling; right: levels with the laser up and a photon down
+    const S=[[1,(r,c)=>Math.exp(-2*r),3],[2,(r,c)=>r*r*Math.exp(-r)*c*c,9],[3,(r,c)=>Math.pow(r,4)*Math.exp(-2*r/3)*Math.pow(3*c*c-1,2),20]];
+    const k=Math.floor(t/3)%3, N=36, side=Math.min(h-16,w*0.48), x0=8, y0=(h-side)/2, cs=side/N;
+    const cache=THUMBS._hyd||(THUMBS._hyd=S.map(([n,f,L])=>{ const v=[]; let mx=0;
+      for(let j=0;j<N;j++) for(let i=0;i<N;i++){ const x=((i+0.5)/N*2-1)*L, z=(1-(j+0.5)/N*2)*L, r=Math.hypot(x,z), c=r?z/r:1, d=f(r,c); v.push(d); mx=Math.max(mx,d); }
+      return v.map(d=>Math.sqrt(d/mx)); }));
+    const grid=cache[k];
+    for(let j=0;j<N;j++) for(let i=0;i<N;i++){ g.fillStyle=INFERNO[Math.min(9,Math.floor(grid[j*N+i]*10))]; g.fillRect(x0+i*cs,y0+j*cs,cs+0.6,cs+0.6); }
+    g.fillStyle='#fcffa4'; g.font='bold 11px Helvetica,Arial'; g.fillText(['1s','2p','3d'][k],x0+5,y0+13);
+    const lx0=x0+side+18, lx1=w-10, E=n=>12+(h-24)*(1-1/(n*n))/(1-1/36), Y=n=>h-12-(E(n)-12);
+    g.strokeStyle=C.muted; g.lineWidth=1.5;
+    for(let n=1;n<=6;n++){ g.beginPath(); g.moveTo(lx0,Y(n)); g.lineTo(lx1,Y(n)); g.stroke(); }
+    const up=k+2>3?3:k+2, ph=(t%3)/3, xm=lx0+(lx1-lx0)*0.35, xp=lx0+(lx1-lx0)*0.7;
+    g.strokeStyle=C.red; g.lineWidth=2; g.beginPath(); g.moveTo(xm,Y(1)); g.lineTo(xm,Y(1)+(Y(up)-Y(1))*Math.min(1,ph*2)); g.stroke();
+    if(ph>0.5){ const yy=Y(up)+(Y(1)-Y(up))*(ph-0.5)*2; g.strokeStyle=(window.RETRO&&window.RETRO.palette)?'#b48cff':'#7b4fd6'; g.lineWidth=1.6; g.beginPath();
+      for(let s=0;s<=20;s++){ const y=Y(up)+(yy-Y(up))*s/20; g.lineTo(xp+4*Math.sin(s*1.6),y); } g.stroke(); }
+    g.fillStyle=C.muted; g.font='10px Helvetica,Arial'; g.fillText('n=1',lx1-22,Y(1)-4);
   },
   sonify(g,w,h,t){
     // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone

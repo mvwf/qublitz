@@ -100,6 +100,7 @@ each equation turns the same modes into different behavior in time.
 | [**The Vibrating String**](https://mvwf.github.io/qublitz/courses/engs23/vibrating-string.html) | Pluck a string, read its Fourier modes, and hear a pickup sample it at one point. Raise the gain until clipping invents harmonics. |
 | [**The Drum Head**](https://mvwf.github.io/qublitz/courses/engs23/drum-head.html) | The circular membrane of Boas ch. 13 §6. Watch Bessel normal modes oscillate side by side on one clock at their inharmonic frequencies, strike the head and see which modes ring, and hear why a drum is less musical than a string. |
 | [**Spectrogram Explorer**](https://mvwf.github.io/qublitz/courses/engs23/spectrogram.html) | Drop in a recording or stream the microphone live. A short-time Fourier transform paints frequency against time. |
+| [**The Hydrogen Atom**](https://mvwf.github.io/qublitz/courses/engs23/hydrogen.html) | Griffiths §4.2 made interactive: every state ψ<sub>nlm</sub> with its picture, energy, lifetime and decay photons (lifetimes computed from dipole matrix elements and the free-space rate of spontaneous emission), and a laser spectroscopy lab to find the Lyman and Balmer lines, resolve a natural linewidth and watch Rabi flopping. Sources cited on the page. |
 
 The ENGS 23 pages also have a guided version: add `?guided=1` for predict-then-reveal checkpoints.
 
