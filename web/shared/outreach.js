@@ -68,14 +68,17 @@
   // Extra, game-specific fields: numbers, booleans and single-word labels only (never free text).
   const XKEY = /^[a-z][a-z0-9_]{0,31}$/, XTOK = /^[A-Za-z0-9_.:|+-]{1,40}$/, GV = /^[A-Za-z0-9_.:+-]{1,40}$/;
   const RESERVED = { level: 1, value: 1, stars: 1, dur_s: 1 };
+  // Anything that could identify a person is refused outright: identifier-like field names, and labels that look
+  // like an IP address or a long number (a phone or student number).
+  const XBADKEY = /(^|_)(ids?|uid|uuid|guid|ip|user|username|name|email|mail|phone|session|token|device|fingerprint|address|school|student)(_|$)/, XBADVAL = /^\d{1,3}(\.\d{1,3}){3}$|\d{6,}/;
   function cleanExtra(d) {
     const x = {}; let n = 0;
     for (const k of Object.keys(d || {})) {
-      if (RESERVED[k] || !XKEY.test(k) || n >= 12) continue;
+      if (RESERVED[k] || !XKEY.test(k) || XBADKEY.test(k) || n >= 12) continue;
       const v = d[k];
       if (typeof v === 'boolean') x[k] = v;
       else if (typeof v === 'number' && isFinite(v) && Math.abs(v) <= 1e9) x[k] = Math.round(v * 1e4) / 1e4;
-      else if (typeof v === 'string' && XTOK.test(v)) x[k] = v;
+      else if (typeof v === 'string' && XTOK.test(v) && !XBADVAL.test(v)) x[k] = v;
       else continue;
       n++;
     }

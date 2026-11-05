@@ -1,7 +1,7 @@
 # Outreach collector
 
-> **Start here: [SETUP.md](SETUP.md)**, a step-by-step guide (about 15 minutes). Privacy notes:
-> [COMPLIANCE.md](COMPLIANCE.md). To analyse the data with an AI, see [AI-GUIDE.md](AI-GUIDE.md).
+> **Start here: [SETUP.md](SETUP.md)**, a step-by-step guide (about 15 minutes). To analyse the data with an
+> AI, see [AI-GUIDE.md](AI-GUIDE.md).
 > Collection is off until `endpoint` is set in `web/shared/outreach-config.js`.
 
 A Google Apps Script web app, bound to a Google Sheet you own, that receives the anonymous usage counts and quiz
@@ -92,8 +92,6 @@ The point of the counts is to make the games more fun and more educational. The 
 
 - Anyone can POST to a public web app. The collector validates every field and caps sizes, but counts could be
   inflated by someone determined; treat them as indicative, and use `?event=` codes for sessions you run.
-- If you plan to publish research findings from the data, check with Dartmouth's CPHS first; see
-  [COMPLIANCE.md](COMPLIANCE.md). Improving the games and quoting usage in proposals need no sign-off.
 - To stop collecting, empty `endpoint` in `outreach-config.js` (pages then send nothing) and/or archive the
   deployment in Apps Script.
 - The pure functions (`cleanEventRow`, `cleanQuizRows`, `summarize`) and the dashboard's

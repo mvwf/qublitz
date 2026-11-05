@@ -198,6 +198,31 @@ const recs = gs.rowsToRecords_('events', ['received', 'day', 'game', 'event', 'l
 check('export turns rows into JSON records with the extra fields parsed', recs[0].table === 'events' && recs[0].extra.beam === 'x' &&
   recs[0].gv === '2026-11-05+abc1234' && !('received' in recs[0]) && !('code' in recs[0]));
 
+// ── Anonymity checks ─────────────────────────────────────────────────────────────────────────────────
+// These pin exactly what is sent and stored, so nothing that could identify a person can slip in. If one fails,
+// a change is collecting something new: keep every record anonymous and update web/privacy.html to match.
+const fs = require('fs');
+const EVENT_KEYS = ['game', 'ev', 'day', 'dev', 'level', 'value', 'stars', 'dur_s', 'x', 'code', 'gv'];
+const QUIZ_KEYS = ['kind', 'game', 'day', 'dev', 'answers', 'score', 'n', 'fun', 'learned', 'src', 'code', 'gv'];
+const ANSWER_KEYS = ['q', 'obj', 'pick', 'ok'];
+const kitchen = { level: 'a', value: 1, stars: 3, dur_s: 9, theta: 1, name: 'Jo Smith', email: 'a@b.co', ip: '1.2.3.4', id: 'u-123' };
+const pe = kit.cleanEvent('beamline', 'fire', kitchen, { day: '2026-11-05', dev: 'desktop', code: 'X1', gv: 'v1', ip: '1.2.3.4', uid: 'u1' });
+check('anonymous: an event carries only the documented fields', Object.keys(pe).every(k => EVENT_KEYS.includes(k)), Object.keys(pe).join(','));
+check('anonymous: no name, email, IP or id survives in an event', !/Jo Smith|a@b\.co|1\.2\.3\.4/.test(JSON.stringify(pe)));
+const pq = kit.cleanQuiz('rider', { answers: [{ q: 'a', obj: 'o', pick: 0, ok: true, name: 'Jo' }], fun: 5, learned: 4, txt_learned: 'Jo Smith', email: 'a@b.co' },
+  { day: '2026-11-05', dev: 'touch', code: 'X1', gv: 'v1' });
+check('anonymous: a question record carries only the documented fields', Object.keys(pq).every(k => QUIZ_KEYS.includes(k)) &&
+  pq.answers.every(a => Object.keys(a).every(k => ANSWER_KEYS.includes(k))), Object.keys(pq).join(','));
+check('anonymous: the collector stores exactly the documented columns', JSON.stringify(gs.TABS.events) ===
+  JSON.stringify(['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device', 'gv', 'extra']) &&
+  JSON.stringify(gs.TABS.quiz) === JSON.stringify(['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source', 'gv']));
+check('anonymous: the collector writes no free text, whatever a client sends', gs.cleanQuizRows({ game: 'rider', answers: [{ q: 'a', pick: 0, ok: true }],
+  txt_learned: 'Jo Smith', txt_confusing: 'a@b.co' }, now).feedback === null);
+const kitSrc = fs.readFileSync(path.join(root, 'web/shared/outreach.js'), 'utf8');
+check('anonymous: the browser kit has no text boxes, cookies or device ids', !/el\('textarea'|type:\s*'text'|document\.cookie|navigator\.userAgent|deviceMemory|getBattery/.test(kitSrc));
+const xr2 = gs.cleanEventRow({ game: 'beamline', ev: 'fire', x: { user_id: 'u42', ip: 'abc', theta: 1, phone: 'x', tag: '192.168.0.1', ref: '6035550199' } }, now);
+check('anonymous: identifier-like fields and values are refused by the collector too', xr2[11] === JSON.stringify({ theta: 1 }), xr2[11]);
+
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);
 
