@@ -10,20 +10,27 @@
  *      and the light theme's dark ink colours are swapped for their neon equivalents (physics untouched: only colours),
  *   3. adds a small theme switch to the site bar.
  *
- * Themes: arena (default), synthwave, phosphor, and classic (the original light Dartmouth look, handy for
- * projectors). Choose with ?theme=<name>, or with the switch; the choice is remembered in this browser only.
+ * Themes: arena (default), synthwave, phosphor, classic (the original light Dartmouth look, handy for projectors)
+ * and dark (Classic dark: plain neutral dark, no retro fonts). Choose with ?theme=<name> (light is an alias of
+ * classic, as in Q-Vault), or with the theme menu in the site bar; the choice is remembered in this browser only and
+ * is shared with Q-Vault on the same origin.
  * Pages can tweak themselves with selectors under html.retro (e.g. html.retro .myThing{...}).
  */
 (function (root) {
   'use strict';
   const doc = root.document, html = doc.documentElement;
-  const THEMES = ['arena', 'synthwave', 'phosphor', 'classic'];
-  const LABEL = { arena: 'Arena', synthwave: 'Synthwave', phosphor: 'Phosphor', classic: 'Classic' };
-  const KEY = 'qublitz_theme';
+  const THEMES = ['arena', 'synthwave', 'phosphor', 'classic', 'dark'];
+  const LABEL = { arena: 'Arena', synthwave: 'Synthwave', phosphor: 'Phosphor', classic: 'Classic light', dark: 'Classic dark' };
+  const BLURB = { arena: 'Neon on deep navy, pixel titles', synthwave: 'Magenta and sunset grid', phosphor: 'Green CRT with scanlines',
+    classic: 'The original light look, good for projectors', dark: 'Plain dark, no retro fonts' };
+  const KEY = 'qublitz_theme', QVAULT_KEY = 'qvault-theme';   // Q-Vault (mvwf.github.io/MARQUIS_Q_VAULT) shares the origin
+  const ALIAS = { light: 'classic' };                         // Q-Vault's name for Classic light
+  const pick = v => (THEMES.includes(v) ? v : ALIAS[v] || null);
+  const read = k => { try { return root.localStorage.getItem(k); } catch (e) { return null; } };
 
-  let theme = 'arena';
-  try { const s = root.localStorage.getItem(KEY); if (THEMES.includes(s)) theme = s; } catch (e) { /* storage blocked */ }
-  try { const q = new URLSearchParams(root.location.search).get('theme'); if (THEMES.includes(q)) theme = q; } catch (e) { /* no URL */ }
+  // Order of precedence: ?theme= in the link, then this site's saved choice, then a choice made in Q-Vault, then Arena.
+  let theme = pick(read(KEY)) || pick(read(QVAULT_KEY)) || 'arena';
+  try { const q = pick(new URLSearchParams(root.location.search).get('theme')); if (q) theme = q; } catch (e) { /* no URL */ }
 
   // ── palettes ───────────────────────────────────────────────────────────────────────────────────────────────────
   // Each theme maps the pages' own tokens (--green is the accent, --ink text, --muted secondary text, --line borders,
@@ -50,14 +57,24 @@
       panel: 'rgba(6,26,12,0.70)', panel2: 'rgba(10,38,18,0.78)', line: 'rgba(57,255,122,0.20)', lineHi: 'rgba(57,255,122,0.48)',
       input: 'rgba(2,10,4,0.82)', title: '#39ff7a', titleGlow: 'rgba(57,255,122,.55)', onAccent: '#021006',
     },
+    // Classic dark: Q-Vault's neutral dark surfaces with the Classic look's green accent; no pixel fonts, glows or stars.
+    dark: {
+      plain: true, bg: '#121211', bg2: '#1b1b1a', glowA: '#121211', glowB: '#121211',
+      ink: '#f1f0ec', dim: '#bab9af', accent: '#4cc38a', accent2: '#6fd3a2', gold: '#e0b44a', rose: '#e8699b',
+      indigo: '#9d8cf0', red: '#ef7070', blue: '#5d9cec', green: '#4cc38a',
+      panel: '#1b1b1a', panel2: '#242422', line: '#33332f', lineHi: '#4a4a45',
+      input: '#121211', title: '#4cc38a', titleGlow: 'transparent', onAccent: '#0b0b0b',
+    },
   };
 
   const FONTS = (root.RETRO_FONTS || []).map(f =>
     `@font-face{font-family:'${f.family}';font-style:normal;font-weight:${f.weight};font-display:swap;` +
     `src:url(data:font/woff2;base64,${f.woff2}) format('woff2')}`).join('\n');
-  const PIX = `'Press Start 2P',ui-monospace,monospace`, BODY = `'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif`;
+  const HELV = `Helvetica,'Helvetica Neue',Arial,sans-serif`;
+  const PIX0 = `'Press Start 2P',ui-monospace,monospace`, BODY0 = `'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif`;
 
   function css(p) {
+    const PIX = p.plain ? HELV : PIX0, BODY = p.plain ? HELV : BODY0;
     return `${FONTS}
 html.retro{color-scheme:dark;
   --green:${p.accent};--green2:${p.accent2};--ink:${p.ink};--muted:${p.dim};--line:${p.line};--panel:${p.panel2};
@@ -130,9 +147,6 @@ html.retro .js-plotly-plot .plotly .modebar{background:transparent}
 html.retro .qsitebar{font-family:${BODY};color:${p.dim};border-bottom-color:${p.line}}
 html.retro .qsitebar a{color:${p.accent}}
 html.retro .qsitebar a.full{background:${p.accent};color:${p.onAccent}}
-html.retro .qsitebar .rt-theme{font:600 11.5px ${BODY};padding:2px 9px;border-radius:999px;border:1px solid ${p.lineHi};
-  background:transparent;color:${p.dim};cursor:pointer}
-html.retro .qsitebar .rt-theme:hover{color:${p.accent};border-color:${p.accent}}
 /* the outreach kit: learning panel, question dialogs, offer toast, privacy line */
 html.retro .ql-panel{background:${p.panel};border-color:${p.line};color:${p.ink};font-family:${BODY}}
 html.retro .ql-panel h3{font-family:${PIX};font-weight:400;font-size:11px;line-height:1.6;color:${p.gold}}
@@ -172,7 +186,14 @@ ${theme === 'synthwave' ? `html.retro body{background:
   linear-gradient(180deg,${p.bg} 0%,${p.bg2} 70%,#2a0a3a 100%);background-attachment:fixed}
 html.retro body::before{opacity:.35;background-image:
   linear-gradient(transparent 0 calc(100% - 1px),#ff4fd833 calc(100% - 1px)),linear-gradient(90deg,transparent 0 calc(100% - 1px),#ff4fd822 calc(100% - 1px));
-  background-size:48px 48px;-webkit-mask-image:linear-gradient(to top,#000 0,transparent 45%);mask-image:linear-gradient(to top,#000 0,transparent 45%)}` : ''}`;
+  background-size:48px 48px;-webkit-mask-image:linear-gradient(to top,#000 0,transparent 45%);mask-image:linear-gradient(to top,#000 0,transparent 45%)}` : ''}
+${p.plain ? `html.retro body::before{display:none}
+html.retro *{text-shadow:none!important}
+html.retro body{background:${p.bg}}
+html.retro h1{font-weight:700;font-size:24px;letter-spacing:.01em;line-height:1.3;margin:4px 0 2px}
+html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${p.dim}}
+html.retro .overlay h2{font-weight:700} html.retro .card{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
+html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primary{box-shadow:none}` : ''}`;
   }
 
   // ── Plotly: dark layouts and neon ink ───────────────────────────────────────────────────────────────────────────
@@ -218,12 +239,12 @@ html.retro body::before{opacity:.35;background-image:
     recolor(L, inkMap(p), '', new WeakSet());
     L.paper_bgcolor = 'rgba(0,0,0,0)';
     if (!L.plot_bgcolor || LIGHT_BG.test(L.plot_bgcolor)) L.plot_bgcolor = 'rgba(4,6,16,0.45)';
-    L.font = Object.assign({}, L.font, { family: BODY, color: (L.font && L.font.color && !inkMap(p)[L.font.color]) ? L.font.color : p.ink });
+    L.font = Object.assign({}, L.font, { family: p.plain ? HELV : BODY0, color: (L.font && L.font.color && !inkMap(p)[L.font.color]) ? L.font.color : p.ink });
     for (const k of Object.keys(L)) if (/^(x|y)axis\d*$/.test(k) && L[k] && typeof L[k] === 'object') axisDefaults(L[k], p);
     if (!Object.keys(L).some(k => /^(x|y)axis/.test(k))) { L.xaxis = L.xaxis || {}; L.yaxis = L.yaxis || {}; axisDefaults(L.xaxis, p); axisDefaults(L.yaxis, p); }
     if (L.scene) for (const ax of ['xaxis', 'yaxis', 'zaxis']) { L.scene[ax] = L.scene[ax] || {}; axisDefaults(L.scene[ax], p); L.scene[ax].backgroundcolor = 'rgba(0,0,0,0)'; }
     if (L.legend) { if (!L.legend.bgcolor || LIGHT_BG.test(L.legend.bgcolor)) L.legend.bgcolor = 'rgba(0,0,0,0)'; L.legend.font = Object.assign({ color: p.ink }, L.legend.font); }
-    if (L.hoverlabel == null) L.hoverlabel = { bgcolor: p.bg2, bordercolor: p.accent, font: { color: p.ink, family: BODY } };
+    if (L.hoverlabel == null) L.hoverlabel = { bgcolor: p.bg2, bordercolor: p.accent, font: { color: p.ink, family: p.plain ? HELV : BODY0 } };
     if (L.polar) { L.polar.bgcolor = 'rgba(0,0,0,0)'; }
     return L;
   }
@@ -389,30 +410,76 @@ html.retro body::before{opacity:.35;background-image:
     }
   }
 
-  // the theme switch, added to the site bar once it exists
+  // ── the theme switch: a button in the site bar (as in Q-Vault) that opens a menu of every theme ─────────────────
+  const SW = {   // swatches for the menu: background, accent, title colour
+    arena: ['#070a16', '#2fe0d0', '#f5b73c'], synthwave: ['#12051f', '#ff4fd8', '#42d6ff'], phosphor: ['#030a05', '#39ff7a', '#e8ff6a'],
+    classic: ['#ffffff', '#00693e', '#d8e2dc'], dark: ['#121211', '#4cc38a', '#5d9cec'] };
+  const cur = theme === 'classic' ? null : P[theme];
+  const ui = doc.createElement('style'); ui.id = 'retro-switch-css';
+  const c = cur || { ink: '#1b2a24', dim: '#5a6b63', accent: '#00693e', lineHi: '#c9d6cf', bg2: '#ffffff', line: '#d8e2dc' };
+  ui.textContent = `
+.rt-wrap{position:relative;display:inline-flex}
+.rt-theme{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;cursor:pointer;
+  font:600 12px ${cur && !cur.plain ? BODY0 : HELV};border:1px solid ${c.lineHi};background:transparent;color:${c.dim};white-space:nowrap}
+.rt-theme:hover,.rt-theme[aria-expanded="true"]{color:${c.accent};border-color:${c.accent}}
+.rt-theme svg{width:14px;height:14px;flex:none}
+.rt-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:100000;min-width:250px;padding:6px;border-radius:12px;
+  background:${c.bg2};border:1px solid ${c.lineHi};box-shadow:0 14px 40px rgba(0,0,0,.35);font:13px ${HELV}}
+.rt-menu[hidden]{display:none}
+.rt-menu p{margin:4px 8px 6px;font-size:11.5px;color:${c.dim}}
+.rt-wrap .rt-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 8px;border:0!important;border-radius:8px;
+  background:transparent!important;color:${c.ink}!important;cursor:pointer;font:inherit;box-shadow:none!important}
+.rt-wrap .rt-menu button:hover,.rt-wrap .rt-menu button:focus-visible{background:${c.line}!important;outline:none}
+.rt-menu button[aria-checked="true"]{font-weight:700}
+.rt-menu button[aria-checked="true"]::after{content:"✓";margin-left:auto;color:${c.accent}}
+.rt-menu .sw{display:inline-flex;flex:none;width:34px;height:20px;border-radius:5px;overflow:hidden;border:1px solid ${c.lineHi}}
+.rt-menu .sw i{flex:1} .rt-menu small{display:block;font-size:11px;color:${c.dim};font-weight:400}
+@media (max-width:560px){.rt-theme .rt-name{display:none}}`;
+  (doc.head || html).appendChild(ui);
+
+  function choose(t) {
+    try { root.localStorage.setItem(KEY, t); } catch (e) { /* not remembered */ }
+    // the page re-themes on load (stylesheets, plots and canvases are all set up then), so reload where you were
+    try { root.sessionStorage.setItem('qublitz_scroll', JSON.stringify({ p: root.location.pathname, y: root.scrollY })); } catch (e) { /* fine */ }
+    const u = new URL(root.location.href); u.searchParams.delete('theme');
+    if (u.href === root.location.href) root.location.reload(); else root.location.replace(u.href);
+  }
   function addSwitch() {
     const bar = doc.querySelector('.qsitebar');
     if (!bar || bar.querySelector('.rt-theme')) return;
-    const b = doc.createElement('button');
-    b.type = 'button'; b.className = 'rt-theme';
-    b.title = 'Change the look (Arena, Synthwave, Phosphor, Classic). Remembered in this browser only.';
-    b.textContent = '◐ ' + LABEL[theme];
-    const nextT = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-    b.setAttribute('aria-label', `Theme: ${LABEL[theme]}. Switch to ${LABEL[nextT]}`);
-    if (theme === 'classic') b.style.cssText = 'font:600 11.5px Helvetica,Arial,sans-serif;padding:2px 9px;border-radius:999px;border:1px solid #d8e2dc;background:#fff;color:#5a6b63;cursor:pointer';
-    b.addEventListener('click', () => {
-      const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-      try { root.localStorage.setItem(KEY, next); } catch (e) { /* not remembered */ }
-      const u = new URL(root.location.href); u.searchParams.delete('theme');
-      if (u.href === root.location.href) root.location.reload(); else root.location.replace(u.href);
+    const wrap = doc.createElement('span'); wrap.className = 'rt-wrap';
+    wrap.innerHTML = `<button type="button" class="rt-theme" aria-haspopup="true" aria-expanded="false"
+      aria-label="Theme: ${LABEL[theme]}. Choose a theme" title="Theme: ${LABEL[theme]}. Click to choose another">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>
+      <span class="rt-name">${LABEL[theme]}</span></button>
+      <div class="rt-menu" role="menu" aria-label="Themes" hidden><p>Theme · remembered in this browser</p>${THEMES.map(t =>
+        `<button type="button" role="menuitemradio" aria-checked="${t === theme}" data-t="${t}"><span class="sw">${SW[t].map(col =>
+          `<i data-rt-done="1" style="background:${col}"></i>`).join('')}</span><span>${LABEL[t]}<small>${BLURB[t]}</small></span></button>`).join('')}</div>`;
+    const btn = wrap.querySelector('.rt-theme'), menu = wrap.querySelector('.rt-menu');
+    const items = () => [...menu.querySelectorAll('button')];
+    const open = on => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); if (on) (menu.querySelector('[aria-checked="true"]') || items()[0]).focus({ preventScroll: true }); };
+    btn.addEventListener('click', () => open(menu.hidden));
+    menu.addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (!b) return; open(false); if (b.dataset.t !== theme) choose(b.dataset.t); });
+    menu.addEventListener('keydown', e => {
+      const list = items(), i = list.indexOf(doc.activeElement);
+      if (e.key === 'Escape') { open(false); btn.focus(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length].focus({ preventScroll: true }); }
     });
+    doc.addEventListener('click', e => { if (!wrap.contains(e.target)) open(false); });
     const sp = bar.querySelector('.sp');
-    if (sp && sp.nextSibling) bar.insertBefore(b, sp.nextSibling); else bar.appendChild(b);
+    if (sp && sp.nextSibling) bar.insertBefore(wrap, sp.nextSibling); else bar.appendChild(wrap);
   }
+  // after a theme change, come back to the same place on the page
+  root.addEventListener('load', () => {
+    try {
+      const v = JSON.parse(root.sessionStorage.getItem('qublitz_scroll') || 'null'); root.sessionStorage.removeItem('qublitz_scroll');
+      if (v && v.p === root.location.pathname) { root.scrollTo(0, v.y); setTimeout(() => root.scrollTo(0, v.y), 350); }
+    } catch (e) { /* fine */ }
+  });
   // the bar may be added during DOMContentLoaded (pages without <body>), so try again just after it and at load
   const trySwitch = () => { addSwitch(); setTimeout(addSwitch, 0); };
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', trySwitch); else trySwitch();
   root.addEventListener('load', addSwitch);
 
-  root.RETRO = { theme, themes: THEMES.slice(), palette: P[theme] || null };
+  root.RETRO = { theme, themes: THEMES.slice(), labels: Object.assign({}, LABEL), palette: P[theme] || null, choose };
 })(window);
