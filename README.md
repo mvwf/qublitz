@@ -62,9 +62,9 @@ Question**. Cards you have opened get an **✓ Explored** badge, a bar counts ho
 me** opens one you have not seen yet. That progress stays in your browser.
 
 Every page shares the QuBlitz Arena's retro look: pixel titles, neon on deep navy, and dark
-charts. The **◐** switch in the top bar cycles through **Arena**, **Synthwave**, **Phosphor** (green CRT) and
-**Classic**, the original light theme, which suits projectors. Add `?theme=classic` (or another name) to a link to
-pick one.
+charts. The **◐ theme menu** in the top bar (the same switch as Q-Vault's) picks **Arena**, **Synthwave**, **Phosphor**
+(green CRT), **Classic light** (the original look, good for projectors) or **Classic dark**. The choice is remembered
+in your browser and shared with Q-Vault; add `?theme=dark` (or another name) to a link to pick one.
 
 ### Virtual Qubit Labs: learn quantum by playing
 
