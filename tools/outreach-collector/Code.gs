@@ -1,8 +1,8 @@
 /* Code.gs: the outreach collector, a Google Apps Script web app bound to a Google Sheet you own.
  *
  *   POST  (from web/shared/outreach.js)   { v: 1, events: [...] }  or  { v: 1, quiz: {...} }
- *         Rows go to two tabs: events and quiz. No free text is accepted or stored (a decision made so that no
- *         visitor, including a child, can hand over personal information); any text fields are dropped here. The
+ *         Rows go to two tabs: events and quiz. No free text is accepted or stored, so no visitor can hand over
+ *         personal information; any text fields are dropped here. The
  *         old `feedback` tab (from earlier versions) is only ever emptied, by purgeOld (see RETAIN_DAYS).
  *         Everything is validated and capped again here; the browser is not trusted.
  *   GET   ?summary=1[&days=90][&from=YYYY-MM-DD&to=YYYY-MM-DD][&code=SCIFAIR26]   aggregate counts as JSON for
