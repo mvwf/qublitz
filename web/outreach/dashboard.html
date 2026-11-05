@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../shared/retro-fonts.js"></script>
+<script src="../shared/retro.js"></script>
 <meta name="robots" content="noindex">
 <title>Qublitz Usage &amp; Feedback</title>
 <meta name="description" content="Anonymous usage counts and question results for the Qublitz demos, and what we changed because of them.">
@@ -43,6 +45,21 @@
     --demo-bg: #3a2c05; --demo-ink: #ffe3a1; --demo-line: #c98500;
     --flag: #e66767; --good: #0ca30c;
   }
+  /* the site's retro look (shared/retro.js): the dashboard's own tokens on the Arena palette */
+  html.retro {
+    --page: transparent; --surface: rgba(18,24,52,.62); --raised: rgba(28,36,76,.72);
+    --ink: #eaf0ff; --ink-2: #b8c0e6; --muted: #9aa3cf;
+    --grid: rgba(124,140,230,.18); --axis: rgba(124,140,230,.40); --ring: rgba(124,140,230,.24);
+    --s1: #2fe0d0; --s1-wash: rgba(47,224,208,.12); --s2: #ff4d9d;
+    --accent: #2fe0d0; --accent-ink: #061016;
+    --track: rgba(124,140,230,.18);
+    --demo-bg: rgba(245,183,60,.12); --demo-ink: #ffd98a; --demo-line: #f5b73c;
+    --flag: #ff5a72; --good: #3fe08a;
+    --q1: #12304a; --q2: #145a6e; --q3: #188a92; --q4: #2fe0d0; --q5: #8ff5ea; --q6: #e6fffc;
+  }
+  html.retro header.top { backdrop-filter: blur(6px); }
+  html.retro .card .note { background: none; border: 0; padding: 0; color: var(--ink-2); }
+  html.retro .seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--page); color: var(--ink);

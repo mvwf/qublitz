@@ -61,10 +61,10 @@ Each card plays a live preview (hover to speed it up, drag to scrub it) and flip
 Question**. Cards you have opened get an **✓ Explored** badge, a bar counts how many you have tried, and **🎲 Surprise
 me** opens one you have not seen yet. That progress stays in your browser.
 
-The Qublitz games and research tools share the QuBlitz Arena's retro look: pixel titles, neon on deep navy, and dark
+Every page shares the QuBlitz Arena's retro look: pixel titles, neon on deep navy, and dark
 charts. The **◐** switch in the top bar cycles through **Arena**, **Synthwave**, **Phosphor** (green CRT) and
 **Classic**, the original light theme, which suits projectors. Add `?theme=classic` (or another name) to a link to
-pick one. The ENGS 23 pages keep their own course style.
+pick one.
 
 ### Virtual Qubit Labs: learn quantum by playing
 
@@ -156,7 +156,7 @@ web/                         the site
   courses/engs23/            the ENGS 23 demos
   learning/                  each page's learning panel, how to play, and questions
   shared/                    shared helpers, including outreach.js (panels, debriefs, anonymous counts)
-                             and retro.js + retro-fonts.js (the Arena look for the Qublitz pages)
+                             and retro.js + retro-fonts.js (the site-wide Arena look and theme switch)
   outreach/                  the usage dashboard
   vendor/                    third-party libraries served with the site (Plotly)
 pages/_assets/quantum_chess.html   QuBlitz Arena, vendored; copied to qublitz/arena.html at deploy time

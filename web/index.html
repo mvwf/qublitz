@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="shared/retro-fonts.js"></script>
+<script src="shared/retro.js"></script>
 <title>Fitzlab Interactive Demos</title>
 <meta name="description" content="Interactive demos from Fitzlab research and Dartmouth engineering courses.">
 <style>
@@ -20,6 +22,9 @@
 
   /* ---------- hero ---------- */
   header.hero{position:relative;overflow:hidden;background:linear-gradient(160deg,#00482b 0%,#00693e 55%,#12855a 100%);color:#fff}
+  html.retro header.hero{background:radial-gradient(900px 380px at 18% 0%,#1d2a5c 0%,transparent 60%),radial-gradient(800px 420px at 95% 30%,#2a1450 0%,transparent 60%),linear-gradient(160deg,#070a16 0%,#0e1430 60%,#070a16 100%);border-bottom:1px solid rgba(124,140,230,.35);box-shadow:0 0 40px rgba(47,224,208,.12)}
+  html.retro-synthwave header.hero{background:radial-gradient(900px 380px at 50% 120%,#ff7a4566 0%,transparent 60%),linear-gradient(180deg,#12051f 0%,#2a0a3a 100%)}
+  html.retro-phosphor header.hero{background:linear-gradient(180deg,#030a05 0%,#0b2614 100%)}
   #heroCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.55}
   .hero .wrap{position:relative;padding-top:40px;padding-bottom:34px;pointer-events:none}
   .hero .wrap *{pointer-events:auto}
@@ -570,7 +575,8 @@ const THUMBS = {
   },
   copter(g,w,h,t){
     // Qubit Copter: a Bloch sphere with x, y, z axes; a little copter rides the state vector, turning about one axis at a time
-    const sky=g.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#e8f3fb'); sky.addColorStop(1,'#f6fbf7');
+    const DK=!!(window.RETRO&&window.RETRO.palette);   // retro theme: a dark sky and a glass sphere
+    const sky=g.createLinearGradient(0,0,0,h); sky.addColorStop(0,DK?'#0d1430':'#e8f3fb'); sky.addColorStop(1,DK?'#070a16':'#f6fbf7');
     g.fillStyle=sky; g.fillRect(0,0,w,h);
     const cx=w/2, cy=h/2+2, R=Math.min(w,h)*0.38;
     const P=([x,y,z])=>[cx+R*(0.94*y-0.36*x), cy-R*(0.94*z-0.22*x)];   // a fixed oblique view
@@ -581,18 +587,18 @@ const THUMBS = {
     let v=[0,0,1]; for(let i=0;i<n%SEQ.length;i++) v=rot(v,SEQ[i],Math.PI/2);
     const ax=SEQ[n%SEQ.length], e=f<0.25?0:Math.min(1,(f-0.25)/0.6), ease=e*e*(3-2*e); v=rot(v,ax,Math.PI/2*ease);
     // sphere
-    const grd=g.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R); grd.addColorStop(0,'#ffffff'); grd.addColorStop(1,'#d6e4dc');
-    g.fillStyle=grd; g.beginPath(); g.arc(cx,cy,R,0,7); g.fill(); g.strokeStyle='rgba(40,70,60,.35)'; g.lineWidth=1; g.stroke();
+    const grd=g.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R); grd.addColorStop(0,DK?'#1e2a5a':'#ffffff'); grd.addColorStop(1,DK?'#0a0f24':'#d6e4dc');
+    g.fillStyle=grd; g.beginPath(); g.arc(cx,cy,R,0,7); g.fill(); g.strokeStyle=DK?'rgba(124,140,230,.45)':'rgba(40,70,60,.35)'; g.lineWidth=1; g.stroke();
     g.beginPath(); for(let i=0;i<=48;i++){ const a=i/48*2*Math.PI, p=P([Math.cos(a),Math.sin(a),0]); i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]); } g.stroke();
     // axes, the active one bold
-    const COL=['#c8384c','#1f8a3a','#2f6fc4'], NAME=['x','y','z'];
+    const COL=DK?['#ff7a8a','#7ee08a','#7fb8ff']:['#c8384c','#1f8a3a','#2f6fc4'], NAME=['x','y','z'];
     for(let k=0;k<3;k++){ const u=[0,0,0]; u[k]=1.25; const a=P(u.map(q=>-q)), b=P(u), on=k===ax&&f>=0.25;
       g.strokeStyle=COL[k]; g.globalAlpha=on?1:0.45; g.lineWidth=on?3:1.5; g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
       g.fillStyle=COL[k]; g.font=(on?'bold ':'')+'11px Helvetica,Arial'; g.fillText(NAME[k],b[0]+3,b[1]+4); g.globalAlpha=1; }
-    g.fillStyle='#2f6fc4'; g.font='10px Helvetica,Arial'; const p0=P([0,0,1.18]), p1=P([0,0,-1.18]); g.fillText('|0⟩',p0[0]+6,p0[1]+2); g.fillText('|1⟩',p1[0]+6,p1[1]+8);
+    g.fillStyle=DK?'#7fb8ff':'#2f6fc4'; g.font='10px Helvetica,Arial'; const p0=P([0,0,1.18]), p1=P([0,0,-1.18]); g.fillText('|0⟩',p0[0]+6,p0[1]+2); g.fillText('|1⟩',p1[0]+6,p1[1]+8);
     // the state vector and the copter at its tip
     const tip=P(v);
-    g.strokeStyle='#00693e'; g.lineWidth=2.5; g.beginPath(); g.moveTo(cx,cy); g.lineTo(tip[0],tip[1]); g.stroke();
+    g.strokeStyle=DK?'#2fe0d0':'#00693e'; g.lineWidth=2.5; g.beginPath(); g.moveTo(cx,cy); g.lineTo(tip[0],tip[1]); g.stroke();
     g.save(); g.translate(tip[0],tip[1]-4);
     g.fillStyle='#ffd166'; g.strokeStyle='#8a6a10'; g.lineWidth=1; g.beginPath(); g.ellipse(0,0,7,4.5,0,0,7); g.fill(); g.stroke();   // body
     g.beginPath(); g.moveTo(-6,0); g.lineTo(-13,-2); g.stroke();                                                                     // tail
@@ -811,13 +817,16 @@ function heroStep(){
     for(let k=0;k<u.length;k++) u[k]+=v[k];
   }
 }
+// the banner's field lines: white on the green banner, the theme's neon in the retro look
+const HERO_RGB=(()=>{ const c=window.RETRO&&window.RETRO.palette&&window.RETRO.palette.accent; if(!c) return '255,255,255';
+  return [1,3,5].map(i=>parseInt(c.slice(i,i+2),16)).join(','); })();
 function heroDraw(t){
   hg.clearRect(0,0,hw,hh);
   const dx=hw/(N-1), rows=Math.min(M,22), step=(M-1)/(rows-1);
   hg.lineWidth=1;
   for(let r=0;r<rows;r++){
     const j=Math.round(r*step), base=j/(M-1)*hh;
-    hg.strokeStyle=`rgba(255,255,255,${0.10+0.18*(r/rows)})`;
+    hg.strokeStyle=`rgba(${HERO_RGB},${0.10+0.18*(r/rows)+(HERO_RGB==='255,255,255'?0:0.12)})`;
     hg.beginPath();
     for(let i=0;i<N;i++){
       const amb=4*Math.sin(i*0.18+t*0.8+j*0.3)*Math.sin(t*0.3+j*0.1);
