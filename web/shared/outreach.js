@@ -164,6 +164,16 @@
   }
   let game = detectGame(), spec = null, queue = [], sentCount = 0;
 
+  // Which activities this browser has opened, for the hub's "explored" badges. Kept in this browser only
+  // (localStorage); never sent anywhere.
+  const EXPLORED = 'qublitz_explored';
+  function explored() { try { const a = JSON.parse(store.get(EXPLORED) || '[]'); return Array.isArray(a) ? a.filter(x => ID.test(x)) : []; } catch (e) { return []; } }
+  function markExplored(id) {
+    if (!id || id === 'hub' || !ID.test(id)) return;
+    const a = explored(); if (!a.includes(id)) { a.push(id); store.set(EXPLORED, JSON.stringify(a)); }
+  }
+  setTimeout(() => markExplored(game), 0);
+
   function send(payload, beacon) {
     if (!enabled()) return false;
     const body = JSON.stringify(payload);
@@ -406,7 +416,7 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
-  root.QL = { event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
