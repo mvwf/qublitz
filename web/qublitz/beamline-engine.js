@@ -12,7 +12,9 @@
  * the same convention as copter-engine.js and rabi-engine.js (asserted in the test). The pieces change the beam,
  * not the qubits:
  *
- *   mirror (/ or \)  turns the beam by 90°. The pulse itself is unchanged (an ideal metal mirror).
+ *   mirror (/ or \)  turns the beam by 90°. In the game the pulse is otherwise unchanged. A real reflection adds
+ *                    optical phase (π for a metal mirror), and so does every extra wavelength of path; the game
+ *                    takes those path phases as calibrated out, so only the laser and phase plates set φ.
  *   phase plate      delays the drive by a quarter period: φ → φ + 90°, so an x rotation becomes a y rotation.
  *   attenuator       −6 dB: halves the field amplitude Ω, so the same pulse length carries half the area θ.
  *
@@ -179,7 +181,7 @@
       inv: { atten: 1 }, par: { pieces: 1, fires: 1 },
       solution: [{ x: 3, y: 1, type: 'atten' }],
       brief: 'One beam passes both qubits. The first needs a full π pulse, the second only π/2.',
-      learn: 'A piece changes the pulse for everything after it on the beam, not before. Order along the beamline matters, just as gate order in a circuit does.' },
+      learn: 'A piece changes the pulse for everything after it on the beam, not before. So where you put the attenuator decides which qubit gets π and which gets π/2: one drive line, two different gates.' },
     { id: 'reverse', title: 'Turn the other way', w: 6, h: 4,
       lasers: [{ x: 0, y: 1, dir: 0 }], qubits: [{ x: 5, y: 1, start: '|0⟩', target: '|+i⟩' }],
       inv: { atten: 1, phase: 2 }, par: { pieces: 3, fires: 1 },
