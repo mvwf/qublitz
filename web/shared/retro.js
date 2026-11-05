@@ -61,7 +61,7 @@
     return `${FONTS}
 html.retro{color-scheme:dark;
   --green:${p.accent};--green2:${p.accent2};--ink:${p.ink};--muted:${p.dim};--line:${p.line};--panel:${p.panel2};
-  --night:${p.bg};--accent:${p.red};--blue:${p.blue};--gold:${p.gold};--int:${p.red};--ext:${p.blue};
+  --night:${p.bg};--accent:${p.red};--blue:${p.blue};--gold:${p.gold};--int:${p.red};--ext:${p.blue};--heat:${p.red};--wave:${p.blue};--sch:${p.accent};
   --cx:#ff7a8a;--cy:#7ee08a;--cz:#7fb8ff;--dx:#ff7a8a;--dy:#7ee08a;--dz:#7fb8ff;
   --r-bg:${p.bg};--r-panel:${p.panel};--r-panel2:${p.panel2};--r-line:${p.line};--r-line-hi:${p.lineHi};--r-ink:${p.ink};
   --r-dim:${p.dim};--r-accent:${p.accent};--r-gold:${p.gold};--r-rose:${p.rose};--r-indigo:${p.indigo};--r-input:${p.input};
@@ -101,8 +101,6 @@ html.retro input[type=number],html.retro input[type=text],html.retro select,html
 html.retro select option{background:${p.bg2};color:${p.ink}}
 html.retro input:focus,html.retro select:focus,html.retro textarea:focus{outline:2px solid ${p.accent}44;border-color:${p.accent}}
 html.retro input[type=range],html.retro input[type=checkbox],html.retro input[type=radio]{accent-color:${p.accent}}
-html.retro .note{background:${p.blue}14;border-color:${p.blue}55;color:${p.ink}}
-html.retro .note.warn{background:${p.gold}14;border-color:${p.gold}66;color:${p.ink}}
 html.retro .code{background:${p.input};border-color:${p.lineHi};color:${p.gold};font-family:${PIX};font-size:14px}
 html.retro table th,html.retro table td{border-color:${p.line}}
 html.retro .eq{color:${p.ink}}
@@ -349,6 +347,36 @@ html.retro body::before{opacity:.35;background-image:
         if (styles) sweep();
       }).observe(html, { childList: true, subtree: true });
     } catch (e) { /* old browser: the static sweep is enough */ }
+  }
+
+  // ── light-theme canvases (opt-in) ────────────────────────────────────────────────────────────────────────────
+  // A <canvas data-retro-ink> drawn with the light theme's colours gets them remapped as they are set: pale plot
+  // backgrounds turn dark, pale gridlines become theme lines, dark text and axes turn light, and the Dartmouth
+  // series colours become their neon versions. Other colours, and canvases without the attribute, are untouched.
+  if (theme !== 'classic' && root.CanvasRenderingContext2D) {
+    const p = P[theme], map = inkMap(p);
+    const extra = { '#fbfdfc': 'rgba(4,6,16,0.55)', '#e4ede8': 'rgba(124,140,230,0.22)', '#b9c7c0': p.dim, '#9fb0a8': p.dim,
+      'rgba(27,42,36,0.08)': 'rgba(124,140,230,0.10)', 'rgba(0,105,62,0.15)': p.accent + '33', 'rgba(200,75,49,0.12)': p.red + '2a' };
+    const remap = (v, fill) => {
+      if (typeof v !== 'string') return v;
+      const k = v.trim().toLowerCase().replace(/\s+/g, '');
+      if (k === '#fff' || k === '#ffffff' || k === 'white') return v;   // pure white is a highlight: keep it
+      if (extra[k]) return extra[k];
+      if (map[k]) return map[k];
+      const c = rgbOf(k); if (!c || c.a < 0.3) return v;
+      const h = hsl(c);
+      if (fill && h.l > 0.93 && h.s < 0.3) return 'rgba(4,6,16,0.55)';
+      if (!fill && h.l > 0.85 && h.s < 0.3) return 'rgba(124,140,230,0.22)';
+      if (h.l < 0.35 && h.s < 0.3) return p.ink;
+      return v;
+    };
+    const proto = root.CanvasRenderingContext2D.prototype;
+    for (const [prop, fill] of [['fillStyle', true], ['strokeStyle', false]]) {
+      const d = Object.getOwnPropertyDescriptor(proto, prop);
+      if (!d || !d.set) continue;
+      Object.defineProperty(proto, prop, { configurable: true, enumerable: d.enumerable, get: d.get,
+        set(v) { d.set.call(this, this.canvas && this.canvas.hasAttribute && this.canvas.hasAttribute('data-retro-ink') ? remap(v, fill) : v); } });
+    }
   }
 
   // the theme switch, added to the site bar once it exists
