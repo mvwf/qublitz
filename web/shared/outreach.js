@@ -32,6 +32,7 @@
  *                               react. Items answered in-game are skipped by the debrief.
  *   QL.addItems([item, ...])    add question items at runtime (e.g. a guided step's prediction), same shape as
  *                               spec.quiz entries; duplicates by id are ignored
+ *   QL.answered(itemId)         true once that item has been answered in this page load
  *   QL.showQuiz()               open the debrief: any unanswered items, two ratings and two free-text boxes
  *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
  *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
@@ -147,7 +148,8 @@
     place = str([d.level, d.step].filter(v => v != null && v !== '').map(String).join('|'), 40) || '';
   }
   function event(name, data) {
-    if (name === 'level_start' && data && data.level != null) context({ level: data.level });
+    // A new level resets the place, but a page that already set this level's step keeps it.
+    if (name === 'level_start' && data && data.level != null && place.split('|')[0] !== String(data.level)) context({ level: data.level });
     if (name === 'level_complete') completedThisVisit++;
     if (!enabled() || !game || sentCount >= MAX_EVENTS) return;
     const e = cleanEvent(game, name, data, ctx());
@@ -367,7 +369,7 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
-  root.QL = { event, context, answer, addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
