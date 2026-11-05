@@ -169,7 +169,7 @@
       items: [['r', 3.5, 90], ['c', 5, 40, 18, 0.5], ['c', 5, 140, 18, 0.5], ['r', 6.5, 90], ['c', 8, 42, 17, 0.6], ['c', 8, 138, 17, 0.6],
         ['r', 9.5, 90], ['r', 12, 0], ['r', 14.5, 90], ['c', 16, 40, 18, 0.5], ['c', 16, 140, 18, 0.5], ['r', 17.5, 90]] },
     { id: 'born', title: 'Measure up', start: 90,
-      brief: 'Quiz gates: two purple rings, one answer. Read the question and fly through the ring it describes. The labels on the right give P(1) at each height.',
+      brief: 'Question gates: two purple rings, one answer. Read the question and fly through the ring it describes. The labels on the right give P(1) at each height.',
       learn: 'The height here is the angle θ, not the sphere\'s z = cos θ. P(1) = (1 − cos θ)/2 = sin²(θ/2) is a straight line in z but not in θ, so P(1) = ¼ sits at θ = 60°, not 45°.',
       items: [['r', 3, 90], ['q', 6, 0], ['r', 8.5, 90], ['q', 11.5, 2], ['r', 14, 90], ['q', 17, 3], ['r', 19.5, 90], ['q', 22.5, 1], ['r', 25, 90]] },
     { id: 'collapse', title: 'Collapse', start: 90,

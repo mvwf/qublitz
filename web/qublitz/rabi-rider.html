@@ -71,6 +71,10 @@
     border:1px solid rgba(255,209,102,.45);color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:7px 12px;text-align:center;
     pointer-events:none;transition:opacity .4s}
   .note b{color:#ffd166} .note.fade{opacity:0}
+  .askbar{position:absolute;z-index:3;left:50%;transform:translateX(-50%);top:30px;width:max-content;max-width:min(680px,94%);background:rgba(30,18,60,.9);
+    border:1px solid #c9a2ff;color:#e9dcff;font-size:13px;line-height:1.35;border-radius:10px;padding:5px 10px;text-align:center;pointer-events:none}
+  .askbar b{color:#fff} .askbar .stagebtn{position:static;pointer-events:auto;margin-left:6px;padding:1px 8px}
+  .overlay .labtry{color:#ffd166;font-weight:700}
 
   .side{display:flex;flex-direction:column;gap:10px}
   @media(max-width:860px){.side{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}
@@ -138,7 +142,7 @@
         <label>ghosts <select id="optN" aria-label="Fly one run, or an ensemble of 240 runs with this many drawn as ghosts">
           <option value="1">1 run (single shot)</option><option value="6">6 of 240 runs</option><option value="12" selected>12 of 240 runs</option><option value="24">24 of 240 runs</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
-        <button id="learnBtn" title="Learning goals, instructions and a one-minute quiz, below the game">What you'll learn · quiz ↓</button>
+        <button id="learnBtn" title="Learning goals, instructions and a one-minute debrief, below the game">What you'll learn · debrief ↓</button>
       </div>
       <p class="best" id="menuBest"></p>
     </div>
@@ -156,13 +160,16 @@
       <div class="big" id="overScore">0</div>
       <div class="stats" id="overStats"></div>
       <div class="learn" id="overLearn" hidden></div>
+      <div class="learn" id="overAsk" hidden></div>
       <p id="overTip"></p>
       <div class="row">
         <button class="go" id="nextMission" hidden>Next mission ▶</button>
         <button class="go" id="again">Again ▶</button>
         <button id="toMenu">Menu</button>
+        <a class="labtry" id="labTry" href="qubit-simulator.html">Try this in the Virtual Qubit Lab ▸</a>
         <button id="challenge" hidden title="Copy a link to this exact course, to race a friend or a class">Copy challenge link</button>
       </div>
+      <p class="best" id="labWhat"></p>
       <p class="best" id="overBest"></p>
     </div>
 
@@ -178,6 +185,7 @@
       <button class="stagebtn" id="freeDrain" title="Something goes wrong: T₁ 35 % shorter (down to half)">T₁−</button>
     </div>
     <div class="note fade" id="note"></div>
+    <div class="askbar" id="askBar" hidden><b>Checkpoint</b> (no hearts at stake): <span id="askQ"></span> <button class="stagebtn" id="askSkip" title="Skip this question (Esc)">Skip</button></div>
   </div>
 
   <aside class="side">
@@ -307,6 +315,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (e.target.closest('input,select,textarea')) return;
   if (['arrowup', 'arrowdown', ' '].includes(k)) e.preventDefault();
+  if (k === 'escape' && ask && phase === 'play') { endAsk(null); return; }
   if (k === 'p' || k === 'escape') { if (phase === 'play') pause(); else if (phase === 'paused') resume(); return; }
   if ((k === ' ' || k === 'enter') && !e.target.closest('button,a')) {
     if (phase === 'paused') resume(); else if (phase === 'brief') $('#briefGo').click();
@@ -363,7 +372,14 @@ let photons = [];
 // off to the right along the track (a run near |1⟩ is at the top, so upward would leave the canvas at once)
 function shootPhoton(th) { photons.push({ t: world.t, th, dir: (Math.random() - 0.5) * 1.2 + (th > 2.4 ? 0.35 : th < 0.7 ? -0.35 : 0) }); }
 let world = null, phase = 'menu', hist = [], pops = [], noteT = 0, flash = 0, overAt = 0, current = null, seed = null;
-function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; syncStageButtons(); }
+function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; syncStageButtons(); qlPlace(); }
+// where the player is, for the outreach quit map: { level: mission id | endless | free | menu, step: brief | playing | checkpoint | paused | cleared | game-over }
+function qlPlace() {
+  if (!window.QL || !QL.context) return;
+  const level = phase === 'menu' ? 'menu' : ask ? (ask.mission.id) : current ? current.id : freeplay ? 'free' : 'endless';
+  const step = { menu: '', brief: 'brief', play: ask ? 'checkpoint' : 'playing', paused: 'paused', over: world && world.cleared ? 'cleared' : 'game-over' }[phase] || phase;
+  QL.context({ level, step });
+}
 const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 // what each mission teaches, shown on its menu button so the learning path is visible at a glance
 const TOPIC = { flight: 'Rabi rotation', photon: 'Quantum jumps', ensemble: 'The mean of many runs', pi: 'π pulse: |0⟩ → |1⟩',
@@ -388,9 +404,9 @@ $('#again').addEventListener('click', () => start(current, current ? null : seed
 $('#toMenu').addEventListener('click', toMenu);
 $('#nextMission').addEventListener('click', () => { const i = E.MISSIONS.indexOf(current); if (i + 1 < E.MISSIONS.length) brief(E.MISSIONS[i + 1].id); else toMenu(); });
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html', 'seed=' + encodeURIComponent(seed)));
-/* outreach: a few events per run (never per frame), and the quiz offered at a natural end point */
+/* outreach: a few events per run (never per frame), a checkpoint question after a mission, the debrief offered at a natural end point */
 const ql = (name, data) => { if (window.QL) QL.event(name, data); };
-let qlStarted = false, qlMode = '';
+let qlStarted = false, qlMode = '', ask = null;   // ask: the checkpoint question in flight, if any
 const cleared = new Set();   // missions cleared during this visit
 function qlPlay(mode, T1) {
   if (!qlStarted) { qlStarted = true; ql('start'); }
@@ -412,6 +428,7 @@ function start(m, again) {
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
   qlPlay(m ? 'mission' : 'endless');
   if (m) ql('level_start', { level: m.id, value: world.T1 });
+  qlPlace();   // after level_start, which sets the level alone
   if (m) note(m.brief, 6);
   else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go, but cyan <b>T₁+</b> chips make your qubit last longer.`, 5);
 }
@@ -441,7 +458,7 @@ function syncStageButtons() {
 }
 $('#free').addEventListener('click', () => { world = null; startFree(S.N > 1 ? S.N : 1); });
 $('#resumeBtn').addEventListener('click', resume);
-$('#pauseMenu').addEventListener('click', () => { freeplay = false; world = null; toMenu(); syncStageButtons(); });
+$('#pauseMenu').addEventListener('click', () => { if (ask) { ask = null; $('#askBar').hidden = true; } freeplay = false; world = null; toMenu(); syncStageButtons(); });
 $('#menuBtn').addEventListener('click', e => { e.stopPropagation(); pause(); });
 $('#menuBtn').addEventListener('pointerdown', e => e.stopPropagation());
 $('#freeBar').addEventListener('pointerdown', e => e.stopPropagation());
@@ -493,10 +510,6 @@ function finish(ev) {
       cleared.add(current.id);
       if (current.id === E.MISSIONS[E.MISSIONS.length - 1].id) ql('win', { level: current.id, stars });
     } else ql('lose', { level: current.id, value: score });
-    if (w.cleared && window.QL && (current.id === 'collapse' || cleared.size >= 4))
-      setTimeout(() => QL.offerQuiz(current.id === 'collapse'
-        ? 'You have seen a measurement collapse every run. Want to check what you learned so far? It takes about a minute.'
-        : `${cleared.size} missions done. Want to check what you learned? It takes about a minute.`), 1200);
   } else {
     const prev = store.get('rider2:best', 0); if (score > prev) store.set('rider2:best', score);
     ql('endless_over', { level: S.level, value: score, dur_s: w.t });
@@ -507,7 +520,95 @@ function finish(ev) {
   $('#overStats').innerHTML = [[`${w.rings}${current ? '/' + w.total : ''}`, 'rings'], [w.perfects, 'perfect'], [w.decay ? w.T1 + ' s' : '∞', 'final T₁'], [w.t.toFixed(0) + ' s', 'time']]
     .map(([v, l]) => `<div><b>${v}</b>${l}</div>`).join('');
   $('#overTip').textContent = current && w.cleared ? '' : 'Tip: ' + TIPS[Math.floor(Math.random() * TIPS.length)];
-  setTimeout(() => { if (phase === 'play') show('#over'); }, w.cleared ? 400 : 700);
+  $('#overAsk').hidden = true; syncLab();
+  const item = current && w.cleared ? askItem(current.id) : null;
+  setTimeout(() => { if (phase !== 'play' || world !== w) return; if (item) startAsk(item, current, w); else showOver(); }, w.cleared ? 400 : 700);
+}
+function showOver() {
+  overAt = performance.now(); show('#over');
+  if (!window.QL || !current || !world || !world.cleared) return;
+  if (current.id === 'collapse' || cleared.size >= 4)
+    setTimeout(() => QL.offerQuiz(current.id === 'collapse'
+      ? 'You have seen a measurement collapse every run. A one-minute debrief: what did you learn so far?'
+      : `${cleared.size} missions done. A one-minute debrief: what did you learn?`), 1200);
+}
+
+/* ---------------- checkpoint: after a mission, one question from the learning file, answered by flying through a ring ----------------
+ * A single run with no decay and no hearts, so the answer is a choice, not luck. Each choice is a purple ring at its own height,
+ * lettered A–D from the top. Passing inside a ring answers (QL.answer); passing outside all of them brings the rings round again,
+ * once; Skip or Esc leaves. It never costs a heart or stars. */
+const ASK_FOR = { flight: ['two-pi'], photon: ['one-run', 'no-memory'], ensemble: ['mixed'], pi: ['two-pi'], equator: ['p1-45'],
+  born: ['p1-45'], collapse: ['born-120'], gates: ['two-pi'], jumps: ['no-memory', 'one-run'], upgrade: ['no-memory', 'one-run'], exam: null };
+const askedHere = new Set();   // asked during this visit (answered or skipped), so each question comes once
+function askItem(id) {
+  const items = (window.QL && QL.spec && QL.spec.quiz) || [];
+  const ids = ASK_FOR[id] === null ? items.map(q => q.id) : ASK_FOR[id] || [];
+  return items.find(q => ids.includes(q.id) && !askedHere.has(q.id) && q.ring) || null;
+}
+const LETTER = 'ABCD';
+function startAsk(item, mission, done) {
+  askedHere.add(item.id);
+  $('#askQ').innerHTML = (item.ask || item.q) + ' <span style="color:#c9a2ff">Fly through your answer.</span>';
+  $('#askBar').hidden = false; $('#note').classList.add('fade'); noteT = 0;
+  // the rings sit between θ = 22° and just below the question bar (lower on a small screen)
+  const bar = $('#askBar'), rpx = (H - PAD_T - PAD_B) / Math.PI, n = item.choices.length, lo = 22 * D2R;
+  let rad = 14 * D2R, hi = 136 * D2R;
+  for (let i = 0; i < 3; i++) {
+    hi = Math.min(136 * D2R, Math.PI - (bar.offsetTop + bar.offsetHeight + 4 - PAD_T) / rpx - rad);
+    rad = Math.min(14 * D2R, 0.42 * (hi - lo) / Math.max(1, n - 1));
+  }
+  ask = { item, mission, done, tries: 0, rad, gates: [], hist: hist };
+  ask.heights = item.choices.map((_, k) => n === 1 ? Math.PI / 2 : hi - k * (hi - lo) / (n - 1));
+  world = new E.World({ free: true, noReset: true, T1: Infinity, ghosts: 1, shown: 1 });
+  world.r = E.onCircle(Math.PI / 2);
+  placeGates(4.5);
+  photons = []; hist = []; pops = []; acc = 0; last = performance.now();
+  show(null);
+}
+function placeGates(dt) { ask.gates = ask.heights.map((th, k) => ({ t: world.t + dt, th, pick: k })); }
+function checkAsk() {
+  const t = ask.gates.length ? ask.gates[0].t : Infinity;
+  if (world.t < t) return;
+  const th = world.theta, hit = ask.gates.find(gt => Math.abs(th - gt.th) < ask.rad);
+  if (!hit) {
+    if (++ask.tries < 2) { SND.miss(); placeGates(3.5); note('<b>No answer yet.</b> Fly <i>through</i> one of the purple rings: they come round once more.', 3.5); }
+    else endAsk(null);
+    return;
+  }
+  const res = window.QL && QL.answer ? QL.answer(ask.item.id, hit.pick)
+    : { ok: hit.pick === ask.item.answer, choice: ask.item.choices[ask.item.answer], explain: ask.item.explain };
+  if (res.ok) SND.ring(3, true); else SND.miss();
+  pop(res.ok ? '✓' : '✗', res.ok ? '#9cf09f' : '#ff8a9a');
+  endAsk({ ...res, pick: hit.pick });
+}
+function endAsk(res) {
+  const a = ask; if (!a) return;
+  ask = null; $('#askBar').hidden = true; $('#note').classList.add('fade'); noteT = 0;
+  world = a.done; hist = a.hist; current = a.mission;
+  if (res) {
+    $('#overAsk').innerHTML = `<b>Checkpoint: ${res.ok ? '✓ right' : '✗ not quite'}.</b> ` + (res.ok ? '' : `The answer is: ${res.choice}. `) + res.explain;
+    $('#overAsk').hidden = false;
+  }
+  setTimeout(showOver, res ? 500 : 0);
+}
+$('#askSkip').addEventListener('click', e => { e.stopPropagation(); endAsk(null); });
+$('#askSkip').addEventListener('pointerdown', e => e.stopPropagation());
+
+/* ---------------- the lab: the same idea on a lab qubit (5 GHz, Ω_R/2π = 50 MHz, so a π pulse is 10 ns), as a time-domain schedule ---------------- */
+const LAB_PRESET = {
+  pi:   ['free=5,50,10000,20000&tab=time&pulses=x:1:0:10', 'A 10 ns π pulse on a lab qubit (Ω<sub>R</sub>/2π = 50 MHz): P(1) climbs from 0 to 1.'],
+  half: ['free=5,50,10000,20000&tab=time&pulses=x:1:0:5', 'A 5 ns π/2 pulse: P(1) = ½, an equal superposition. Each shot there reads 0 or 1.'],
+  p14:  ['free=5,50,10000,20000&tab=time&pulses=x:1:0:3.333', 'A 60° pulse (3.33 ns): P(1) = sin²(30°) = ¼, not ⅓.'],
+  t1:   ['free=5,50,100,200&tab=time&pulses=x:1:0:10', 'A π pulse on a qubit with T₁ = 100 ns. Set the duration Δt to 500 ns to watch P(1) decay as e<sup>−t/T₁</sup>.'],
+};
+const LAB_FOR = { flight: 'pi', pi: 'pi', gates: 'pi', exam: 'pi', equator: 'half', collapse: 'half', born: 'p14',
+  photon: 't1', ensemble: 't1', jumps: 't1', upgrade: 't1' };
+if (window.QL && QL.toLab) QL.toLab($('#labTry'), LAB_PRESET.t1[0]);
+function syncLab() {
+  const [q, what] = LAB_PRESET[current ? LAB_FOR[current.id] || 'pi' : 't1'];
+  if (window.QL && QL.labLink) $('#labTry').href = QL.labLink(q);
+  else $('#labTry').href = (window.QUBLITZ_STANDALONE ? SITE + 'qublitz/' : '') + 'qubit-simulator.html?' + q;
+  $('#labWhat').innerHTML = 'In the lab: ' + what;
 }
 function handle(ev) {
   for (const e of ev) {
@@ -519,7 +620,7 @@ function handle(ev) {
     else if (e.type === 'quiz') {
       if (e.correct) { SND.ring(e.combo, false); pop(`+${e.pts} ✓`); } else { SND.miss(); pop('✗', '#ff8a9a'); }
       note((e.correct ? '<b>Right.</b> ' : '<b>Not that one.</b> ') + e.q.why, 6);
-    } else if (e.type === 'quizmiss') { SND.miss(); note('<b>Quiz missed.</b> ' + e.q.why, 6); }
+    } else if (e.type === 'quizmiss') { SND.miss(); note('<b>Question missed.</b> ' + e.q.why, 6); }
     else if (e.type === 'measure') {
       SND.measure(e.one); flash = 0.25;
       pop(e.one ? '|1⟩' : '|0⟩', e.win ? '#9cf09f' : '#7fb8ff');
@@ -626,6 +727,16 @@ function draw(t) {
       if (o.th > Math.PI - 1e-6 || o.th < 1e-6) { g.fillStyle = col; g.font = '700 12px Helvetica,Arial'; g.textAlign = 'center'; g.fillText(o.th < 1 ? '|0⟩' : '|1⟩', x, y + (o.th < 1 ? -ry - 10 : ry + 10)); }
     }
   }
+  // the checkpoint's answer rings, lettered from the top, each with its short answer
+  if (ask) for (const gt of ask.gates) {
+    const x = X(gt.t), y = Y(gt.th), ry = ask.rad * rpx, lab = `${LETTER[gt.pick]}  ${ask.item.ring[gt.pick]}`;
+    g.strokeStyle = '#c9a2ff'; g.lineWidth = 3; ellipse(x, y, 9, ry); g.stroke();
+    g.globalAlpha = 0.18; g.fillStyle = '#c9a2ff'; ellipse(x, y, 9, ry); g.fill(); g.globalAlpha = 1;
+    g.font = '700 13px Helvetica,Arial'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    const tw = g.measureText(lab).width + 12, lx = Math.min(x + 16, W - tw - 4);
+    g.fillStyle = 'rgba(30,18,60,.85)'; g.beginPath(); g.roundRect(lx, y - 10, tw, 20, 6); g.fill();
+    g.fillStyle = '#e9dcff'; g.fillText(lab, lx + 6, y + 1); g.textBaseline = 'alphabetic';
+  }
   if (nq) {
     g.font = '700 14px Helvetica,Arial'; const tw0 = g.measureText('Fly through: ' + nq.quiz.prompt).width + 18;
     const x = Math.max(tw0 / 2 + 6, Math.min(W - tw0 / 2 - 6, X(nq.t)));
@@ -685,7 +796,7 @@ function draw(t) {
   // HUD
   if (w.free) {
     g.textAlign = 'left'; g.textBaseline = 'top'; g.font = '700 13px Helvetica,Arial'; g.fillStyle = '#ffd166';
-    g.fillText(w.N === 1 ? 'Free play · single shot' : `Free play · ensemble of ${w.N}`, 92, 6);
+    g.fillText(ask ? 'Checkpoint' : w.N === 1 ? 'Free play · single shot' : `Free play · ensemble of ${w.N}`, 92, 6);
     g.font = '12px Helvetica,Arial'; g.fillStyle = 'rgba(190,210,240,.8)'; g.fillText(`${w.photons} photon${w.photons === 1 ? '' : 's'}${w.N > 1 ? ` from ${w.N} runs` : ''}`, 92, 23);
   } else {
   g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.font = '800 22px Helvetica,Arial'; g.fillText(Math.round(w.score), 96, 6);
@@ -777,6 +888,7 @@ function frame(now) {
       const ev = world.step(inp, STEP);
       hist.push({ t: world.t, th: world.theta, ths: world.thetas() }); while (hist.length && hist[0].t < world.t - BEHIND_S) hist.shift();
       if (ev.length) handle(ev);
+      if (ask) { checkAsk(); if (!ask) break; }
       if (world.over) break;
     }
   }
