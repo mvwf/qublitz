@@ -88,15 +88,17 @@ function redact_(t) {
 }
 // The game's own fields: up to 12 lower_snake keys, values number / boolean / single-word label. No free text.
 var RE_XKEY = /^[a-z][a-z0-9_]{0,31}$/, RE_XTOK = /^[A-Za-z0-9_.:|+-]{1,40}$/, RE_GV = /^[A-Za-z0-9_.:+-]{1,40}$/;
+// Refused outright: identifier-like field names, and labels that look like an IP address or a long number.
+var RE_XBADKEY = /(^|_)(ids?|uid|uuid|guid|ip|user|username|name|email|mail|phone|session|token|device|fingerprint|address|school|student)(_|$)/, RE_XBADVAL = /^\d{1,3}(\.\d{1,3}){3}$|\d{6,}/;
 function cleanExtra_(x) {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return '';
   var out = {}, n = 0;
   Object.keys(x).forEach(function (k) {
-    if (n >= 12 || !RE_XKEY.test(k)) return;
+    if (n >= 12 || !RE_XKEY.test(k) || RE_XBADKEY.test(k)) return;
     var v = x[k];
     if (typeof v === 'boolean') out[k] = v;
     else if (typeof v === 'number' && isFinite(v) && Math.abs(v) <= 1e9) out[k] = v;
-    else if (typeof v === 'string' && RE_XTOK.test(v)) out[k] = v;
+    else if (typeof v === 'string' && RE_XTOK.test(v) && !RE_XBADVAL.test(v)) out[k] = v;
     else return;
     n++;
   });
@@ -310,4 +312,4 @@ function exportForAI() {
   return msg;
 }
 
-if (typeof module !== 'undefined') module.exports = { cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };
+if (typeof module !== 'undefined') module.exports = { TABS: TABS, cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };
