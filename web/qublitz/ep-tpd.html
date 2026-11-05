@@ -190,9 +190,10 @@ const DEFAULTS = { kc: 0.68, phi: 0 };
 const PLASMA = ['#0d0887','#46039f','#7201a8','#9c179e','#bd3786','#d8576b','#ed7953','#fb9f3a','#fdca26','#f0f921']
   .map((c, i, a) => [i / (a.length - 1), c]);
 const GRAY = [[0,'rgb(0,0,0)'],[1,'rgb(254,254,253)']];
+const DK = !!(window.RETRO && window.RETRO.palette), SEC = DK ? '#eaf0ff' : 'gray';
 const MARKERS = {
   PRIMARY_EP: ['red', 'x-thin'], PRIMARY_TPD: ['red', 'circle-open'],
-  SECONDARY_EP: ['gray', 'x-thin'], SECONDARY_TPD: ['gray', 'circle-open'], ROGUE_TPD: ['gray', 'diamond-open'],
+  SECONDARY_EP: [SEC, 'x-thin'], SECONDARY_TPD: [SEC, 'circle-open'], ROGUE_TPD: [SEC, 'diamond-open'],
 };
 const ORDER = Object.keys(MARKERS);
 const degeneracies = (phi, kc) => [...E.epLocation(phi), ...E.tpdLocation(phi, kc)]
@@ -215,8 +216,9 @@ function rows(arr, n, keep) {
 function drawMap(phi, kc) {
   const f = E.fields(phi, kc), n = f.x.length, x = Array.from(f.x);
   const stable = k => f.instability[k] <= 0;
-  const contour = (z, color, name) => ({ type: 'contour', x, y: x, z: rows(z, n), showscale: false, name,
-    contours: { start: 0, end: 0, size: 1, coloring: 'none' }, line: { color, dash: 'dash', width: 3 },
+  // each contour has its own dash pattern too, so they stay apart without colour
+  const contour = (z, color, name, dash) => ({ type: 'contour', x, y: x, z: rows(z, n), showscale: false, name,
+    contours: { start: 0, end: 0, size: 1, coloring: 'none' }, line: { color, dash, width: 3 },
     hoverinfo: 'skip', showlegend: true });
   const traces = [
     { type: 'heatmap', x, y: x, z: rows(f.K, n, stable), colorscale: PLASMA, zmin: 1, zmax: 1.6, name: 'K₂',
@@ -224,14 +226,17 @@ function drawMap(phi, kc) {
       hovertemplate: 'Δ̃κ %{x:.2f}<br>Δ̃f %{y:.2f}<br>K₂ %{z:.3f}<extra></extra>' },
     { type: 'heatmap', x, y: x, z: rows(f.K, n, k => !stable(k)), colorscale: GRAY, zmin: 1, zmax: 1.6, showscale: false,
       name: 'K₂ (unstable)', hovertemplate: 'Δ̃κ %{x:.2f}<br>Δ̃f %{y:.2f}<br>K₂ %{z:.3f} (unstable)<extra></extra>' },
-    contour(f.q, 'magenta', 'q̃ = 0'),
-    contour(f.disc, 'cyan', 'Disc = 0'),
-    contour(f.instability, 'chartreuse', 'Instability'),
-    contour(f.minPetermann, 'white', 'Petermann factor = 1'),
+    contour(f.q, 'magenta', 'q̃ = 0', 'dash'),
+    contour(f.disc, 'cyan', 'Disc = 0', 'dot'),
+    contour(f.instability, 'chartreuse', 'Instability', 'dashdot'),
+    contour(f.minPetermann, 'white', 'Petermann factor = 1', 'longdash'),
   ];
   const seen = new Set();
   for (const d of degeneracies(phi, kc)) {
     const [color, symbol] = MARKERS[d.type];
+    // dark theme: a dark halo under each marker so it reads on any colour of the map
+    if (DK) traces.push({ type: 'scatter', mode: 'markers', x: [d.dk], y: [d.df], showlegend: false, hoverinfo: 'skip', legendgroup: d.type,
+      marker: { color: '#070a16', symbol, size: 18, line: { width: 6.5, color: '#070a16' } } });
     traces.push({ type: 'scatter', mode: 'markers', x: [d.dk], y: [d.df], name: NAME(d.type), legendgroup: d.type,
       showlegend: !seen.has(d.type), marker: { color, symbol, size: 15, line: { width: 3.5, color } },
       hovertemplate: `${NAME(d.type)}<br>Δ̃κ %{x:.3f}<br>Δ̃f %{y:.3f}<extra></extra>` });

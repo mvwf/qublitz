@@ -44,7 +44,9 @@
   bar.innerHTML =
     link(SITE, 'mvwf.github.io/qublitz') + '<span>·</span>' + link(REPO, 'Source on GitHub') + '<span class="sp"></span>' +
     (embedded || offline ? link(SITE + path, 'Open the full page ↗', 'full') : '');
-  me.before(css, bar);
+  // Pages without an explicit <body> parse this script inside <head>, where the bar would be invisible: wait for the body.
+  if (me.closest('head')) document.addEventListener('DOMContentLoaded', () => document.body.prepend(css, bar));
+  else me.before(css, bar);
   // the full page opens with the settings in this page's URL, as they are at the moment of the click
   const full = bar.querySelector('a.full');
   if (full && !offline) full.addEventListener('click', () => { full.href = SITE + path + location.search + location.hash; });

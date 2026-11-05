@@ -386,7 +386,8 @@
     const ids = Array.from(new Set(codes.flatMap(c => Object.keys(CG[c] || {})))).sort(byOpens);
     const max = Math.max(1, ...codes.flatMap(c => ids.map(g => (CG[c] || {})[g] || 0)));
     const steps = ['--q1', '--q2', '--q3', '--q4', '--q5', '--q6'];
-    const heat = v => { if (!v) return {}; const k = Math.min(5, Math.floor(v / max * 5.999)); return { background: `var(${steps[k]})`, color: k >= 3 ? '#fff' : '#0b0b0b' }; };
+    const heat = v => { if (!v) return {}; const k = Math.min(5, Math.floor(v / max * 5.999)); const dk = document.documentElement.classList.contains('retro');   // the retro ramp gets lighter with value
+      return { background: `var(${steps[k]})`, color: dk ? (k >= 2 ? '#061016' : '#eaf0ff') : (k >= 3 ? '#fff' : '#0b0b0b') }; };
     $('codegames').replaceChildren(h('table', { class: 'heat' },
       h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Code' }), ids.map(g => h('th', { scope: 'col', class: 'n', text: title(g) })),
         ['Debriefs', 'Right', 'Fun', 'Learned'].map(t => h('th', { scope: 'col', class: 'n', text: t })))),

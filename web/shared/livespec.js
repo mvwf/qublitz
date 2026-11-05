@@ -133,7 +133,7 @@
 
     function paintSpec(g) {
       const ctx = spec.getContext('2d'), d = g.dpr, m = g.m, fmax = fmaxOf();
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, g.W, g.H);
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#fbfdfc'; ctx.fillRect(0, 0, g.W, g.H);   // off-white: the retro theme darkens it
       ctx.imageSmoothingEnabled = false; ctx.drawImage(off, m.l, m.t);
       // ⟨f⟩ over time: a white line (dark-edged so it reads on yellow too), broken where there was no signal
       const dash = (opts.meanDash || []).map(v => v * d);
