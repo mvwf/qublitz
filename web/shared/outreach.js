@@ -30,6 +30,8 @@
  *   QL.answer(itemId, pick)     record an answer given INSIDE the game (fly through a ring, shoot a target...)
  *                               for quiz item itemId; returns { ok, answer, choice, explain } so the game can
  *                               react. Items answered in-game are skipped by the debrief.
+ *   QL.addItems([item, ...])    add question items at runtime (e.g. a guided step's prediction), same shape as
+ *                               spec.quiz entries; duplicates by id are ignored
  *   QL.showQuiz()               open the debrief: any unanswered items, two ratings and two free-text boxes
  *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
  *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
@@ -226,7 +228,7 @@
         spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
-      el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
+      o.noDebrief ? null : el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
     if (o.replace) host.replaceChildren(box); else host.append(box);
     return box;
@@ -234,6 +236,11 @@
 
   // ── In-game answers ──────────────────────────────────────────────────────────────────────────────────
   const answered = new Set();
+  function addItems(list) {
+    if (!spec) return;
+    spec.quiz = spec.quiz || [];
+    for (const it of list || []) if (it && it.id && !spec.quiz.some(q => q.id === it.id)) spec.quiz.push(it);
+  }
   function answer(itemId, pick) {
     const items = (spec && spec.quiz) || [], q = items.find(x => x.id === itemId);
     if (!q) return null;
@@ -360,7 +367,7 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
-  root.QL = { event, context, answer, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { event, context, answer, addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
