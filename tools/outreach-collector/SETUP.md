@@ -1,7 +1,7 @@
 # Set up the outreach collector (about 15 minutes)
 
-You need a Dartmouth Google account and push access to this repository. First tick the boxes in
-[COMPLIANCE.md](COMPLIANCE.md) (CPHS determination, privacy review); until step 6, nothing is collected.
+You need a Dartmouth Google account and push access to this repository. Until step 6, nothing is collected.
+(Privacy: see [COMPLIANCE.md](COMPLIANCE.md); normal use needs no sign-off.)
 
 ## 1. Make the Sheet
 Go to [sheets.new](https://sheets.new) while signed in to your Dartmouth account. Name it **Qublitz outreach**.
