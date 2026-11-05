@@ -302,7 +302,8 @@ $('#gallery').innerHTML = GALLERY.map((e, i) => `<option value="${i}">${esc(e.te
 $('#gallery').addEventListener('change', e => { loadGallery(+e.target.value); qlNote('preset', { level: (GALLERY[+e.target.value] || {}).name }); });
 
 /* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/sonify.js) ---------- */
-const QLK = window.QL || { event() {}, panel() {}, offerQuiz() {}, context() {} };
+const QLK = (() => { const Q = window.QL || {}, f = k => (...a) => (typeof Q[k] === 'function' ? Q[k](...a) : undefined);   // works with any kit version
+  return { event: f('event'), panel: f('panel'), offerQuiz: f('offerQuiz'), context: f('context'), answer: f('answer'), toLab: f('toLab') }; })();
 QLK.panel(document.getElementById('qlPanel'));
 function qlNote(name, data) { QLK.event(name, data); if (name === 'preset' || name === 'mode') QLK.context({ level: name === 'mode' ? data.level : 'gallery', step: name === 'preset' ? data.level : undefined }); }
 QLK.context({ level: 'gallery' });

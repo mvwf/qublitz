@@ -172,7 +172,7 @@
       anonymous usage counts and answers from that session can be grouped together. No names or accounts are involved.</p>
   </details>
 </div>
-<script>if (window.QL) { QL.context({ level: 'hub' }); QL.toLab(document.getElementById('hubLab')); }</script>
+<script>if (window.QL) { if (QL.context) QL.context({ level: 'hub' }); if (QL.toLab) QL.toLab(document.getElementById('hubLab')); }</script>
 
 <main class="wrap" id="main"></main>
 

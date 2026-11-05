@@ -967,23 +967,22 @@ if (window.QUBLITZ_STANDALONE) {
   $('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/drum-head.html',shareQuery()));
 
   /* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/<id>.js) ---------- */
-  const QLK = window.QL || { event(){}, panel(){}, offerQuiz(){}, context(){}, answer(){ return null; } };
+  const QLK = (() => { const Q = window.QL || {}, f = k => (...a) => (typeof Q[k] === 'function' ? Q[k](...a) : undefined);   // works with any kit version
+    return { event: f('event'), panel: f('panel'), offerQuiz: f('offerQuiz'), context: f('context'), answer: f('answer'), toLab: f('toLab'), addItems: f('addItems') }; })();
   QLK.panel(document.getElementById('qlPanel'));
   let qlActs = 0; const qlT0 = Date.now();
   // Counted actions (preset, mode, play, sound); after a few minutes of exploring, offer the debrief once.
   function qlNote(name, data){ QLK.event(name, data); if(name === 'preset' || name === 'mode') QLK.context({ level: 'explore', step: data && data.level }); if(++qlActs >= 6 && Date.now() - qlT0 > 150000) QLK.offerQuiz(); }
   // Guided mode is the page's predict-then-reveal: each step sets the quit-map context, and every multiple-choice
-  // prediction is recorded with QL.answer as a question item (added when answered, so the debrief skips it).
+  // prediction is recorded with QL.answer as a question item (added with QL.addItems when answered, so the debrief skips it).
   // obj maps a 1-based step number to the learning objective it checks.
   function qlGuided(steps, key, obj) { return {
     onStep: i => QLK.context({ level: 'guided', step: i < steps.length ? 'step' + (i + 1) : 'done' }),
     onAnswer: (i, ok, pick) => {
       QLK.event('level_complete', { level: 'step' + (i + 1), value: ok ? 1 : 0 });
-      const st = steps[i], sp = window.QL && QL.spec, id = key + '-g' + (i + 1);
-      if (!st.choices || !obj[i + 1] || !sp || !QLK.answer) return;
-      sp.quiz = sp.quiz || [];
-      if (!sp.quiz.some(q => q.id === id))
-        sp.quiz.push({ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain });
+      const st = steps[i], id = key + '-g' + (i + 1);
+      if (!st.choices || !obj[i + 1] || !window.QL || typeof QL.addItems !== 'function') return;
+      QLK.addItems([{ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain }]);   // duplicates by id are ignored
       QLK.answer(id, pick);
     },
     onDone: (right, total) => { QLK.event('win', { value: right });
