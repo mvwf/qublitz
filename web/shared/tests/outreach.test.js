@@ -49,6 +49,69 @@ check('summary skips rows outside the window', !S.games.rider);
 check('summary has quiz accuracy per item and ratings', S.quiz.beamline.items.q1.correct === 1 && S.quiz.beamline.avgScore === 0.5 && S.quiz.beamline.avgFun === 4);
 check('summary counts free text but never includes it', S.feedbackCount.beamline === 1 && !JSON.stringify(S).includes('phase sets the axis'));
 check('summary splits by outreach code', S.codes.SCIFAIR26 === 1);
+check('summary splits outreach codes by game', S.codeGames.SCIFAIR26.beamline === 1 && Object.keys(S.codeGames).length === 1);
+check('summary records the wrong picks per item', S.quiz.beamline.items.q2.wrong[0] === 1 && Object.keys(S.quiz.beamline.items.q1.wrong).length === 0);
+
+// quizzes per outreach code: n, score and ratings, and no code means no entry
+const coded = [gs.cleanQuizRows({ game: 'rider', day: '2026-11-04', code: 'SCIFAIR26', answers: [{ q: 'q1', pick: 0, ok: true }, { q: 'q2', pick: 1, ok: true }], fun: 5, learned: 3 }, now).quiz,
+  gs.cleanQuizRows({ game: 'copter', day: '2026-11-04', code: 'SCIFAIR26', answers: [{ q: 'q1', pick: 2, ok: false }, { q: 'q2', pick: 1, ok: true }], fun: 3 }, now).quiz,
+  qz.quiz];
+const SC = gs.summarize([], coded, [], 90, now);
+const CQ = SC.codeQuiz.SCIFAIR26;
+check('summary aggregates quizzes per outreach code', CQ && CQ.n === 2 && CQ.avgScore === 0.75 && CQ.avgFun === 4 && CQ.avgLearned === 3 && Object.keys(SC.codeQuiz).length === 1,
+  JSON.stringify(CQ));
+
+// a day cell that Sheets turned into a Date still lands on the right day
+const dated = gs.cleanEventRow({ game: 'drum', ev: 'open', day: '2026-11-03' }, now); dated[1] = new Date(2026, 10, 3);
+const S3 = gs.summarize([dated], [], [], 7, now);
+check('summary reads day cells that Sheets stored as dates', S3.byDay['2026-11-03'] && S3.byDay['2026-11-03'].drum === 1, JSON.stringify(S3.byDay));
+
+// the private review feed: free text only with the matching key, never in the summary
+const KEY = 'k3y-0f-at-least-16-chars';
+const fb = [qz.feedback];
+check('review key must match exactly', gs.reviewKeyOk(KEY, KEY) && !gs.reviewKeyOk(KEY.slice(0, -1) + 'X', KEY) && !gs.reviewKeyOk(undefined, KEY) && !gs.reviewKeyOk('', ''));
+check('review key check refuses an unset or short key', !gs.reviewKeyOk('short', 'short') && !gs.reviewKeyOk(null, null));
+const R = gs.reviewFeed(KEY, KEY, rows, [qz.quiz], fb, 90, now);
+check('review feed returns the free text with the right key', R && R.feedback.length === 1 && R.feedback[0].learned === 'phase sets the axis' && R.games.beamline.opens === 1);
+check('review feed returns nothing with a wrong or missing key', gs.reviewFeed('wrong-key-wrong-key-wrong', KEY, rows, [qz.quiz], fb, 90, now) === null &&
+  gs.reviewFeed(undefined, KEY, rows, [qz.quiz], fb, 90, now) === null && gs.reviewFeed(KEY, null, rows, [qz.quiz], fb, 90, now) === null);
+check('review feed respects the window', gs.reviewFeed(KEY, KEY, [], [], [[now, '2025-01-01', 'rider', '', 'old', '']], 90, now).feedback.length === 0);
+
+// insights: each rule fires below its threshold once enough people were measured, and flags rank by n × gap
+const IN = require(path.join(root, 'web/outreach/insights.js'));
+const specs = { beamline: { id: 'beamline', title: 'Beamline', objectives: [{ id: 'axis', text: 'Relate <b>phase</b> to axis' }],
+  quiz: [{ id: 'q3', objective: 'axis', q: 'Which axis?', choices: ['x', 'y', '&minus;x', 'z'], answer: 1 }] } };
+const item = (n, correct, wrong) => ({ objective: 'axis', n, correct, picks: {}, wrong });
+const sum = {
+  games: {
+    beamline: { opens: 80, quizOpens: 80, leaves: 60, avgMinutes: 4, levels: { easy: { starts: 50, completes: 45 }, hard: { starts: 30, completes: 6 }, rare: { starts: 4, completes: 0 } } },
+    rider: { opens: 20, quizOpens: 4, leaves: 20, avgMinutes: 0.4, levels: {} },
+    hub: { opens: 300, leaves: 200, avgMinutes: 0.2, levels: {} },
+  },
+  quiz: {
+    beamline: { n: 30, avgFun: 4.2, avgLearned: 2.5, items: { q3: item(40, 12, { 0: 3, 2: 22, 3: 3 }), q4: item(40, 30, { 0: 10 }), q5: item(6, 0, { 1: 6 }) } },
+    rider: { n: 3, avgFun: 1.5, avgLearned: 1.5, items: {} },
+  },
+};
+const F = IN.insights(sum, specs, { beamline: 'Beamline', rider: 'Rabi Rider' });
+const kinds = F.map(f => f.kind + ':' + f.game + ':' + f.ref);
+check('insights flag the low-accuracy quiz item with its misconception', F.some(f => f.kind === 'quiz' && f.ref === 'q3' && /possible misconception: “−x”/.test(f.evidence) && /phase to axis/.test(f.fix)), kinds.join(' '));
+check('insights skip items above 50% or with too few answers', !kinds.includes('quiz:beamline:q4') && !kinds.includes('quiz:beamline:q5'));
+check('insights flag a level with a low completion ratio, not a rarely played one', kinds.includes('level:beamline:hard') && !kinds.includes('level:beamline:easy') && !kinds.includes('level:beamline:rare'));
+check('insights flag low ratings only with enough quizzes', kinds.includes('rating:beamline:learned') && !kinds.includes('rating:beamline:fun') && !kinds.some(k => k.startsWith('rating:rider')));
+check('insights flag debrief drop-off', kinds.includes('dropoff:beamline:debrief') && !kinds.some(k => k.startsWith('dropoff:rider')));
+check('insights flag short visits but not on the hub', kinds.includes('time:rider:time') && !kinds.some(k => k.startsWith('time:hub')));
+check('insights rank by n × relative gap', F.every((f, i) => i === 0 || F[i - 1].impact >= f.impact) && F[0].kind === 'dropoff' && F[0].impact === 20 && F[1].ref === 'q3',
+  F.map(f => f.ref + '=' + f.impact).join(' '));
+const stopSum = { games: { rider: { opens: 100, levels: { a: { starts: 90, completes: 80 }, b: { starts: 60, completes: 30 }, c: { starts: 30, completes: 28 }, d: { starts: 20, completes: 3 } },
+  quits: { menu: 40, a: 8, 'b|boss': 33, c: 4, d: 6 } } } };
+const endSum = { games: { copter: { opens: 50, levels: { a: { starts: 50, completes: 45 }, last: { starts: 40, completes: 36 } }, quits: { a: 10, last: 40 } } } };
+check('insights do not flag the last level when people finish it and leave', !IN.insights(endSum, {}, {}).some(f => f.kind === 'stop'));
+const SF = IN.insights(stopSum, {}, {}).filter(f => f.kind === 'stop');
+check('insights flag a stop hotspot against the share that reach it', SF.length === 1 && SF[0].kind === 'stop' && SF[0].ref === 'b|boss' && /33 visits ended there of 60 that started b, 30 of them without finishing/.test(SF[0].evidence),
+  SF.map(f => f.kind + ':' + f.ref + ' ' + f.evidence).join(' | '));
+check('topWrong falls back to picks minus the right answer', IN.topWrong({ n: 10, correct: 4, picks: { 0: 1, 1: 4, 3: 5 } }, specs.beamline.quiz[0]).text === 'z');
+check('insights tolerate an empty summary', IN.insights({}, {}, {}).length === 0 && IN.insights(null).length === 0);
 
 // quit map, visit depth, in-game answers and lab arrivals
 const rows2 = [
@@ -62,6 +125,7 @@ const S2 = gs.summarize(rows2, [ing.quiz], [], 90, now);
 check('summary maps where visits end and how far they got', S2.games.rider.quits.photon === 2 && S2.games.rider.quits.menu === 1 && S2.games.rider.completedPerVisit[1] === 2);
 check('in-game answers count toward items but not debriefs', S2.quiz.rider.items.q1.correct === 1 && S2.quiz.rider.n === 0 && S2.quiz.rider.ingame === 1);
 check('summary counts lab arrivals by source activity', S2.labFrom.beamline === 1);
+check('items split in-game answers from debrief answers', S2.quiz.rider.items.q1.ingame.n === 1 && S2.quiz.rider.items.q1.ingame.correct === 1 && S.quiz.beamline.items.q1.ingame.n === 0);
 const qi = kit.cleanQuiz('rider', { answers: [{ q: 'q1', obj: 'o1', pick: 2, ok: true }], src: 'ingame' }, ctx);
 check('cleanQuiz keeps the in-game source', qi.src === 'ingame');
 

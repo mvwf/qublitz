@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Qublitz Usage &amp; Feedback</title>
+<meta name="description" content="Anonymous usage counts and question results for the Qublitz demos, and what we changed because of them.">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --raised: #ffffff;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #75736d;
+    --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+    --s1: #2a78d6; --s1-wash: rgba(42,120,214,.10); --s2: #eb6834;
+    --accent: #00693e; --accent-ink: #ffffff;
+    --track: #e8eef8;
+    --demo-bg: #fff4d6; --demo-ink: #5c3d00; --demo-line: #eda100;
+    --flag: #d03b3b; --good: #006300;
+    --q1: #cde2fb; --q2: #9ec5f4; --q3: #5598e7; --q4: #2a78d6; --q5: #1c5cab; --q6: #0d366b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+      --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+      --s1: #3987e5; --s1-wash: rgba(57,135,229,.14); --s2: #d95926;
+      --accent: #3fae7d; --accent-ink: #0b0b0b;
+      --track: #22303f;
+      --demo-bg: #3a2c05; --demo-ink: #ffe3a1; --demo-line: #c98500;
+      --flag: #e66767; --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #222220;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9a988f;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+    --s1: #3987e5; --s1-wash: rgba(57,135,229,.14); --s2: #d95926;
+    --accent: #3fae7d; --accent-ink: #0b0b0b;
+    --track: #22303f;
+    --demo-bg: #3a2c05; --demo-ink: #ffe3a1; --demo-line: #c98500;
+    --flag: #e66767; --good: #0ca30c;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+    font: 14.5px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-x: hidden; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+  header.top { border-bottom: 1px solid var(--grid); background: var(--surface); }
+  header.top .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding-top: 14px; padding-bottom: 12px; }
+  header.top h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  header.top .sub { color: var(--ink-2); font-size: 13px; flex: 1 1 260px; }
+  header.top nav a { font-size: 13px; font-weight: 600; text-decoration: none; }
+  header.top nav a:hover { text-decoration: underline; }
+
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 0 6px; }
+  .seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg label { position: relative; }
+  .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .seg span { display: block; padding: 5px 12px; font-size: 13px; color: var(--ink-2); border-left: 1px solid var(--axis); }
+  .seg label:first-child span { border-left: 0; }
+  .seg input:checked + span { background: var(--ink); color: var(--surface); font-weight: 650; }
+  .seg input:focus-visible + span { outline: 2px solid var(--s1); outline-offset: -2px; }
+  .seg label:hover input:not(:checked) + span { background: var(--s1-wash); }
+  .filters .lbl { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+  .pill { font-size: 12.5px; color: var(--ink-2); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; background: var(--surface); }
+  .pill button { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-weight: 600; padding: 0 0 0 6px; }
+  .status { font-size: 12.5px; color: var(--muted); margin-left: auto; }
+
+  .banner { border-radius: 10px; padding: 12px 16px; margin: 10px 0; border: 1px solid var(--grid); background: var(--surface); }
+  .banner.demo { background: var(--demo-bg); color: var(--demo-ink); border: 2px solid var(--demo-line); }
+  .banner.demo strong.tag { display: inline-block; font-size: 15px; letter-spacing: .06em; margin-right: 8px; }
+  .banner.err { border-color: var(--flag); }
+  .banner h2 { margin: 0 0 6px; font-size: 17px; }
+  .banner ol { margin: 6px 0; padding-left: 22px; }
+  .banner li { margin: 3px 0; }
+  .banner code { font-size: 12.5px; background: var(--ring); padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+  .demo-stamp { display: none; position: fixed; right: 10px; bottom: 10px; z-index: 50; background: var(--demo-line); color: #0b0b0b;
+    font-weight: 800; letter-spacing: .08em; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
+  body.is-demo .demo-stamp { display: block; }
+
+  main { transition: opacity .15s; }
+  main.loading { opacity: .5; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(12, minmax(0, 1fr)); margin: 12px 0 18px; }
+  .card { grid-column: span 12; background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px 12px; min-width: 0; }
+  .card.half { grid-column: span 6; }
+  @media (max-width: 860px) { .card.half { grid-column: span 12; } }
+  .card h2 { font-size: 15.5px; margin: 0 0 2px; font-weight: 650; }
+  .card .note { font-size: 12.5px; color: var(--ink-2); margin: 0 0 10px; }
+  .card h3 { font-size: 14px; margin: 14px 0 4px; }
+  .card h4 { font-size: 13px; margin: 10px 0 4px; color: var(--ink-2); font-weight: 600; }
+  .empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0 4px; }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .tile .k { font-size: 12.5px; color: var(--ink-2); }
+  .tile .v { font-size: 26px; font-weight: 650; line-height: 1.2; margin-top: 2px; }
+  .tile .v small { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .tile .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tile.hero .v { font-size: 48px; line-height: 1.05; }
+
+  .flags { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .flag { border: 1px solid var(--grid); border-left: 3px solid var(--flag); border-radius: 8px; padding: 8px 12px; background: var(--raised); }
+  .flag .t { font-weight: 650; font-size: 13.5px; }
+  .flag .t .ic { color: var(--flag); margin-right: 4px; }
+  .flag .q { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+  .flag .ev, .flag .fx { font-size: 12.5px; margin-top: 2px; }
+  .flag .ev b, .flag .fx b { color: var(--ink-2); font-weight: 600; }
+  .flag .imp { float: right; font-size: 12px; color: var(--muted); margin-left: 8px; }
+  .rules { font-size: 12.5px; color: var(--ink-2); }
+  .rules ul { margin: 6px 0; padding-left: 20px; }
+
+  .log { list-style: none; padding: 0; margin: 0; }
+  .log li { border-top: 1px solid var(--grid); padding: 8px 0; display: grid; grid-template-columns: 92px minmax(0,1fr); gap: 2px 12px; }
+  .log li:first-child { border-top: 0; }
+  .log li.empty { display: block; }
+  .log .dt { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .log .ch { font-weight: 600; font-size: 13.5px; }
+  .log .bc { font-size: 12.5px; color: var(--ink-2); }
+  .log .demo-chip { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; background: var(--demo-line); color: #0b0b0b; border-radius: 4px; padding: 0 5px; margin-right: 6px; }
+  .log button { font: inherit; font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  @media (max-width: 520px) { .log li { grid-template-columns: minmax(0,1fr); } }
+
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart svg:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; border-radius: 4px; }
+  .multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px 14px; margin-top: 10px; }
+  .multiples .m { min-width: 0; }
+  .multiples .mt { font-size: 12.5px; display: flex; justify-content: space-between; gap: 6px; }
+  .multiples .mt span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .multiples .mt span:last-child { font-weight: 650; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-2); margin: 2px 0 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  .legend i.dot { border-radius: 50%; }
+  .legend i.sq { border-radius: 2px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--ink-2); font-weight: 600; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tscroll { overflow-x: auto; max-width: 100%; }
+  details.tv { margin-top: 8px; }
+  details.tv summary { cursor: pointer; font-size: 12.5px; color: var(--accent); font-weight: 600; }
+  details.tv .tscroll { max-height: 360px; overflow: auto; margin-top: 6px; }
+
+  .funnel td.g { font-weight: 600; min-width: 120px; }
+  .cell { min-width: 74px; text-align: right; }
+  .cell .num { font-variant-numeric: tabular-nums; }
+  .cell .sub { color: var(--muted); font-size: 11.5px; }
+  .bar { height: 6px; border-radius: 0 3px 3px 0; background: var(--s1); margin-top: 3px; min-width: 0; }
+  .barbox { background: var(--track); border-radius: 0 3px 3px 0; height: 6px; margin-top: 3px; }
+  .barbox .bar { margin-top: 0; height: 6px; }
+
+  .rows { display: grid; gap: 6px; }
+  .row { display: grid; grid-template-columns: minmax(70px, 26%) minmax(0, 1fr) var(--valw, 10.5em); align-items: center; gap: 4px 10px; font-size: 12.5px; border-radius: 6px; padding: 2px 4px; }
+  .row:hover, .row:focus-visible { background: var(--s1-wash); outline: none; }
+  .row .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .row .val { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .track { position: relative; height: 14px; }
+  .track .b { position: absolute; left: 0; top: 2px; height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); }
+  .track .ref { position: absolute; top: -1px; bottom: -1px; width: 1px; background: var(--ink-2); opacity: .55; }
+  #lab { --valw: 12.5em; }
+  @media (max-width: 520px) { .row { grid-template-columns: minmax(60px, 30%) minmax(0, 1fr) var(--valw, 9em); } #lab { --valw: 10.5em; } .item .acc { grid-template-columns: minmax(0,1fr) 9em; } }
+  .tag { font-size: 11px; font-weight: 600; color: var(--flag); white-space: nowrap; }
+
+  .items { display: grid; gap: 10px; }
+  .item { border-top: 1px solid var(--grid); padding-top: 8px; }
+  .item .qt { font-size: 13px; }
+  .item .qt .id { color: var(--muted); font-size: 11.5px; margin-right: 6px; }
+  .item .acc { display: grid; grid-template-columns: minmax(0,1fr) 10.5em; gap: 10px; align-items: center; margin-top: 4px; }
+  .item .mis { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
+  .item .mis b { color: var(--ink); font-weight: 600; }
+  .gamehead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; margin-top: 16px; border-bottom: 1px solid var(--axis); padding-bottom: 3px; }
+  details.gq:first-child > .gamehead { margin-top: 4px; }
+  details.gq > summary.gamehead { cursor: pointer; list-style: none; }
+  details.gq > summary.gamehead::-webkit-details-marker { display: none; }
+  details.gq > summary.gamehead h3::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--muted); transition: transform .1s; }
+  details.gq[open] > summary.gamehead h3::before { transform: rotate(90deg); }
+  details.gq > summary.gamehead:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+  .gamehead h3 { margin: 0; }
+  .gamehead span { font-size: 12.5px; color: var(--ink-2); }
+
+  .segbar { display: flex; gap: 2px; height: 28px; margin: 6px 0; }
+  .segbar div { border-radius: 4px; color: #fff; font-size: 12.5px; font-weight: 650; display: flex; align-items: center; padding: 0 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
+
+  .stops { display: grid; gap: 4px 18px; }
+  .stopgame { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 4px 18px; padding: 6px 0 4px; }
+  .stopgame h4 { margin: 2px 0 4px; }
+  @media (max-width: 700px) { .stopgame { grid-template-columns: minmax(0, 1fr); } }
+  .split { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .heat td.h { text-align: center; font-variant-numeric: tabular-nums; min-width: 42px; }
+
+  #tip { position: fixed; z-index: 100; pointer-events: none; background: var(--raised); color: var(--ink); border: 1px solid var(--ring);
+    box-shadow: 0 4px 16px rgba(0,0,0,.18); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; max-width: 260px; display: none; }
+  #tip .h { color: var(--ink-2); margin-bottom: 3px; }
+  #tip .r { display: flex; gap: 8px; align-items: center; }
+  #tip .r i { width: 12px; height: 2px; background: var(--c, var(--s1)); flex: none; }
+  #tip .r b { font-variant-numeric: tabular-nums; }
+  #tip .r span { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer { border-top: 1px solid var(--grid); color: var(--ink-2); font-size: 12.5px; padding: 14px 0 28px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Usage &amp; feedback</h1>
+    <span class="sub">Anonymous counts and question results from the Qublitz demos, and what we changed because of them.</span>
+    <nav aria-label="Site"><a href="../">← All demos</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="filters" role="group" aria-label="Filters">
+    <span class="lbl" id="days-lbl">Period</span>
+    <div class="seg" role="radiogroup" aria-labelledby="days-lbl" id="days">
+      <label><input type="radio" name="days" value="7"><span>7 days</span></label>
+      <label><input type="radio" name="days" value="30"><span>30 days</span></label>
+      <label><input type="radio" name="days" value="90"><span>90 days</span></label>
+      <label><input type="radio" name="days" value="365"><span>365 days</span></label>
+    </div>
+    <span class="pill" id="since-pill" hidden></span>
+    <span class="status" id="status" aria-live="polite"></span>
+  </div>
+  <div id="banner"></div>
+</div>
+
+<main class="wrap" id="main" hidden>
+  <section aria-labelledby="kpi-h">
+    <h2 class="sr" id="kpi-h">Headline numbers</h2>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="ins-h">
+      <h2 id="ins-h">Insights: what to look at first</h2>
+      <p class="note">Flags computed in your browser from the counts below, highest impact first (people measured × how far below the bar).
+        Each shows its evidence and the kind of fix it suggests; you decide whether it is real.</p>
+      <ol class="flags" id="flags"></ol>
+      <details class="tv rules"><summary>The rules and thresholds</summary><div id="rules"></div></details>
+    </section>
+
+    <section class="card" aria-labelledby="log-h">
+      <h2 id="log-h">You said, we did</h2>
+      <p class="note">Changes made because of this feedback, from <code>web/outreach/improvements.json</code>. Pick one to see the numbers since that day.</p>
+      <ul class="log" id="log"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="vis-h">
+      <h2 id="vis-h">Visits per day</h2>
+      <p class="note">Page opens, all games together; one small chart per game below, on the same scale.</p>
+      <div class="chart" id="visits"></div>
+      <div class="multiples" id="multiples"></div>
+      <details class="tv"><summary>Table view</summary><div class="tscroll" id="visits-table"></div></details>
+    </section>
+
+    <section class="card" aria-labelledby="fun-h">
+      <h2 id="fun-h">From visit to debrief</h2>
+      <p class="note">Per game: visits, games started, levels solved, debriefs opened and sent. Bars show the share of visits (levels solved can exceed one per visit, so that column shows a rate).</p>
+      <div class="tscroll" id="funnel"></div>
+    </section>
+
+    <section class="card half" aria-labelledby="lvl-h">
+      <h2 id="lvl-h">Level completion</h2>
+      <p class="note">Completions ÷ starts per level, levels ordered by how many people started them. The tick marks the <span id="lvl-th"></span> flag line.</p>
+      <div id="levels"></div>
+    </section>
+
+    <section class="card half" aria-labelledby="rate-h">
+      <h2 id="rate-h">Fun and learning, rated</h2>
+      <p class="note">Average of the two 1–5 ratings in the debrief at the end of a visit.</p>
+      <div class="legend" aria-hidden="true"><span><i class="dot" style="--c:var(--s1)"></i>Fun</span><span><i class="sq" style="--c:var(--s2)"></i>Learned</span></div>
+      <div class="chart" id="ratings"></div>
+      <details class="tv"><summary>Table view</summary><div class="tscroll" id="ratings-table"></div></details>
+    </section>
+
+    <section class="card" aria-labelledby="quiz-h">
+      <h2 id="quiz-h">Questions by learning objective</h2>
+      <p class="note">Share of answers that were right, per question, grouped under the objective it tests, with answers given inside the game and in the debrief shown apart. The tick is 50%.
+        The most-picked wrong answer is the misconception signal.</p>
+      <div id="quiz"></div>
+    </section>
+
+    <section class="card" aria-labelledby="stop-h">
+      <h2 id="stop-h">Where players stop</h2>
+      <p class="note">Left: the place each visit ended (the last level or step the page reported), as a share of the visits that ended in this game; ▲ marks a stop hotspot from the Insights.
+        Right: visit depth, the number of levels completed in one visit. Hover or use the table for how many started each level.</p>
+      <div class="stops" id="stops"></div>
+    </section>
+
+    <section class="card half" aria-labelledby="lab-h">
+      <h2 id="lab-h">Paths to the Virtual Qubit Lab</h2>
+      <p class="note">From each activity: clicks on its link to the lab, and visits that arrived at the lab from it (the lab link carries <code>?from=</code>).</p>
+      <div id="lab"></div>
+    </section>
+
+    <section class="card half" aria-labelledby="dev-h" id="dev-card">
+      <h2 id="dev-h">Devices</h2>
+      <p class="note">Visits from touch screens (phones, tablets) and from desktops.</p>
+      <div id="devices"></div>
+    </section>
+
+    <section class="card" aria-labelledby="code-h">
+      <h2 id="code-h">Outreach sessions</h2>
+      <p class="note">Visits per event code (links like <code>…/beamline.html?event=SCIFAIR26</code>).</p>
+      <div id="codes"></div>
+    </section>
+
+    <section class="card" aria-labelledby="cg-h" id="codegames-card">
+      <h2 id="cg-h">Sessions compared</h2>
+      <p class="note">Visits per game for each event code, with that session's debriefs and question results. Darker cells mean more visits.</p>
+      <div class="tscroll" id="codegames"></div>
+    </section>
+  </div>
+</main>
+
+<div class="wrap">
+  <footer>
+    No cookies, no identifiers, nothing finer than the day. Free-text answers stay in the collector's Google Sheet and are never shown here.
+    How it works: <a href="https://github.com/mvwf/qublitz/tree/main/tools/outreach-collector">tools/outreach-collector</a>.
+  </footer>
+</div>
+
+<div class="demo-stamp" aria-hidden="true">DEMO DATA</div>
+<div id="tip" role="status" aria-live="off"></div>
+
+<script src="../shared/outreach-config.js"></script>
+<script src="../learning/manifest.js"></script>
+<script src="insights.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

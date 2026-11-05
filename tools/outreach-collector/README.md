@@ -23,10 +23,61 @@ outreach-session label from links like `…/beamline.html?event=SCIFAIR26`.
 3. **Deploy → New deployment → Web app.** Execute as: *Me*. Who has access: *Anyone*. Deploy, authorise,
    and copy the **Web app URL** (ends in `/exec`).
 4. Paste that URL into `web/shared/outreach-config.js` as `endpoint`, commit, and let Pages deploy.
-5. Open `https://mvwf.github.io/qublitz/outreach/dashboard.html`. It reads the same URL's `?summary=1`.
+5. Open the dashboard, [`https://mvwf.github.io/qublitz/outreach/dashboard.html`](https://mvwf.github.io/qublitz/outreach/dashboard.html)
+   (source: [`web/outreach/dashboard.html`](../../web/outreach/dashboard.html)). It reads the same URL's `?summary=1`.
+6. Optional, for the private review feed below: **Project Settings (gear icon) → Script properties → Add script
+   property**, name `REVIEW_KEY`, value a long random string (at least 16 characters; e.g. the output of
+   `openssl rand -hex 24`). Keep it out of the repository.
 
 The tabs and their header rows are created on the first request. To change the code later, edit it in Apps Script
 and use **Deploy → Manage deployments → Edit → New version** so the URL stays the same.
+
+## The dashboard
+
+[`web/outreach/dashboard.html`](../../web/outreach/dashboard.html) is public (linked as "Usage & feedback" in the hub's
+footer, not indexed by search engines) and shows only what `?summary=1` returns: counts and averages, never free text.
+
+- `?demo=1` shows realistic synthetic data, labelled **DEMO DATA**, so you can see it before collection starts.
+- `?days=7|30|90|365` picks the period; `?since=YYYY-MM-DD` shows everything since a date (each entry in
+  "You said, we did" has a button for this); `?endpoint=<url>` reads another collector deployment.
+- With `endpoint` empty in `outreach-config.js` it shows a "collection is off" notice with the setup steps above.
+- The **Insights** at the top are computed in the browser by [`web/outreach/insights.js`](../../web/outreach/insights.js),
+  whose thresholds are constants with comments there (and listed on the page). They flag questions under 50% right,
+  levels people rarely finish, places where many visits stop, ratings below 3 of 5, debriefs opened but not sent, and
+  very short visits, each with its evidence and a suggested kind of fix, ranked by people measured × gap.
+- Question and objective text come from each page's `web/learning/<id>.js`; a missing file only means the dashboard
+  shows question ids instead of text.
+
+## Private review feed
+
+`<web app URL>?review=1&key=<REVIEW_KEY>&days=30` returns the summary **plus** the free-text rows of the `feedback`
+tab for the period. Without a `REVIEW_KEY` property, or with a key that does not match exactly, the answer is
+`forbidden` and no text is returned; the review answer is never cached. Open it in your own browser; do not paste
+the key into issues, chats or the repository, and change the property if it leaks.
+
+The text is from members of the public, some of them minors. When something from it leads to an issue or a
+change, **paraphrase the theme** ("several people found the phase step confusing"); never quote anyone, and never
+copy text that could identify a person or a school.
+
+## Closing the loop
+
+The point of the counts is to make the games more fun and more educational. The cycle:
+
+1. **Review** the dashboard's Insights and the private review feed, weekly during term and after each outreach
+   event (filter by its `?event=` code in "Outreach sessions").
+2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as
+   the dashboard states it (e.g. "question q3: 38% correct of 52 answers; possible misconception: …", or
+   "level crosstalk: 9 completions of 31 starts"), and the proposed change. Paraphrase free text, never quote it.
+3. **Fix** it in a pull request that links the issue.
+4. **Log the change** in [`web/outreach/improvements.json`](../../web/outreach/improvements.json), which the dashboard
+   shows as "You said, we did":
+   ```json
+   [{ "date": "2026-11-20", "game": "beamline", "change": "Hint added to the crosstalk level", "because": "level crosstalk: 29% of starts completed" }]
+   ```
+   `date` is the day the change went live, `game` a manifest id, `because` the evidence type and number.
+5. **Compare** the same metric afterwards: the entry's "Show the numbers since …" button sets `?since=` to that
+   date, so the dashboard covers only visits after the change. Give it enough visits to clear the rule's minimum
+   count before calling it fixed, and note the result on the issue.
 
 ## Things to know
 
@@ -36,5 +87,6 @@ and use **Deploy → Manage deployments → Edit → New version** so the URL st
   The data are anonymous, but outreach audiences can include minors.
 - To stop collecting, empty `endpoint` in `outreach-config.js` (pages then send nothing) and/or archive the
   deployment in Apps Script.
-- The pure functions (`cleanEventRow`, `cleanQuizRows`, `summarize`) are tested in Node by
-  `web/shared/tests/outreach.test.js`.
+- The pure functions (`cleanEventRow`, `cleanQuizRows`, `summarize`, `reviewKeyOk`, `reviewFeed`) and the dashboard's
+  insight rules are tested in Node by `web/shared/tests/outreach.test.js`.
+- Sheets turns a cell like `2026-11-05` into a date; `summarize()` reads such cells back as the same day.
