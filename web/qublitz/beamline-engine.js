@@ -153,7 +153,7 @@
       walls: [[3, 0], [3, 1], [4, 3], [5, 3], [6, 3]], inv: { mirror: 2 }, par: { pieces: 2, fires: 1 },
       solution: [{ x: 2, y: 0, type: 'mirror', o: '\\' }, { x: 2, y: 4, type: 'mirror', o: '\\' }],
       brief: 'Walls absorb the beam. Use two mirrors to bring the pulse to the qubit in the corner. The dashed line shows where the beam will go.',
-      learn: 'However the beam is routed, the qubit feels the same π pulse. In a real chip the drive comes down a wire, and only its phase and area matter to the qubit, not the route.' },
+      learn: 'However the beam is routed, the qubit feels the same π pulse (the game takes the optical phase of each route as calibrated out). In a real chip the drive comes down a wire, and what the qubit responds to is the phase and area that arrive, not the route.' },
     { id: 'half', title: 'Half a pulse', w: 6, h: 4,
       lasers: [{ x: 0, y: 1, dir: 0 }], qubits: [{ x: 4, y: 1, start: '|0⟩', target: '|−i⟩' }],
       inv: { atten: 1 }, par: { pieces: 1, fires: 1 },
