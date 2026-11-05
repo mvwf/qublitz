@@ -68,6 +68,14 @@
     border:1px solid rgba(255,209,102,.45);color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:7px 12px;text-align:center;
     pointer-events:none;transition:opacity .4s;z-index:1}
   .note b{color:#ffd166} .note.fade{opacity:0}
+  .predict{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:min(640px,94%);background:rgba(8,13,25,.95);
+    border:1px solid #b18cff;color:#e8eef7;font-size:13px;line-height:1.4;border-radius:10px;padding:8px 12px;z-index:1}
+  @media(max-width:700px){.predict{position:static;transform:none;width:auto;margin:0 8px 8px}}
+  .predict .pq{margin:0 0 6px} .predict .pq b{color:#d6c4ff}
+  .predict .pc{display:flex;flex-wrap:wrap;gap:6px}
+  .predict .pc button{background:rgba(177,140,255,.12);color:#fff;border-color:rgba(177,140,255,.6);padding:4px 9px;text-align:left}
+  .predict .pc button.skip{background:transparent;color:#9fb2cc;border-color:rgba(255,255,255,.25)}
+  .predict .pr{margin:6px 0 0} .predict .pr .ok{color:#9cf09f;font-weight:700} .predict .pr .no{color:#ffb36b;font-weight:700}
 
   .side{display:flex;flex-direction:column;gap:12px}
   .box{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;font-size:13px}
@@ -90,6 +98,9 @@
   .q .fb i{display:block;height:100%;background:#e0b040}
   .q .fb i.ok{background:var(--green2)}
   .q .tag{font-size:11.5px;color:var(--muted)}
+  .q .ok{color:var(--green2);font-weight:700} .q .no{color:#b4561a;font-weight:600}
+  .rule{margin:0 0 6px} .rule b{color:var(--ink)}
+  .bar .goal{font-size:12.5px}
   .lab{display:inline-block;border:1px solid var(--green);color:var(--green);border-radius:7px;padding:5px 10px;text-decoration:none;font-size:13px;margin-top:6px}
   .lab.empty{pointer-events:none;opacity:.45}
   .keys{font-size:12px;color:var(--muted);margin:6px 0 0}
@@ -110,6 +121,7 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/beamline.js"></script>
 <a class="back" href="../index.html#labs">&larr; All demos</a>
 <h1>🔦 Beamline <span>route a laser pulse to set each qubit</span></h1>
 <p class="sub">A puzzle about pulses. The laser is a resonant drive: a pulse turns every qubit it passes through, about an axis set by its
@@ -118,7 +130,7 @@
 
 <div class="game">
   <div class="stage" id="stage">
-    <div class="bar"><span id="barTitle"><b>Beamline</b></span><span class="sp"></span><span id="barPar"></span>
+    <div class="bar"><span id="barTitle"><b>Beamline</b></span><span class="goal" id="barGoal"></span><span class="sp"></span><span id="barPar"></span>
       <button id="toMenuTop" title="Levels (Esc)">Levels</button></div>
     <canvas id="board" aria-label="The board: lasers, mirrors and pieces, and a Bloch sphere for each qubit with its gold target"></canvas>
 
@@ -126,7 +138,7 @@
       <h2>Beamline<small>ROUTE THE PULSE · SET THE PHASE · CHOOSE THE AREA</small></h2>
       <p>Each level teaches one idea about driving qubits. Earn <b>★★</b> by using no more than par pieces and <b>★★★</b> by also firing no more than par times. <b>Sandbox</b> has no targets and as many pieces as you like.</p>
       <div class="levels" id="levelGrid"></div>
-      <div class="row"><button class="go" id="sandbox">Sandbox ▶</button></div>
+      <div class="row"><button class="go" id="sandbox">Sandbox ▶</button><button id="menuQuiz" title="A few questions on what the levels teach, and two ratings">Debrief</button></div>
       <p class="best" id="menuStars"></p>
     </div>
 
@@ -147,11 +159,12 @@
         <button class="go" id="next">Next level ▶</button>
         <button id="again">Play again</button>
         <button id="toMenu">Levels</button>
-        <a class="btn" id="wonLab" target="_blank" rel="noopener" href="qubit-simulator.html">Run these pulses in the lab ↗</a>
+        <a class="btn" id="wonLab" target="_blank" rel="noopener" href="qubit-simulator.html">Try this in the Virtual Qubit Lab ↗</a>
       </div>
       <p class="best" id="wonBest"></p>
     </div>
     <div class="note fade" id="note"></div>
+    <div class="predict" id="predict" hidden role="group" aria-label="Predict before you fire"></div>
   </div>
 
   <div class="side">
@@ -169,11 +182,14 @@
     </div>
     <div class="box">
       <h3>Qubits <span id="qInfo"></span></h3>
+      <p class="keys rule" id="qRule">Solved when one <b>Fire</b> leaves every qubit on its gold target (a 99 % match). Each fire starts again from the start states.</p>
       <div id="qList"></div>
       <a class="lab empty" id="labGo" target="_blank" rel="noopener" href="qubit-simulator.html">Open qubit pulses in the Virtual Qubit Lab ↗</a>
     </div>
   </div>
 </div>
+
+<div id="learnPanel"></div>
 
 <div class="card">
   <h2>The physics</h2>
@@ -182,14 +198,15 @@
     Bloch vector about the equatorial axis (cos φ, sin φ, 0) by its area:</p>
   <div class="eq">H = (ħΩ/2)(cos φ σ<sub>x</sub> + sin φ σ<sub>y</sub>), &nbsp;&nbsp; θ = ∫Ω dt, &nbsp;&nbsp; P(1) = sin²(θ/2) starting from |0⟩</div>
   <ul>
-    <li><b>Mirror</b>: changes where the pulse goes, not the pulse. In a chip the drive arrives down a wire; only its phase and area reach the qubit.</li>
+    <li><b>Mirror</b>: changes where the pulse goes, not its area. In a chip the drive arrives down a wire; what reaches the qubit is its phase and area.</li>
     <li><b>Phase plate</b>: delays the drive by a quarter period, so φ → φ + 90°. That turns an x rotation into a y rotation; two plates reverse the sense of the turn.</li>
     <li><b>Attenuator</b>: −6 dB halves the field amplitude Ω. The pulse is just as long, so its area θ = Ω·t halves: π → π/2 → π/4.</li>
     <li><b>Order</b>: lasers fire one after another (1 then 2), and a beam that crosses a qubit twice turns it twice, in the order it arrives. Turns about different axes do not commute.</li>
   </ul>
   <p><b>What the game leaves out.</b> The beam keeps its full strength along the board (each qubit absorbs a negligible share), pulses are short
     enough that nothing decays while they fly (no T₁ or T₂ here), and there is no beam splitter: a passive 50/50 splitter would send θ/√2 down each
-    branch. A qubit's global phase is not shown: after a 2π turn the state is −|0⟩, which no measurement of that qubit alone can tell from |0⟩.</p>
+    branch. A real route also shifts the drive phase: every wavelength of path length and every mirror bounce adds carrier phase. The game takes
+    those as calibrated out (as an experiment does by tuning each line's delay), so only the phase plates change φ. A qubit's global phase is not shown: after a 2π turn the state is −|0⟩, which no measurement of that qubit alone can tell from |0⟩.</p>
   <p class="dl">Your best stars stay in this browser. Each solved level can open its pulses in the <a href="qubit-simulator.html">Virtual Qubit Lab</a>
     as square σx/σy pulses on a 50 MHz Rabi drive, where an attenuated pulse is the same length at half the amplitude.</p>
 </div>
@@ -213,6 +230,75 @@ let result = null;        // last fired run
 let shown = [];           // Bloch vectors drawn on each qubit (animated)
 let anim = null;          // { history, paths, t0, ... }
 
+/* ---------- outreach: events, the quit map, predictions and the end-of-activity debrief (web/shared/outreach.js) ---------- */
+const QLev = (name, data) => { if (window.QL) QL.event(name, data); };
+let qlStarted = false;
+const solvedThisVisit = new Set();
+const QLctx = (lvl, step) => { if (window.QL && QL.context) QL.context({ level: lvl, step }); };
+function playStart() {
+  if (!qlStarted) { qlStarted = true; QLev('start'); }
+  if (sandbox) QLev('mode', { level: 'sandbox' }); else QLev('level_start', { level: level.id });
+  QLctx(sandbox ? 'sandbox' : level.id, 'playing');
+}
+
+/* ---------- predict before you fire ----------
+ * On a few chosen levels, the first time the beamline you built gives a qubit the pulse a question is about, Fire
+ * first asks what will happen. The choices are items of web/learning/beamline.js (recorded with QL.answer, so the
+ * debrief skips them); markers 1-4 on the qubit's sphere show the states the choices name. Skippable, at most one per
+ * level, never asked again once answered. cond(run) checks the board really gives the pulse the question describes. */
+const hitsOn = (run, qi) => run.history.filter(h => h.qubit === qi);
+const PREDICT = {
+  phase: { item: 'plate-axis', qubit: 0, marks: ['|−i⟩', '|1⟩', '|+⟩', '|0⟩'],
+    cond: run => { const h = hitsOn(run, 0); return h.length === 1 && h[0].area === 0.5 && h[0].phase === 1; } },
+  twopi: { item: 'two-pi', qubit: 0, marks: ['|0⟩', '|1⟩', null, null],
+    cond: run => { const h = hitsOn(run, 0); return h.length === 2 && h.every(x => x.area === 1 && x.phase === h[0].phase); } },
+  eighth: { item: 'quarter-area', qubit: 0, marks: [null, null, null, null],
+    cond: run => { const h = hitsOn(run, 0); return h.length === 1 && h[0].area === 0.25; } },
+};
+const asked = new Set();     // levels whose question was shown this visit
+let predicting = null;       // { level, spec, item } while the card is open
+function maybePredict() {
+  if (sandbox || !window.QL || !QL.answer || !QL.spec) return false;
+  const P = PREDICT[level.id];
+  if (!P || asked.has(level.id)) return false;
+  const item = (QL.spec.quiz || []).find(q => q.id === P.item);
+  if (!item || !P.cond(E.run(level, placed))) return false;
+  asked.add(level.id);
+  predicting = { P, item };
+  const box = $('#predict');
+  box.innerHTML = `<p class="pq"><b>Predict before you fire</b> (qubit ${qName(P.qubit)}): ${item.q}</p><div class="pc">`
+    + item.choices.map((c, i) => `<button data-i="${i}">${i + 1} · ${c}</button>`).join('') + '<button class="skip" data-i="-1">Skip (Esc)</button></div>';
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => predictPick(+b.dataset.i)));
+  box.hidden = false;
+  QLctx(level.id, 'predict');
+  syncUI();
+  return true;
+}
+function predictPick(i) {
+  if (!predicting) return;
+  const { item } = predicting;
+  predicting = null;
+  const box = $('#predict');
+  QLctx(level.id, 'playing');
+  if (i < 0) { box.hidden = true; syncUI(); fire(true); return; }
+  const r = QL.answer(item.id, i);
+  box.innerHTML = `<p class="pr">${r && r.ok ? '<span class="ok">✓ Right.</span>' : `<span class="no">Not quite:</span> it is “${r ? r.choice : ''}”.`} ${r ? r.explain : ''} Watch it happen.</p>`
+    + '<div class="pc"><button class="skip" id="predictOk">OK</button></div>';
+  $('#predictOk').addEventListener('click', () => { box.hidden = true; });
+  syncUI(); fire(true);
+}
+function closePredictCard() { if (!predicting) $('#predict').hidden = true; }
+// Offer the debrief (the kit shows it once per page load) when a visit has covered a good share of the ideas: level 6
+// solved (area, phase, crosstalk and order along the beam), level 12 solved, or, for a returning player who starts
+// past level 6, any 4 levels solved in this visit.
+function maybeOfferQuiz() {
+  if (!window.QL) return;
+  if (idx === 5 || idx === E.LEVELS.length - 1 || (idx > 5 && solvedThisVisit.size >= 4))
+    setTimeout(() => QL.offerQuiz(idx === E.LEVELS.length - 1
+      ? 'You finished the last level. A 1-minute debrief: a few questions and what you thought of it.'
+      : 'Nice routing! A 1-minute debrief: a few questions and what you thought of it.'), 1200);
+}
+
 /* ---------- levels and modes ---------- */
 const SANDBOX = { id: 'sandbox', title: 'Sandbox', w: 9, h: 6,
   lasers: [{ x: 0, y: 2, dir: 0 }], qubits: [{ x: 4, y: 2, start: '|0⟩' }, { x: 6, y: 4, start: '|0⟩' }, { x: 6, y: 0, start: '|+⟩' }],
@@ -225,6 +311,7 @@ function nextLevelIndex() {
 function starSpan(n) { return '★'.repeat(n) + `<i>${'★'.repeat(3 - n)}</i>`; }
 function showMenu() {
   hideAll(); $('#menu').hidden = false; anim = null;
+  predicting = null; $('#predict').hidden = true; QLctx('menu', '');
   const nx = nextLevelIndex();
   $('#levelGrid').innerHTML = E.LEVELS.map((L, i) => `<button data-i="${i}" class="${i === nx ? 'next' : ''}"><b>${i + 1}. ${L.title}</b><span>${starSpan(S.stars[L.id] || 0)}</span></button>`).join('');
   $('#levelGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => showBrief(+b.dataset.i)));
@@ -235,6 +322,7 @@ function hideAll() { ['#menu', '#brief', '#won'].forEach(s => $(s).hidden = true
 function showBrief(i) {
   load(i);
   hideAll(); $('#brief').hidden = false;
+  QLctx(level.id, 'brief');
   $('#briefTitle').innerHTML = `${i + 1}. ${level.title}<small>${level.par ? `PAR ${level.par.pieces} PIECE${level.par.pieces > 1 ? 'S' : ''} · ${level.par.fires} FIRE${level.par.fires > 1 ? 'S' : ''}` : ''}</small>`;
   $('#briefText').innerHTML = level.brief;
   $('#briefLegend').innerHTML = Object.keys(level.inv).map(k => `<span><b>${E.PIECES[k].label} ×${level.inv[k]}</b> · ${E.PIECES[k].what}</span>`).join('');
@@ -242,6 +330,7 @@ function showBrief(i) {
 function load(i) {
   sandbox = i < 0; idx = i; level = sandbox ? JSON.parse(JSON.stringify(SANDBOX)) : E.LEVELS[i];
   placed = []; undoStack = []; fires = 0; hinted = false; result = null; anim = null;
+  predicting = null; $('#predict').hidden = true;
   tool = Object.keys(level.inv)[0];
   resetShown(); layout(); syncUI();
 }
@@ -258,11 +347,12 @@ function occupiedBy(x, y) {
 }
 const remaining = t => (level.inv[t] || 0) - placed.filter(p => p.type === t).length;
 function edit(fn) {
+  closePredictCard();
   undoStack.push(JSON.stringify(placed));
   fn(); resetShown(); syncUI();
 }
 function clickCell(x, y) {
-  if (anim) return;
+  if (anim || predicting) return;
   const occ = occupiedBy(x, y);
   if (sandbox && tool === 'qubit') {
     if (occ === 'qubit') { edit(() => { level.qubits = level.qubits.filter(q => !(q.x === x && q.y === y)); }); return; }
@@ -280,14 +370,15 @@ function clickCell(x, y) {
   if (remaining(tool) <= 0) { note(`No ${E.PIECES[tool].label.toLowerCase()}s left. Click a placed piece to pick it back up.`); return; }
   edit(() => placed.push({ x, y, type: tool, o: tool === 'mirror' ? '/' : undefined }));
 }
-function undo() { if (anim || !undoStack.length) return; placed = JSON.parse(undoStack.pop()); resetShown(); syncUI(); }
-function resetBoard() { if (anim || !placed.length) return; edit(() => { placed = []; }); }
+function undo() { if (anim || predicting || !undoStack.length) return; placed = JSON.parse(undoStack.pop()); resetShown(); syncUI(); }
+function resetBoard() { if (anim || predicting || !placed.length) return; edit(() => { placed = []; }); QLev('reset', { level: level.id }); }
 function hint() {
   if (anim || sandbox) return;
   const sol = level.solution;
   // first take away a piece that is not part of the solution, then add the next missing one, in beam order
   const wrong = placed.find(p => !sol.some(s => s.x === p.x && s.y === p.y && s.type === p.type && (s.o || null) === (p.o || null)));
   hinted = true;
+  QLev('hint', { level: level.id });
   if (wrong) { edit(() => { placed = placed.filter(p => p !== wrong); }); note(`Hint: the ${E.PIECES[wrong.type].label.toLowerCase()} at that square is not part of the solution, so it was taken off.`); return; }
   const miss = sol.find(s => !placed.some(p => p.x === s.x && p.y === s.y && p.type === s.type && (p.o || null) === (s.o || null)));
   if (!miss) { note('Every piece is in place: press <b>Fire</b>.'); return; }
@@ -296,11 +387,13 @@ function hint() {
 }
 
 /* ---------- firing ---------- */
-function fire() {
-  if (anim) return;
+function fire(afterPredict) {
+  if (anim || predicting) return;
+  if (afterPredict !== true && maybePredict()) return;
   fires++;
   resetShown();
   result = E.run(level, placed);
+  QLev('fire', { level: level.id, value: fires });
   if (REDUCE) { shown = result.states.slice(); anim = null; finish(); syncUI(); return; }
   // timeline: each laser's beam travels its path at CELLS_PER_S; a hit animates that qubit's turn over TURN_S
   const CELLS_PER_S = 9, TURN_S = 0.45;
@@ -323,7 +416,9 @@ function finish() {
   if (result.solved) {
     const n = E.stars(level, placed.length, fires, hinted), prev = S.stars[level.id] || 0;
     if (n > prev) { S.stars[level.id] = n; store.set('beamline:stars', S.stars); }
-    setTimeout(() => showWon(n, prev), 500);
+    QLev('level_complete', { level: level.id, stars: n });
+    solvedThisVisit.add(level.id);
+    setTimeout(() => { showWon(n, prev); maybeOfferQuiz(); }, 500);
   } else {
     const bad = result.fid.map((f, i) => [f, i]).filter(([f]) => f < E.WIN);
     const [f, i] = bad[0];
@@ -333,7 +428,8 @@ function finish() {
   }
 }
 function showWon(n, prev) {
-  hideAll(); $('#won').hidden = false;
+  hideAll(); $('#won').hidden = false; $('#predict').hidden = true;
+  QLctx(level.id, 'solved');
   $('#wonTitle').textContent = n > prev && prev ? 'New best!' : 'Solved!';
   $('#wonStars').innerHTML = starSpan(n);
   const par = level.par;
@@ -344,17 +440,27 @@ function showWon(n, prev) {
   const got = Object.values(S.stars).reduce((a, b) => a + b, 0);
   $('#wonBest').textContent = `${why} · ${got} of ${3 * E.LEVELS.length} stars`;
   const qi = level.qubits.findIndex(q => !q.spectator);
-  $('#wonLab').href = labUrl(qi);
+  setLab('#wonLab', labQuery(qi));
 }
 
 /* ---------- lab link ---------- */
-function labUrl(qi) {
+// The lab query for one qubit's pulses (free qubit at 5 GHz, 50 MHz Rabi drive, time-domain tab).
+function labQuery(qi) {
   const run = result || E.run(level, placed);
   const pulses = E.labPulses(run.history, qi, { fGHz: 0.05 }), items = [];
   for (const p of pulses) for (const [ch, a] of [['x', p.sx], ['y', p.sy]]) if (Math.abs(a) > 1e-4) items.push(`${ch}:${a.toFixed(4)}:${p.start.toFixed(3)}:${p.dur.toFixed(3)}`);
-  const u = new URL(LAB, location.href); u.searchParams.set('free', '5,50,10000,20000'); u.searchParams.set('tab', 'time');
-  if (items.length) u.searchParams.set('pulses', items.join(','));
-  return u.href;
+  const q = new URLSearchParams(); q.set('free', '5,50,10000,20000'); q.set('tab', 'time');
+  if (items.length) q.set('pulses', items.join(','));
+  return q.toString();
+}
+// Point a lab link at these pulses. Through the kit (QL.toLab adds ?from=beamline and counts the click) when it is
+// loaded; the anchor is replaced first so repeated calls do not stack click listeners.
+function setLab(sel, query) {
+  let a = $(sel);
+  if (a.dataset.q === query) return;
+  if (window.QL && QL.toLab) { const b = a.cloneNode(true); a.replaceWith(b); a = b; QL.toLab(a, query); }
+  else a.href = LAB + '?' + query;
+  a.dataset.q = query;
 }
 
 /* ---------- side panel ---------- */
@@ -363,7 +469,14 @@ function qubitText(i) {
   const q = level.qubits[i];
   return `<b>Qubit ${qName(i)}</b>: starts in ${q.start || '|0⟩'}` + (q.target != null ? `, target ${typeof q.target === 'string' ? q.target : E.stateName(E.vec(q.target))}${q.spectator ? ' (a spectator: keep it there)' : ''}` : '') + '.';
 }
+function targetName(q) { return typeof q.target === 'string' ? q.target : `the gold mark (${E.stateName(E.vec(q.target))})`; }
+function goalText() {
+  if (sandbox) return '';
+  return 'Goal: ' + level.qubits.map((q, i) => q.spectator ? `${qName(i)} stays ${targetName(q)}` : `${qName(i)} → ${targetName(q)}`).join(' · ');
+}
 function syncUI() {
+  $('#barGoal').textContent = goalText();
+  $('#qRule').hidden = sandbox;
   $('#barTitle').innerHTML = sandbox ? '<b>Sandbox</b> · no targets' : `<b>${idx + 1}. ${level.title}</b>`;
   $('#barPar').innerHTML = sandbox ? '' : `pieces <b>${placed.length}</b>/${level.par.pieces} · fires <b>${fires}</b>/${level.par.fires}` + (hinted ? ' · hint used' : '');
   const types = sandbox ? ['mirror', 'phase', 'atten', 'qubit'] : Object.keys(level.inv);
@@ -375,12 +488,15 @@ function syncUI() {
   $('#tray').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { tool = b.dataset.t; syncUI(); }));
   $('#trayInfo').textContent = sandbox ? 'unlimited' : `${placed.length} placed`;
   $('#undo').disabled = !undoStack.length || !!anim; $('#reset').disabled = !placed.length || !!anim;
-  $('#hint').disabled = sandbox || !!anim; $('#fire').disabled = !!anim; $('#clearRun').disabled = !result || !!anim;
+  $('#hint').disabled = sandbox || !!anim || !!predicting; $('#fire').disabled = !!anim || !!predicting; $('#clearRun').disabled = !result || !!anim;
   const run = result && !anim ? result : null;
   $('#qList').innerHTML = level.qubits.map((q, i) => {
     const r = shown[i], hasT = q.target != null, t = hasT ? E.vec(q.target) : null, f = hasT ? E.fidelity(r, t) : null;
-    return `<div class="q"><span class="nm">${qName(i)}</span><span class="st">${E.stateName(r)}${hasT ? ` <span class="tag">→ ${typeof q.target === 'string' ? q.target : 'gold mark'}</span>` : ''}</span>`
-      + `<span class="tag">${q.spectator ? 'spectator' : hasT ? (f >= E.WIN ? '✓' : `${(100 * f).toFixed(0)} %`) : ''}</span>`
+    const ok = hasT && f >= E.WIN;
+    const status = !hasT ? '' : q.spectator ? (ok ? '<span class="ok">✓ kept</span>' : '<span class="no">✗ moved</span>')
+      : ok ? '<span class="ok">✓ on target</span>' : `<span class="no">${(100 * f).toFixed(0)} % match</span>`;
+    return `<div class="q"><span class="nm">${qName(i)}</span><span class="st">${E.stateName(r)}${hasT ? ` <span class="tag">${q.spectator ? 'spectator: keep at' : 'target'} ${typeof q.target === 'string' ? q.target : 'the gold mark'}</span>` : ''}</span>`
+      + `<span class="tag">${status}</span>`
       + (hasT ? `<div class="fb"><i class="${f >= E.WIN ? 'ok' : ''}" style="width:${(100 * f).toFixed(1)}%"></i></div>` : '') + `</div>`;
   }).join('');
   $('#qInfo').textContent = run ? (sandbox ? 'after firing' : run.solved ? 'all on target ✓' : 'after firing') : 'start states';
@@ -388,7 +504,7 @@ function syncUI() {
   const hasHits = run && run.history.some(h => h.qubit === qi);
   $('#labGo').classList.toggle('empty', !hasHits);
   $('#labGo').textContent = `Open qubit ${qName(qi)}'s pulses in the Virtual Qubit Lab ↗`;
-  if (hasHits) $('#labGo').href = labUrl(qi);
+  if (hasHits) setLab('#labGo', labQuery(qi));
 }
 
 /* ---------- drawing ---------- */
@@ -523,7 +639,14 @@ function drawQubit(q, i, now) {
   g.fillStyle = 'rgba(190,210,240,.7)'; g.font = `${Math.max(8, CELL * 0.13)}px Helvetica,Arial`; g.textAlign = 'center';
   g.fillText('0', top[0], top[1] + 2); g.fillText('1', bot[0], bot[1] + 6);
   const r = shown[i] || [0, 0, 1];
-  if (q.target != null) {
+  const pr = predicting && predicting.P.qubit === i ? predicting.P : null;
+  if (pr) pr.marks.forEach((m, k) => {
+    if (!m) return;
+    const mp = P(E.vec(m));
+    g.fillStyle = 'rgba(177,140,255,.9)'; g.beginPath(); g.arc(mp[0], mp[1], Math.max(6, R * 0.2), 0, 7); g.fill();
+    label(String(k + 1), mp[0], mp[1], '#10081f', Math.max(8, R * 0.26));
+  });
+  if (q.target != null && !pr) {
     const t = E.vec(q.target), tp = P(t), f = E.fidelity(r, t), pulse = 0.7 + 0.3 * Math.sin(now / 250);
     g.strokeStyle = f >= E.WIN ? '#9cf09f' : `rgba(255,209,102,${pulse})`; g.lineWidth = 2.5;
     g.beginPath(); g.arc(tp[0], tp[1], Math.max(4, R * 0.2), 0, 7); g.stroke();
@@ -556,7 +679,7 @@ cv.addEventListener('click', e => {
   if (x < 0 || y < 0 || x >= level.w || y >= level.h) return;
   clickCell(x, y);
 });
-$('#fire').addEventListener('click', fire);
+$('#fire').addEventListener('click', () => fire());
 $('#undo').addEventListener('click', undo);
 $('#reset').addEventListener('click', resetBoard);
 $('#hint').addEventListener('click', hint);
@@ -564,13 +687,19 @@ $('#clearRun').addEventListener('click', () => { resetShown(); syncUI(); });
 $('#toMenuTop').addEventListener('click', showMenu);
 $('#toMenu').addEventListener('click', showMenu);
 $('#briefBack').addEventListener('click', showMenu);
-$('#briefGo').addEventListener('click', () => { hideAll(); note(level.brief.replace(/<\/?b>/g, m => m), 5); });
+$('#briefGo').addEventListener('click', () => { hideAll(); playStart(); note(level.brief.replace(/<\/?b>/g, m => m), 5); });
 $('#again').addEventListener('click', () => showBrief(idx));
 $('#next').addEventListener('click', () => showBrief(idx + 1));
-$('#sandbox').addEventListener('click', () => { load(-1); hideAll(); note('Sandbox: unlimited pieces. Add qubits with the <b>Qubit</b> tool, then fire and watch the states.', 5); });
+$('#menuQuiz').addEventListener('click', () => { if (window.QL) QL.showQuiz(); });
+$('#sandbox').addEventListener('click', () => { load(-1); hideAll(); playStart(); note('Sandbox: unlimited pieces. Add qubits with the <b>Qubit</b> tool, then fire and watch the states.', 5); });
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,select,textarea')) return;
   const k = e.key.toLowerCase();
+  if (predicting) {
+    if (k === 'escape') { e.preventDefault(); predictPick(-1); }
+    else if (/^[1-9]$/.test(k) && +k <= predicting.item.choices.length) { e.preventDefault(); predictPick(+k - 1); }
+    return;
+  }
   if (k === 'escape') { showMenu(); return; }
   if (!$('#menu').hidden || !$('#brief').hidden || !$('#won').hidden) { if (k === 'enter' && !$('#brief').hidden) $('#briefGo').click(); return; }
   if (k === 'f' || k === ' ') { e.preventDefault(); fire(); }
@@ -581,6 +710,7 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('resize', layout);
 
+if (window.QL) QL.panel('#learnPanel');
 // Start on the menu, with the first unsolved level loaded behind it.
 load(Math.max(0, nextLevelIndex()));
 showMenu();
