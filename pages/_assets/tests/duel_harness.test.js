@@ -547,6 +547,140 @@ const MINUS = { x: -1, y: 0, z: 0 };
     /lost/i.test(shielded[0]) && !/You won/.test(shielded[0]), shielded[0]);
 }
 
+// ── Case P — free-duel power-ups and the measurement reveal ───────────
+{
+  // P1. Detuned rotation at Δ = 0 is the resonant rotation.
+  const r0 = { x: 0.3, y: -0.4, z: Math.sqrt(1 - 0.25) };
+  const a = DuelCore.detunedRotate(r0, DuelCore.AXES.X, 1.1, 0);
+  const b = DuelCore.rotateBloch(r0, DuelCore.AXES.X, 1.1);
+  check('P1. detunedRotate(Δ=0) equals rotateBloch',
+    approx(a.x, b.x, 1e-12) && approx(a.y, b.y, 1e-12) && approx(a.z, b.z, 1e-12));
+
+  // P2. From |0⟩ the detuned drive never beats the Rabi ceiling Ω²/(Ω²+Δ²),
+  //     and it reaches it (at a generalised-π pulse).
+  const d = DuelCore.PICKUPS.detune.dOverO, ceil = 1 / (1 + d * d);
+  let pmax = 0;
+  for (let i = 0; i <= 4000; i++) {
+    const th = i / 4000 * 2 * Math.PI;
+    for (const ax of ['X', 'Y'])
+      pmax = Math.max(pmax, DuelCore.odds(DuelCore.detunedRotate(KET0, DuelCore.AXES[ax], th, d)));
+  }
+  check('P2. detuned X/Y drive from |0⟩ peaks at P(1) = 1/(1+(Δ/Ω)²)',
+    pmax <= ceil + 1e-9 && pmax >= ceil - 1e-4, `max ${pmax.toFixed(5)}, ceiling ${ceil.toFixed(5)}`);
+
+  // P3. Rotation stays unitary (|r| preserved).
+  const m = DuelCore.detunedRotate(r0, DuelCore.AXES.Y, 2.3, d);
+  check('P3. detunedRotate preserves |r|',
+    approx(Math.hypot(m.x, m.y, m.z), Math.hypot(r0.x, r0.y, r0.z), 1e-12));
+
+  // P4. resolveBeam: a detuned target cannot be shield-parked, T is unaffected.
+  const fixed = () => 0.5;   // fidelity 1 → σ = 0, so the draw does not matter
+  const onPlus = DuelCore.resolveBeam(PLUS, 'X', Math.PI, { fidelity: 1, rand: fixed, detune: d });
+  const tOnly = DuelCore.resolveBeam(PLUS, 'T', 0, { fidelity: 1, rand: fixed, detune: d });
+  const tRef = DuelCore.resolveBeam(PLUS, 'T', 0, { fidelity: 1, rand: fixed });
+  check('P4. detuned |+⟩ is not shielded from X; T-phase ignores detuning',
+    onPlus.detuned === true && onPlus.shielded === false &&
+    approx(tOnly.bloch.x, tRef.bloch.x, 1e-12) && approx(tOnly.bloch.y, tRef.bloch.y, 1e-12));
+
+  // P5. DRIVE ×2: same hold, twice the angle, still capped at π.
+  check('P5. driveTheta doubles θ for a given hold and caps at π',
+    approx(DuelCore.driveTheta(0.3, 2), 2 * DuelCore.chargeToTheta(0.3), 1e-12) &&
+    approx(DuelCore.driveTheta(0.6, 2), Math.PI, 1e-12) &&
+    approx(DuelCore.driveTheta(1.0, 2), Math.PI, 1e-12));
+
+  // P6. Reduced state of |Φ+⟩ is maximally mixed; of |0⟩|1⟩ is the poles.
+  const bell = QPhysics.Bell.phiPlus();
+  const ra = DuelCore.reducedBloch(bell, 0), rb = DuelCore.reducedBloch(bell, 1);
+  const z = { r: 0, i: 0 }, one = { r: 1, i: 0 };
+  const prod = [z, one, z, z];                       // |01⟩: qubit0 = |0⟩, qubit1 = |1⟩
+  const p0 = DuelCore.reducedBloch(prod, 0), p1 = DuelCore.reducedBloch(prod, 1);
+  const plusPlus = [{r:.5,i:0},{r:.5,i:0},{r:.5,i:0},{r:.5,i:0}];
+  const pp = DuelCore.reducedBloch(plusPlus, 0);
+  check('P6. reducedBloch: Φ+ → (0,0,0); |01⟩ → |0⟩,|1⟩; |++⟩ → +x',
+    [ra, rb].every(v => approx(v.x, 0, 1e-12) && approx(v.y, 0, 1e-12) && approx(v.z, 0, 1e-12)) &&
+    approx(p0.z, 1, 1e-12) && approx(p1.z, -1, 1e-12) && approx(pp.x, 1, 1e-12) && approx(pp.z, 0, 1e-12));
+
+  // P7. measureRoll exposes the draw it used, and outcome = [draw < p].
+  let consistent = true;
+  const rng = DuelCore.mulberry32(7);
+  for (let i = 0; i < 500; i++) {
+    const th = (i % 50) / 50 * Math.PI;
+    const r = DuelCore.rotateBloch(KET0, DuelCore.AXES.X, th);
+    const res = DuelCore.measureRoll(r, rng);
+    if (!(res.draw >= 0 && res.draw < 1) || res.outcome !== (res.draw < res.p ? 1 : 0)) consistent = false;
+  }
+  check('P7. measureRoll: outcome is 1 exactly when draw < P(|1⟩)', consistent);
+
+  // P8. Pickup rotation is fixed and every kind is catalogued.
+  check('P8. PICKUP_CYCLE covers six catalogued kinds, calib and tgate included',
+    DuelCore.PICKUP_CYCLE.length === 6 && DuelCore.PICKUP_CYCLE.every(k => DuelCore.PICKUPS[k]) &&
+    DuelCore.PICKUP_CYCLE.includes('calib') && DuelCore.PICKUP_CYCLE.includes('tgate'));
+}
+
+// ── Case E — the entangled pair is an exact two-qubit density matrix ──
+{
+  const Pr = DuelCore.Pair;
+  const rA = { x: 0.3, y: -0.5, z: 0.6 }, rB = { x: -0.2, y: 0.1, z: -0.7 };
+  const close = (u, v, e = 1e-12) => approx(u.x, v.x, e) && approx(u.y, v.y, e) && approx(u.z, v.z, e);
+  const R = Pr.fromBloch(rA, rB);
+  check('E1. a product pair reduces back to its two Bloch vectors',
+    close(Pr.reduced(R, 0), rA) && close(Pr.reduced(R, 1), rB) && Pr.negativity(R) < 1e-12);
+
+  check('E2. a local pulse on the pair equals rotateBloch on that half',
+    close(Pr.reduced(Pr.rotate(R, 0, DuelCore.AXES.Y, 1.3), 0), DuelCore.rotateBloch(rA, DuelCore.AXES.Y, 1.3)) &&
+    close(Pr.reduced(Pr.rotate(R, 1, DuelCore.AXES.X, 2.1), 1), DuelCore.rotateBloch(rB, DuelCore.AXES.X, 2.1)));
+
+  const T = { T1: 4, T2: 2, dt: 0.7 };
+  check('E3. pair decay on each half equals QPhysics.lindbladStep',
+    close(Pr.reduced(Pr.decay(R, 0, T), 0), QPhysics.lindbladStep(rA, T), 1e-12) &&
+    close(Pr.reduced(Pr.decay(R, 1, T), 1), QPhysics.lindbladStep(rB, T), 1e-12));
+
+  const none = Pr.cnot(Pr.fromBloch(KET0, rB), 0);
+  const flip = Pr.cnot(Pr.fromBloch(KET1, KET0), 0);
+  const bell = Pr.cnot(Pr.fromBloch(PLUS, KET0), 0);
+  check('E4. CNOT: control |0⟩ does nothing, |1⟩ flips, |+⟩|0⟩ makes |Φ+⟩',
+    close(Pr.reduced(none, 1), rB) && approx(DuelCore.odds(Pr.reduced(flip, 1)), 1, 1e-12) &&
+    approx(Pr.negativity(bell), 0.5, 1e-9) && approx(Pr.zz(bell), 1, 1e-12),
+    `N(Φ+) = ${Pr.negativity(bell).toFixed(6)}`);
+
+  // Comeback: with the control in superposition the target's P(|1⟩) is ½,
+  // whatever it was (half the branches flip it).
+  const low = { x: 0, y: 0, z: 1 - 2 * 0.05 };
+  const cb = Pr.cnot(Pr.fromBloch(PLUS, low), 0);
+  check('E5. entangling from |+⟩ turns a 5% target into exactly 50%',
+    approx(Pr.p1(cb, 1), 0.5, 1e-12), `${Pr.p1(cb, 1).toFixed(6)}`);
+
+  // No-signalling: anything done to A leaves B's reduced state alone.
+  const kicked = Pr.decay(Pr.rotate(bell, 0, DuelCore.AXES.Y, 0.9), 0, T);
+  check('E6. pulses and decay on one half never change the other half (no-signalling)',
+    close(Pr.reduced(kicked, 1), Pr.reduced(bell, 1), 1e-12));
+
+  const psi = Pr.rotate(bell, 0, DuelCore.AXES.X, Math.PI);
+  check('E7. an X π-pulse on one half turns MATCH into OPPOSITE and keeps the entanglement',
+    approx(Pr.zz(psi), -1, 1e-12) && approx(Pr.negativity(psi), 0.5, 1e-9));
+
+  const rng = DuelCore.mulberry32(99);
+  let same = 0, opp = 0, ones = 0;
+  for (let i = 0; i < 4000; i++) {
+    const m1 = Pr.measure(bell, 1, rng), m2 = Pr.measure(psi, 1, rng);
+    if ((m1.partnerP1 > 0.5 ? 1 : 0) === m1.outcome) same++;
+    if ((m2.partnerP1 > 0.5 ? 1 : 0) !== m2.outcome) opp++;
+    ones += m1.outcome;
+  }
+  check('E8. measuring |Φ+⟩ collapses the partner to the same outcome, |Ψ+⟩ to the opposite',
+    same === 4000 && opp === 4000 && Math.abs(ones / 4000 - 0.5) < 0.03, `P(1) = ${(ones / 4000).toFixed(3)}`);
+
+  // Entanglement sudden death: hotspot noise (T₁ 4 s, T₂ 2 s) on both halves
+  // destroys it within 2 s, while on the open chip (90 s / 30 s) it fades only as e^{−2t/T₂}.
+  const run = (Tq, secs) => { let r = bell; const st = { ...Tq, dt: 1 / 60 };
+    for (let i = 0; i < secs * 60; i++) r = Pr.decay(Pr.decay(r, 0, st), 1, st); return r; };
+  const hot = run({ T1: DuelCore.ZONE.HOT_T1, T2: DuelCore.ZONE.HOT_T2 }, 2), cold = run({ T1: K.T1_S, T2: K.T2_S }, 2);
+  let tr = 0; for (let i = 0; i < 4; i++) tr += hot.re[i * 5];
+  check('E9. hotspots kill entanglement within 2 s; open chip keeps most of it (trace stays 1)',
+    Pr.negativity(hot) < 1e-9 && Pr.negativity(cold) > 0.4 && approx(tr, 1, 1e-12),
+    `N hot ${Pr.negativity(hot).toExponential(1)}, cold ${Pr.negativity(cold).toFixed(3)}`);
+}
+
 // ── Case 8 — the campaign engine is untouched ─────────────────────────
 {
   const st = QPhysics.selfTest();
