@@ -2275,7 +2275,7 @@ const DuelInput = (() => {
       selfPressed:selfHeld && (prev[B.selfPulse] || 0) <= 0.25,
       selfReleased:fall(B.selfPulse),
       measurePressed:rise(B.measure), entanglePressed:rise(B.entangle), pausePressed:rise(B.pause),
-      replayPressed:rise(B.entangle), confirmPressed:rise(B.measure),
+      replayPressed:rise(B.entangle), confirmPressed:rise(B.measure), quitPressed:rise(1),
       beamPrevPressed:rise(B.beamPrev), beamNextPressed:rise(B.beamNext),
       beamDirect:rise(B.beamX) ? 'X' : rise(B.beamY) ? 'Y' : rise(B.beamT) ? 'T' : null,
       anyActive:buttons.some(v => v > 0.25),
@@ -2836,7 +2836,7 @@ const DUEL = (() => {
              inHot: false };
   }
 
-  function start(seed, mission, keepMatch) {
+  function start(seed, mission, keepMatch, opts) {
     initPools();
     S.seed = seed || (Date.now() & 0xffffffff);
     S.rand = DuelCore.mulberry32(S.seed);
@@ -2865,6 +2865,10 @@ const DUEL = (() => {
     S.round = { winner: null, method: null, p: 0, endedAt: 0 };
     S.debrief = null; S.progress = null;
     S.introT = 2.4; S.shake = 0; S.flash = 0;
+    // Brief card (Rabi Rider style): the goal, the steps and the physics,
+    // before anything moves. Shown when a player starts from the menus.
+    S.briefing = !!(opts && opts.brief);
+    S.learnQ = [];
     S.announcer = ''; S.announceT = 0;
     S.rstat = { shieldedAgainstYou: 0, duds: 0, selfPulses: 0, hotspotTime: 0,
                 hotspotDefenseTime: 0, lastTheta: null };
@@ -2964,6 +2968,7 @@ const DUEL = (() => {
     sweep(300, 620, 0.14, 'sine', 0.12);
     if (ship.owner === 0 && S.ev) {
       if (!DuelCore.isEigenstate(ship.bloch, 'Z')) S.ev.selfSuperposed = true;
+      learn('self');
       S.selfPulses = (S.selfPulses || 0) + 1;
       if (S.rstat) S.rstat.selfPulses++;
       if (!DuelCore.isEigenstate(ship.bloch, 'Z')) S.ev.superposedShot = true;
@@ -3049,12 +3054,15 @@ const DUEL = (() => {
       target.shieldFlash = 0.4;
       spawnParts(10, p.x, p.y, '#9aa3cf', 90, 0.5);
       floatTxt(target, 'EIGENSTATE!', '#9aa3cf');
+      if (p.owner === 0) learn('shield');
       if (p.owner === 0 && S.rstat) S.rstat.shieldedAgainstYou++;
       sfxShield();
       return;
     }
     target.bloch = res.bloch;
     if (p.owner === 0 && S.ev) S.ev.hits++;
+    if (p.owner === 0) learn('hit');
+    if (p.owner === 1 && DuelCore.odds(target.bloch) > 0.4) learn('hurt');
     if (p.owner === 0 && p.beam === 'T' && wasCardinal && !DuelCore.isCardinal(res.bloch) && S.ev)
       S.ev.tCampBroken = true;
     target.arc = { from: before, to: res.bloch, t: 0 };
@@ -3147,6 +3155,7 @@ const DUEL = (() => {
       sfxDud();
       spawnParts(18, target.x, target.y, '#9aa3cf', 110, 0.6);
       floatTxt(target, 'DUD — reset to |0⟩', '#9aa3cf');
+      if (p.owner === 0) learn('dud');
       triggerFx('MEASURE → |0⟩ · NO WIN', '#9aa3cf', 0.12);
       if (p.owner === 0 && S.rstat) S.rstat.duds++;
     }
@@ -3196,6 +3205,7 @@ const DUEL = (() => {
     spawnParts(40, target.x, target.y, '#c97bff', 190, 1.0);
     floatTxt(target, neg > LINK_ENT_MIN ? `ENTANGLED · ${S.pairZZ >= 0 ? 'MATCH' : 'OPPOSITE'}` : 'CORRELATED (classical)', '#c97bff');
     if (p.owner === 0 && S.ev && neg > LINK_ENT_MIN) S.ev.entangled = true;
+    if (neg > LINK_ENT_MIN) learn('linked');
     sfxShield();
     tele('entangled', { by: p.owner === 0 ? 'player' : 'sage', negativity: +neg.toFixed(3) });
   }
@@ -3239,7 +3249,7 @@ const DUEL = (() => {
       sh.detuneUntil = S.t + P.durS;
     }
     floatTxt(sh, P.name, P.color);
-    if (sh.owner === 0) tele('pickup', { kind });
+    if (sh.owner === 0) { tele('pickup', { kind }); learn('pickup', kind); }
   }
 
   // Small world-space floater, reusing the campaign's float list shape.
@@ -3355,6 +3365,7 @@ const DUEL = (() => {
       // but the LOCAL T1/T2 if this ship is standing in a hotspot.
       const zone = DuelCore.zoneAt(sh.x, sh.y, S.zones);
       const oddsBeforeDecay = DuelCore.odds(sh.bloch);
+      if (zone && !sh.inHot && sh.owner === 0) learn('hotspot');
       sh.inHot = !!zone;
       // Linked: each qubit decays through its own channel on the pair's
       // density matrix (hotspots kill entanglement fast). syncPair() below.
@@ -3605,12 +3616,15 @@ const DUEL = (() => {
     if (!(dt > 0)) dt = 1 / 60;
     dt = Math.min(dt, 0.25);                       // tab-return clamp
     const t0 = performance.now();
-    S.introT = Math.max(0, S.introT - dt);
+    if (!S.briefing) S.introT = Math.max(0, S.introT - dt);
+    if (S.learnQ && S.learnQ.length && !S.paused && !S.briefing) {
+      S.learnQ[0].t += dt; if (S.learnQ[0].t > LEARN_S) S.learnQ.shift();
+    }
     S.announceT = Math.max(0, S.announceT - dt);
     S.shake = Math.max(0, S.shake - dt * 2.4);
     S.flash = Math.max(0, S.flash - dt * 2.8);
     pollGamepad();
-    if (!S.paused && !S.over) {
+    if (!S.paused && !S.over && !S.briefing) {
       if (S.hitStop > 0) {
         // Measurement reveal: the sim holds still while the roll is shown.
         S.hitStop = Math.max(0, S.hitStop - dt);
@@ -3702,9 +3716,11 @@ const DUEL = (() => {
     ctx.restore();
     drawHud();
     drawCoach();
+    drawLearn();
     drawReveal();
     drawAnnouncer();
-    if (S.paused) banner('PAUSED', 'ESC / MENU to resume');
+    if (S.paused) drawPauseMenu();
+    if (S.briefing) drawBrief();
     if (S.over) drawDebrief();
   }
 
@@ -3863,8 +3879,10 @@ const DUEL = (() => {
     const me = S.ships[0], foe = S.ships[1];
     // Opponent — top-left, with the live win-odds readout (§5).
     drawMiniSphere(ctx, 62, 74, 42, shownBloch(foe), foe.col, true);
+    const pvw = chargePreview(me, foe);
+    if (pvw && !S.selfAim) drawGhostVector(62, 74, 42, pvw.bloch);
     const od = DuelCore.odds(foe.bloch);
-    hudText('MEASURE ODDS', 118, 52, '#aeb8e6', 'var');
+    hudText('YOUR WIN CHANCE IF YOU MEASURE SAGE NOW', 118, 52, '#aeb8e6', 'var');
     ctx.font = `600 ${Math.round(BOARD * 0.045)}px 'Rajdhani','Space Grotesk',sans-serif`;
     ctx.fillStyle = od > 0.75 ? '#3fe08a' : od > 0.4 ? '#f5b73c' : '#ff5a72';
     ctx.textAlign = 'left';
@@ -3924,18 +3942,24 @@ const DUEL = (() => {
     ctx.textAlign = 'right';
     hudText(M ? (M.par ? `PAR ${M.par.s}s · ${M.par.shots} shot${M.par.shots === 1 ? '' : 's'}` : '')
               : `ROUND ${S.match.no} OF 3 · YOU ${S.match.you} – ${S.match.them} SAGE`, BOARD - 16, 40, '#aeb8e6');
-    hudText(`shots ${S.shotCount}   ${(S.t).toFixed(0)}s`, BOARD - 16, 60, '#6f79a8');
+    hudText(`shots ${S.shotCount}   ${(S.t).toFixed(0)}s   ·   ESC pause / menu`, BOARD - 16, 60, '#6f79a8');
     if (S.showPerf) hudText(`p95 ${p95().toFixed(2)}ms`, BOARD - 16, 80, '#3fe08a');
     ctx.textAlign = 'left';
 
     // Player — bottom-left.
     const by = BOARD - BAND;
     drawMiniSphere(ctx, 62, by + 74, 42, shownBloch(me), me.col, true);
-    hudText('YOUR QUBIT', 118, by + 34, '#aeb8e6');
+    if (pvw && S.selfAim) drawGhostVector(62, by + 74, 42, pvw.bloch);
     const myOdds = DuelCore.odds(me.bloch);
-    hudText(`their odds on you: ${(myOdds * 100).toFixed(0)}%`
-            + (me.inHot ? '   ·  IN HOTSPOT: discharging fast' : ''),
-            118, by + 54, me.inHot ? '#3fe08a' : myOdds > 0.6 ? '#ff5a72' : '#6f79a8');
+    hudText('YOUR QUBIT = YOUR HEALTH', 118, by + 34, '#aeb8e6');
+    // Health bar: green while you sit near |0⟩, red as Sage pushes you to |1⟩.
+    const hx = 300, hw = 170;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; roundRect(hx, by + 24, hw, 12, 3); ctx.fill();
+    ctx.fillStyle = myOdds > 0.6 ? '#ff5a72' : myOdds > 0.3 ? '#f5b73c' : '#3fe08a';
+    roundRect(hx, by + 24, hw * Math.max(0.03, 1 - myOdds), 12, 3); ctx.fill();
+    hudText(`risk: Sage's MEASURE would hit you ${(myOdds * 100).toFixed(0)}% of the time`
+            + (me.inHot ? ' · hotspot pulling you to |0⟩' : ''),
+            118, by + 54, me.inHot ? '#3fe08a' : myOdds > 0.6 ? '#ff5a72' : '#8f9ac4');
 
     // Charge bar with π-fraction ticks — the player reads pulse AREA.
     const kx = BOARD - 292;                       // control strip column (right)
@@ -3962,7 +3986,7 @@ const DUEL = (() => {
       hudText(lab, tx, byy + bh + 15, '#6f79a8');
     });
     ctx.textAlign = 'left';
-    hudText(S.charging ? (S.selfAim ? 'RELEASE — PULSE YOURSELF (defence)' : 'RELEASE TO FIRE')
+    hudText(S.charging ? chargePreviewText(me, foe)
                        : `${DUEL_CONTROLS.keyboard.attack} / LEFT-HOLD attack  ·  ${DUEL_CONTROLS.keyboard.selfPulse} / RIGHT-HOLD self-pulse`,
             bx, byy - 6, S.charging ? (S.selfAim ? '#2fe0d0' : '#f5b73c') : '#6f79a8');
 
@@ -4010,12 +4034,37 @@ const DUEL = (() => {
 
   // Mission checklist (Qubit Copter / Rabi Rider style): every step of the
   // mission, done ✓, the current one highlighted with its live progress.
+  // What releasing the charge right now would do, from the current states
+  // (the exact rotation, before pulse-fidelity error and flight time).
+  function chargePreview(me, foe) {
+    if (!S.charging || S.bell) return null;
+    const spec = DuelCore.BEAMS[S.beam] || DuelCore.BEAMS.X;
+    const th = spec.fixedTheta != null ? spec.fixedTheta : DuelCore.driveTheta(S.chargeT, rabiMult(me));
+    const who = S.selfAim ? me : foe;
+    let after;
+    if (!S.selfAim && spec.kind === 'attack' && detuneOf(foe))
+      after = DuelCore.detunedRotate(foe.bloch, DuelCore.AXES[spec.axis], th, detuneOf(foe));
+    else if (!S.selfAim && spec.kind === 'attack' && DuelCore.isEigenstate(foe.bloch, spec.axis))
+      after = foe.bloch;
+    else after = DuelCore.rotateBloch(who.bloch, DuelCore.AXES[spec.axis], th);
+    return { who, before: DuelCore.odds(who.bloch), after: DuelCore.odds(after), bloch: after, th };
+  }
+  function chargePreviewText(me, foe) {
+    const pv = chargePreview(me, foe);
+    if (!pv) return S.selfAim ? 'RELEASE: pulse YOUR qubit' : 'RELEASE TO FIRE';
+    const a = Math.round(pv.before * 100), b = Math.round(pv.after * 100), th = (pv.th / Math.PI).toFixed(2);
+    return S.selfAim
+      ? `RELEASE: ${th}π on YOU · your risk ${a}% → ${b}%${b < a - 2 ? ' (safer)' : b > a + 2 ? ' (riskier!)' : ''}`
+      : `RELEASE: ${th}π on Sage · your win chance ${a}% → ${b}%`;
+  }
+
   // Mission checklist height, so banners and the reveal can sit below it.
   const stepsOffset = () => {
     const M = DuelCore.DUEL_MISSIONS[S.mission];
     return M && M.steps ? 22 + M.steps.length * 20 + (M.drone ? 16 : 0) + 18 : 0;
   };
   function drawSteps(M) {
+    if (S.briefing) return;
     if (!M.steps) { wrapHud(M.brief, 118, BAND + 22, BOARD - 150, '#8f9ac4'); return; }
     const me = S.ships[0], foe = S.ships[1];
     const v = { foeOdds: DuelCore.odds(foe.bloch), myOdds: DuelCore.odds(me.bloch), t: S.t, fidelity: me.fidelity };
@@ -4084,7 +4133,7 @@ const DUEL = (() => {
     return [`Best shot: ${best.beam}-beam${sw} charged to ${frac}π (green mark on your charge bar) takes Sage from ${pct(pf)}% to ${pct(best.p1)}%`, '#aeb8e6'];
   }
   function drawCoach() {
-    if (!GAME.coach || S.introT > 0) return;
+    if (!GAME.coach || S.introT > 0 || S.briefing || S.paused) return;
     const h = coachHint(); if (!h) return;
     const y = BAND + VIEW_H - 14;
     ctx.save();
@@ -4156,6 +4205,125 @@ const DUEL = (() => {
     ctx.restore();
   }
 
+  // Dashed "after release" vector, same projection as drawMiniSphere.
+  function drawGhostVector(cx, cy, R, b) {
+    const sx = cx + R * (b.x * 0.7 + b.y * 0.3), sy = cy - R * b.z;
+    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  }
+
+  // ── Pause menu, brief card, first-time concept cards ─────────────────
+  function drawPauseMenu() {
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,7,15,0.92)'; ctx.fillRect(0, BAND, BOARD, VIEW_H);
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${canvasFontPx(20, 17)}px 'Press Start 2P',monospace`;
+    ctx.fillStyle = '#8b7dff'; ctx.fillText('PAUSED', BOARD / 2, BOARD * 0.43);
+    PAUSE_BTNS.forEach((b, i) => {
+      const q = pauseBtnRect(i);
+      ctx.fillStyle = i === 0 ? 'rgba(63,224,138,0.16)' : 'rgba(255,255,255,0.06)';
+      roundRect(q.x, q.y, q.w, q.h, 6); ctx.fill();
+      ctx.strokeStyle = i === 0 ? '#3fe08a' : 'rgba(174,184,230,0.5)'; ctx.lineWidth = 1;
+      roundRect(q.x, q.y, q.w, q.h, 6); ctx.stroke();
+      ctx.font = `700 ${Math.round(BOARD * 0.018)}px ${CANVAS_BODY}`;
+      ctx.fillStyle = '#e8ecff'; ctx.fillText(`${b.label}  ·  ${b.key}`, BOARD / 2, q.y + 22);
+    });
+    ctx.font = `500 ${Math.round(BOARD * 0.0145)}px ${CANVAS_BODY}`; ctx.fillStyle = '#8f9ac4';
+    ctx.fillText('Gamepad: MENU or A resume · X restart · B quit · click a button with the mouse', BOARD / 2, BOARD * 0.5 + 3 * 44 + 18);
+    ctx.restore();
+  }
+
+  function drawBrief() {
+    const M = DuelCore.DUEL_MISSIONS[S.mission];
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,7,15,0.97)'; ctx.fillRect(0, BAND, BOARD, VIEW_H);
+    const x0 = 70, w = BOARD - 140, cx = BOARD / 2; let y = BAND + 46;
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${canvasFontPx(15, 15)}px 'Press Start 2P',monospace`; ctx.fillStyle = '#f5b73c';
+    ctx.fillText(M ? `MISSION ${M.id + 1} · ${M.title}` : 'PHOTON DUEL · BEST OF 3', cx, y); y += 26;
+    ctx.font = `600 ${Math.round(BOARD * 0.0175)}px ${CANVAS_BODY}`; ctx.fillStyle = '#2fe0d0';
+    ctx.fillText(M ? `Concept: ${M.concept}` : 'Concept: rotations, the Born rule and decoherence', cx, y); y += 26;
+    ctx.font = `500 ${Math.round(BOARD * 0.0165)}px ${CANVAS_BODY}`; ctx.fillStyle = '#cfd6ee';
+    const body = M ? M.brief
+      : 'Both ships carry one qubit, starting in |0⟩. Your beams are drive pulses that ROTATE Sage\'s qubit toward |1⟩. A MEASURE collapses it by the Born rule: it reads |1⟩ (you win the round) with probability P(1). Sage does the same to you, so YOUR qubit is your health: keep it near |0⟩.';
+    y = wrapCenteredLines(body, cx, y, w - 40) + 10;
+    const rows = M && M.steps ? M.steps.map((st, i) => `${i + 1}. ${st.text}`) : [
+      'SHIFT (hold, aim, release): rotate SAGE. Longer hold = bigger angle θ = Ω·t',
+      'F (hold, release): rotate YOURSELF. Lowers your risk, or puts you in superposition',
+      'SPACE: MEASURE Sage. Wins with probability P(1). A miss resets it to |0⟩',
+      'Hotspots: decay pulls a qubit to |0⟩ · E: entangle · ESC: pause / menu',
+    ];
+    ctx.textAlign = 'left'; ctx.font = `600 ${Math.round(BOARD * 0.016)}px ${CANVAS_BODY}`;
+    for (const r of rows) { ctx.fillStyle = '#e8ecff'; y = wrapLeftLines(r, x0 + 30, y, w - 60) + 4; }
+    ctx.textAlign = 'center';
+    if (M) {
+      ctx.font = `600 ${Math.round(BOARD * 0.015)}px ${CANVAS_BODY}`; ctx.fillStyle = '#8f9ac4';
+      y += 8;
+      ctx.fillText(`${M.drone ? 'Training drone: Sage flies but never shoots.' : 'Live opponent: Sage fights back.'}${M.par ? `   ★ clear · ★★ under ${M.par.s} s · ★★★ also ≤ ${M.par.shots} shots` : ''}`, cx, y);
+    }
+    ctx.font = `700 ${Math.round(BOARD * 0.02)}px ${CANVAS_BODY}`; ctx.fillStyle = '#ffd166';
+    ctx.fillText('▶ SPACE / ENTER / click to start     ·     ESC back', cx, BAND + VIEW_H - 30);
+    ctx.restore();
+  }
+  function wrapLines(txt, maxW) {
+    const words = txt.split(' '), out = []; let line = '';
+    for (const w of words) { const t = line ? line + ' ' + w : w;
+      if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }
+    if (line) out.push(line); return out;
+  }
+  function wrapCenteredLines(txt, cx, y, maxW) {
+    for (const l of wrapLines(txt, maxW)) { ctx.fillText(l, cx, y); y += Math.round(BOARD * 0.024); } return y;
+  }
+  function wrapLeftLines(txt, x, y, maxW) {
+    for (const l of wrapLines(txt, maxW)) { ctx.fillText(l, x, y); y += Math.round(BOARD * 0.023); } return y;
+  }
+
+  // First-time concept cards: the physics of a mechanic, once, the moment
+  // the player first meets it. Remembered across sessions; off with Coach.
+  const LEARN_S = 8;
+  const LEARN = {
+    hit:     ['YOU ROTATED SAGE\'S QUBIT', 'A beam is a resonant drive pulse. Holding longer gives a bigger angle θ = Ω·t; from |0⟩, P(1) = sin²(θ/2), so a full π-pulse takes it all the way to |1⟩.'],
+    self:    ['YOU ROTATED YOUR OWN QUBIT', 'A self-pulse is the same kind of rotation, aimed at you. Use it to bring your P(1) back down (less risk if Sage measures you), or to enter superposition before you entangle.'],
+    hurt:    ['SAGE ROTATED YOUR QUBIT', 'Your qubit is your health. Sage\'s MEASURE on you would now hit with probability P(1). Self-pulse back toward |0⟩ or fly into a hotspot, where T₁ decay pulls you down.'],
+    dud:     ['MEASURE READ |0⟩', 'The Born rule picked the other outcome. Measuring collapsed the qubit, so it is now exactly |0⟩: one full π-pulse puts it back at |1⟩.'],
+    hotspot: ['YOU ENTERED A HOTSPOT', 'This patch of chip is noisy: T₁ = 4 s pulls a qubit toward |0⟩ (safer for you) and T₂ = 2 s scrambles its phase. It drains Sage too, if Sage is in one.'],
+    shield:  ['EIGENSTATE: NO EFFECT', 'Sage sits on the axis of your beam. A rotation cannot move a vector that points along its own axis. Switch beam (1/2) or use a T-phase (3).'],
+    pickup:  ['POWER-UP', ''],
+    linked:  ['YOU ARE ENTANGLED', 'Neither qubit has a state of its own now: one MEASURE collapses both. Whether the outcomes MATCH or are OPPOSITE decides who a miss hurts.'],
+  };
+  let _seen = null;
+  function seen() {
+    if (_seen) return _seen;
+    try { _seen = new Set(JSON.parse(localStorage.getItem('qb_seen_concepts') || '[]')); } catch (e) { _seen = new Set(); }
+    return _seen;
+  }
+  function learn(id, extraText) {
+    if (!GAME.coach || !S.learnQ) return;
+    const key = id === 'pickup' ? 'pickup:' + extraText : id;
+    if (seen().has(key)) return;
+    seen().add(key);
+    try { localStorage.setItem('qb_seen_concepts', JSON.stringify([...seen()])); } catch (e) {}
+    const [title, text] = LEARN[id];
+    const P = id === 'pickup' ? DuelCore.PICKUPS[extraText] : null;
+    S.learnQ.push({ title: P ? `POWER-UP: ${P.name}` : title, text: P ? (P.physics || P.effect) : text, t: 0 });
+  }
+  function drawLearn() {
+    const c = S.learnQ && S.learnQ[0]; if (!c || S.briefing || S.paused) return;
+    const a = Math.min(1, c.t / 0.25, (LEARN_S - c.t) / 0.6); if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.font = `500 ${Math.round(BOARD * 0.0145)}px ${CANVAS_BODY}`;
+    const W = 330, lines = wrapLines(c.text, W - 24), H = 30 + lines.length * 17;
+    const x0 = BOARD - 14 - W, y0 = BAND + VIEW_H - 42 - H;
+    ctx.fillStyle = 'rgba(12,18,38,0.94)'; roundRect(x0, y0, W, H, 7); ctx.fill();
+    ctx.strokeStyle = '#2fe0d0'; ctx.lineWidth = 1; roundRect(x0, y0, W, H, 7); ctx.stroke();
+    ctx.font = `700 ${Math.round(BOARD * 0.015)}px ${CANVAS_BODY}`; ctx.fillStyle = '#2fe0d0';
+    ctx.fillText('WHAT JUST HAPPENED · ' + c.title, x0 + 12, y0 + 18);
+    ctx.font = `500 ${Math.round(BOARD * 0.0145)}px ${CANVAS_BODY}`; ctx.fillStyle = '#e8ecff';
+    lines.forEach((l, i) => ctx.fillText(l, x0 + 12, y0 + 36 + i * 17));
+    ctx.restore();
+  }
+
   // Tiny word-wrapper for the mission brief (the one place duel HUD has prose).
   function wrapHud(txt, x, y, maxW, col) {
     ctx.font = `500 ${Math.round(BOARD * 0.0155)}px ${CANVAS_BODY}`;
@@ -4178,6 +4346,7 @@ const DUEL = (() => {
   }
 
   function drawAnnouncer() {
+    if (S.briefing || S.paused) return;
     let label = '';
     if (S.introT > 0) {
       const beat = S.introT > 1.7 ? 'SYNC 3' : S.introT > 1.0 ? 'SYNC 2' : S.introT > 0.35 ? 'SYNC 1' : 'DUEL!';
@@ -4403,16 +4572,28 @@ const DUEL = (() => {
   }
   function pauseOrExit() {
     if (S.over) { exitDuel(S.mission >= 0); return; }
+    if (S.briefing) { exitDuel(S.mission >= 0); return; }
     S.paused = !S.paused;
     clearInput();
     announceA11y(S.paused ? 'Photon Duel paused.' : 'Photon Duel resumed.');
   }
   function replayRound() { if (S.over) start(S.seed, S.mission); }
+  function quitToMenu() { S.paused = false; clearInput(); exitDuel(S.mission >= 0); }
+  function restartFromPause() { S.paused = false; clearInput(); start(undefined, S.mission); }
+  function beginFromBrief() { if (!S.briefing) return false; S.briefing = false; clearInput(); ac(); return true; }
+  // Pause-menu buttons, in canvas coordinates (drawn by drawPauseMenu).
+  const PAUSE_BTNS = [
+    { id: 'resume',  label: 'RESUME',          key: 'ESC' },
+    { id: 'restart', label: 'RESTART',         key: 'R' },
+    { id: 'quit',    label: 'QUIT TO MENU',    key: 'Q' },
+  ];
+  const pauseBtnRect = i => ({ x: BOARD / 2 - 130, y: BOARD * 0.5 + i * 44, w: 260, h: 34 });
   function confirmDebrief() {
     if (!S.over) return;
     if (S.mission >= 0) {
       const next = S.round.winner === 0 ? nextTrainingMission(S.mission) : null;
-      start(undefined, next == null ? S.mission : next);
+      const nm = next == null ? S.mission : next;
+      start(undefined, nm, false, { brief: nm !== S.mission });
     } else nextRound();
   }
 
@@ -4425,6 +4606,14 @@ const DUEL = (() => {
     const pressed = down && !wasDown;
     if (pressed) S.inputDevice = 'KEYBOARD';
     if (pressed && k === kb.pause) { pauseOrExit(); e.preventDefault(); return; }
+    if (S.briefing) {
+      if (pressed && (k === kb.measure || k === kb.confirm)) { beginFromBrief(); e.preventDefault(); }
+      return;
+    }
+    if (S.paused && pressed) {
+      if (k === 'q') { quitToMenu(); e.preventDefault(); return; }
+      if (k === kb.replay) { restartFromPause(); e.preventDefault(); return; }
+    }
     if (pressed && k === kb.replay && S.over) { replayRound(); e.preventDefault(); return; }
     if (pressed && (k === kb.measure || k === kb.confirm) && S.over) { confirmDebrief(); e.preventDefault(); return; }
     // Beam select — 1 X (attack), 2 Y (attack), 3 T (phase, scarce).
@@ -4500,7 +4689,14 @@ const DUEL = (() => {
       return; // baseline held buttons: reconnect never replays an old action
     }
     if (f.anyActive || f.move.active || f.aim.active) S.inputDevice = 'GAMEPAD';
-    if (S.over) {
+    if (S.briefing) {
+      if (f.confirmPressed) beginFromBrief();
+      else if (f.pausePressed) pauseOrExit();
+    } else if (S.paused) {
+      if (f.pausePressed || f.confirmPressed) pauseOrExit();
+      else if (f.quitPressed) quitToMenu();
+      else if (f.replayPressed) restartFromPause();
+    } else if (S.over) {
       if (f.replayPressed) replayRound();
       else if (f.confirmPressed) confirmDebrief();
       else if (f.pausePressed) pauseOrExit();
@@ -4531,6 +4727,15 @@ const DUEL = (() => {
   }
   function onMouseDown(e) {
     if (MODE !== 'duel' || (e.button !== 0 && e.button !== 2)) return;
+    if (S.briefing) { beginFromBrief(); e.preventDefault(); return; }
+    if (S.paused && e.button === 0) {
+      const r = canvas.getBoundingClientRect();
+      const x = (e.clientX - r.left) * BOARD / r.width, y = (e.clientY - r.top) * BOARD / r.height;
+      PAUSE_BTNS.forEach((b, i) => { const q = pauseBtnRect(i);
+        if (x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h)
+          (b.id === 'resume' ? pauseOrExit : b.id === 'restart' ? restartFromPause : quitToMenu)(); });
+      e.preventDefault(); return;
+    }
     beginCharge(e.button === 2 ? 'self' : 'attack', `pointer-${e.button}`);
     e.preventDefault();
   }
@@ -4548,12 +4753,12 @@ const DUEL = (() => {
 
 // PD-1 — mode seams. Kept tiny and outside the DUEL closure so the D1
 // landing screen (PD-26) can call them directly.
-function startDuel(seed, mission) {
+function startDuel(seed, mission, opts) {
   closeModal();
   MODE = 'duel';
   document.body.classList.add('duel-mode');
   sizeCanvasBackingStore();
-  DUEL.start(seed, mission);
+  DUEL.start(seed, mission, false, opts);
 }
 function exitDuel(toMissions) {
   MODE = 'story';
@@ -4587,7 +4792,7 @@ function openMenu() {
   One arena. Real qubit physics. Choose your fight.</p>
 
 <div class="mode-grid" aria-label="Choose how to play">
-  <button class="mode-card" data-play-mode="photon-duel" onclick="startDuel()">
+  <button class="mode-card" data-play-mode="photon-duel" onclick="startDuel(undefined, undefined, {brief:true})">
     <span class="mode-kicker">COMPETITIVE · BEST OF 3</span>
     <strong>⚡ PHOTON DUEL</strong>
     <span class="mode-copy">Rotate Sage's qubit toward |1⟩ with pulse beams, then MEASURE it before they measure you. The coach tells you the best shot and why.</span>
@@ -4665,7 +4870,7 @@ function openDuelMissions() {
       ${m.par ? `<div class="mission-par">★ clear · ★★ under ${m.par.s} s · ★★★ also ≤ ${m.par.shots} shot${m.par.shots === 1 ? '' : 's'}</div>` : ''}
       <div class="mission-record">BEST · ${missionRecordText(m.id)}</div>
       ${done.includes(m.id) ? '<div class="mission-done">✓ CLEARED</div>' : ''}
-      <button class="btn" onclick="startDuel(undefined, ${m.id})">▶ ${done.includes(m.id) ? 'REPLAY' : 'FLY'} MISSION ${m.id + 1}</button>
+      <button class="btn" onclick="startDuel(undefined, ${m.id}, {brief:true})">▶ ${done.includes(m.id) ? 'REPLAY' : 'FLY'} MISSION ${m.id + 1}</button>
     </div>`).join('');
   document.getElementById('modal-content').innerHTML = `
 <h2>◈ DUEL TRAINING ◈</h2>
@@ -4679,7 +4884,7 @@ function openDuelMissions() {
 <h3>OPTIONAL QUANTUM MASTERY</h3>
 ${masteryPanelHTML()}
 ${rows}
-<button class="btn" onclick="startDuel()">⚡ FREE DUEL (no mission)</button>
+<button class="btn" onclick="startDuel(undefined, undefined, {brief:true})">⚡ FREE DUEL (no mission)</button>
 <button class="btn close-btn" onclick="openMenu()">◀ BACK</button>`;
   document.getElementById('modal-overlay').classList.add('show');
 }
