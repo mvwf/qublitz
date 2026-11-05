@@ -46,12 +46,16 @@
   .overlay h2 small{display:block;font-size:12.5px;font-weight:400;color:#9fb2cc;letter-spacing:.04em;margin-top:2px}
   .overlay p{max-width:620px;font-size:13.5px;color:#c7d3e6;margin:8px auto}
   .overlay p b{color:#fff}
-  .missions{display:grid;grid-template-columns:repeat(4,minmax(0,150px));gap:8px;margin:10px 0 4px}
+  .missions{display:grid;grid-template-columns:repeat(4,minmax(0,172px));gap:7px;margin:8px 0 4px}
   @media(max-width:640px){.missions{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .missions button{background:rgba(255,255,255,.06);color:#e8eef7;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 10px;text-align:left}
   .missions button b{display:block;font-size:13.5px}
   .missions button span{font-size:12px;color:#ffd166;letter-spacing:.1em}
   .missions button.next{border-color:#ffd166}
+  .missions button{padding:6px 9px}
+  .missions button i{font-style:normal;font-size:11.5px;color:#9fb2cc}
+  .missions button i+span{float:right;margin-left:6px}
+  .overlay .path{font-size:12px;color:#9fb2cc;letter-spacing:.06em;text-transform:uppercase;margin:6px 0 0}
   .overlay .go{font-size:15px;padding:9px 22px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
   .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;align-items:center}
   .overlay .row button:not(.go){background:transparent;color:#e8eef7;border-color:rgba(255,255,255,.3)}
@@ -102,6 +106,7 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/rider.js"></script>
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>🌀 Rabi Rider <span>ride a Rabi oscillation</span></h1>
 <p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
@@ -121,7 +126,8 @@
 
     <div class="overlay" id="menu">
       <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN · GRAB T₁+ TO FIGHT BACK</small></h2>
-      <p>Missions teach one idea each. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
+      <p>Missions teach one idea each, in order. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. Each mission pays up to three stars. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
+      <p class="path">Learning path: drive → decay → many runs → probability → measurement → gates</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
         <button class="go" id="free">Free play ▶</button>
@@ -132,6 +138,7 @@
         <label>ghosts <select id="optN" aria-label="Fly one run, or an ensemble of 240 runs with this many drawn as ghosts">
           <option value="1">1 run (single shot)</option><option value="6">6 of 240 runs</option><option value="12" selected>12 of 240 runs</option><option value="24">24 of 240 runs</option></select></label>
         <label><input type="checkbox" id="optSound" checked> sound</label>
+        <button id="learnBtn" title="Learning goals, instructions and a one-minute quiz, below the game">What you'll learn · quiz ↓</button>
       </div>
       <p class="best" id="menuBest"></p>
     </div>
@@ -202,6 +209,8 @@
     </div>
   </aside>
 </div>
+
+<div id="learnPanel"></div>
 
 <div class="card">
   <h2>The physics</h2>
@@ -356,9 +365,13 @@ function shootPhoton(th) { photons.push({ t: world.t, th, dir: (Math.random() - 
 let world = null, phase = 'menu', hist = [], pops = [], noteT = 0, flash = 0, overAt = 0, current = null, seed = null;
 function show(id) { ['#menu', '#brief', '#over', '#paused'].forEach(o => { $(o).hidden = o !== id; }); phase = id ? id.slice(1) : 'play'; syncStageButtons(); }
 const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+// what each mission teaches, shown on its menu button so the learning path is visible at a glance
+const TOPIC = { flight: 'Rabi rotation', photon: 'Quantum jumps', ensemble: 'The mean of many runs', pi: 'π pulse: |0⟩ → |1⟩',
+  equator: 'π/2 pulse, P(1) = ½', born: 'P(1) = sin²(θ/2)', collapse: 'Born rule, collapse', gates: 'θ → 180° − θ',
+  jumps: 'T₁ is a rate', upgrade: 'Engineering T₁', exam: 'Everything at once' };
 function syncMenu() {
   const next = E.MISSIONS.find(m => !S.stars[m.id]);
-  $('#missionGrid').innerHTML = E.MISSIONS.map((m, i) => `<button data-m="${m.id}" class="${m === next ? 'next' : ''}"><b>${i + 1}. ${m.title}</b><span>${starStr(S.stars[m.id] || 0)}</span></button>`).join('');
+  $('#missionGrid').innerHTML = E.MISSIONS.map((m, i) => `<button data-m="${m.id}" class="${m === next ? 'next' : ''}" title="${TOPIC[m.id] || ''}"><b>${i + 1}. ${m.title}</b>${TOPIC[m.id] ? `<i>${TOPIC[m.id]}</i>` : ''}<span>${starStr(S.stars[m.id] || 0)}</span></button>`).join('');
   $('#missionGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => brief(b.dataset.m)));
   const best = store.get('rider2:best', 0), got = Object.values(S.stars).reduce((a, b) => a + b, 0);
   $('#menuBest').innerHTML = `${got} of ${3 * E.MISSIONS.length} stars` + (best ? ` · best endless score ${best}` : '')
@@ -375,6 +388,16 @@ $('#again').addEventListener('click', () => start(current, current ? null : seed
 $('#toMenu').addEventListener('click', toMenu);
 $('#nextMission').addEventListener('click', () => { const i = E.MISSIONS.indexOf(current); if (i + 1 < E.MISSIONS.length) brief(E.MISSIONS[i + 1].id); else toMenu(); });
 $('#challenge').addEventListener('click', e => PageKit.copyLink(e.target, 'qublitz/rabi-rider.html', 'seed=' + encodeURIComponent(seed)));
+/* outreach: a few events per run (never per frame), and the quiz offered at a natural end point */
+const ql = (name, data) => { if (window.QL) QL.event(name, data); };
+let qlStarted = false, qlMode = '';
+const cleared = new Set();   // missions cleared during this visit
+function qlPlay(mode, T1) {
+  if (!qlStarted) { qlStarted = true; ql('start'); }
+  const key = mode + '|' + S.level;
+  if (key !== qlMode) { qlMode = key; ql('mode', { level: mode + ' ' + S.level, value: E.P.T1[S.level] }); }
+}
+$('#learnBtn').addEventListener('click', () => { const p = $('#learnPanel'); if (p.scrollIntoView) p.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 function toMenu() { syncMenu(); show('#menu'); if (typeof syncStageButtons === 'function') syncStageButtons(); }
 let freeplay = false;
 // N is the number of ghosts drawn: 1 flies a single run; otherwise the ensemble is E.P.RUNS runs and N of them are drawn
@@ -387,6 +410,8 @@ function start(m, again) {
   world = newWorld(m, S.N);
   photons = []; syncChip();
   hist = []; pops = []; noteT = 0; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons();
+  qlPlay(m ? 'mission' : 'endless');
+  if (m) ql('level_start', { level: m.id, value: world.T1 });
   if (m) note(m.brief, 6);
   else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go, but cyan <b>T₁+</b> chips make your qubit last longer.`, 5);
 }
@@ -394,6 +419,7 @@ function pause() { show('#paused'); syncStageButtons(); }
 function resume() { show(null); last = performance.now(); syncStageButtons(); }
 // Free play: no rings, no hearts; switch between one run and the ensemble mid-flight, keeping the state
 function startFree(N) {
+  qlPlay('free'); ql('free_view', { level: N === 1 ? 'single' : 'ensemble' });
   current = null; freeplay = true; seed = 'free-' + Math.random().toString(36).slice(2, 6);
   const prev = world && !world.over ? world : null;
   world = newWorld(null, N, { free: true, noReset: true });
@@ -462,8 +488,18 @@ function finish(ev) {
     $('#overTitle').textContent = w.cleared ? `✓ ${current.title}` : 'Decohered!';
     $('#overStars').textContent = starStr(stars);
     $('#overLearn').innerHTML = current.learn;
+    if (w.cleared) {
+      ql('level_complete', { level: current.id, stars, value: score });
+      cleared.add(current.id);
+      if (current.id === E.MISSIONS[E.MISSIONS.length - 1].id) ql('win', { level: current.id, stars });
+    } else ql('lose', { level: current.id, value: score });
+    if (w.cleared && window.QL && (current.id === 'collapse' || cleared.size >= 4))
+      setTimeout(() => QL.offerQuiz(current.id === 'collapse'
+        ? 'You have seen a measurement collapse every run. Want to check what you learned so far? It takes about a minute.'
+        : `${cleared.size} missions done. Want to check what you learned? It takes about a minute.`), 1200);
   } else {
     const prev = store.get('rider2:best', 0); if (score > prev) store.set('rider2:best', score);
+    ql('endless_over', { level: S.level, value: score, dur_s: w.t });
     $('#overTitle').textContent = score > prev && prev > 0 ? 'New best!' : 'Decohered!';
     $('#overBest').textContent = `Best ${Math.max(score, prev)} · course ${seed}`;
   }
@@ -749,6 +785,7 @@ function frame(now) {
   draw(now / 1000); drawSphere(); drawState();
   requestAnimationFrame(frame);
 }
+if (window.QL) QL.panel('#learnPanel');
 resize(); syncMenu(); show('#menu'); requestAnimationFrame(frame);
 </script>
 </body>
