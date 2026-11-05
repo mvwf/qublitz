@@ -68,11 +68,6 @@ engines are asked not to index it. It shows only what `?summary=1` returns: aggr
 
 The point of the counts is to make the games more fun and more educational. The cycle:
 
-1. **Review** the dashboard's Insights, weekly during term and after each outreach
-   event (filter by its `?event=` code in "Outreach sessions").
-2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as
-   the dashboard states it (e.g. "question q3: 38% correct of 52 answers; possible misconception: …", or
-   "level crosstalk: 9 completions of 31 starts"), and the proposed change.
 1. **Review** the dashboard's Insights, weekly during term and after each outreach event (filter the Report by its
    `?event=` code).
 2. **File a GitHub issue** labelled `feedback` for each thing worth changing, with the game, the evidence exactly as

@@ -5,13 +5,8 @@
  *         visitor, including a child, can hand over personal information); any text fields are dropped here. The
  *         old `feedback` tab (from earlier versions) is only ever emptied, by purgeOld (see RETAIN_DAYS).
  *         Everything is validated and capped again here; the browser is not trusted.
- *   GET   ?summary=1[&days=90]   aggregate counts as JSON for web/outreach/dashboard.html (no free text).
- *         Rows go to three tabs: events, quiz, feedback (the free text, kept apart so the dashboard never
- *         shows it). Everything is validated and capped again here; the browser is not trusted.
  *   GET   ?summary=1[&days=90][&from=YYYY-MM-DD&to=YYYY-MM-DD][&code=SCIFAIR26]   aggregate counts as JSON for
- *         web/outreach/dashboard.html (no free text). from/to replace days; code keeps only that outreach session.
- *   GET   ?review=1&key=K[&days=90]   the summary plus the free-text feedback rows, for the owner only: K must equal
- *         the Script Property REVIEW_KEY (Project Settings > Script properties). Otherwise the answer is "forbidden".
+ *         web/outreach/dashboard.html. from/to replace days; code keeps only that outreach session.
  *
  * Setup: tools/outreach-collector/README.md. The pure functions at the bottom (cleanEventRow, summarize) are
  * also loaded by web/shared/tests/outreach.test.js in Node.
@@ -53,13 +48,11 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
   if (!p.summary) return text_('outreach collector: ok');
-  var cache = CacheService.getScriptCache(), key = 'summary' + days + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
-  if (hit) return json_(hit);
-  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date()));
   var opts = { from: RE_DAY.test(p.from || '') ? p.from : '', to: RE_DAY.test(p.to || '') ? p.to : '', code: RE_CODE.test(p.code || '') ? p.code : '' };
-  var cache = CacheService.getScriptCache(), key = ['summary', days, opts.from, opts.to, opts.code].join('|'), hit = cache.get(key);
+  var cache = CacheService.getScriptCache();
+  var key = ['summary' + days, opts.from, opts.to, opts.code].join('|') + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
-  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), read_('feedback'), days, new Date(), opts));
+  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
   return json_(out);
 }

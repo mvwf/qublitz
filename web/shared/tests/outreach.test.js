@@ -68,6 +68,7 @@ check('summary reads day cells that Sheets stored as dates', S3.byDay['2026-11-0
 
 // the private review feed was removed with the free text: the collector exports no review helpers
 check('no review feed is exported', !('reviewFeed' in gs) && !('reviewKeyOk' in gs));
+
 // engagement totals, months, date ranges and the outreach-code filter (for the dashboard's report)
 const ER = [
   gs.cleanEventRow({ game: 'copter', ev: 'open', day: '2026-10-30', code: 'FAIR' }, now),
@@ -86,20 +87,9 @@ check('summary groups visits, minutes, completions and answers by month', E1.byM
 check('summary totals minutes and completions per outreach code', E1.codeTotals.FAIR.minutes === 10 && E1.codeTotals.FAIR.completes === 1);
 const E2 = gs.summarize(ER, EQ, [], 90, now, { from: '2026-11-01', to: '2026-11-02' });
 check('summary honours from/to (inclusive)', E2.since === '2026-11-01' && E2.until === '2026-11-02' && E2.games.copter.opens === 1 && !E2.games.rider && E2.quiz.copter.ingame === 1 && E2.quiz.copter.n === 0);
-const E3 = gs.summarize(ER, EQ, [[now, '2026-10-30', 'copter', 'FAIR', 'x', ''], [now, '2026-11-02', 'copter', '', 'y', '']], 90, now, { code: 'FAIR' });
-check('summary keeps only one outreach code when asked', E3.code === 'FAIR' && E3.games.copter.opens === 1 && E3.totalMinutes === 10 && E3.quiz.copter.n === 1 && !E3.quiz.copter.ingame && E3.feedbackCount.copter === 1);
+const E3 = gs.summarize(ER, EQ, [], 90, now, { code: 'FAIR' });
+check('summary keeps only one outreach code when asked', E3.code === 'FAIR' && E3.games.copter.opens === 1 && E3.totalMinutes === 10 && E3.quiz.copter.n === 1 && !E3.quiz.copter.ingame);
 check('summary ignores a malformed range or code', gs.summarize(ER, EQ, [], 90, now, { from: 'yesterday', code: '<x>' }).games.rider.leaves === 1);
-
-// the private review feed: free text only with the matching key, never in the summary
-const KEY = 'k3y-0f-at-least-16-chars';
-const fb = [qz.feedback];
-check('review key must match exactly', gs.reviewKeyOk(KEY, KEY) && !gs.reviewKeyOk(KEY.slice(0, -1) + 'X', KEY) && !gs.reviewKeyOk(undefined, KEY) && !gs.reviewKeyOk('', ''));
-check('review key check refuses an unset or short key', !gs.reviewKeyOk('short', 'short') && !gs.reviewKeyOk(null, null));
-const R = gs.reviewFeed(KEY, KEY, rows, [qz.quiz], fb, 90, now);
-check('review feed returns the free text with the right key', R && R.feedback.length === 1 && R.feedback[0].learned === 'phase sets the axis' && R.games.beamline.opens === 1);
-check('review feed returns nothing with a wrong or missing key', gs.reviewFeed('wrong-key-wrong-key-wrong', KEY, rows, [qz.quiz], fb, 90, now) === null &&
-  gs.reviewFeed(undefined, KEY, rows, [qz.quiz], fb, 90, now) === null && gs.reviewFeed(KEY, null, rows, [qz.quiz], fb, 90, now) === null);
-check('review feed respects the window', gs.reviewFeed(KEY, KEY, [], [], [[now, '2025-01-01', 'rider', '', 'old', '']], 90, now).feedback.length === 0);
 
 // insights: each rule fires below its threshold once enough people were measured, and flags rank by n × gap
 const IN = require(path.join(root, 'web/outreach/insights.js'));
@@ -160,6 +150,7 @@ check('collector stores the received day, not a time', /^\d{4}-\d{2}-\d{2}$/.tes
 const sk = kit.cleanQuiz('rider', { answers: [{ q: 'a', obj: 'o', pick: 1, ok: true }, { q: 'b', obj: 'o', pick: -1, ok: false }] }, ctx);
 const skg = gs.cleanQuizRows({ game: 'rider', answers: [{ q: 'a', pick: 1, ok: true }, { q: 'b', pick: -1, ok: false }] }, now);
 check('blank answers are dropped in the browser and the collector', sk.n === 1 && sk.score === 1 && skg.quiz[6] === 1);
+
 // report, redesign brief, issue link and before/after (web/outreach/report.js)
 const RP = require(path.join(root, 'web/outreach/report.js'));
 const repS = Object.assign({}, sum, { since: '2026-08-07', until: '2026-11-05', byMonth: { '2026-10': { beamline: { opens: 50, minutes: 200, completes: 30, debriefs: 10, ingame: 5 }, hub: { opens: 99, minutes: 9, completes: 0, debriefs: 0, ingame: 0 } },
