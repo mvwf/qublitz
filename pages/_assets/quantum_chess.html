@@ -1788,11 +1788,11 @@ const DuelCore = (() => {
         { text:'MEASURE (SPACE) before the odds are gone', done:ev => ev.won,
           progress:v => `${Math.max(0, 20 - v.t).toFixed(0)} s left` },
       ],
-      brief:'They start fully charged, but T₁ is bleeding them back to |0⟩ fast. Land the MEASURE inside 20 seconds — after that the odds are gone and so is the round.',
+      brief:'They start fully charged at |1⟩, and T₁ is draining them back toward |0⟩: watch their odds fall. Land the MEASURE inside the 20 s window. The deadline is a game rule; the physics is that every second you wait lowers your odds.',
       win:'T₁ conquered: an excited state is a perishable asset, not a bank balance.',
       hurry: 20,
       gate: ev => ev.elapsed > 20
-        ? { blocked:true, reason:'Too slow — T₁ already drained the charge you were aiming at. Restart and strike inside 20s.' }
+        ? { blocked:true, reason:'Too slow: the 20 s window closed while T₁ drained the charge you were aiming at. Restart and strike early.' }
         : { blocked:false } },
 
     { id:2, title:'THE BELL GAMBIT', concept:'Entanglement & correlated collapse',
@@ -1850,7 +1850,7 @@ const DuelCore = (() => {
         { text:'When the freeze ends it climbs again: MEASURE near the top', done:ev => ev.won,
           progress:v => `Sage ${Math.round(v.foeOdds * 100)}%` },
       ],
-      brief:'Sage is being driven: its P(1) climbs as sin²(Ωt/2). Measure it early and often (your MEASURE recharges in 1.5 s here): each dud snaps it back to |0⟩, and two duds inside 4 s freeze it there. When the freeze ends it climbs again: MEASURE it near the top.',
+      brief:'Sage is being driven: its P(1) climbs as sin²(Ωt/2). Measure it early and often (your MEASURE recharges in 1.5 s here): each dud snaps it back to |0⟩, where the climb restarts slowly. Two duds inside 4 s also freeze it for 2.5 s (a game rule standing in for measuring it nonstop). When the freeze ends it climbs again: MEASURE it near the top.',
       win:'Quantum Zeno: observation itself is the cage.',
       regen:true,
       gate: ev => ev.zenoLocked
@@ -2123,11 +2123,30 @@ function duelPickupsHTML() {
 function duelEntangleHTML() {
   const row = (k, v) => `<div class="lb-row"><span style="white-space:nowrap;margin-right:14px">${k}</span><span class="lb-val">${v}</span></div>`;
   return `<div class="lb-wrap" data-entangle="v1">
-    ${row('E is a CNOT', 'Your qubit is the control. At |0⟩ nothing happens; at |1⟩ it flips theirs; in superposition it entangles you (|+⟩|0⟩ → |Φ+⟩) and their odds become 50%.')}
+    ${row('E is a CNOT', 'Your qubit is the control. At |0⟩ nothing happens; at |1⟩ it flips theirs; in superposition it entangles you (|+⟩|0⟩ → |Φ+⟩). From an equal superposition (you at 50%) their odds become 50%, whatever they were.')}
     ${row('Match or opposite', 'A MEASURE on one half collapses both. If outcomes MATCH, a dud drops you to |0⟩ with them; if OPPOSITE, a dud leaves you at |1⟩.')}
     ${row('Flip it', 'An X or Y π-pulse on either half swaps MATCH and OPPOSITE. It cannot change the other side\'s odds (no signalling). Sage flips when it sees your MEASURE wind up.')}
     ${row('Keep it alive', 'Each qubit still decays: T₁/T₂ wear the link down, and a hotspot destroys it in about 2 s. Active reset breaks it instantly.')}
   </div>`;
+}
+// The site copy of this file carries the outreach kit (window.QL). When it has
+// registered this game's learning material, the hub lists the objectives and
+// offers the end-of-activity quiz. Without the kit (standalone, Streamlit)
+// this section is simply absent.
+function duelLearnHTML() {
+  const spec = (typeof window !== 'undefined' && window.QL && window.QL.spec) || null;
+  if (!spec || !Array.isArray(spec.objectives) || !spec.objectives.length) return '';
+  const row = t => `<div class="lb-row"><span>${t}</span></div>`;
+  const quiz = typeof window.QL.showQuiz === 'function';
+  return `<h3>WHAT YOU'LL LEARN</h3>
+<div class="lb-wrap" data-learn="v1">${spec.objectives.map(o => row(o.text)).join('')}</div>
+${spec.goals && spec.goals.length ? `<p style="color:var(--dim);font-size:var(--fs-0);margin:-2px 0 8px"><b style="color:var(--gold)">Goals:</b> ${spec.goals.join(' ')}</p>` : ''}
+${spec.fun ? `<p style="color:var(--dim);font-size:var(--fs-0);margin:0 0 8px"><b style="color:var(--gold)">Why it is fun:</b> ${spec.fun}</p>` : ''}
+<div class="support-actions">
+  ${quiz ? `<button class="btn" data-ql-quiz onclick="window.QL&&QL.showQuiz()">✎ DEBRIEF: WHAT DID YOU LEARN? (1 MIN)</button>` : ''}
+  ${typeof window.QL.labLink === 'function' ? `<a class="btn" data-ql-lab target="_blank" rel="noopener" style="text-decoration:none;text-align:center" href="${window.QL.labLink('tab=time')}" onclick="DUEL.ql('to_lab')">⚛ TRY IT IN THE VIRTUAL QUBIT LAB ↗</a>` : ''}
+</div>
+<p style="color:var(--dim);font-size:var(--fs-0);margin:6px 0 0">Between rounds and after each mission you may get one optional checkpoint question: shoot the answer you think is right, or press ESC to skip.</p>`;
 }
 function duelControlsHTML() {
   const k = DUEL_CONTROLS.keyboard, g = DUEL_CONTROLS.gamepad;
@@ -2571,6 +2590,10 @@ window.addEventListener('gamepaddisconnected', e => DUEL.onGamepadDisconnected(e
 // All in-play keys belong to the duel; DUEL.onKey ignores everything when a
 // modal is up or MODE isn't 'duel'.
 document.addEventListener('keydown', e => {
+  // The site's quiz dialog (outreach kit, site copy only) owns the keyboard
+  // while it is open: no key reaches the duel, and its own ESC handler closes
+  // it, so ESC must not also pause the game or close the hub behind it.
+  if (DUEL.quizOpen()) { DUEL.clearInput(); return; }
   if (MODE === 'duel') { DUEL.onKey(e, true); return; }
   if (e.key === 'Escape') { closeModal(); }
 });
@@ -2580,6 +2603,7 @@ document.addEventListener('keydown', e => {
 // structurally always true and nothing could ever write false. Hold W, let
 // go, and the sim kept reading W as held: the ship accelerated forever.
 document.addEventListener('keyup', e => {
+  if (DUEL.quizOpen()) { DUEL.clearInput(); return; }
   if (MODE === 'duel') { DUEL.onKey(e, false); return; }
 });
 
@@ -2620,6 +2644,54 @@ const DUEL = (() => {
   const BAND = (BOARD - VIEW_H) / 2;               // 150 top and bottom
   const w2sx = wx => wx * SCALE;
   const w2sy = wy => BAND + wy * SCALE;
+
+  // ── Outreach kit hooks. On the qublitz site, pages.yml appends the kit
+  //    (window.QL: anonymous counts and an end-of-activity quiz) to its copy
+  //    of this file. The standalone file and the Streamlit embed have no QL,
+  //    so every call is guarded and does nothing there.
+  function ql(name, data) {
+    try { if (typeof window !== 'undefined' && window.QL && window.QL.event) window.QL.event(name, data); }
+    catch (e) { /* the kit must never break the game */ }
+  }
+  function qlOffer(msg) {
+    try { if (typeof window !== 'undefined' && window.QL && window.QL.offerQuiz) window.QL.offerQuiz(msg); }
+    catch (e) {}
+  }
+  const quizOpen = () => typeof window !== 'undefined' && !!window.QL
+    && typeof document !== 'undefined' && !!document.querySelector('.ql-veil');
+  let qlClears = 0;                        // mission clears this visit (debrief offer on the third)
+  // Where the player is, for the kit's quit map: "mission 3|playing",
+  // "free round 2|debrief", "menu". Called on every change of place.
+  function qlContext(step, level) {
+    try {
+      if (typeof window === 'undefined' || !window.QL || !window.QL.context) return;
+      const M = DuelCore.DUEL_MISSIONS[S.mission];
+      const lv = level != null ? level : (M ? `mission ${M.id + 1}` : `free round ${S.match.no}`);
+      window.QL.context({ level: lv, step });
+    } catch (e) {}
+  }
+  // "Try this in the Virtual Qubit Lab": a small link shown on the debrief
+  // after a mission clear or a finished match (site copy only).
+  function qlLabChip(show) {
+    try {
+      if (typeof document === 'undefined') return;
+      let a = document.getElementById('ql-lab-chip');
+      if (!show) { if (a) a.hidden = true; return; }
+      if (!window.QL || !window.QL.toLab) return;
+      if (!a) {
+        a = document.createElement('a');
+        a.id = 'ql-lab-chip'; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = 'Try this in the Virtual Qubit Lab ↗';
+        a.title = 'Drive a lab-style qubit with real pulses: Rabi oscillations, T₁ and Ramsey';
+        a.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:9600;padding:9px 14px;border-radius:10px;' +
+          'background:rgba(12,18,38,0.95);border:1px solid #3fe08a;color:#3fe08a;font:700 14px "Space Grotesk",sans-serif;' +
+          'text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,0.5)';
+        window.QL.toLab(a, 'tab=time');
+        document.body.appendChild(a);
+      }
+      a.hidden = false;
+    } catch (e) {}
+  }
 
   const S = {
     active: false, paused: false, over: false,
@@ -2782,7 +2854,7 @@ const DUEL = (() => {
     clearInput();
     S.charging = false; S.chargeT = 0; S.chargeSource = null;
     S.round = { winner: null, method: null, p: 0, endedAt: 0 };
-    S.debrief = null; S.progress = null;
+    S.debrief = null; S.progress = null; S.cp = null;
     S.introT = 2.4; S.shake = 0; S.flash = 0;
     // Brief card (Rabi Rider style): the goal, the steps and the physics,
     // before anything moves. Shown when a player starts from the menus.
@@ -2818,8 +2890,11 @@ const DUEL = (() => {
     }
     tele('duel_load', { seed: S.seed, mission: S.mission,
                         concept: M ? M.concept : 'free-duel' });
+    if (!keepMatch) ql('start', { level: M ? `mission ${M.id + 1}` : 'free' });
+    qlLabChip(false);
+    qlContext(S.briefing ? 'brief' : 'playing');
   }
-  function stop() { clearInput(); S.active = false; }
+  function stop() { clearInput(); S.active = false; S.cp = null; qlLabChip(false); }
 
   // Best-of-3: keep the score, reset the arena. Match ends at 2.
   const matchOver = () => S.match.you >= 2 || S.match.them >= 2;
@@ -3098,8 +3173,9 @@ const DUEL = (() => {
   //   your qubit at |0⟩ → nothing happens
   //   your qubit at |1⟩ → their qubit is flipped (X)
   //   your qubit in superposition → entanglement (|+⟩|0⟩ → |Φ+⟩)
-  // and with a control in superposition the target's P(|1⟩) becomes 50%
-  // whatever it was, which is why entangling is the comeback move.
+  // and with a control in an equal superposition (P(1) = ½) the target's
+  // P(|1⟩) becomes 50% whatever it was, which is why entangling is the
+  // comeback move. (In general it becomes p + q − 2pq for target p, control q.)
   function landEntangle(p, target) {
     const shooter = S.ships[p.owner];
     if (S.bell) return;
@@ -3233,6 +3309,17 @@ const DUEL = (() => {
     S.round = { winner, method, p, endedAt: S.t };
     if (S.ev && winner === 0) S.ev.won = true;
     S.missionStars = (winner === 0 && S.mission >= 0) ? DuelCore.missionStars(S.mission, S.t, S.shotCount) : 0;
+    ql(won ? 'win' : 'lose', { level: S.mission >= 0 ? `mission ${S.mission + 1}` : 'round', value: +(p || 0).toFixed(3) });
+    if (won && S.mission >= 0) {
+      ql('level_complete', { level: S.mission + 1, stars: S.missionStars });
+      if (++qlClears === 3) setTimeout(() => qlOffer('Three missions cleared. A 1-minute debrief: what did you learn about qubits?'), 2500);
+    }
+    if (S.mission < 0 && matchOver()) {
+      ql(S.match.you > S.match.them ? 'win' : 'lose', { level: 'match', value: S.match.you });
+      setTimeout(() => qlOffer('Match over. A 1-minute debrief: what did you learn about qubits?'), 2500);
+    }
+    qlContext(S.mission < 0 && matchOver() ? 'match over' : won ? 'debrief won' : 'debrief lost');
+    if ((won && S.mission >= 0) || (S.mission < 0 && matchOver())) qlLabChip(true);
     triggerFx(winner === 0 ? 'ROUND WON · QUBIT COLLAPSED' : 'ROUND LOST · YOUR QUBIT COLLAPSED',
               winner === 0 ? '#3fe08a' : '#ff5a72', 0.75);
     if (winner === 0) sfxRoundWin(); else sfxRoundLoss();
@@ -3542,7 +3629,14 @@ const DUEL = (() => {
     S.announceT = Math.max(0, S.announceT - dt);
     S.shake = Math.max(0, S.shake - dt * 2.4);
     S.flash = Math.max(0, S.flash - dt * 2.8);
-    pollGamepad();
+    if (!S.paused && !S.over && !S.briefing && quizOpen()) {
+      S.paused = true; clearInput();                 // a quiz opened mid-round: hold the duel
+    }
+    if (!quizOpen()) pollGamepad();
+    if (S.cp) {                                      // checkpoint question between rounds
+      cpUpdate(dt);
+      if (S.cp) { drawCheckpoint(); return; }
+    }
     if (!S.paused && !S.over && !S.briefing) {
       if (S.hitStop > 0) {
         // Measurement reveal: the sim holds still while the roll is shown.
@@ -4494,12 +4588,13 @@ const DUEL = (() => {
     if (S.briefing) { exitDuel(S.mission >= 0); return; }
     S.paused = !S.paused;
     clearInput();
+    qlContext(S.paused ? 'paused' : 'playing');
     announceA11y(S.paused ? 'Photon Duel paused.' : 'Photon Duel resumed.');
   }
   function replayRound() { if (S.over) start(S.seed, S.mission); }
   function quitToMenu() { S.paused = false; clearInput(); exitDuel(S.mission >= 0); }
   function restartFromPause() { S.paused = false; clearInput(); start(undefined, S.mission); }
-  function beginFromBrief() { if (!S.briefing) return false; S.briefing = false; clearInput(); ac(); return true; }
+  function beginFromBrief() { if (!S.briefing) return false; S.briefing = false; clearInput(); ac(); qlContext('playing'); return true; }
   // Pause-menu buttons, in canvas coordinates (drawn by drawPauseMenu).
   const PAUSE_BTNS = [
     { id: 'resume',  label: 'RESUME',          key: 'ESC' },
@@ -4508,12 +4603,207 @@ const DUEL = (() => {
   ];
   const pauseBtnRect = i => ({ x: BOARD / 2 - 130, y: BOARD * 0.5 + i * 44, w: 260, h: 34 });
   function confirmDebrief() {
+    if (!S.over || S.cp) return;
+    if (startCheckpoint(advanceFromDebrief)) return;
+    advanceFromDebrief();
+  }
+  function advanceFromDebrief() {
     if (!S.over) return;
     if (S.mission >= 0) {
       const next = S.round.winner === 0 ? nextTrainingMission(S.mission) : null;
       const nm = next == null ? S.mission : next;
       start(undefined, nm, false, { brief: nm !== S.mission });
     } else nextRound();
+  }
+
+  // ── Checkpoint: an optional question, answered by shooting ───────────
+  // Site copy only (it needs the outreach kit's QL.spec / QL.answer). Between
+  // free-duel rounds, or after a mission clear, pressing ENTER on the debrief
+  // first offers one short question: it sits in the top band and its answers
+  // float in the arena as targets. Aim and fire (SHIFT, click, or 1–4) at one;
+  // QL.answer records it and a one-line explanation shows. ESC skips. At most
+  // one per round, never mid-round, and never the same question twice a visit.
+  const CP_PREF = ['born', 'decohere', 'entangle', 'rotate', 'eigen', 'zeno', 'rotate'];  // by mission id
+  const qlAsked = new Set();
+  function pickCheckpointItem() {
+    const QLr = typeof window !== 'undefined' ? window.QL : null;
+    const spec = QLr && typeof QLr.answer === 'function' && QLr.spec;
+    if (!spec || !Array.isArray(spec.quiz)) return null;
+    if (S.mission >= 0 ? S.round.winner !== 0 : matchOver()) return null;
+    const open = spec.quiz.filter(q => q.game && q.game.choices && !qlAsked.has(q.id));
+    const pref = S.mission >= 0 ? CP_PREF[S.mission] : null;
+    return open.find(q => q.objective === pref) || open[0] || null;
+  }
+  function startCheckpoint(then) {
+    const item = pickCheckpointItem();
+    if (!item) return false;
+    qlAsked.add(item.id);
+    clearInput();
+    const me = S.ships[0];
+    me.x = K.WORLD_W * 0.14; me.y = K.WORLD_H * 0.5; me.vx = me.vy = 0;
+    const n = Math.min(4, item.game.choices.length);
+    const spots = [[0.50, 0.27], [0.83, 0.27], [0.50, 0.73], [0.83, 0.73]].slice(0, n);
+    for (let i = spots.length - 1; i > 0; i--) {                 // visual shuffle (never the gameplay RNG)
+      const j = (Math.random() * (i + 1)) | 0; [spots[i], spots[j]] = [spots[j], spots[i]];
+    }
+    const targets = item.game.choices.slice(0, n).map((label, i) => ({
+      idx: i, label, x: spots[i][0] * K.WORLD_W, y0: spots[i][1] * K.WORLD_H, y: spots[i][1] * K.WORLD_H,
+      r: 30, ph: Math.random() * 6.28 }));
+    S.cp = { item, targets, shot: null, result: null, t: 0, resT: 0, sel: -1, then };
+    ql('checkpoint', { level: item.id });
+    qlContext('checkpoint');
+    announceA11y(`Checkpoint question: ${item.game.q} Answers: ${targets.map((t, i) => `${i + 1}, ${t.label}`).join('; ')}. Press 1 to ${n} or aim and fire. Escape skips.`);
+    return true;
+  }
+  function cpFire(i) {
+    const cp = S.cp; if (!cp || cp.result || cp.shot) return;
+    const me = S.ships[0];
+    if (i != null && cp.targets[i]) { const t = cp.targets[i]; S.aim = { x: t.x, y: t.y }; }
+    me.ang = Math.atan2(S.aim.y - me.y, S.aim.x - me.x);
+    cp.shot = { x: me.x + Math.cos(me.ang) * K.SHIP_R, y: me.y + Math.sin(me.ang) * K.SHIP_R,
+                vx: Math.cos(me.ang) * K.BEAM_SPEED, vy: Math.sin(me.ang) * K.BEAM_SPEED, ttl: 3 };
+    sfxFire();
+  }
+  function cpAnswer(t) {
+    const cp = S.cp; cp.shot = null;
+    let res = null;
+    try { res = window.QL.answer(cp.item.id, t.idx); } catch (e) { res = null; }
+    const ok = res ? res.ok : t.idx === cp.item.answer;
+    cp.result = { ok, pick: t.idx };
+    cp.resT = 0;
+    spawnParts(ok ? 40 : 18, t.x, t.y, ok ? '#3fe08a' : '#ff5a72', ok ? 200 : 110, 0.9);
+    if (ok) sfxRoundWin(); else sfxDud();
+    const right = cp.targets.find(x => x.idx === cp.item.answer);
+    announceA11y(`${ok ? 'Right.' : `Not quite: the answer is ${right ? right.label : ''}.`} ${cp.item.game.line || ''}`);
+  }
+  function endCheckpoint(skipped) {
+    const cp = S.cp; if (!cp) return;
+    if (skipped) ql('checkpoint_skip', { level: cp.item.id });
+    S.cp = null; clearInput();
+    cp.then();
+  }
+  // Keys while the checkpoint is up. Returns true when it consumed the key.
+  function cpKey(k, pressed) {
+    const cp = S.cp; if (!cp) return false;
+    if (!pressed) { if (k === DUEL_CONTROLS.keyboard.keys.attack) S.keys[k] = false; return true; }
+    const kb = DUEL_CONTROLS.keyboard.keys;
+    if (cp.result) {
+      if (cp.resT > 0.4 && (k === kb.pause || k === kb.attack || k === kb.measure || k === kb.confirm)) endCheckpoint(false);
+      return true;
+    }
+    if (k === kb.pause) { endCheckpoint(true); return true; }
+    const d = '1234'.indexOf(k);
+    if (d >= 0 && d < cp.targets.length) { cpFire(d); return true; }
+    if ([kb.up, kb.left, kb.aimUp, kb.aimLeft, kb.down, kb.right, kb.aimDown, kb.aimRight].includes(k)) {
+      const back = [kb.up, kb.left, kb.aimUp, kb.aimLeft].includes(k), n = cp.targets.length;
+      cp.sel = cp.sel < 0 ? (back ? n - 1 : 0) : (cp.sel + (back ? n - 1 : 1)) % n;
+      const t = cp.targets[cp.sel]; S.aim = { x: t.x, y: t.y };
+      return true;
+    }
+    if (k === kb.attack || k === kb.confirm || k === kb.measure) { cpFire(cp.sel >= 0 ? cp.sel : null); return true; }
+    return true;
+  }
+  function cpUpdate(dt) {
+    const cp = S.cp, me = S.ships[0];
+    cp.t += dt; if (cp.result) cp.resT += dt;
+    if (cp.sel >= 0 && !cp.result) { const t = cp.targets[cp.sel]; S.aim = { x: t.x, y: t.y }; }
+    else if (S.gamepad.aim.active) S.aim = { x: me.x + S.gamepad.aim.x * K.WORLD_W, y: me.y + S.gamepad.aim.y * K.WORLD_W };
+    me.ang = Math.atan2(S.aim.y - me.y, S.aim.x - me.x);
+    for (const t of cp.targets) t.y = t.y0 + Math.sin(cp.t * 1.1 + t.ph) * 22;
+    const s = cp.shot;
+    if (s) {
+      s.x += s.vx * dt; s.y += s.vy * dt; s.ttl -= dt;
+      const hit = cp.targets.find(t => (s.x - t.x) ** 2 + (s.y - t.y) ** 2 <= (t.r + 8) ** 2);
+      if (hit) cpAnswer(hit);
+      else if (s.ttl <= 0 || s.x < 0 || s.y < 0 || s.x > K.WORLD_W || s.y > K.WORLD_H) cp.shot = null;
+    }
+    for (const q of S.parts) {
+      if (!q.live) continue;
+      q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.94; q.vy *= 0.94;
+      q.life -= dt; if (q.life <= 0) q.live = false;
+    }
+    if (cp.result && cp.resT > 14) endCheckpoint(false);       // never strand a player who walked away
+  }
+  function cpWrap(text, maxW) {
+    const words = String(text).split(' '), lines = [];
+    let cur = '';
+    for (const w of words) {
+      const tryL = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(tryL).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tryL;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function drawCheckpoint() {
+    const cp = S.cp, me = S.ships[0];
+    ctx.clearRect(0, 0, BOARD, BOARD);
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, BOARD, BAND); ctx.fillRect(0, BOARD - BAND, BOARD, BAND);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, BAND, BOARD, VIEW_H); ctx.clip();
+    drawStarfield();
+    // Aim line, so a mouse player can see where the shot will go.
+    if (!cp.result) {
+      ctx.strokeStyle = 'rgba(255,90,114,0.35)'; ctx.setLineDash([6, 8]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(w2sx(me.x), w2sy(me.y));
+      ctx.lineTo(w2sx(me.x + Math.cos(me.ang) * K.WORLD_W), w2sy(me.y + Math.sin(me.ang) * K.WORLD_W));
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.textAlign = 'center';
+    ctx.font = `600 ${Math.round(BOARD * 0.0155)}px ${CANVAS_BODY}`;
+    cp.targets.forEach((t, i) => {
+      const x = w2sx(t.x), y = w2sy(t.y), R = t.r * SCALE;
+      const isAns = cp.result && t.idx === cp.item.answer, isPick = cp.result && t.idx === cp.result.pick;
+      const col = isAns ? '#3fe08a' : isPick ? '#ff5a72' : (i === cp.sel ? '#ffd166' : '#8b7dff');
+      ctx.globalAlpha = cp.result && !isAns && !isPick ? 0.35 : 1;
+      ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(x, y, R + Math.sin(cp.t * 3 + t.ph) * 1.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, R * 0.45, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = col;
+      ctx.font = `700 ${Math.round(BOARD * 0.0175)}px ${CANVAS_BODY}`;
+      ctx.fillText(String(i + 1), x, y + 6);
+      ctx.font = `600 ${Math.round(BOARD * 0.0155)}px ${CANVAS_BODY}`;
+      ctx.fillStyle = '#e8ecff';
+      cpWrap(t.label, BOARD * 0.27).slice(0, 3).forEach((ln, j) => ctx.fillText(ln, x, y + R + 18 + j * 16));
+      ctx.globalAlpha = 1;
+    });
+    if (cp.shot) {
+      const s = cp.shot, a = Math.atan2(s.vy, s.vx), x = w2sx(s.x), y = w2sy(s.y), len = 18 * SCALE;
+      ctx.strokeStyle = '#ff5a72'; ctx.lineWidth = 3; ctx.shadowColor = '#ff5a72'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * len, y - Math.sin(a) * len); ctx.lineTo(x, y); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    for (const q of S.parts) {
+      if (!q.live) continue;
+      ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.col;
+      ctx.beginPath(); ctx.arc(w2sx(q.x), w2sy(q.y), q.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    drawShip(me);
+    ctx.restore();
+    // Top band: the question, then the result.
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${canvasFontPx(11, 11)}px 'Press Start 2P',monospace`;
+    ctx.fillStyle = '#8b7dff';
+    ctx.fillText(cp.result ? (cp.result.ok ? '✓ RIGHT' : '✗ NOT QUITE') : 'CHECKPOINT · ONE QUICK QUESTION', BOARD / 2, 34);
+    ctx.font = `600 ${Math.round(BOARD * 0.02)}px ${CANVAS_BODY}`;
+    ctx.fillStyle = cp.result ? (cp.result.ok ? '#3fe08a' : '#ffb0bd') : '#e8ecff';
+    let body = cp.item.game.q;
+    if (cp.result) {
+      const right = cp.targets.find(x => x.idx === cp.item.answer);
+      body = (cp.result.ok ? '' : `Answer: ${right ? right.label : ''}. `) + (cp.item.game.line || '');
+    }
+    cpWrap(body, BOARD - 80).slice(0, 4).forEach((ln, j) => ctx.fillText(ln, BOARD / 2, 66 + j * 22));
+    // Bottom band: how to answer, and the way out.
+    ctx.font = `600 ${Math.round(BOARD * 0.0163)}px ${CANVAS_BODY}`;
+    ctx.fillStyle = '#aeb8e6';
+    ctx.fillText(cp.result
+      ? 'SHIFT / ENTER / click to continue'
+      : 'Aim with the mouse and fire (SHIFT or click), or press 1–4 · ESC skips', BOARD / 2, BOARD - BAND + 44);
+    ctx.font = `500 ${Math.round(BOARD * 0.0138)}px ${CANVAS_BODY}`;
+    ctx.fillStyle = '#6f79a8';
+    ctx.fillText('Optional. Your answer is anonymous and helps us improve the game.', BOARD / 2, BOARD - BAND + 68);
   }
 
   function onKey(e, down) {
@@ -4524,6 +4814,7 @@ const DUEL = (() => {
     S.keys[k] = down;
     const pressed = down && !wasDown;
     if (pressed) S.inputDevice = 'KEYBOARD';
+    if (S.cp) { cpKey(k, pressed); e.preventDefault(); return; }
     if (pressed && k === kb.pause) { pauseOrExit(); e.preventDefault(); return; }
     if (S.briefing) {
       if (pressed && (k === kb.measure || k === kb.confirm)) { beginFromBrief(); e.preventDefault(); }
@@ -4608,7 +4899,11 @@ const DUEL = (() => {
       return; // baseline held buttons: reconnect never replays an old action
     }
     if (f.anyActive || f.move.active || f.aim.active) S.inputDevice = 'GAMEPAD';
-    if (S.briefing) {
+    if (S.cp) {
+      if (S.cp.result) { if (S.cp.resT > 0.4 && (f.confirmPressed || f.attackPressed || f.pausePressed)) endCheckpoint(false); }
+      else if (f.pausePressed) endCheckpoint(true);
+      else if (f.attackPressed || f.confirmPressed) cpFire(null);
+    } else if (S.briefing) {
       if (f.confirmPressed) beginFromBrief();
       else if (f.pausePressed) pauseOrExit();
     } else if (S.paused) {
@@ -4647,6 +4942,10 @@ const DUEL = (() => {
   function onMouseDown(e) {
     if (MODE !== 'duel' || (e.button !== 0 && e.button !== 2)) return;
     if (S.briefing) { beginFromBrief(); e.preventDefault(); return; }
+    if (S.cp) {
+      if (e.button === 0) { if (S.cp.result) { if (S.cp.resT > 0.4) endCheckpoint(false); } else cpFire(null); }
+      e.preventDefault(); return;
+    }
     if (S.paused && e.button === 0) {
       const r = canvas.getBoundingClientRect();
       const x = (e.clientX - r.left) * BOARD / r.width, y = (e.clientY - r.top) * BOARD / r.height;
@@ -4666,7 +4965,7 @@ const DUEL = (() => {
   return { start, stop, frame, onKey, clearKeys:clearInput, clearInput,
            onMouseMove, onMouseDown, onMouseUp, onGamepadConnected, onGamepadDisconnected,
            setGamepadProvider, pollGamepad,
-           state: S, triggerFx, p95, coachHint, telemetry: () => S.tele.slice(),
+           state: S, triggerFx, p95, coachHint, telemetry: () => S.tele.slice(), ql, quizOpen, qlContext,
            togglePerf: () => (S.showPerf = !S.showPerf) };
 })();
 
@@ -4702,6 +5001,7 @@ function closeModal() {
 }
 
 function openMenu() {
+  DUEL.qlContext('hub', 'menu');
   const cleared = (GAME.duelDone || []).length;
   const total = DuelCore.DUEL_MISSIONS.length;
   const next = nextTrainingMission();
@@ -4717,13 +5017,14 @@ function openMenu() {
     <span class="mode-copy">Rotate Sage's qubit toward |1⟩ with pulse beams, then MEASURE it before they measure you. The coach tells you the best shot and why.</span>
     <span class="mode-status">PLAY FREE DUEL →</span>
   </button>
-  <button class="mode-card training" data-play-mode="duel-training" onclick="openDuelMissions()">
+  <button class="mode-card training" data-play-mode="duel-training" onclick="DUEL.ql('mode',{level:'training'});openDuelMissions()">
     <span class="mode-kicker">${cleared === 0 ? 'NEW? START HERE · ' : ''}GUIDED · ${total} CONCEPT MISSIONS</span>
     <strong>◈ DUEL TRAINING</strong>
     <span class="mode-copy">Master the same arena through missions that refuse the win until you use the quantum concept.</span>
     <span class="mode-status">${cleared}/${total} CLEARED · ${totalStars()}/${3 * total} ★${next == null ? ' · TRAINING COMPLETE' : ` · NEXT: MISSION ${next + 1}`} →</span>
   </button>
 </div>
+${duelLearnHTML()}
 <h3>CONTROLS</h3>
 ${duelControlsHTML()}
 <h3>ENTANGLEMENT</h3>
@@ -4758,7 +5059,7 @@ ${duelPickupsHTML()}
 </p>
 <p style="color:var(--dim);font-size:var(--fs-0);margin-bottom:6px;">
   Opponent:
-  <select id="diff-sel" onchange="GAME.difficulty=parseInt(this.value)"
+  <select id="diff-sel" onchange="GAME.difficulty=parseInt(this.value);DUEL.ql('mode',{level:['cadet','duelist','menace'][GAME.difficulty]})"
     style="background:#0c1226;border:2px solid var(--border);color:var(--gold);
            font-family:var(--font-body);font-weight:600;font-size:var(--fs-1);margin-left:8px;padding:2px 6px;">
     <option value="0"${GAME.difficulty===0?' selected':''}>CADET</option>
@@ -4776,6 +5077,7 @@ ${leaderboardHTML()}
 if (typeof window !== 'undefined') { window.openMenu = openMenu; window.closeModal = closeModal; }
 
 function openDuelMissions() {
+  DUEL.qlContext('missions', 'menu');
   const done = GAME.duelDone || [];
   const next = nextTrainingMission();
   const total = DuelCore.DUEL_MISSIONS.length;
