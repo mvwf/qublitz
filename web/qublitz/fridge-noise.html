@@ -40,7 +40,7 @@
   .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
   .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
-  @media(max-width:960px){.layout{grid-template-columns:1fr}}
+  @media(max-width:960px){.layout{grid-template-columns:minmax(0,1fr)}}
   .presets{display:flex;flex-wrap:wrap;gap:6px}
   .presets button{font-size:12.5px;padding:5px 10px}
 
@@ -65,7 +65,7 @@
   .out .bar i{display:block;height:100%;background:var(--c);transition:width .15s}
   .mxc .out .teff b{color:var(--accent)}
   @media(max-width:640px){
-    .fridge{grid-template-columns:1fr 92px}
+    .fridge{grid-template-columns:minmax(0,1fr) 92px}
     .fridge>.hdr.o{display:none}
     .out{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));border-top:none;padding-top:0}
   }
@@ -85,6 +85,22 @@
   th:first-child,td:first-child{text-align:left}
   th{font-weight:600;color:var(--muted);font-size:12px}
   .tablewrap{overflow-x:auto}
+  .pq{border:1px dashed var(--green2);border-radius:9px;background:#f7fbf8;padding:9px 12px;margin:8px 0;font-size:13.5px;line-height:1.45}
+  .pq-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pq-h b{color:var(--green)}.pq-h span{color:var(--muted);font-size:12px}
+  .pq-h .pq-skip{margin-left:auto;font-size:12px;padding:3px 10px}
+  .pq-q{margin:4px 0 6px}
+  .pq-ch{display:flex;flex-wrap:wrap;gap:6px}.pq-ch button{font-size:13px;text-align:left}
+  .pq-ch button[aria-pressed="true"]{border-color:var(--green);background:#e3f3ea;font-weight:600}
+  .pq-ch button.right{border-color:var(--green);background:#e3f3ea}.pq-ch button.wrong{border-color:#c84b31;background:#fdeae4}
+  .pq-ch button:disabled{opacity:1;cursor:default}
+  .pq-fb{margin:8px 0 0}
+  .pq-cover{filter:blur(8px) grayscale(.5);pointer-events:none;user-select:none}
+  .ck{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 12px}
+  .ck li{font-size:13px;line-height:1.45;padding:7px 10px 7px 34px;border:1px solid var(--line);border-radius:8px;position:relative;background:#fff}
+  .ck li::before{content:attr(data-n);position:absolute;left:9px;top:7px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);
+    font:600 11px/16px Helvetica,Arial,sans-serif;text-align:center;color:var(--muted)}
+  .ck li.done{background:#e9f6ef;border-color:#b9dcc8}
+  .ck li.done::before{content:'✓';background:var(--green);border-color:var(--green);color:#fff}
   label.chk{font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 </style>
 </head>
@@ -94,14 +110,27 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/fridge.js"></script>
 <a class="back" id="back" href="../index.html#research">&larr; All demos</a>
 <h1>❄️ Dilution Refrigerator Noise Explorer</h1>
 <p class="sub">A drive line carries room-temperature thermal noise down into the fridge. Each attenuator absorbs part of
   the noise coming in and adds back its own thermal noise at that stage's temperature. Change the stage temperatures and
   attenuations below to see how much thermal noise reaches the mixing chamber (MXC), where the qubit sits.</p>
+<div id="qlPanel"></div>
 
 <div class="layout">
 <div>
+  <div class="card" id="challenges">
+    <h2>Challenges <span id="ckCount" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
+    <ol class="ck">
+      <li data-step="no_atten" data-n="1"><b>See the problem.</b> Set every attenuator to 0 dB and read n<sub>eff</sub> at the MXC.</li>
+      <li data-step="warm_60" data-n="2"><b>Waste 60 dB.</b> Use at least 60 dB in total but still leave more than 10 thermal photons at the MXC.</li>
+      <li data-step="cold_line" data-n="3"><b>Spend it well.</b> With at most 60 dB in total and at most 30 dB on the MXC (its cooling power is small), get below 0.01 thermal photons at the MXC.</li>
+      <li data-step="warm_mxc" data-n="4"><b>Warm the MXC.</b> Keep an attenuator on the MXC and raise its temperature to 100 mK or more. Which noise takes over?</li>
+    </ol>
+    <div id="pqFridge"></div><div id="pqFridge2"></div>
+    <p class="hint" id="ckMsg" style="margin-bottom:0">Challenges are judged at 5 GHz with the other plates at their standard temperatures (Reset restores them).</p>
+  </div>
   <div class="card">
     <h2>Drive line, top to bottom <span style="text-transform:none;letter-spacing:0;font-weight:400">· values at <span class="val" id="frefLbl"></span></span></h2>
     <div class="row" style="margin-top:0"><span class="lbl">Try:</span>
@@ -198,11 +227,11 @@ const STAGES = [
 const DEFAULTS = { T:STAGES.map(s=>s.T), A:STAGES.map(s=>s.A), fMin:3, fMax:6, fRef:5, nPts:200, pIn:-60, cable:15 };
 
 const PRESETS = [
-  { label:'Typical line (20/20/20 dB)', A:[0,0,20,20,20] },
-  { label:'No attenuators', A:[0,0,0,0,0] },
-  { label:'All 60 dB at 4 K', A:[0,0,60,0,0] },
-  { label:'All 60 dB at the MXC', A:[0,0,0,0,60] },
-  { label:'Warm MXC (100 mK)', A:[0,0,20,20,20], T:{4:0.1} },
+  { id:'typical', label:'Typical line (20/20/20 dB)', A:[0,0,20,20,20] },
+  { id:'none',    label:'No attenuators', A:[0,0,0,0,0] },
+  { id:'all_4k',  label:'All 60 dB at 4 K', A:[0,0,60,0,0] },
+  { id:'all_mxc', label:'All 60 dB at the MXC', A:[0,0,0,0,60] },
+  { id:'warm_mxc', label:'Warm MXC (100 mK)', A:[0,0,20,20,20], T:{4:0.1} },
 ];
 
 /* ---------- build the fridge rows ---------- */
@@ -350,13 +379,115 @@ function render(){
       <td>${a.P.toFixed(1)}</td><td>${sci(a.perUs)}</td></tr>`).join('') + '</tbody>';
 
   drawPlot();
+  ckCheck(st);
   try { history.replaceState(null, '', toQuery(st) + location.hash); } catch (e) {}   // can throw for file:// pages
 }
+
+/* ---------- challenges and usage events (web/shared/outreach.js) ---------- */
+// Events mark presets and finished challenges, never individual edits.
+const ql = (name, data) => { try { if (window.QL) QL.event(name, data); } catch (e) {} };
+if (window.QL) QL.panel('#qlPanel');
+const CK = [
+  { id:'no_atten', ok:(st,n)=>st.A.every(a=>a===0),
+    msg:n=>`With no attenuators the MXC sees room-temperature noise: n<sub>eff</sub> ≈ ${sci(n)} photons at 5 GHz.` },
+  { id:'warm_60', ok:(st,n,std)=>std(4) && st.A.reduce((a,b)=>a+b,0) >= 60 && n > 10,
+    msg:n=>`${sci(n)} photons remain. An attenuator re-emits thermal noise at its own plate temperature, so whatever the last attenuator emits is what arrives.` },
+  { id:'cold_line', ok:(st,n,std)=>std(4) && st.A.reduce((a,b)=>a+b,0) <= 60 && st.A[4] <= 30 && n < 0.01,
+    msg:n=>`${sci(n)} photons at the MXC. Each attenuator needs enough dB to bring the noise from the plate above down to near its own plate's level, and the coldest plates do the final cleanup. The 30 dB cap stands in for heat: the power an attenuator absorbs heats its plate, and the MXC has only microwatts of cooling power. This page tracks noise, not heat.` },
+  { id:'warm_mxc', ok:(st,n,std)=>std(4, true) && st.T[4] >= 0.1 && st.A[4] >= 10,
+    msg:(n,st)=>`At ${F.formatTemp(st.T[4])} the MXC attenuator emits n̄ ≈ ${sci(F.thermalN(st.T[4], 5))} photons of its own, so n<sub>eff</sub> ≈ ${sci(n)}: the line can be no quieter than the plate its last attenuator sits on.` },
+];
+/* Predict-then-run checkpoints: one optional question before an experiment, scored with QL.answer
+ * (web/shared/outreach.js) and explained once the run shows the answer. Answered or skipped ones stay away. */
+function predict(host, itemId, opts = {}) {
+  const none = { reveal() {}, get open() { return false; } };
+  const q = window.QL && QL.answer && QL.spec && (QL.spec.quiz || []).find(x => x.id === itemId);
+  const box = typeof host === 'string' ? document.querySelector(host) : host;
+  if (!q || !box) return none;
+  const key = `pq:${QL.game}:${itemId}`;
+  const seen = () => { try { return localStorage.getItem(key); } catch (e) { return null; } };
+  const mark = () => { try { localStorage.setItem(key, '1'); } catch (e) {} };
+  if (seen()) return none;
+  const cover = (opts.cover || []).map(s => document.querySelector(s)).filter(Boolean);
+  cover.forEach(e => e.classList.add('pq-cover'));
+  box.innerHTML = `<div class="pq" role="group" aria-label="Prediction checkpoint"><div class="pq-h"><b>Predict first</b><span>an optional checkpoint</span>
+    <button type="button" class="pq-skip">Skip</button></div><p class="pq-q">${q.q}</p>
+    <div class="pq-ch">${q.choices.map((c, i) => `<button type="button" data-i="${i}" aria-pressed="false">${c}</button>`).join('')}</div>
+    <p class="pq-fb" hidden></p></div>`;
+  const fb = box.querySelector('.pq-fb'), btns = [...box.querySelectorAll('.pq-ch button')];
+  let res = null, pick = -1, over = false;
+  const finish = () => { over = true; cover.forEach(e => e.classList.remove('pq-cover')); };
+  const api = {
+    get open() { return !over; },
+    reveal() {
+      if (over) return;
+      finish();
+      if (!res) { box.innerHTML = ''; return; }     // ran without predicting: just step aside
+      btns.forEach((b, i) => { if (i === res.answer) b.classList.add('right'); else if (i === pick) b.classList.add('wrong'); });
+      fb.innerHTML = `<b>${res.ok ? 'Right.' : 'Not quite.'}</b> ${res.explain}`;
+      if (opts.onDone) opts.onDone(res);
+    },
+  };
+  btns.forEach(b => b.addEventListener('click', () => {
+    if (res) return;
+    pick = +b.dataset.i; res = QL.answer(itemId, pick); mark();
+    btns.forEach(x => { x.disabled = true; x.setAttribute('aria-pressed', String(x === b)); });
+    box.querySelector('.pq-skip').remove();
+    fb.hidden = false; fb.innerHTML = opts.then || 'Locked in. Now run it and see.';
+    if (opts.revealOnPick) api.reveal();
+  }));
+  box.querySelector('.pq-skip').addEventListener('click', () => {
+    mark(); finish(); box.innerHTML = '';
+    try { QL.event('skip', { level: itemId }); } catch (e) {}
+    if (opts.onDone) opts.onDone(null);
+  });
+  return api;
+}
+const ck = { done:new Set(), started:false };
+// Two predict-then-check questions, one after the other: the bare line, then 60 dB on the 4 K plate.
+let pq = predict('#pqFridge', 'room', { then:'Locked in. Now press <b>No attenuators</b> (or set every attenuator to 0 dB) and read n<sub>eff</sub> at the MXC.', onDone:()=>nextPq() });
+let pqStage = pq.open ? 'room' : null;
+function nextPq(){
+  if (pqStage === 'warm4k') { pqStage = null; return; }
+  setTimeout(()=>{
+    pq = predict('#pqFridge2', 'warm4k', { then:'Locked in. Now press <b>All 60 dB at 4 K</b> and read n<sub>eff</sub> at the MXC.', onDone:()=>{ pqStage = null; } });
+    pqStage = pq.open ? 'warm4k' : null;
+  }, 0);
+}
+if (!pqStage) nextPq();
+function pqCheck(st){
+  const std = st.T.every((T,i)=>Math.abs(T - DEFAULTS.T[i]) <= 1e-9 * DEFAULTS.T[i]);
+  if (pqStage === 'room' && st.A.every(a=>a===0)) { pqStage = 'room-shown'; pq.reveal(); }
+  if (pqStage === 'warm4k' && std && st.A[2] >= 60 && st.A.every((a,i)=>i===2 || a===0)) pq.reveal();
+}
+function ckRender(){
+  try { if (window.QL) QL.context({ level:'challenges', step:(CK.find(c=>!ck.done.has(c.id)) || { id:'done' }).id }); } catch (e) {}
+  document.querySelectorAll('#challenges li').forEach(li=>li.classList.toggle('done', ck.done.has(li.dataset.step)));
+  $('#ckCount').textContent = `· ${ck.done.size} of ${CK.length} done`;
+}
+function ckCheck(st){
+  // std(i, skipMxc): plates other than the MXC (and the MXC too unless skipMxc) are at their standard temperatures
+  const std = (_, skipMxc) => st.T.every((T,i)=>(skipMxc && i===4) || Math.abs(T - DEFAULTS.T[i]) <= 1e-9 * DEFAULTS.T[i]);
+  const n = F.propagateChain([5], st.T, st.A).nEff[4][0];
+  if (ck.started) pqCheck(st);
+  for (const c of CK) if (!ck.done.has(c.id) && c.ok(st, n, std)) {
+    ck.done.add(c.id); ckRender();
+    $('#ckMsg').innerHTML = `<b>Challenge done.</b> ${c.msg(n, st)}`;
+    ql('level_complete', { level:c.id, value:ck.done.size });
+    if (ck.done.size === CK.length) ql('win');
+    if (ck.done.size >= 3 && window.QL) QL.offerQuiz(ck.done.size === CK.length
+      ? 'All four challenges done. A 1-minute debrief: a few questions and what you thought.'
+      : 'Nice work on the challenges. A 1-minute debrief helps us improve this page.');
+  }
+}
+function touched(){ if (!ck.started) { ck.started = true; ql('start'); } }
+ckRender();
 
 /* ---------- events ---------- */
 let pending = 0;
 const schedule = () => { cancelAnimationFrame(pending); pending = requestAnimationFrame(render); };
 document.querySelectorAll('input[type=number]').forEach(el=>el.addEventListener('input', ()=>{
+  touched();
   if (el.id === 'fMin' || el.id === 'fMax') syncRef();
   schedule();
 }));
@@ -366,7 +497,8 @@ $('#presets').addEventListener('click', e=>{
   const p = PRESETS[+b.dataset.k], st = readState();
   st.A = p.A.slice(); st.T = DEFAULTS.T.slice();
   if (p.T) for (const [i,v] of Object.entries(p.T)) st.T[i] = v;
-  writeState(st); render();
+  touched(); writeState(st); render();
+  ql('preset', { level:p.id });
 });
 $('#plotTabs').addEventListener('click', e=>{
   const b = e.target.closest('.tab'); if (!b) return;
@@ -375,7 +507,7 @@ $('#plotTabs').addEventListener('click', e=>{
   drawPlot();
 });
 $('#logY').addEventListener('change', e=>{ logPref[plotId] = e.target.checked; drawPlot(); });
-$('#reset').addEventListener('click', ()=>{ writeState(structuredClone(DEFAULTS)); render(); });
+$('#reset').addEventListener('click', ()=>{ writeState(structuredClone(DEFAULTS)); render(); ql('reset'); });
 $('#copyLink').addEventListener('click', async e=>{
   const b = e.target, url = STANDALONE ? SITE + 'qublitz/fridge-noise.html' + location.search : location.href;
   try { await navigator.clipboard.writeText(url); b.textContent = 'Copied'; }

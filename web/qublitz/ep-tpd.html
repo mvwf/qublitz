@@ -56,6 +56,22 @@
     border-left:1.5px solid currentColor;border-right:1.5px solid currentColor;border-radius:6px}
   .math p{font-size:13.5px;margin:10px 0 2px}
   details summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
+  .pq{border:1px dashed var(--green2,#12855a);border-radius:9px;background:#f7fbf8;padding:9px 12px;margin:8px 0;font-size:13.5px;line-height:1.45}
+  .pq-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pq-h b{color:var(--green)}.pq-h span{color:var(--muted);font-size:12px}
+  .pq-h .pq-skip{margin-left:auto;font-size:12px;padding:3px 10px}
+  .pq-q{margin:4px 0 6px}
+  .pq-ch{display:flex;flex-wrap:wrap;gap:6px}.pq-ch button{font-size:13px;text-align:left}
+  .pq-ch button[aria-pressed="true"]{border-color:var(--green);background:#e3f3ea;font-weight:600}
+  .pq-ch button.right{border-color:var(--green);background:#e3f3ea}.pq-ch button.wrong{border-color:#c84b31;background:#fdeae4}
+  .pq-ch button:disabled{opacity:1;cursor:default}
+  .pq-fb{margin:8px 0 0}
+  .pq-cover{filter:blur(8px) grayscale(.5);pointer-events:none;user-select:none}
+  .ck{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 12px}
+  .ck li{font-size:13px;line-height:1.45;padding:7px 10px 7px 34px;border:1px solid var(--line);border-radius:8px;position:relative;background:#fff}
+  .ck li::before{content:attr(data-n);position:absolute;left:9px;top:7px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);
+    font:600 11px/16px Helvetica,Arial,sans-serif;text-align:center;color:var(--muted)}
+  .ck li.done{background:#e9f6ef;border-color:#b9dcc8}
+  .ck li.done::before{content:'✓';background:var(--green);border-color:var(--green);color:#fff}
 </style>
 </head>
 <body>
@@ -64,12 +80,25 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/ep-tpd.js"></script>
 <a class="back" id="back" href="../index.html#research">&larr; All demos</a>
 <h1>🎯 Exceptional Points &amp; Transmission Peak Degeneracies</h1>
 <p class="sub">Explore where exceptional points (EPs) and transmission-peak degeneracies (TPDs) coincide in a tunable
   magnon&ndash;photon dimer. Based on A. S. Carney, J. S. Salcedo-Gallo, S. K. Bedkihal &amp; M. Fitzpatrick,
   <a href="https://link.aps.org/doi/10.1103/mfq8-gzsj" target="_blank" rel="noopener">The Role of Exceptional Points and
   Transmission Peak Degeneracies in Non-Hermitian Sensing</a>, <i>Phys. Rev. Applied</i> <b>25</b>, 064031 (2026).</p>
+<div id="qlPanel"></div>
+
+<div class="card" id="challenges">
+  <h2>Challenges <span id="ckCount" style="text-transform:none;letter-spacing:0;font-weight:400"></span></h2>
+  <ol class="ck">
+    <li data-step="move_kc" data-n="1"><b>Which marker moves?</b> Keep φ fixed and change the cavity damping κ̃<sub>c</sub> by at least 1. Watch the red × (EP) and the red ○ (TPD).</li>
+    <li data-step="axis" data-n="2"><b>Line them up.</b> Find the coupling phase φ that puts the primary EP and the primary TPD both on the Δ̃<sub>f</sub> axis (Δ̃<sub>κ</sub> = 0).</li>
+    <li data-step="coincide" data-n="3"><b>Make them meet.</b> Bring the primary TPD within 0.05 of the primary EP (the distance is under the table on the right).</li>
+  </ol>
+  <div id="pqEp"></div>
+  <p class="hint" id="ckMsg" style="margin-bottom:0">Each challenge ticks itself when the sliders meet its goal.</p>
+</div>
 
 <div class="card">
   <h2>Dynamical matrix of the dimer</h2>
@@ -95,6 +124,7 @@
   </div>
   <div class="card">
     <h2>Primary EP and TPD peak splitting</h2>
+    <div id="pqSplit"></div>
     <div id="split"></div>
     <p class="hint">Along a cut through the primary EP: the transmission peaks <i>&nu;</i><sub>&plusmn;</sub> (purple) merge at
       the TPD, while the eigenvalues |Im <i>&lambda;</i><sub>&plusmn;</sub>| (black, dashed) merge at the EP.
@@ -114,6 +144,7 @@
   <div class="card">
     <h2>Degeneracies at these settings</h2>
     <table id="degTable"></table>
+    <p class="hint" id="epDist" style="margin-bottom:0"></p>
   </div>
   <p class="hint" id="offlineHint"><a href="ep-tpd-offline.html" download="qublitz-ep-tpd-explorer.html">Download this explorer</a>
     as a single HTML file that runs offline in any browser.</p>
@@ -249,6 +280,105 @@ function drawTable(phi, kc) {
   }).join('');
 }
 
+/* ---------- challenges, checkpoints and usage events (web/shared/outreach.js) ---------- */
+// Events mark slider releases (at most one every 10 s) and finished challenges, never every slider tick.
+const ql = (name, data) => { try { if (window.QL) QL.event(name, data); } catch (e) {} };
+if (window.QL) QL.panel('#qlPanel');
+/* Predict-then-run checkpoints: one optional question before an experiment, scored with QL.answer
+ * (web/shared/outreach.js) and explained once the run shows the answer. Answered or skipped ones stay away. */
+function predict(host, itemId, opts = {}) {
+  const none = { reveal() {}, get open() { return false; } };
+  const q = window.QL && QL.answer && QL.spec && (QL.spec.quiz || []).find(x => x.id === itemId);
+  const box = typeof host === 'string' ? document.querySelector(host) : host;
+  if (!q || !box) return none;
+  const key = `pq:${QL.game}:${itemId}`;
+  const seen = () => { try { return localStorage.getItem(key); } catch (e) { return null; } };
+  const mark = () => { try { localStorage.setItem(key, '1'); } catch (e) {} };
+  if (seen()) return none;
+  const cover = (opts.cover || []).map(s => document.querySelector(s)).filter(Boolean);
+  cover.forEach(e => e.classList.add('pq-cover'));
+  box.innerHTML = `<div class="pq" role="group" aria-label="Prediction checkpoint"><div class="pq-h"><b>Predict first</b><span>an optional checkpoint</span>
+    <button type="button" class="pq-skip">Skip</button></div><p class="pq-q">${q.q}</p>
+    <div class="pq-ch">${q.choices.map((c, i) => `<button type="button" data-i="${i}" aria-pressed="false">${c}</button>`).join('')}</div>
+    <p class="pq-fb" hidden></p></div>`;
+  const fb = box.querySelector('.pq-fb'), btns = [...box.querySelectorAll('.pq-ch button')];
+  let res = null, pick = -1, over = false;
+  const finish = () => { over = true; cover.forEach(e => e.classList.remove('pq-cover')); };
+  const api = {
+    get open() { return !over; },
+    reveal() {
+      if (over) return;
+      finish();
+      if (!res) { box.innerHTML = ''; return; }     // ran without predicting: just step aside
+      btns.forEach((b, i) => { if (i === res.answer) b.classList.add('right'); else if (i === pick) b.classList.add('wrong'); });
+      fb.innerHTML = `<b>${res.ok ? 'Right.' : 'Not quite.'}</b> ${res.explain}`;
+      if (opts.onDone) opts.onDone(res);
+    },
+  };
+  btns.forEach(b => b.addEventListener('click', () => {
+    if (res) return;
+    pick = +b.dataset.i; res = QL.answer(itemId, pick); mark();
+    btns.forEach(x => { x.disabled = true; x.setAttribute('aria-pressed', String(x === b)); });
+    box.querySelector('.pq-skip').remove();
+    fb.hidden = false; fb.innerHTML = opts.then || 'Locked in. Now run it and see.';
+    if (opts.revealOnPick) api.reveal();
+  }));
+  box.querySelector('.pq-skip').addEventListener('click', () => {
+    mark(); finish(); box.innerHTML = '';
+    try { QL.event('skip', { level: itemId }); } catch (e) {}
+    if (opts.onDone) opts.onDone(null);
+  });
+  return api;
+}
+const pqKc = predict('#pqEp', 'kc_move', { then: 'Locked in. Now drag κ̃<sub>c</sub> and watch the red markers.' });
+// The question is about the default cut, so answering it shows that cut.
+const pqSplit = predict('#pqSplit', 'split', { cover: ['#split'], revealOnPick: true, onDone: res => {
+  const st = state();
+  if (res && (st.phi !== DEFAULTS.phi || st.kc !== DEFAULTS.kc)) {
+    setControls(DEFAULTS); update();
+    $('#pqSplit .pq-fb').insertAdjacentHTML('beforeend', ' (The sliders are back at φ = 0, κ̃<sub>c</sub> = 0.68 to show this cut.)');
+  }
+} });
+const primary = (phi, kc) => {
+  const ep = E.epLocation(phi)[0], tpd = E.tpdLocation(phi, kc).find(d => d.type === 'PRIMARY_TPD');
+  return { ep, tpd, dist: tpd ? Math.hypot(tpd.dk - ep.dk, tpd.df - ep.df) : Infinity };
+};
+const CK = [
+  { id: 'move_kc', ok: (st, phi, kc, sweep) => sweep >= 1,
+    msg: () => 'The TPD (○) moved and the EP (×) stayed put. κ̃<sub>c</sub> shifts both eigenvalues equally, so it cannot move the point where they merge, but it does change the transmission peaks.' },
+  { id: 'axis', ok: st => st.phi === 8,
+    msg: (st, phi, kc) => `At φ = π the primary EP is at (0, 2) and the primary TPD at (0, ${Math.sqrt(kc * kc + 4).toFixed(3)}): both on the Δ̃<sub>f</sub> axis, and only κ̃<sub>c</sub> keeps them apart.` },
+  { id: 'coincide', ok: (st, phi, kc) => primary(phi, kc).dist < 0.05,
+    msg: (st, phi, kc) => `Distance ${primary(phi, kc).dist.toFixed(3)}. The TPD only lands on the EP when the cavity damping κ̃<sub>c</sub> is small and φ is near π. Elsewhere a peak splitting measured in transmission is not the eigenvalue splitting.` },
+];
+const ck = { done: new Set(), started: false, phi: null, kcLo: 0, kcHi: 0, lastRun: -1e9 };
+function ckRender() {
+  document.querySelectorAll('#challenges li').forEach(li => li.classList.toggle('done', ck.done.has(li.dataset.step)));
+  $('#ckCount').textContent = `· ${ck.done.size} of ${CK.length} done`;
+  try { if (window.QL) QL.context({ level: 'phi' + state().phi, step: (CK.find(c => !ck.done.has(c.id)) || { id: 'done' }).id }); } catch (e) {}
+}
+function ckCheck(st, phi) {
+  if (ck.phi !== st.phi) { ck.phi = st.phi; ck.kcLo = ck.kcHi = st.kc; }
+  ck.kcLo = Math.min(ck.kcLo, st.kc); ck.kcHi = Math.max(ck.kcHi, st.kc);
+  if (!ck.started) { ckRender(); return; }
+  for (const c of CK) if (!ck.done.has(c.id) && c.ok(st, phi, st.kc, ck.kcHi - ck.kcLo)) {
+    ck.done.add(c.id);
+    $('#ckMsg').innerHTML = `<b>Challenge done.</b> ${c.msg(st, phi, st.kc)}`;
+    ql('level_complete', { level: c.id, value: ck.done.size });
+    if (c.id === 'move_kc') pqKc.reveal();
+    if (ck.done.size === CK.length) {
+      ql('win');
+      if (window.QL) QL.offerQuiz('All three challenges done. A 1-minute debrief: a few questions and what you thought.');
+    }
+  }
+  ckRender();
+}
+function slid(which) {
+  if (!ck.started) { ck.started = true; ql('start'); }
+  const now = performance.now();
+  if (now - ck.lastRun > 10000) { ck.lastRun = now; ql('run', { level: which }); }
+}
+
 /* ---------- state: sliders and the shareable URL ---------- */
 function state() { return { kc: +$('#kc').value, phi: +$('#phi').value }; }
 function toQuery(st) { return '?' + new URLSearchParams({ kc: st.kc.toFixed(2), phi: st.phi }); }
@@ -267,15 +397,20 @@ function update() {
   $('#kcV').textContent = st.kc.toFixed(2);
   $('#phiV').textContent = label;
   drawTable(phi, st.kc);
+  const pr = primary(phi, st.kc);
+  $('#epDist').textContent = pr.tpd ? `Primary EP to primary TPD distance: ${pr.dist.toFixed(3)}` : 'No primary TPD at these settings.';
+  ckCheck(st, phi);
   // The map is the slow part (four 500×500 contours), so redraw it at most once per frame.
   cancelAnimationFrame(pending);
   pending = requestAnimationFrame(() => { drawMap(phi, st.kc); drawSplit(phi, st.kc); });
   try { history.replaceState(null, '', toQuery(st) + location.hash); } catch (e) {}   // can throw for file:// pages
 }
 
-$('#kc').addEventListener('input', update);
-$('#phi').addEventListener('input', update);
-$('#reset').addEventListener('click', () => { setControls(DEFAULTS); update(); });
+$('#kc').addEventListener('input', () => { if (!ck.started) { ck.started = true; ql('start'); } update(); });
+$('#phi').addEventListener('input', () => { if (!ck.started) { ck.started = true; ql('start'); } update(); });
+$('#kc').addEventListener('change', () => slid('damping'));
+$('#phi').addEventListener('change', () => slid('phase'));
+$('#reset').addEventListener('click', () => { setControls(DEFAULTS); update(); ql('reset'); });
 $('#copyLink').addEventListener('click', async e => {
   const b = e.target, url = STANDALONE ? SITE + 'qublitz/ep-tpd.html' + toQuery(state()) : location.href;
   try { await navigator.clipboard.writeText(url); b.textContent = 'Copied'; }
