@@ -835,27 +835,31 @@ function scurve(pts, style, width) {
   }
   sg.setLineDash([]); sg.globalAlpha = 1;
 }
+// In the retro theme the sphere is a dark glass ball with neon ink; in Classic it stays light.
+const DK = !!(window.RETRO && window.RETRO.palette);
+const SC = DK ? { a: '#1b2550', b: '#0a0f24', eq: 'rgba(124,140,230,.45)', z: '#7fb8ff', y: '#7ee08a', x: '#ff7a8a', xo: 'rgba(255,122,138,.4)', st: '#2fe0d0', gh: 'rgba(47,224,208,.4)' }
+  : { a: '#eef5f1', b: '#d6e4dc', eq: 'rgba(40,70,60,.35)', z: '#2f6fc4', y: '#1f8a3a', x: '#c84b31', xo: 'rgba(200,75,49,.35)', st: '#00693e', gh: 'rgba(0,105,62,.35)' };
 function drawSphere() {
   const c = SW / 2, R = SW * 0.36;
   sg.setTransform(DPR, 0, 0, DPR, 0, 0); sg.clearRect(0, 0, SW, SW);
-  const grd = sg.createRadialGradient(c - R * 0.3, c - R * 0.35, R * 0.1, c, c, R); grd.addColorStop(0, '#eef5f1'); grd.addColorStop(1, '#d6e4dc');
+  const grd = sg.createRadialGradient(c - R * 0.3, c - R * 0.35, R * 0.1, c, c, R); grd.addColorStop(0, SC.a); grd.addColorStop(1, SC.b);
   sg.fillStyle = grd; sg.beginPath(); sg.arc(c, c, R, 0, Math.PI * 2); sg.fill();
-  scurve(circ([0, 0, 1]), 'rgba(40,70,60,.35)', 1);
+  scurve(circ([0, 0, 1]), SC.eq, 1);
   scurve(circ([1, 0, 0]), '#ffb347', 2.5);   // the circle a turn about x keeps the state on
   sg.font = '600 12px Helvetica,Arial'; sg.textAlign = 'center'; sg.textBaseline = 'middle';
-  for (const [v, lab, col] of [[[0, 0, 1], '|0⟩', '#2f6fc4'], [[0, 0, -1], '|1⟩', '#2f6fc4'], [[0, 1, 0], '+y', '#1f8a3a'], [[0, -1, 0], '−y', '#1f8a3a']]) {
+  for (const [v, lab, col] of [[[0, 0, 1], '|0⟩', SC.z], [[0, 0, -1], '|1⟩', SC.z], [[0, 1, 0], '+y', SC.y], [[0, -1, 0], '−y', SC.y]]) {
     const p = SP(v.map(q => q * 1.17)); sg.fillStyle = col; sg.fillText(lab, p.x, p.y);
   }
   const w = world, r = w ? w.r : [0, 0, 1], sgn = w ? w.driveSign : 0;
   // the drive axis ±x, lit while driving
   const a = SP([-1.3, 0, 0]), b = SP([1.3, 0, 0]);
-  sg.strokeStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.35)'; sg.lineWidth = sgn ? 3 : 1.5; sg.beginPath(); sg.moveTo(a.x, a.y); sg.lineTo(b.x, b.y); sg.stroke();
-  const tip = sgn < 0 ? a : b; sg.fillStyle = sgn ? '#c84b31' : 'rgba(200,75,49,.5)'; sg.fillText(sgn < 0 ? '−x' : '+x', tip.x + (sgn < 0 ? -10 : 10), tip.y + 8);
+  sg.strokeStyle = sgn ? SC.x : SC.xo; sg.lineWidth = sgn ? 3 : 1.5; sg.beginPath(); sg.moveTo(a.x, a.y); sg.lineTo(b.x, b.y); sg.stroke();
+  const tip = sgn < 0 ? a : b; sg.fillStyle = sgn ? SC.x : SC.xo; sg.fillText(sgn < 0 ? '−x' : '+x', tip.x + (sgn < 0 ? -10 : 10), tip.y + 8);
   // each run on the sphere (all pure, on the surface), and their mean: shorter than 1 once they disagree (a mixed state)
-  if (w && w.N > 1) { sg.fillStyle = 'rgba(0,105,62,.35)'; for (const gh of w.ghosts.slice(0, w.shown)) { const q = SP(gh.r); sg.beginPath(); sg.arc(q.x, q.y, 2.5, 0, Math.PI * 2); sg.fill(); } }
+  if (w && w.N > 1) { sg.fillStyle = SC.gh; for (const gh of w.ghosts.slice(0, w.shown)) { const q = SP(gh.r); sg.beginPath(); sg.arc(q.x, q.y, 2.5, 0, Math.PI * 2); sg.fill(); } }
   const s = SP(r);
-  sg.strokeStyle = '#00693e'; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
-  sg.fillStyle = '#00693e'; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
+  sg.strokeStyle = SC.st; sg.lineWidth = 3; sg.beginPath(); sg.moveTo(c, c); sg.lineTo(s.x, s.y); sg.stroke();
+  sg.fillStyle = SC.st; sg.beginPath(); sg.arc(s.x, s.y, 5, 0, Math.PI * 2); sg.fill();
   $('#driveText').innerHTML = !w ? 'The orange circle is the path a turn about x keeps the state on.'
     : sgn ? `<b>Driving ${sgn > 0 ? '+X' : '−X'}</b>: turning about the ${sgn > 0 ? '+' : '−'}x axis, at Ω = ${E.P.OMEGA} rad/s.`
       : w.decay ? `Drive off: no rotation and, in the frame of a resonant drive, no precession. Only T₁ = ${w.T1} s acts: photons, each a jump to |0⟩, and between them a slow slide toward |0⟩.`

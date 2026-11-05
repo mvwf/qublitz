@@ -1,5 +1,5 @@
 /* retro.js: the QuBlitz Arena's retro look (deep navy, neon cyan / gold / magenta, Press Start 2P headings, Space
- * Grotesk text) for the Qublitz games and research modules. ENGS 23 pages do not load it.
+ * Grotesk text) for every page on the site: the hub, the Qublitz games and research tools, ENGS 23, privacy, dashboard.
  *
  * Load it in <head>, BEFORE Plotly, right after retro-fonts.js:
  *   <script src="../shared/retro-fonts.js"></script><script src="../shared/retro.js"></script>
