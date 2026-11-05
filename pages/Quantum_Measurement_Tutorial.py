@@ -23,8 +23,8 @@ import plotly.graph_objects as go
 # before this change — see docs/PERF_METHODOLOGY.md).
 @st.fragment
 def _bloch_sphere_section():
-    exp = slider('$<\sigma_z>$', -1.0 ,1.0 , 1.0, 0.01)
-    phi = slider('$\phi$ (rad)', 0.0,2*np.pi, 0.0, 0.01)
+    exp = slider(r'$<\sigma_z>$', -1.0 ,1.0 , 1.0, 0.01)
+    phi = slider(r'$\phi$ (rad)', 0.0,2*np.pi, 0.0, 0.01)
     rho = (exp-1)*np.pi/2
     #s = gates.rz(rho)*gates.rx(phi)*basis(2,0)
     u, v = np.mgrid[0:2*np.pi:20j, np.pi:0:10j]
@@ -99,10 +99,10 @@ def _resonator_drive_sweep_section():
     col1,col2 = columns(2)
     with col1:
         g = slider('$g (MHz)$', 10.0 ,100.0 , 50.0, 0.1)
-        kappa = slider('$\kappa_r (MHz)$', 3.0 ,8.0 , 3.8, 0.01)
+        kappa = slider(r'$\kappa_r (MHz)$', 3.0 ,8.0 , 3.8, 0.01)
     with col2:
-        wr = slider('$\\frac{\omega_r}{2\pi} (GHz)$', 6.1 ,8.0 ,7.0, 0.01)
-        wq = slider('$\\frac{\omega_q}{2\pi} (GHz)$', 2.5 ,6.0 , 4.0, 0.01)
+        wr = slider('$\\frac{\\omega_r}{2\\pi} (GHz)$', 6.1 ,8.0 ,7.0, 0.01)
+        wq = slider('$\\frac{\\omega_q}{2\\pi} (GHz)$', 2.5 ,6.0 , 4.0, 0.01)
 
     g = g*10**-3
     kappa=kappa*10**-3
@@ -216,7 +216,7 @@ def main():
     latex(r'\braket{\sigma_z} = \bra{\psi}\sigma_z\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \alpha^*\alpha-\beta^*\beta')
 
     markdown('''
-    Using a phase $\phi = \\arctan{\\frac{\\braket{\sigma_y}}{\\braket{\sigma_x}}}$ and $\\braket{\sigma_z}$, we can visualize any qubit state on the bloch sphere:)
+    Using a phase $\\phi = \\arctan{\\frac{\\braket{\\sigma_y}}{\\braket{\\sigma_x}}}$ and $\\braket{\\sigma_z}$, we can visualize any qubit state on the bloch sphere:)
     ''')
 
 
@@ -297,7 +297,7 @@ def main():
     
     latex(r'\sigma_+ = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix} \text{, and } \sigma_- = \begin{bmatrix}0 & 0 \\ 1 & 0 \end{bmatrix}')
 
-    markdown('The raising ($a^{\dagger}$) and lowering ($a$) operators for a resonator with **N** possible levels are as follows:')
+    markdown(r'The raising ($a^{\dagger}$) and lowering ($a$) operators for a resonator with **N** possible levels are as follows:')
 
     latex(r'''\text{for} \ket{N-1} = \begin{bmatrix} 0 \\ 0 \\ \vdots \\ 0 \\ 1\end{bmatrix},
     a^{\dagger} = \begin{bmatrix} 
@@ -390,7 +390,7 @@ def main():
 
     latex(r'H_q = \hbar\omega_q\frac{\sigma_z}{2}\text{ , and } H_r = \hbar\omega_ra^{\dagger}{a}')
 
-    markdown('''Where $\omega_q$ and $\omega_r$ are the frequencies which the qubit and the resonator are built to oscillate at.
+    markdown(r'''Where $\omega_q$ and $\omega_r$ are the frequencies which the qubit and the resonator are built to oscillate at.
              Next, we have a term which we call the "Jaynes-Cummings Hamiltonian". This term describes
              the interaction between the qubit and resonator created by the coupling with two superconductors are placed in proximity and with some barrier or restriction between them,
              commonly referred to as a **Josephson Junction**:''')
@@ -404,7 +404,7 @@ def main():
     latex(r'\text{For a qubit, } H_{dq} = \hbar\epsilon(\sigma_+e^{-i\omega_qt}+\sigma_-e^{i\omega_qt})')
     latex(r'\text{Where } \epsilon = I+iQ')
 
-    markdown('''
+    markdown(r'''
              Where $\omega_d$ is a drive frequency that we use to apply to the resonator, and $\epsilon$
              is some complex drive with a real part **I** and an imaginary part **Q**. We use these Hamiltonian terms to 
              solve the Schrödinger equation:
@@ -420,7 +420,7 @@ def main():
             we must drive the qubit. This means that we solve the Schrödinger Equation with the qubit drive term in the Hamiltonian
             in order to find the state after a certain time. Immediately after this, we *readout* the state of the Qubit.
             To tell what the qubit's state is, we need to probe the resonator by driving around the
-            resonator frequency, $\omega_d \\approx \omega_r$. Doing this will yield some shift, **$\chi = \\frac{g^2}{\delta} = \\frac{g^2}{\omega_r-\omega_q}$** in the frequency of the
+            resonator frequency, $\\omega_d \\approx \\omega_r$. Doing this will yield some shift, **$\\chi = \\frac{g^2}{\\delta} = \\frac{g^2}{\\omega_r-\\omega_q}$** in the frequency of the
             complex output signal through the resonator, $I^2+Q^2$, which will look like a Lorenzian when we drive the resonator long enough for the transmission to
             reach steady state.
              ''')
@@ -435,8 +435,8 @@ def main():
     _resonator_drive_sweep_section()
 
     markdown('''
-        As we can see, the resonator's output takes the shape of a lorenzian around $\omega_r+\chi$ if the qubit is in the ground
-        state, and $\omega_r-\chi$ If the qubit is excited. This is how we can use the resonator to tell what state
+        As we can see, the resonator's output takes the shape of a lorenzian around $\\omega_r+\\chi$ if the qubit is in the ground
+        state, and $\\omega_r-\\chi$ If the qubit is excited. This is how we can use the resonator to tell what state
         the qubit is in! However, sweeping the drive around the resonator can take a very long time, and it is much faster
         if we only drive the resonator at the bare frequency to tell the state of the qubit. The problem with this is that
         the magnitude of the output signal of the resonator is exactly the same at the bare frequency whether the qubit

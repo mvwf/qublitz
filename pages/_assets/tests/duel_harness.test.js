@@ -155,6 +155,10 @@ const MINUS = { x: -1, y: 0, z: 0 };
 
 // ── Decoherence routes through the campaign's own Lindblad step ───────
 {
+  check('d0. duel time constants are pinned (T1=90s, T2=30s)',
+    K.T1_S === 90 && K.T2_S === 30, `T1=${K.T1_S} T2=${K.T2_S}`);
+  check('d0b. pinned constants are physical (T2 <= 2*T1)',
+    K.T2_S <= 2 * K.T1_S && DuelCore.ZONE.HOT_T2 <= 2 * DuelCore.ZONE.HOT_T1);
   const ref = QPhysics.lindbladStep(PLUS, { T1: K.T1_S, T2: K.T2_S, dt: 5 });
   const via = DuelCore.decayStep(PLUS, 5);
   check('d1. decayStep is exactly QPhysics.lindbladStep (T1=90s,T2=30s)',
@@ -224,6 +228,16 @@ const MINUS = { x: -1, y: 0, z: 0 };
     `hotspot ${DuelCore.odds(inHot).toFixed(3)} vs open ${DuelCore.odds(outside).toFixed(3)}`);
   check('h3. …enough to stop being a MEASURE target (odds < 0.5 in 3s)',
     DuelCore.odds(inHot) < 0.5, `odds ${DuelCore.odds(inHot).toFixed(3)}`);
+  check('h2b. hotspot time constants are pinned (T1=4s, T2=2s)',
+    DuelCore.ZONE.HOT_T1 === 4 && DuelCore.ZONE.HOT_T2 === 2,
+    `T1=${DuelCore.ZONE.HOT_T1} T2=${DuelCore.ZONE.HOT_T2}`);
+  // h2 only sees charge (T1). This one needs coherence, which only T2 touches.
+  const hotRef = QPhysics.lindbladStep(PLUS,
+    { T1: DuelCore.ZONE.HOT_T1, T2: DuelCore.ZONE.HOT_T2, dt: 1 });
+  const hotVia = DuelCore.decayStep(PLUS, 1, zones[0]);
+  check('h2c. a hotspot applies its own T2 as well as its own T1',
+    approx(hotRef.x, hotVia.x, 1e-15) && approx(hotRef.z, hotVia.z, 1e-15),
+    `x ${hotVia.x.toFixed(9)} vs ${hotRef.x.toFixed(9)}`);
   // The cost: it is symmetric. You cannot hold a charge in there either.
   const tryCharge = DuelCore.decayStep(
     DuelCore.applyBeamHit(KET0, 'X', Math.PI).bloch, 2, zones[0]);

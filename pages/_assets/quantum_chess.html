@@ -102,11 +102,8 @@
   --fs-3:      28px;   /* display banners */
   --lh-prose:  1.4;
   --ls-pixel:  0.5px;
-  /* FE-6 — sage-bar grew from 82px to fit ≥13px readable text (was 11px
-     Press Start 2P) without shrinking it back down on phones; every layout
-     value derived from the old fixed 82px height now reads from this var
-     instead of repeating the number. */
-  --sage-bar-h: 108px;
+  /* Vertical space reserved below the canvas on the hub. */
+  --hub-reserve-h: 108px;
   --ease:      cubic-bezier(.22,.61,.36,1);
 }
 
@@ -284,7 +281,7 @@ html, body {
   align-items: flex-start;
 }
 
-/* Canvas wrapper — relative container for sage-bar overlay */
+/* Canvas wrapper */
 #canvas-wrap {
   position: relative;
   flex-shrink: 0;
@@ -292,10 +289,8 @@ html, body {
   border: 2px solid rgba(90,80,204,0.45);
   border-radius: 4px;
   box-shadow: 0 0 32px rgba(90,80,204,0.14), 0 8px 32px rgba(0,0,0,0.60);
-  /* Push sage bar and timer elements into the padding zone below the canvas
-     so they never overlap pieces. --sage-bar-h + 8px clears the sage bar +
-     5px timer bar + a small buffer. */
-  padding-bottom: calc(var(--sage-bar-h) + 8px);
+  /* Keep hub content clear of the canvas. */
+  padding-bottom: calc(var(--hub-reserve-h) + 8px);
 }
 
 canvas { display: block; cursor: pointer; }
@@ -308,34 +303,12 @@ canvas { display: block; cursor: pointer; }
   .panel { max-width: 800px; width: 100%; order: 2; }
   #canvas-wrap { order: 1; }
 }
-/* UX-3 — sage-bar footer row (hotkey legend + EXPLAIN + TEACH + MORE) could
-   overlap into garbled text (e.g. "EXPLAIN JEACH"). A viewport max-width media
-   query is the wrong tool here: #game-canvas is sized by
-   `width: min(800px, calc(100vh - 250px))` (see #game-canvas above), so the
-   sage-bar's actual width is driven by viewport HEIGHT, not width — on any
-   normal-height laptop screen the canvas (and this footer) is already well
-   under 900px wide even at a 1440px-wide viewport, so a width-gated rule never
-   fires when it needs to. Made unconditional instead: flex-wrap only engages
-   when content doesn't fit, so this is a no-op at any width wide enough for a
-   single line, and safely wraps otherwise, regardless of what's constraining
-   the width. */
 
 @media (max-width: 560px) {
   #ui { padding: 6px 6px 0; gap: 8px; }
-  /* --sage-bar-h + 2px clears the sage bar (a bit tighter than desktop's
-     +8px — 72px let the bar cover the board's bottom row on phones before). */
-  #canvas-wrap { padding-bottom: calc(var(--sage-bar-h) + 2px); }
+  #canvas-wrap { padding-bottom: calc(var(--hub-reserve-h) + 2px); }
   .panel { min-width: 0; padding: 8px; }
-  /* FE-6 — this used to shrink the sage bar's type down to 9px to squeeze
-     the name, two message lines and a footer row into the old fixed 82px
-     box; that's exactly the sub-10px violation FE-6 exists to remove. The
-     box got taller (--sage-bar-h, 82px -> 108px) instead, so phone width
-     only needs the portrait to shrink for room, not the text. */
   
-  /* The floating crowd-vote badge is viewport-fixed; on a scrolling phone
-     layout it hovers over whatever panel is at the bottom of the screen.
-     Crowd Vote is a projector/classroom feature — keep it reachable via the
-     Settings menu, drop the badge. */
   
 }
 
@@ -356,9 +329,8 @@ canvas { display: block; cursor: pointer; }
   /* QB-4 — display-scale to the viewport without touching the internal 800px
      resolution (kept crisp). The click handler scales via getBoundingClientRect,
      so input math still lands on the right cells at any size.
-     Cap by viewport HEIGHT too (not just width) so the whole board + sage bar +
-     title + log fit on one screen: ~210px reserves the title bar, sage-bar
-     padding and the event log.
+     Cap by viewport HEIGHT too (not just width) so the whole game fits
+     on one screen.
      FE-10 — the flat cap here used to be 800px, well below what the
      height-based term would otherwise allow on any viewport taller than
      ~1050px (a common case: a half-screen-snapped browser window on a large
@@ -449,7 +421,7 @@ canvas { display: block; cursor: pointer; }
 .mode-card:hover { transform:translateY(-2px); border-color:var(--teal); box-shadow:0 12px 30px rgba(47,224,208,.14); }
 .mode-card.training:hover { border-color:var(--gold); box-shadow:0 12px 30px rgba(245,183,60,.13); }
 .mode-card .mode-kicker { display:block; color:var(--dim); font:700 var(--fs-0) var(--font-body); letter-spacing:1.5px; }
-.mode-card strong { display:block; margin:8px 0 7px; color:var(--teal); font:700 var(--fs-2) var(--font-display); letter-spacing:1px; }
+.mode-card strong { display:block; margin:8px 0 7px; color:var(--teal); font:700 var(--fs-2) var(--font-body); letter-spacing:1px; }
 .mode-card.training strong { color:var(--gold); }
 .mode-card .mode-copy { display:block; color:var(--ink-2); font:500 var(--fs-0) var(--font-body); line-height:1.5; }
 .mode-card .mode-status { display:block; margin-top:10px; color:var(--green); font:700 var(--fs-0) var(--font-body); }
@@ -482,58 +454,22 @@ canvas { display: block; cursor: pointer; }
    hint prose: actionable numbers stay (HP/coherence/X-basis/Bloch), sentences
    are one tap away. */
 
-#sel-budget.show { display: block; }
 
-/* ── Retro Sage Dialogue Bar ──────────────────────── */
-/* Portrait canvas inside the dialogue bar */
 
-/* Retro inner line */
 
-#sage-bar-more.show { display: block; }
 
-/* UX-5 — Sage panel collapse toggle. Shrinks the message area (name + text)
-   while keeping the footer controls (EXPLAIN / TEACH / MORE / this toggle)
-   visible and reachable, so a fixed-height embed (e.g. an 860px iframe) can
-   reclaim vertical space without losing access to the Sage controls. */
-
-#sage-bar.collapsed {
-  min-height: 34px; max-height: 34px;
-}
-#sage-bar.collapsed #sage-portrait { height: 34px; }
-#sage-bar.collapsed #sage-bar-name,
-#sage-bar.collapsed #sage-bar-text { display: none; }
-#sage-bar.collapsed #sage-bar-body { padding: 6px 14px; justify-content: center; }
-/* Canvas-wrap reserves --sage-bar-h + 8px of padding for the expanded sage
-   bar + 5px timer bar (see #canvas-wrap comment); collapsed only needs ~34px. */
-#canvas-wrap.sage-collapsed { padding-bottom: 42px; }
-#canvas-wrap.sage-collapsed #sage-tips { bottom: 34px; }
-#canvas-wrap.sage-collapsed #timer-bar { bottom: 37px; }
-#canvas-wrap.sage-collapsed #timer-chip { bottom: 38px; }
-
-/* Expanded tips panel — sits directly above the sage bar in the padding zone.
-   max-height keeps it from ever reaching the canvas area. */
-
-#sage-tips.show { display: flex; }
-@keyframes tipPanelIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
-.sage-tip-ic.quantum { color: var(--teal);   }
-.sage-tip-ic.gate    { color: var(--indigo); }
-.sage-tip-ic.info    { color: var(--ink-3);  }
-
-/* PD-1 — duel chrome: the story panels, event log, sage bar and badges are
+/* PD-1 — duel chrome: the story panels, event log and badges are
    hidden while MODE==='duel'. One class on <body>, no per-element JS. */
 body.duel-mode .panel,
 body.duel-mode #log,
 body.duel-mode #log-toggle,
 body.duel-mode #kb-hint,
 body.duel-mode #notation-chip,
-body.duel-mode #vote-mode-badge,
-body.duel-mode #sage-bar,
-body.duel-mode #sage-tips,
 body.duel-mode #title-bar .sub { display: none !important; }
 body.duel-mode #canvas-wrap { padding-bottom: 0 !important; }
 body.duel-mode #ui { gap: 0; justify-content: center; }
-/* The story rule reserves ~250px of viewport height for the title bar,
-   sage bar and event log — none of which exist in duel mode, so the arena
+/* The story rule reserves ~250px of viewport height for chrome that does
+   not exist in duel mode, so the arena
    gets that room back. `width` (not max-width) because that is what the
    story rule sets. */
 body.duel-mode #game-canvas { width: min(1100px, calc(100vh - 80px)); }
@@ -678,25 +614,8 @@ body::before {
 /* Gate count colors — each gate gets its signature color */
 
 
-/* urgent pulse on any sage-related button */
-@keyframes tipIn { from{opacity:0; transform:translateX(8px)} to{opacity:1; transform:none} }
-@keyframes sagePulse {
-  0%,100% { box-shadow: 0 4px 12px rgba(224,65,60,0.20); }
-  50%     { box-shadow: 0 6px 20px rgba(224,65,60,0.55); }
-}
 
-/* ── Turn Timer bar (sits in padding zone, never over the canvas) ── */
 
-#timer-bar.active { display: block; }
-@keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
-
-/* ── Timer countdown chip ─────────────────────────────── */
-
-#timer-chip.active { display: block; }
-
-/* ── Crowd / Audience vote overlay ───────────────────── */
-
-#vote-overlay.show { display: flex; animation: fadeIn .3s var(--ease); }
 
 /* ── Leaderboard ─────────────────────────────────────── */
 .lb-wrap { margin: 10px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
@@ -4028,7 +3947,7 @@ const DUEL = (() => {
     const entTag = S.bell ? ' (linked)' : entReady ? '' : ` (${(me.entCd||0).toFixed(0)}s)`;
     hudText(`${DUEL_CONTROLS.keyboard.measure} measure ${measReady ? '(ready)' : '(' + me.measCd.toFixed(1) + 's)'} · ${DUEL_CONTROLS.keyboard.entangle} entangle${entTag}`,
             kx, by + 102, measReady ? '#3fe08a' : '#6f79a8');
-    hudText(`${S.gamepad.index == null ? 'PAD' : 'PAD CONNECTED'} · LS/RS move/aim · RT/LT pulses`,
+    hudText(`${S.gamepad.index == null ? 'PAD' : 'PAD READY'} · LS/RS move/aim · RT/LT pulses`,
             kx, by + 122, S.gamepad.index == null ? '#6f79a8' : '#2fe0d0');
   }
 
@@ -5199,7 +5118,6 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('resize',()=>{
   initBg();
-  _sageBarHCache = 0;  // SM-2 — canvasCssScale changed; menuPos re-measures
   // Under reduced motion there's no running rAF chain (animateBg returns
   // after its one frame and never reschedules) — redraw once at the new
   // size directly. Otherwise the already-running chain picks up the new
@@ -5276,7 +5194,7 @@ function runBoot() {
         sub.textContent='Qubit Battle Arena';
         const bootLines=[
           '  Cooling the qubit array to millikelvin...',
-          '  Deploying quantum units to the field...',
+          '  Aligning the photon duel arena...',
           '  Calibrating control pulses (H X Y Z S T)...',
           '  Arming measurement strike systems...',
           '  Entanglement couplers online...',
@@ -5376,11 +5294,11 @@ function openPhysicsLab() {
   document.getElementById('modal-content').innerHTML = `
 <h2>✦ PHYSICS LAB</h2>
 <p style="text-align:center;color:var(--dim);font-size:var(--fs-0);margin:-8px 0 12px">Charge decays like a real qubit's does — here's the proof, then the math behind it.</p>
-${GAME.importedT1Ns ? `<p style="text-align:center;color:var(--teal);font-size:var(--fs-0);margin:-4px 0 12px">T₁ imported from the Qubit Simulator page: ${GAME.importedT1Ns}ns there, scaled into this game's turn economy.</p>` : ''}
+${GAME.importedT1Ns ? `<p style="text-align:center;color:var(--teal);font-size:var(--fs-0);margin:-4px 0 12px">T₁ imported from the Qubit Simulator page: ${GAME.importedT1Ns}ns there, scaled for this Physics Lab model.</p>` : ''}
 
 <canvas id="diag-canvas" width="360" height="190" style="width:100%;max-width:360px;display:block;margin:8px auto;background:#0a0f22;border:1px solid var(--border);border-radius:4px"></canvas>
 <p id="diag-readout" style="text-align:center;color:var(--dim);font-size:var(--fs-0);margin:4px 0"></p>
-<p style="color:var(--dim);font-size:var(--fs-0);line-height:1.6">A unit prepared fully charged, left alone: the real curve (teal) is exponential, not the straight line (red) a naive "charge just drains steadily" model would predict.</p>
+<p style="color:var(--dim);font-size:var(--fs-0);line-height:1.6">A qubit prepared fully charged, left alone: the real curve (teal) is exponential, not the straight line (red) a naive "charge just drains steadily" model would predict.</p>
 
 <h3>LIVE STATE INSPECTOR</h3>
 ${unitBlock}
@@ -5390,9 +5308,9 @@ ${unitBlock}
   role="button" tabindex="0" style="cursor:pointer;color:var(--teal);font-size:var(--fs-0);margin-top:12px">▸ Show me the math</div>
 <div id="physics-math" style="display:none">
   <h3>THE MODEL</h3>
-  <p style="color:var(--dim);font-size:var(--fs-0);line-height:1.7">Every unit is a single qubit whose state ρ evolves under the <b style="color:var(--teal)">Lindblad master equation</b> for amplitude damping (T₁) plus dephasing (T₂):</p>
+  <p style="color:var(--dim);font-size:var(--fs-0);line-height:1.7">Each ship is a single qubit whose state ρ evolves under the <b style="color:var(--teal)">Lindblad master equation</b> for amplitude damping (T₁) plus dephasing (T₂):</p>
   <pre style="color:var(--gold);font-size:var(--fs-0);line-height:1.6;text-align:center;background:#0a0f22;border:1px solid var(--border);border-radius:4px;padding:10px;margin:6px 0">dρ/dt = −(i/ℏ)[H,ρ] + Σ γₖ( Lₖ ρ Lₖ† − ½{Lₖ†Lₖ, ρ} )</pre>
-  <p style="color:var(--dim);font-size:var(--fs-0);line-height:1.7">Each turn we apply its <b>exact</b> solution toward |0⟩: charge relaxes as <b style="color:var(--red)">e<sup>−t/T₁</sup></b>, transverse coherence as <b style="color:var(--teal)">e<sup>−t/T₂</sup></b> (with T₂ ≤ 2T₁). In the duel this runs in real time: <b style="color:var(--gold)">T₁ = ${DuelCore.K.T1_S}s</b>, <b style="color:var(--gold)">T₂ = ${DuelCore.K.T2_S}s</b> in open space, and <b style="color:var(--red)">T₂ = ${DuelCore.ZONE.HOT_T2}s</b> inside a decoherence hotspot. The chart below uses the diagnostic's own per-step rate (${GAME.decoRate.toFixed(2)}): <b style="color:var(--gold)">T₁ = ${T1.toFixed(1)}</b>, <b style="color:var(--gold)">T₂ = ${T2.toFixed(1)}</b> steps.${GAME.importedT1Ns ? ` <span style="color:var(--teal)">Imported from the Qubit Simulator page: T₁ = ${GAME.importedT1Ns}ns there, scaled to this game's turn economy.</span>` : ''}</p>
+  <p style="color:var(--dim);font-size:var(--fs-0);line-height:1.7">Each simulation step applies its <b>exact</b> solution toward |0⟩: charge relaxes as <b style="color:var(--red)">e<sup>−t/T₁</sup></b>, transverse coherence as <b style="color:var(--teal)">e<sup>−t/T₂</sup></b> (with T₂ ≤ 2T₁). In the duel this runs in real time: <b style="color:var(--gold)">T₁ = ${DuelCore.K.T1_S}s</b>, <b style="color:var(--gold)">T₂ = ${DuelCore.K.T2_S}s</b> in open space, and <b style="color:var(--red)">T₂ = ${DuelCore.ZONE.HOT_T2}s</b> inside a decoherence hotspot. The chart below uses the diagnostic's own per-step rate (${GAME.decoRate.toFixed(2)}): <b style="color:var(--gold)">T₁ = ${T1.toFixed(1)}</b>, <b style="color:var(--gold)">T₂ = ${T2.toFixed(1)}</b> steps.${GAME.importedT1Ns ? ` <span style="color:var(--teal)">Imported from the Qubit Simulator page: T₁ = ${GAME.importedT1Ns}ns there, scaled for this Physics Lab model.</span>` : ''}</p>
   <p style="color:var(--dim);font-size:var(--fs-0);line-height:1.6">The chart above fits the engine's own generated data against this exponential model AND a linear model — confirming the <i>implementation</i> matches what the equation prescribes.</p>
   <p style="color:var(--wood);font-size:var(--fs-0);line-height:1.6;margin:2px 0 6px">This validates the implementation against the model; the model itself is standard open-quantum-systems physics — it is not an empirical measurement against a real physical qubit.</p>
 </div>

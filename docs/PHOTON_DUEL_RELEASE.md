@@ -10,10 +10,12 @@ Fitted simulator T₁ drives the Physics Lab illustration only, not duel combat.
 
 ## Release verification — 2026-11-04
 
-Canonical HTML source: `408ff2408b8d1e3e17af3565c144be78fff9f8b5`; SHA-256 `23baf04e2f6a320f160c7a16dce60816ceaceeda7f3c3ace0912479930f5f48b`. Screenshot below was captured from that unchanged HTML.
+Canonical HTML source: `f9ac49919e128759b88b08fc85a1a30b15466e68`; SHA-256 `f23548b9bdb58f51d48a78ee0a9d1dc51737ddb7778d71bad64f2b6846630cbd`. Screenshot below was captured from that unchanged HTML.
 
 ![Photon Duel laser arena](photon-duel-release.png)
 
-The fresh-upstream platform gate passes, including Python tests, lint, vendored physics and duel checks. All seven upstream JavaScript engine suites pass. The static site assembles, every local hub link resolves, and its Arena is byte-identical to the canonical source. Missing-manifest and modified-asset mutations both fail the vendor guard.
+The fresh-upstream platform gate passes, including Python tests, lint, vendored physics and duel checks. All upstream JavaScript engine suites pass. The static site assembles, every local hub link resolves, and its Arena is byte-identical to the canonical source. Missing-manifest and modified-asset mutations both fail the vendor guard.
 
-The real Streamlit iframe was also exercised: both mode launchers, focused keyboard movement, keyup with zero drift, and Escape pause passed without uncaught browser errors. The frame permits gamepad access; hardware remains untested.
+The original release build was also driven through the real Streamlit iframe: both mode launchers, focused keyboard movement, keyup with zero drift, and Escape pause passed without uncaught browser errors. The frame permits gamepad access; hardware remains untested.
+
+This build's game repository CI passes on that commit: physics and duel rules, the browser suites on Chromium, Firefox and WebKit, and entry into Photon Duel through the real Arena page on this repository's pinned Streamlit. WebKit skips the offline check because its driver cannot load `file://` while offline. The browser suites ignore one Firefox message logged around a reload with no script location; its source is not identified.

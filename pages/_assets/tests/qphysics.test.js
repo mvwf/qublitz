@@ -99,5 +99,33 @@ assert('Bell |Φ+⟩ marginal P1(q1) = 0.5', approx(Bell.marginalP1(Bell.phiPlus
   assert('local gate on q0 leaves q1 marginal unchanged (no-communication)', invariant);
 }
 
+// ── BR-3: Pulse Forge — a Rabi drive rotation must match the textbook
+// closed-form population transfer, and the SAME angle applied via the
+// actual state-rotation function (not just the scalar formula) must
+// recover an identical charge. This is the "achieved rotation angle
+// matches Rabi prediction" bar the task itself names, made a real
+// automated check rather than an eyeballed minigame number. ──
+console.log('\n--- BR-3 Pulse Forge (Rabi rotation) ---');
+{
+  const start = QPhysics.pureFromBloch({ x: 0, y: 0, z: 1 }); // |0⟩, charge 0
+  [0, Math.PI / 4, Math.PI / 2, Math.PI, 1.5 * Math.PI, 2 * Math.PI].forEach(theta => {
+    const predicted = QPhysics.rabiPopulation(theta);
+    const rotated = QPhysics.rabiRotateState(start, theta);
+    const achieved = QPhysics.charge(QPhysics.blochFromPure(rotated));
+    assert(`θ=${theta.toFixed(3)}: rotated-state charge matches sin²(θ/2) prediction`,
+      approx(achieved, predicted));
+  });
+  // The calibrated "perfect X" pulse (amplitude×duration product = 1, θ=π)
+  // must reach exactly 100% charge — the mission's actual win condition.
+  assert('θ=π (a perfectly calibrated pulse) reaches 100% charge',
+    approx(QPhysics.rabiPopulation(Math.PI), 1));
+  // An under-rotated pulse (amplitude×duration = 0.7, θ=0.7π) must land
+  // strictly between 0 and 1 — a genuine partial flip, not a silent no-op
+  // or a silent full flip.
+  const partial = QPhysics.rabiPopulation(0.7 * Math.PI);
+  assert('an under-rotated pulse (0.7π) gives a genuine partial charge (0 < c < 1)',
+    partial > 0 && partial < 1);
+}
+
 console.log(fail === 0 ? '\nALL CHECKS PASSED ✓' : `\n${fail} CHECK(S) FAILED ✗`);
 process.exit(fail === 0 ? 0 : 1);
