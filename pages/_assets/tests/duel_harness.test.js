@@ -547,6 +547,76 @@ const MINUS = { x: -1, y: 0, z: 0 };
     /lost/i.test(shielded[0]) && !/You won/.test(shielded[0]), shielded[0]);
 }
 
+// ── Case P — free-duel power-ups and the measurement reveal ───────────
+{
+  // P1. Detuned rotation at Δ = 0 is the resonant rotation.
+  const r0 = { x: 0.3, y: -0.4, z: Math.sqrt(1 - 0.25) };
+  const a = DuelCore.detunedRotate(r0, DuelCore.AXES.X, 1.1, 0);
+  const b = DuelCore.rotateBloch(r0, DuelCore.AXES.X, 1.1);
+  check('P1. detunedRotate(Δ=0) equals rotateBloch',
+    approx(a.x, b.x, 1e-12) && approx(a.y, b.y, 1e-12) && approx(a.z, b.z, 1e-12));
+
+  // P2. From |0⟩ the detuned drive never beats the Rabi ceiling Ω²/(Ω²+Δ²),
+  //     and it reaches it (at a generalised-π pulse).
+  const d = DuelCore.PICKUPS.detune.dOverO, ceil = 1 / (1 + d * d);
+  let pmax = 0;
+  for (let i = 0; i <= 4000; i++) {
+    const th = i / 4000 * 2 * Math.PI;
+    for (const ax of ['X', 'Y'])
+      pmax = Math.max(pmax, DuelCore.odds(DuelCore.detunedRotate(KET0, DuelCore.AXES[ax], th, d)));
+  }
+  check('P2. detuned X/Y drive from |0⟩ peaks at P(1) = 1/(1+(Δ/Ω)²)',
+    pmax <= ceil + 1e-9 && pmax >= ceil - 1e-4, `max ${pmax.toFixed(5)}, ceiling ${ceil.toFixed(5)}`);
+
+  // P3. Rotation stays unitary (|r| preserved).
+  const m = DuelCore.detunedRotate(r0, DuelCore.AXES.Y, 2.3, d);
+  check('P3. detunedRotate preserves |r|',
+    approx(Math.hypot(m.x, m.y, m.z), Math.hypot(r0.x, r0.y, r0.z), 1e-12));
+
+  // P4. resolveBeam: a detuned target cannot be shield-parked, T is unaffected.
+  const fixed = () => 0.5;   // fidelity 1 → σ = 0, so the draw does not matter
+  const onPlus = DuelCore.resolveBeam(PLUS, 'X', Math.PI, { fidelity: 1, rand: fixed, detune: d });
+  const tOnly = DuelCore.resolveBeam(PLUS, 'T', 0, { fidelity: 1, rand: fixed, detune: d });
+  const tRef = DuelCore.resolveBeam(PLUS, 'T', 0, { fidelity: 1, rand: fixed });
+  check('P4. detuned |+⟩ is not shielded from X; T-phase ignores detuning',
+    onPlus.detuned === true && onPlus.shielded === false &&
+    approx(tOnly.bloch.x, tRef.bloch.x, 1e-12) && approx(tOnly.bloch.y, tRef.bloch.y, 1e-12));
+
+  // P5. DRIVE ×2: same hold, twice the angle, still capped at π.
+  check('P5. driveTheta doubles θ for a given hold and caps at π',
+    approx(DuelCore.driveTheta(0.3, 2), 2 * DuelCore.chargeToTheta(0.3), 1e-12) &&
+    approx(DuelCore.driveTheta(0.6, 2), Math.PI, 1e-12) &&
+    approx(DuelCore.driveTheta(1.0, 2), Math.PI, 1e-12));
+
+  // P6. Reduced state of |Φ+⟩ is maximally mixed; of |0⟩|1⟩ is the poles.
+  const bell = QPhysics.Bell.phiPlus();
+  const ra = DuelCore.reducedBloch(bell, 0), rb = DuelCore.reducedBloch(bell, 1);
+  const z = { r: 0, i: 0 }, one = { r: 1, i: 0 };
+  const prod = [z, one, z, z];                       // |01⟩: qubit0 = |0⟩, qubit1 = |1⟩
+  const p0 = DuelCore.reducedBloch(prod, 0), p1 = DuelCore.reducedBloch(prod, 1);
+  const plusPlus = [{r:.5,i:0},{r:.5,i:0},{r:.5,i:0},{r:.5,i:0}];
+  const pp = DuelCore.reducedBloch(plusPlus, 0);
+  check('P6. reducedBloch: Φ+ → (0,0,0); |01⟩ → |0⟩,|1⟩; |++⟩ → +x',
+    [ra, rb].every(v => approx(v.x, 0, 1e-12) && approx(v.y, 0, 1e-12) && approx(v.z, 0, 1e-12)) &&
+    approx(p0.z, 1, 1e-12) && approx(p1.z, -1, 1e-12) && approx(pp.x, 1, 1e-12) && approx(pp.z, 0, 1e-12));
+
+  // P7. measureRoll exposes the draw it used, and outcome = [draw < p].
+  let consistent = true;
+  const rng = DuelCore.mulberry32(7);
+  for (let i = 0; i < 500; i++) {
+    const th = (i % 50) / 50 * Math.PI;
+    const r = DuelCore.rotateBloch(KET0, DuelCore.AXES.X, th);
+    const res = DuelCore.measureRoll(r, rng);
+    if (!(res.draw >= 0 && res.draw < 1) || res.outcome !== (res.draw < res.p ? 1 : 0)) consistent = false;
+  }
+  check('P7. measureRoll: outcome is 1 exactly when draw < P(|1⟩)', consistent);
+
+  // P8. Pickup rotation is fixed and every kind is catalogued.
+  check('P8. PICKUP_CYCLE covers six catalogued kinds, calib and tgate included',
+    DuelCore.PICKUP_CYCLE.length === 6 && DuelCore.PICKUP_CYCLE.every(k => DuelCore.PICKUPS[k]) &&
+    DuelCore.PICKUP_CYCLE.includes('calib') && DuelCore.PICKUP_CYCLE.includes('tgate'));
+}
+
 // ── Case 8 — the campaign engine is untouched ─────────────────────────
 {
   const st = QPhysics.selfTest();

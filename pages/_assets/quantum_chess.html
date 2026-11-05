@@ -1419,6 +1419,9 @@ const DuelCore = (() => {
   // charge bar is labelled in π-fractions so the player reads pulse AREA.
   const chargeToTheta = tHoldSec =>
     Math.PI * Math.min(Math.max(tHoldSec, 0) / K.CHARGE_FULL_S, 1);
+  // DRIVE ×2: θ = Ω·t, so doubling the drive amplitude (Ω) doubles the angle
+  // a given hold delivers. Still capped at π: a full hold is a π-pulse.
+  const driveTheta = (tHoldSec, rabiMult) => chargeToTheta(tHoldSec * (rabiMult || 1));
 
   const norm = n => { const m = Math.hypot(n.x, n.y, n.z) || 1;
                       return { x:n.x/m, y:n.y/m, z:n.z/m }; };
@@ -1452,6 +1455,34 @@ const DuelCore = (() => {
   const isEigenstate = (r, axisName, tolDeg = K.EIGEN_TOL_DEG) =>
     eigenstateAngleDeg(r, axisName) <= tolDeg;
 
+  // Off-resonant drive (FLUX DETUNE power-up). A qubit detuned by Δ from a
+  // drive of Rabi rate Ω turns about the tilted axis (Ω·n̂ + Δ·ẑ)/Ω′ at the
+  // generalised Rabi rate Ω′ = √(Ω² + Δ²). A pulse that would have been θ on
+  // resonance lasts θ/Ω, so it turns the vector by θ·Ω′/Ω about that axis.
+  // From |0⟩ the most it can reach is P(|1⟩) = Ω²/Ω′² = 1/(1 + (Δ/Ω)²), the
+  // Rabi formula's ceiling. dOverO = Δ/Ω; 0 is the resonant rotation.
+  function detunedRotate(r, axis, theta, dOverO) {
+    const d = dOverO || 0;
+    const n = norm({ x: axis.x, y: axis.y, z: axis.z + d });
+    return rotateBloch(r, n, theta * Math.sqrt(1 + d * d));
+  }
+
+  // Bloch vector of one qubit of a two-qubit pure state (partial trace).
+  // amps index = 2·b0 + b1. Same convention as the 1-qubit engine: z = +1 is
+  // |0⟩, so z = ρ00 − ρ11 and ρ01 = (x − i·y)/2.
+  function reducedBloch(amps, which) {
+    const idx = (b, k) => which === 0 ? b * 2 + k : k * 2 + b;
+    let r00 = 0, r11 = 0, re01 = 0, im01 = 0;
+    for (let k = 0; k < 2; k++) {
+      const a0 = amps[idx(0, k)], a1 = amps[idx(1, k)];
+      r00 += a0.r * a0.r + a0.i * a0.i;
+      r11 += a1.r * a1.r + a1.i * a1.i;
+      re01 += a0.r * a1.r + a0.i * a1.i;          // Re(a0·conj a1)
+      im01 += a0.i * a1.r - a0.r * a1.i;          // Im(a0·conj a1)
+    }
+    return { x: 2 * re01, y: -2 * im01, z: r00 - r11 };
+  }
+
   // A beam landing: rotate about its axis by θ, unless the target is parked
   // at an eigenstate of that axis (rotation would be a no-op anyway — the
   // shield mechanic makes that physical fact visible as a refraction).
@@ -1473,11 +1504,14 @@ const DuelCore = (() => {
   // MEASURE: project onto the Z basis with the Born rule. Outcome 1 wins the
   // round; outcome 0 is a dud that leaves the target in |0⟩ — it must be
   // re-rotated from scratch, which is the real cost of a mistimed shot.
+  // `draw` is the uniform number the Born rule was decided by (outcome 1 iff
+  // draw < p); the measurement reveal shows it on the P(0)/P(1) bar.
   function measureRoll(r, rand = Math.random) {
     const p = odds(r);
-    const outcome = rand() < p ? 1 : 0;
+    const draw = rand();
+    const outcome = draw < p ? 1 : 0;
     return {
-      outcome, p,
+      outcome, p, draw,
       bloch: outcome === 1 ? { x:0, y:0, z:-1 } : { x:0, y:0, z:1 },
     };
   }
@@ -1552,6 +1586,16 @@ const DuelCore = (() => {
     if (o.zenoUntil && o.now != null && o.now < o.zenoUntil)
       return { bloch: before, shielded: false, zenoBlocked: true,
                theta: 0, deltaOdds: 0 };
+    // Detuned target: X/Y drive is off-resonant, so it turns the vector about
+    // a tilted axis. No eigenstate shield here: |±⟩ is not an eigenstate of
+    // the tilted axis. The T-phase is a frame change and stays exact.
+    if (o.detune && beam.kind === 'attack') {
+      const theta = applyFidelity(thetaNominal, o.fidelity == null ? 1 : o.fidelity,
+                                  o.rand || Math.random);
+      const after = detunedRotate(before, AXES[beam.axis], theta, o.detune);
+      return { bloch: after, shielded: false, zenoBlocked: false, detuned: true,
+               theta, deltaOdds: odds(after) - odds(before) };
+    }
     const theta = beam.fixedTheta != null
       ? beam.fixedTheta
       : applyFidelity(thetaNominal, o.fidelity == null ? 1 : o.fidelity,
@@ -1563,6 +1607,33 @@ const DuelCore = (() => {
     return { bloch: after, shielded: false, zenoBlocked: false, theta,
              deltaOdds: odds(after) - odds(before) };
   }
+
+  // ── Pickups ──────────────────────────────────────────────────────────
+  // calib and tgate are the originals (and the only ones in Duel Training,
+  // whose missions are tuned around them). The free duel adds four more, each
+  // a real control-hardware technique, on a fixed rotation so you can plan
+  // for them (no random rewards). Each one helps the ship that collects it:
+  // in this game decay drains the charge an opponent put on you, so longer
+  // T₁/T₂ would protect THEIR work. That is why there is no coherence boost.
+  const PICKUPS = {
+    calib:   { glyph:'⌖', color:'#3fe08a', name:'CALIBRATION',
+               effect:'+15% pulse fidelity: your beams land closer to the angle you charged.' },
+    tgate:   { glyph:'T', color:'#f5b73c', name:'T-CHARGE',
+               effect:'+1 T-phase (a π/4 turn about z) to knock a camper off its eigenstate.' },
+    readout: { glyph:'M', color:'#7fd0ff', name:'FAST READOUT', windS:0.35,
+               effect:'Your MEASURE is ready now, and its wind-up drops from 1 s to 0.35 s.',
+               physics:'A Purcell filter lets the readout resonator couple strongly to the qubit without shortening T₁, so a measurement finishes faster.' },
+    reset:   { glyph:'0', color:'#e8ecff', name:'ACTIVE RESET',
+               effect:'Your qubit snaps to |0⟩, so a MEASURE on you is a sure dud. It also breaks an entangled link.',
+               physics:'Hardware reset pulses pump the excitation out through a lossy mode, leaving the qubit in |0⟩ in well under a microsecond.' },
+    drive:   { glyph:'Ω', color:'#ff9f43', name:'DRIVE ×2', durS:10, rabiMult:2,
+               effect:'For 10 s your Rabi rate doubles: a full π-pulse charges in 0.6 s instead of 1.2 s.',
+               physics:'The rotation angle is θ = Ω·t, and Ω grows with drive amplitude, so twice the amplitude turns the qubit twice as far in the same time.' },
+    detune:  { glyph:'Δ', color:'#b18cff', name:'FLUX DETUNE', durS:8, dOverO:2,
+               effect:'For 8 s you are tuned away from their drive (Δ = 2Ω): their X/Y beams turn you about a tilted axis, and from |0⟩ they can lift you to 20% at most. Best grabbed while you are near |0⟩.',
+               physics:'Off resonance the drive turns the qubit about a tilted axis, so starting from |0⟩ the highest P(|1⟩) it can reach is Ω²/(Ω² + Δ²).' },
+  };
+  const PICKUP_CYCLE = ['readout', 'calib', 'reset', 'tgate', 'drive', 'detune'];
 
   // ── Duel missions: the campaign's concept gating, reborn ─────────────
   // The 7-mission campaign's real value was never the chess board — it was
@@ -1671,7 +1742,8 @@ const DuelCore = (() => {
 
   return { debriefLines, parkPulse,
            K, AXES, BEAMS, ZONE, ZENO, DUEL_MISSIONS, missionGate,
-           mulberry32, chargeToTheta, rotateBloch,
+           mulberry32, chargeToTheta, driveTheta, rotateBloch,
+           detunedRotate, reducedBloch, PICKUPS, PICKUP_CYCLE,
            eigenstateAngleDeg, isEigenstate, isCardinal, applyBeamHit,
            resolveBeam, decayStep, zoneAt, odds, measureRoll,
            sigmaFor, applyFidelity, bellPair, bellOdds, bellMeasure };
@@ -1844,6 +1916,12 @@ function masteryPanelHTML() {
       <strong>${have.has(b.id) ? '✓ ' : '◇ '}${b.title}</strong>
       <span>${b.requirement}</span>
     </div>`).join('')}</div>`;
+}
+function duelPickupsHTML() {
+  const P = DuelCore.PICKUPS;
+  return `<div class="lb-wrap" data-pickups="v1">${DuelCore.PICKUP_CYCLE.map(k => `
+    <div class="lb-row"><span style="white-space:nowrap;margin-right:14px"><b style="color:${P[k].color}">${P[k].glyph}</b> ${P[k].name}</span><span class="lb-val">${P[k].effect}</span></div>`).join('')}
+  </div>`;
 }
 function duelControlsHTML() {
   const k = DUEL_CONTROLS.keyboard, g = DUEL_CONTROLS.gamepad;
@@ -2350,6 +2428,10 @@ const DUEL = (() => {
     introT: 0, shake: 0, flash: 0, flashColor: '#ffffff',
     announcer: '', announceT: 0,
     frameMs: [], showPerf: false,
+    // Measurement reveal: the Born-rule roll shown on screen, with a short
+    // hit-stop (sim frozen, drawing continues). A winning collapse holds the
+    // freeze a little longer, then ends the round.
+    reveal: null, hitStop: 0, pendingEnd: null, pickupSeq: 0,
   };
 
   // ── Entity pools — preallocated; the sim never allocates (perf budget) ──
@@ -2412,7 +2494,7 @@ const DUEL = (() => {
   const sfxFire    = () => sweep(880, 180, 0.16, 'sawtooth', 0.16);
   const sfxHit     = () => noise(0.14, 0.22);
   const sfxShield  = () => sweep(300, 900, 0.16, 'sine', 0.13);
-  const sfxWind    = () => sweep(220, 1400, DuelCore.K.MEASURE_WIND_S, 'sine', 0.10);
+  const sfxWind    = (d) => sweep(220, 1400, d || DuelCore.K.MEASURE_WIND_S, 'sine', 0.10);
   const sfxCollapse= () => { noise(0.3, 0.3); sweep(400, 60, 0.5, 'sawtooth', 0.2); };
   const sfxDud     = () => sweep(240, 90, 0.3, 'triangle', 0.15);
   const sfxRoundWin= () => { sweep(280, 840, 0.24, 'triangle', 0.14); sweep(520, 1180, 0.34, 'sine', 0.10); };
@@ -2453,6 +2535,8 @@ const DUEL = (() => {
              bellIdx: -1,         // 0/1 while entangled, else -1
              zenoUntil: 0,        // Zeno lock expiry (S.t seconds)
              measStamps: [],      // recent MEASURE landings on THIS ship
+             // free-duel power-ups (S.t expiry times; fastReadout is one-shot)
+             driveUntil: 0, detuneUntil: 0, fastReadout: false, windTotal: 0,
              inHot: false };
   }
 
@@ -2472,6 +2556,7 @@ const DUEL = (() => {
       { x: K.WORLD_W*0.79, y: K.WORLD_H*0.74, r:  96, t1: DuelCore.ZONE.HOT_T1, t2: DuelCore.ZONE.HOT_T2 },
     ];
     S.pickups = []; S.pickupTimer = 4; S.beam = 'X'; S.bell = null;
+    S.reveal = null; S.hitStop = 0; S.pendingEnd = null; S.pickupSeq = 0;
     S.stars = [];
     for (let i = 0; i < 140; i++)
       S.stars.push({ x: S.rand() * K.WORLD_W, y: S.rand() * K.WORLD_H,
@@ -2583,6 +2668,16 @@ const DUEL = (() => {
     }
   }
 
+  const rabiMult = ship => ship.driveUntil > S.t ? DuelCore.PICKUPS.drive.rabiMult : 1;
+  const detuneOf = ship => ship.detuneUntil > S.t ? DuelCore.PICKUPS.detune.dOverO : 0;
+  // Start a MEASURE wind-up; FAST READOUT shortens this one.
+  function windMeasure(ship) {
+    const w = ship.fastReadout ? DuelCore.PICKUPS.readout.windS : K.MEASURE_WIND_S;
+    ship.fastReadout = false;
+    ship.winding = ship.windTotal = w;
+    sfxWind(w);
+  }
+
   function fireMeasure(ship) {
     const p = take(S.proj); if (!p) return;
     p.live = true; p.kind = 'measure'; p.owner = ship.owner; p.ttl = 5;
@@ -2603,6 +2698,7 @@ const DUEL = (() => {
     const res = DuelCore.resolveBeam(before, p.beam, p.theta, {
       fidelity: shooter.fidelity, rand: S.rand,
       zenoUntil: target.zenoUntil, now: S.t,
+      detune: target.bellIdx >= 0 ? 0 : detuneOf(target),
     });
     if (res.zenoBlocked) {
       target.shieldFlash = 0.4;
@@ -2636,6 +2732,7 @@ const DUEL = (() => {
     const spec = DuelCore.BEAMS[p.beam] || DuelCore.BEAMS.X;
     spawnParts(14, p.x, p.y, spec.color, 130, 0.6);
     if (spec.kind === 'phase') floatTxt(target, 'PHASE ' + (p.beam === 'T' ? 'π/4' : ''), spec.color);
+    else if (res.detuned) floatTxt(target, 'OFF-RESONANT', DuelCore.PICKUPS.detune.color);
     if (p.theta >= Math.PI * 0.75) triggerFx('MAX-CHARGE HIT', spec.color, 0.28);
     sfxHit();
     // §8 item 3 — the learning beat: the player's beam visibly moved the
@@ -2655,6 +2752,7 @@ const DUEL = (() => {
   }
 
   function landMeasure(p, target) {
+    if (S.pendingEnd) return;                      // round already decided this frame
     const other = S.ships[1 - (target.owner)];
     let res, method = 'measure';
     if (S.bell && target.bellIdx >= 0) {
@@ -2674,6 +2772,8 @@ const DUEL = (() => {
       target.bloch = res.bloch;
     }
     target.arc = null;
+    S.reveal = { shooter: p.owner, p: res.p, draw: res.draw, outcome: res.outcome,
+                 bell: method === 'bell-measure', blocked: false, t: 0 };
 
     // Zeno bookkeeping: NEEDED landings inside WINDOW pin the target.
     target.measStamps.push(S.t);
@@ -2699,13 +2799,17 @@ const DUEL = (() => {
           floatTxt(target, 'SHIELDED', '#9aa3cf');
           sfxShield();
           tele('mission_gate_blocked', { mission: S.mission, reason: g.reason });
+          S.reveal.blocked = true; S.hitStop = REVEAL_DUD_STOP_S;
           return;
         }
       }
       sfxCollapse();
       spawnParts(60, target.x, target.y, target.col, 260, 1.1);
-      endRound(p.owner, method, res.p);
+      // Freeze on the reveal, then end the round (see frame()).
+      S.hitStop = REVEAL_WIN_STOP_S;
+      S.pendingEnd = [p.owner, method, res.p];
     } else {
+      S.hitStop = REVEAL_DUD_STOP_S;
       sfxDud();
       spawnParts(18, target.x, target.y, '#9aa3cf', 110, 0.6);
       floatTxt(target, 'DUD — reset to |0⟩', '#9aa3cf');
@@ -2726,6 +2830,48 @@ const DUEL = (() => {
     if (p.owner === 0 && S.ev) S.ev.entangled = true;
     sfxShield();
     tele('entangled', { by: p.owner === 0 ? 'player' : 'sage' });
+  }
+
+  const REVEAL_S = 2.2, REVEAL_WIN_STOP_S = 1.1, REVEAL_DUD_STOP_S = 0.35;
+
+  // A ship collects a pickup. Works the same for you and for Sage.
+  function applyPickup(sh, kind) {
+    const P = DuelCore.PICKUPS[kind];
+    if (kind === 'calib') {
+      sh.fidelity = Math.min(1, sh.fidelity + 0.15);
+      floatTxt(sh, `FIDELITY ${(sh.fidelity*100)|0}%`, P.color);
+      if (sh.owner === 0) tele('pickup', { kind: 'calibration', fidelity: +sh.fidelity.toFixed(2) });
+      return;
+    }
+    if (kind === 'tgate') {
+      sh.tCharges = Math.min(3, sh.tCharges + 1);
+      floatTxt(sh, `T-CHARGE ×${sh.tCharges}`, P.color);
+      if (sh.owner === 0) tele('pickup', { kind: 't_charge', held: sh.tCharges });
+      return;
+    }
+    if (kind === 'readout') {
+      sh.measCd = 0;
+      if (sh.winding > 0) sh.winding = Math.min(sh.winding, P.windS);   // already winding: hurry it
+      else sh.fastReadout = true;
+    } else if (kind === 'reset') {
+      if (S.bell && sh.bellIdx >= 0) {
+        // Resetting one half of a pair leaves the partner in its reduced
+        // state: for |Φ+⟩ that is the maximally mixed I/2 (P(|1⟩) = 50%).
+        const other = S.ships[1 - sh.owner];
+        other.bloch = DuelCore.reducedBloch(S.bell, other.bellIdx);
+        sh.bellIdx = other.bellIdx = -1; S.bell = null;
+      }
+      const before = sh.bloch;
+      sh.bloch = { x: 0, y: 0, z: 1 };
+      sh.arc = { from: before, to: sh.bloch, t: 0 };
+      sh.zenoUntil = 0;
+    } else if (kind === 'drive') {
+      sh.driveUntil = S.t + P.durS;
+    } else if (kind === 'detune') {
+      sh.detuneUntil = S.t + P.durS;
+    }
+    floatTxt(sh, P.name, P.color);
+    if (sh.owner === 0) tele('pickup', { kind });
   }
 
   // Small world-space floater, reusing the campaign's float list shape.
@@ -2891,9 +3037,14 @@ const DUEL = (() => {
     // Fixed cadence, alternating type, never random-rewarded (P6 bans
     // variable-ratio gambling) — you can plan for them.
     S.pickupTimer -= dt;
-    if (S.pickupTimer <= 0 && S.pickups.length < 3) {
-      S.pickupTimer = 9;
-      const kind = (S.pickups.length + S.shotCount) % 2 === 0 ? 'calib' : 'tgate';
+    const freeDuel = S.mission < 0;
+    if (S.pickupTimer <= 0 && S.pickups.length < (freeDuel ? 4 : 3)) {
+      S.pickupTimer = freeDuel ? 6 : 9;
+      // Duel Training keeps its original calib/T alternation (its missions
+      // are tuned around it); the free duel walks the full fixed rotation.
+      const kind = freeDuel
+        ? DuelCore.PICKUP_CYCLE[(S.pickupSeq++) % DuelCore.PICKUP_CYCLE.length]
+        : (S.pickups.length + S.shotCount) % 2 === 0 ? 'calib' : 'tgate';
       let px, py, tries = 0;
       do {
         px = 120 + S.rand() * (K.WORLD_W - 240);
@@ -2907,15 +3058,7 @@ const DUEL = (() => {
       pk.t += dt;
       for (const sh of S.ships) {
         if (Math.hypot(pk.x - sh.x, pk.y - sh.y) > K.SHIP_R + 14) continue;
-        if (pk.kind === 'calib') {
-          sh.fidelity = Math.min(1, sh.fidelity + 0.15);
-          floatTxt(sh, `FIDELITY ${(sh.fidelity*100)|0}%`, '#3fe08a');
-          if (sh.owner === 0) tele('pickup', { kind: 'calibration', fidelity: +sh.fidelity.toFixed(2) });
-        } else {
-          sh.tCharges = Math.min(3, sh.tCharges + 1);
-          floatTxt(sh, `T-CHARGE ×${sh.tCharges}`, '#f5b73c');
-          if (sh.owner === 0) tele('pickup', { kind: 't_charge', held: sh.tCharges });
-        }
+        applyPickup(sh, pk.kind);
         beep(660, 'triangle', 0.07, 0.14);
         S.pickups.splice(i, 1);
         break;
@@ -3005,7 +3148,7 @@ const DUEL = (() => {
 
     // One-shot actions, cleared so they fire once per decision.
     if (it.measure && foe.measCd === 0 && foe.winding === 0) {
-      foe.winding = K.MEASURE_WIND_S; sfxWind(); it.measure = false;
+      windMeasure(foe); it.measure = false;
     } else if (it.entangle && !S.bell && (foe.entCd || 0) <= 0) {
       const q = take(S.proj);
       if (q) {
@@ -3020,7 +3163,7 @@ const DUEL = (() => {
       // Charge for the requested hold, then release.
       _botHold -= dt;
       if (_botHold <= 0) {
-        const theta = it.theta != null ? it.theta : DuelCore.chargeToTheta(it.hold || 0.6);
+        const theta = it.theta != null ? it.theta : DuelCore.driveTheta(it.hold || 0.6, rabiMult(foe));
         if (it.selfPulse) selfPulse(foe, theta, it.beam);
         else fireBeam(foe, theta, it.beam);
         it.fire = it.selfPulse = false;
@@ -3042,9 +3185,23 @@ const DUEL = (() => {
     S.flash = Math.max(0, S.flash - dt * 2.8);
     pollGamepad();
     if (!S.paused && !S.over) {
-      S.acc += dt;
-      let guard = 0;
-      while (S.acc >= 1 / 60 && guard++ < 8) { step(1 / 60); S.acc -= 1 / 60; }
+      if (S.hitStop > 0) {
+        // Measurement reveal: the sim holds still while the roll is shown.
+        S.hitStop = Math.max(0, S.hitStop - dt);
+        if (S.hitStop === 0 && S.pendingEnd) {
+          const pe = S.pendingEnd; S.pendingEnd = null;
+          S.reveal = null;
+          endRound(pe[0], pe[1], pe[2]);
+        }
+      } else {
+        S.acc += dt;
+        let guard = 0;
+        while (S.acc >= 1 / 60 && !(S.hitStop > 0) && guard++ < 8) { step(1 / 60); S.acc -= 1 / 60; }
+      }
+    }
+    if (S.reveal && !S.paused) {
+      S.reveal.t += dt;
+      if (S.reveal.t > REVEAL_S && !S.pendingEnd) S.reveal = null;
     }
     draw();
     const ms = performance.now() - t0;
@@ -3118,6 +3275,7 @@ const DUEL = (() => {
     }
     ctx.restore();
     drawHud();
+    drawReveal();
     drawAnnouncer();
     if (S.paused) banner('PAUSED', 'ESC / MENU to resume');
     if (S.over) drawDebrief();
@@ -3150,7 +3308,8 @@ const DUEL = (() => {
     for (const pk of S.pickups) {
       const x = w2sx(pk.x), y = w2sy(pk.y);
       const bob = Math.sin(pk.t * 3) * 3;
-      const col = pk.kind === 'calib' ? '#3fe08a' : '#f5b73c';
+      const P = DuelCore.PICKUPS[pk.kind] || DuelCore.PICKUPS.calib;
+      const col = P.color;
       ctx.save(); ctx.translate(x, y + bob);
       ctx.strokeStyle = col; ctx.lineWidth = 2;
       ctx.shadowColor = col; ctx.shadowBlur = 12;
@@ -3165,7 +3324,7 @@ const DUEL = (() => {
       ctx.fillStyle = col;
       ctx.font = `700 ${Math.round(BOARD * 0.014)}px ${CANVAS_BODY}`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(pk.kind === 'calib' ? '⌖' : 'T', 0, 0);
+      ctx.fillText(P.glyph, 0, 0);
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       ctx.restore();
     }
@@ -3238,7 +3397,7 @@ const DUEL = (() => {
       ctx.stroke();
     }
     if (sh.winding > 0) {
-      const frac = 1 - sh.winding / K.MEASURE_WIND_S;
+      const frac = 1 - sh.winding / (sh.windTotal || K.MEASURE_WIND_S);
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.arc(x, y, R * 2.1 - frac * R, 0, Math.PI * 2); ctx.stroke();
@@ -3272,6 +3431,9 @@ const DUEL = (() => {
                    : 'their qubit — rotate it to |1⟩, then MEASURE',
             118, 112, S.bell ? '#c97bff' : '#6f79a8');
     if (foe.zenoUntil > S.t) hudText('ZENO-PINNED — cannot be rotated', 118, 130, '#8b7dff');
+    else if (!S.bell && foe.detuneUntil > S.t)
+      hudText(`DETUNED ${(foe.detuneUntil - S.t).toFixed(0)}s — your X/Y beams are off-resonant (from |0⟩: ${Math.round(100 / (1 + DuelCore.PICKUPS.detune.dOverO ** 2))}% max)`,
+              118, 130, DuelCore.PICKUPS.detune.color);
     else if (!S.bell && DuelCore.BEAMS[S.beam] && DuelCore.BEAMS[S.beam].kind === 'attack'
              && DuelCore.isEigenstate(foe.bloch, DuelCore.BEAMS[S.beam].axis))
       // Only when the camp actually blocks the beam you have SELECTED —
@@ -3327,10 +3489,11 @@ const DUEL = (() => {
             118, by + 54, me.inHot ? '#3fe08a' : myOdds > 0.6 ? '#ff5a72' : '#6f79a8');
 
     // Charge bar with π-fraction ticks — the player reads pulse AREA.
-    const bx = 118, bw = BOARD - 118 - 190, bh = 14, byy = by + 74;
+    const kx = BOARD - 292;                       // control strip column (right)
+    const bx = 118, bw = kx - 20 - bx, bh = 14, byy = by + 74;
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     roundRect(bx, byy, bw, bh, 3); ctx.fill();
-    const frac = S.charging ? Math.min(1, S.chargeT / K.CHARGE_FULL_S) : 0;
+    const frac = S.charging ? Math.min(1, S.chargeT * rabiMult(me) / K.CHARGE_FULL_S) : 0;
     if (frac > 0) {
       ctx.fillStyle = frac >= 0.999 ? '#3fe08a' : '#f5b73c';
       roundRect(bx, byy, bw * frac, bh, 3); ctx.fill();
@@ -3360,8 +3523,18 @@ const DUEL = (() => {
       ctx.beginPath(); ctx.arc(rx + 305 + i * 15, ry - 4, 5, 0, Math.PI * 2); ctx.fill();
     }
 
+    // Active power-ups — one line under the resource row.
+    const boosts = [];
+    if (me.driveUntil > S.t) boosts.push([`DRIVE ×2 ${(me.driveUntil - S.t).toFixed(0)}s`, DuelCore.PICKUPS.drive.color]);
+    if (me.detuneUntil > S.t) boosts.push([`DETUNED ${(me.detuneUntil - S.t).toFixed(0)}s`, DuelCore.PICKUPS.detune.color]);
+    if (me.fastReadout) boosts.push(['FAST READOUT armed', DuelCore.PICKUPS.readout.color]);
+    let bxx = rx;
+    for (const [txt, col] of boosts) {
+      hudText(txt, bxx, ry + 20, col);
+      bxx += ctx.measureText(txt).width + 16;
+    }
+
     // Control strip — one manifest feeds the live behavior and these labels.
-    const kx = BOARD - 292;
     const beamName = (DuelCore.BEAMS[S.beam] || {}).label || 'X-BEAM';
     hudText(`ACTIVE INPUT · ${S.inputDevice}`, kx, by + 22, S.inputDevice === 'GAMEPAD' ? '#2fe0d0' : '#6f79a8');
     hudText(`${DUEL_CONTROLS.keyboard.move} move · ${DUEL_CONTROLS.keyboard.aim} aim`, kx, by + 42, '#6f79a8');
@@ -3370,12 +3543,64 @@ const DUEL = (() => {
     ctx.font = `700 ${Math.round(BOARD * 0.0163)}px ${CANVAS_BODY}`;
     ctx.fillText(`${DUEL_CONTROLS.keyboard.beams}  ${beamName}${S.beam === 'T' ? ' ×' + me.tCharges : ''}`, kx, by + 82);
     const measReady = me.measCd === 0 && me.winding === 0;
-    hudText(`${DUEL_CONTROLS.keyboard.measure} measure ${measReady ? '(ready)' : '(' + me.measCd.toFixed(1) + 's)'} · ${DUEL_CONTROLS.keyboard.entangle} entangle`,
-            kx, by + 102, measReady ? '#3fe08a' : '#6f79a8');
     const entReady = !S.bell && (me.entCd || 0) <= 0;
+    const entTag = S.bell ? ' (linked)' : entReady ? '' : ` (${(me.entCd||0).toFixed(0)}s)`;
+    hudText(`${DUEL_CONTROLS.keyboard.measure} measure ${measReady ? '(ready)' : '(' + me.measCd.toFixed(1) + 's)'} · ${DUEL_CONTROLS.keyboard.entangle} entangle${entTag}`,
+            kx, by + 102, measReady ? '#3fe08a' : '#6f79a8');
     hudText(`${S.gamepad.index == null ? 'PAD' : 'PAD CONNECTED'} · LS/RS move/aim · RT/LT pulses`,
             kx, by + 122, S.gamepad.index == null ? '#6f79a8' : '#2fe0d0');
-    if (!entReady || S.bell) hudText(S.bell ? 'ENTANGLE · linked' : `ENTANGLE · ${(me.entCd||0).toFixed(0)}s`, kx - 160, by + 122, '#c97bff');
+  }
+
+  // Measurement reveal: the Born rule, drawn. The bar is split at P(|1⟩); the
+  // marker slides to the uniform draw, and the outcome is |1⟩ iff it stops
+  // in the left (|1⟩) part. Entangled measures have no single draw to show,
+  // so they show the 50/50 split and the correlated result.
+  function drawReveal() {
+    const R = S.reveal; if (!R) return;
+    const fadeIn = Math.min(1, R.t / 0.12);
+    const fadeOut = S.pendingEnd ? 1 : Math.min(1, (REVEAL_S - R.t) / 0.4);
+    const a = Math.max(0, Math.min(fadeIn, fadeOut));
+    if (a <= 0) return;
+    const yours = R.shooter === 0;
+    const W = 440, H = 82, x0 = (BOARD - W) / 2, y0 = BAND + 70;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(5,7,15,.9)';
+    roundRect(x0, y0, W, H, 8); ctx.fill();
+    ctx.strokeStyle = yours ? '#2fe0d0' : '#ff4d9d'; ctx.lineWidth = 1;
+    roundRect(x0, y0, W, H, 8); ctx.stroke();
+    ctx.textAlign = 'center';
+    hudText(yours ? 'YOUR MEASURE ON SAGE' : 'SAGE MEASURES YOUR QUBIT', BOARD / 2, y0 + 18,
+            yours ? '#2fe0d0' : '#ff4d9d');
+    // Bar: [0, p) is |1⟩ (hit), [p, 1) is |0⟩ (dud)
+    const bx = x0 + 20, bw = W - 40, by = y0 + 28, bh = 16;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    roundRect(bx, by, bw, bh, 3); ctx.fill();
+    ctx.fillStyle = yours ? 'rgba(63,224,138,.75)' : 'rgba(255,90,114,.75)';
+    if (R.p > 0) { roundRect(bx, by, bw * R.p, bh, 3); ctx.fill(); }
+    ctx.font = `700 ${Math.round(BOARD * 0.0138)}px ${CANVAS_BODY}`;
+    ctx.fillStyle = '#05070f';
+    if (R.p > 0.16) { ctx.textAlign = 'left'; ctx.fillText(`|1⟩ ${(R.p * 100).toFixed(0)}%`, bx + 6, by + 12); }
+    ctx.fillStyle = '#cfd6ee';
+    if (R.p < 0.84) { ctx.textAlign = 'right'; ctx.fillText(`|0⟩ ${((1 - R.p) * 100).toFixed(0)}%`, bx + bw - 6, by + 12); }
+    let line;
+    if (!R.bell && R.draw != null) {
+      const k = REDUCE_MOTION ? 1 : Math.min(1, R.t / 0.3), e = 1 - Math.pow(1 - k, 3);
+      const mx = bx + bw * R.draw * e;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(mx - 1.5, by - 5, 3, bh + 10);
+      ctx.beginPath(); ctx.moveTo(mx - 6, by - 9); ctx.lineTo(mx + 6, by - 9); ctx.lineTo(mx, by - 3); ctx.fill();
+      line = `random draw ${R.draw.toFixed(2)} ${R.outcome ? '<' : '≥'} P(|1⟩) ${R.p.toFixed(2)}  →  |${R.outcome}⟩`;
+    } else {
+      line = `entangled: P(|1⟩) = ${(R.p * 100).toFixed(0)}% and both qubits collapse to |${R.outcome}⟩`;
+    }
+    const verdict = R.blocked ? ' · SHIELDED (mission rule)'
+      : R.outcome ? (yours ? ' · HIT' : ' · YOU ARE HIT') : ' · DUD';
+    ctx.textAlign = 'center';
+    hudText(line + verdict, BOARD / 2, y0 + 68,
+            R.outcome && !R.blocked ? (yours ? '#3fe08a' : '#ff5a72') : '#aeb8e6');
+    ctx.textAlign = 'left';
+    ctx.restore();
   }
 
   // Tiny word-wrapper for the mission brief (the one place duel HUD has prose).
@@ -3570,7 +3795,7 @@ const DUEL = (() => {
     selectBeam(BEAM_ORDER[(at + delta + BEAM_ORDER.length) % BEAM_ORDER.length]);
   }
   function beginCharge(kind, source) {
-    if (MODE !== 'duel' || S.paused || S.over || S.charging || !S.ships[0]) return false;
+    if (MODE !== 'duel' || S.paused || S.over || S.hitStop > 0 || S.charging || !S.ships[0]) return false;
     ac();
     S.charging = true; S.chargeT = 0;
     S.selfAim = kind === 'self'; S.chargeSource = source;
@@ -3579,11 +3804,11 @@ const DUEL = (() => {
   }
   function releaseCharge(source) {
     if (!S.charging || S.chargeSource !== source) return false;
-    const theta = DuelCore.chargeToTheta(S.chargeT);
+    const theta = DuelCore.driveTheta(S.chargeT, S.ships[0] ? rabiMult(S.ships[0]) : 1);
     const self = S.selfAim;
     S.charging = false; S.chargeT = 0; S.selfAim = false; S.chargeSource = null;
     const me = S.ships[0];
-    if (!S.paused && !S.over && me && me.beamCd === 0) {
+    if (!S.paused && !S.over && !(S.hitStop > 0) && me && me.beamCd === 0) {
       if (self) selfPulse(me, theta, S.beam); else fireBeam(me, theta, S.beam);
       return true;
     }
@@ -3595,14 +3820,15 @@ const DUEL = (() => {
   function beginMeasure() {
     if (S.paused || S.over) return false;
     const me = S.ships[0];
+    if (S.hitStop > 0) return false;
     if (!me || me.measCd !== 0 || me.winding !== 0) return false;
-    me.winding = K.MEASURE_WIND_S; sfxWind();
+    windMeasure(me);
     return true;
   }
   function launchEntangle() {
     if (S.paused || S.over) return false;
     const me = S.ships[0];
-    if (!me || S.bell || (me.entCd || 0) > 0) return false;
+    if (S.hitStop > 0 || !me || S.bell || (me.entCd || 0) > 0) return false;
     const q = take(S.proj); if (!q) return false;
     q.live = true; q.kind = 'entangle'; q.owner = 0; q.ttl = 4;
     q.x = me.x + Math.cos(me.ang) * K.SHIP_R;
@@ -3801,7 +4027,7 @@ function openMenu() {
   <button class="mode-card" data-play-mode="photon-duel" onclick="startDuel()">
     <span class="mode-kicker">COMPETITIVE · BEST OF 3</span>
     <strong>⚡ PHOTON DUEL</strong>
-    <span class="mode-copy">Outfly Sage, rotate their live Bloch vector, and risk the MEASURE when the odds are yours.</span>
+    <span class="mode-copy">Outfly Sage, rotate their live Bloch vector, grab power-ups, and risk the MEASURE when the odds are yours.</span>
     <span class="mode-status">PLAY FREE DUEL →</span>
   </button>
   <button class="mode-card training" data-play-mode="duel-training" onclick="openDuelMissions()">
@@ -3813,6 +4039,8 @@ function openMenu() {
 </div>
 <h3>CONTROLS</h3>
 ${duelControlsHTML()}
+<h3>POWER-UPS · FREE DUEL</h3>
+${duelPickupsHTML()}
 <h3>LAB TOOLS</h3>
 <div class="support-actions">
   <button class="btn" onclick="openGlossaryIndex()">▸ GLOSSARY</button>
