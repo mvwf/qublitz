@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Qublitz interactive demos</title>
+<style>
+  :root{ color-scheme: light; --green:#00693e; --ink:#1b2a24; --muted:#5a6b63; --line:#d8e2dc; --panel:#f5f9f6; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 Helvetica,"Helvetica Neue",Arial,sans-serif}
+  .page{max-width:780px;margin:0 auto;padding:18px 20px 48px}
+  a{color:var(--green)}
+  h1{font-size:24px;margin:6px 0 4px;color:var(--green)}
+  h2{font-size:17px;margin:22px 0 4px;color:var(--green)}
+  .sub{color:var(--muted);margin:0 0 14px}
+  .status{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px 14px;margin:12px 0}
+  ul{padding-left:22px} li{margin:3px 0}
+  table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top} th{background:var(--panel)}
+  .muted{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="page">
+<script src="shared/sitebar.js"></script>
+<a href="index.html" style="font-size:13px;color:var(--muted);text-decoration:none">&larr; All demos</a>
+<h1>Privacy</h1>
+<p class="sub">How the Qublitz interactive demos count their use. Plain language; last updated 5 November 2026.</p>
+
+<div class="status" id="status">Checking whether usage counting is switched on…</div>
+
+<h2>The short version</h2>
+<ul>
+  <li>We never collect your name, email, school, account, location or anything else that identifies you.</li>
+  <li>There are no cookies, no tracking identifiers and no advertising or third-party analytics.</li>
+  <li>You can't type anything that we collect: the demos have no text boxes that send what you write.</li>
+  <li>When counting is switched on, a demo sends anonymous counts (for example "Beamline level 3 solved") and, if you
+    answer them, which choice you picked for a question and two 1–5 ratings.</li>
+  <li>You can opt out on any page, and browsers that send Do Not Track or Global Privacy Control send nothing.</li>
+</ul>
+
+<h2>What is sent, when counting is on</h2>
+<table>
+  <tr><th>Kind</th><th>Example</th><th>What it contains</th></tr>
+  <tr><td>Activity counts</td><td>"Rabi Rider opened", "level 'half' solved, 3 stars", "left after 4 minutes, at mission 3"</td>
+    <td>The demo's name, the event, the level or step, a number such as stars or minutes, the day (no time), and
+      whether the device is a touch screen.</td></tr>
+  <tr><td>Questions and ratings</td><td>"question q2: picked choice 1, right"; "fun 4 of 5"</td>
+    <td>Which choice was picked and whether it was right, and the two optional ratings. Nothing typed.</td></tr>
+  <tr><td>Session label</td><td><code>?event=SCIFAIR26</code> in a link handed out at an event</td>
+    <td>A label for an outreach session, chosen by its organiser, so we can see how an event went. It labels a
+      session, not a person.</td></tr>
+</table>
+<p>Records from one visit to one page arrive together, but nothing in them links them to you or to any of your other visits, and every date is kept to the day only.</p>
+
+<h2>Why</h2>
+<p>To see which activities people use, where they stop and which ideas are hard, so we can make the demos clearer
+  and more fun; and to report overall use (for example "1,200 visits and 300 hours of play this year") in reports and
+  grant proposals. We publish only totals and averages.</p>
+
+<h2>Where it goes and who sees it</h2>
+<p>Counts are sent to a Google Apps Script owned by the lab and stored in a Google Sheet in a Dartmouth Google
+  account, readable only by the lab. As with any web request, Google's servers see your browser's network address
+  while delivering the data; our script does not receive or store it. A public summary page shows only totals and
+  averages.</p>
+
+<h2>Children</h2>
+<p>The demos are used in classrooms and at outreach events, sometimes by children under 13. We designed the counting
+  so that no personal information is collected from anyone: there are no accounts, no identifiers and nothing typed is
+  sent. Teachers and event organisers who would rather send nothing at all can use the offline downloads (they never
+  send anything) or ask visitors to opt out.</p>
+
+<h2>Research</h2>
+<p>The counts are used to evaluate and improve the demos. They will not be used in research publications unless
+  Dartmouth's Committee for the Protection of Human Subjects has first reviewed that use; if that changes, this page
+  will say so before any such data are collected.</p>
+
+<h2>Your choices</h2>
+<ul>
+  <li><b>Opt out:</b> the "Opt out" link at the bottom of any demo stops this browser from sending anything.</li>
+  <li><b>Do Not Track / Global Privacy Control:</b> if your browser sends either signal, nothing is sent.</li>
+  <li><b>Offline downloads</b> of the demos never send anything.</li>
+</ul>
+
+<h2>Contact</h2>
+<p>Questions or concerns: Mattias Fitzpatrick, <a href="mailto:mattias.w.fitzpatrick@dartmouth.edu">mattias.w.fitzpatrick@dartmouth.edu</a>,
+  Fitzpatrick Lab, Dartmouth.</p>
+<p class="muted">The code that does the counting is open: <a href="https://github.com/mvwf/qublitz/blob/main/web/shared/outreach.js">web/shared/outreach.js</a>
+  (browser) and <a href="https://github.com/mvwf/qublitz/blob/main/tools/outreach-collector/Code.gs">tools/outreach-collector/Code.gs</a> (collector).</p>
+</div>
+<script src="shared/outreach-config.js"></script>
+<script>
+  (function () {
+    var on = !!(window.QL_CONFIG && window.QL_CONFIG.endpoint), el = document.getElementById('status');
+    var dnt = navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true, out = false;
+    try { out = localStorage.getItem('ql_optout') === '1'; } catch (e) {}
+    el.textContent = !on ? 'Usage counting is currently switched off: no demo sends anything.'
+      : dnt ? 'Usage counting is on, but your browser sends Do Not Track or Global Privacy Control, so it sends nothing.'
+      : out ? 'Usage counting is on, but you have opted out in this browser, so it sends nothing.'
+      : 'Usage counting is on. You can opt out at the bottom of any demo page.';
+  })();
+</script>
+</body>
+</html>
