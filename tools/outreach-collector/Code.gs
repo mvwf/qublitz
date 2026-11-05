@@ -36,7 +36,9 @@ function doPost(e) {
         if (q) append_('quiz', [q.quiz]);
       }
     } finally { lock.releaseLock(); }
-    CacheService.getScriptCache().remove('summary');
+    // Every cached summary key carries this version, so bumping it makes all of them stale at once
+    // (removing 'summary' never matched, because the keys include the period).
+    CacheService.getScriptCache().put('ver', String(now.getTime()), 21600);
     return text_('ok');
   } catch (err) { return text_('error'); }
 }
@@ -45,7 +47,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
   if (!p.summary) return text_('outreach collector: ok');
-  var cache = CacheService.getScriptCache(), key = 'summary' + days, hit = cache.get(key);
+  var cache = CacheService.getScriptCache(), key = 'summary' + days + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
   var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date()));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
