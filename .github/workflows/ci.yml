@@ -81,6 +81,11 @@ jobs:
       - name: Beamline engine test
         run: node web/qublitz/tests/beamline-engine.test.js
 
+      # Resonator Lab: the models against their closed forms, fits recovering simulated resonators with honest
+      # error bars, the formula parser, and the CSV and Touchstone readers.
+      - name: Resonator engine test
+        run: node web/qublitz/tests/resonator-engine.test.js
+
       # Outreach kit: redaction, validation and the collector's aggregation (no personal data reaches the summary).
       - name: Outreach kit test
         run: node web/shared/tests/outreach.test.js

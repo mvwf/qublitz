@@ -13,6 +13,7 @@
     { id: 'beamline',    title: 'Beamline',                       path: 'qublitz/beamline.html',                    group: 'Virtual Qubit Labs' },
     { id: 'arena',       title: 'QuBlitz Arena (Photon Duel)',    path: 'qublitz/arena.html',                       group: 'Virtual Qubit Labs' },
     { id: 'fridge',      title: 'Fridge Noise Explorer',          path: 'qublitz/fridge-noise.html',                group: 'Research' },
+    { id: 'resonator',   title: 'Resonator Lab',                  path: 'qublitz/resonator.html',                   group: 'Research' },
     { id: 'ep-tpd',      title: 'Exceptional Points & TPDs',      path: 'qublitz/ep-tpd.html',                      group: 'Research' },
     { id: 'trio',        title: 'Three Equations, One Eigenbasis', path: 'courses/engs23/heat-wave-schrodinger.html', group: 'ENGS 23' },
     { id: 'string',      title: 'The Vibrating String',           path: 'courses/engs23/vibrating-string.html',     group: 'ENGS 23' },

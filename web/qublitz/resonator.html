@@ -1,0 +1,1469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resonator Lab — Qublitz</title>
+<meta name="description" content="See how internal and coupling quality factors shape a microwave resonance, then fit your own resonator data with built-in models or your own formula.">
+<!-- Everything this page needs ships with it (no CDN), so it also works offline.
+     scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
+<script src="resonator-engine.js"></script>
+<script src="../shared/pagekit.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+    --int:#c84b31; --ext:#2d6fb3;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html{scroll-padding-top:64px}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1200px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  a.back:hover{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 12px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px;min-width:0}
+  .card>h2,.card>summary>h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  h3{font-size:16px;margin:16px 0 6px}
+  .row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:8px 0}
+  .field{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .field>label,.lbl{font-size:12.5px;color:var(--muted)}
+  input[type=number],input[type=text],select,textarea{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;
+    padding:6px 9px;background:#fff;color:var(--ink);max-width:100%}
+  input[type=number]{width:120px}
+  textarea{width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(0,105,62,.22);border-color:var(--green2)}
+  input[type=range]{accent-color:var(--green);width:100%}
+  button,.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;
+    padding:6px 12px;cursor:pointer;transition:.12s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+  button:hover,.btn:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+  button.primary:hover{background:var(--green2);color:#fff}
+  button.big{font-size:15px;padding:9px 18px}
+  button:disabled{opacity:.5;cursor:default}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
+  .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
+  .note.ok{background:#e9f5ee;border-color:#bfe0cc;color:#0d4f31}
+  .note.err{background:#fdeae4;border-color:#f1c4b6;color:#7a2a14}
+  .val{font-variant-numeric:tabular-nums}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:4px;padding:0 4px}
+  .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:16px;margin:8px 0 8px 14px;overflow-x:auto;white-space:nowrap}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 2px}
+  .frac>span:first-child{border-bottom:1px solid currentColor;padding:0 3px}
+  .math{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:1.06em}
+  details>summary{cursor:pointer}
+  details.card>summary{list-style:none;display:flex;align-items:center;gap:8px}
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card>summary h2{margin:0}
+  details.card>summary::after{content:'▸';color:var(--muted);font-size:12px;margin-left:auto;transition:transform .15s}
+  details.card[open]>summary::after{transform:rotate(90deg)}
+  details.card[open]>summary{margin-bottom:10px}
+
+  /* ---------- tabs: one sticky bar, like the contents bar on Q-Vault ---------- */
+  .tabs{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);display:flex;gap:4px;margin:6px -20px 16px;padding:8px 20px 0;overflow-x:auto}
+  .tab{border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;background:none;padding:9px 14px 10px;
+    font-size:14.5px;color:var(--muted);white-space:nowrap;margin-bottom:-1px;display:flex;gap:8px;align-items:center}
+  .tab .n{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:50%;background:var(--panel);
+    border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--muted)}
+  .tab[aria-selected="true"]{border-color:var(--line);background:#fff;color:var(--green);font-weight:600}
+  .tab[aria-selected="true"] .n{background:var(--green);border-color:var(--green);color:#fff}
+  .tab:hover{color:var(--green);border-color:transparent}
+  .tab[aria-selected="true"]:hover{border-color:var(--line)}
+
+  .layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;align-items:start}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+  .seg button{flex:1;border:none;border-radius:0;padding:8px 6px;font-size:13px;justify-content:center;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:none}
+  .seg button[aria-pressed="true"]{background:var(--green);color:#fff;font-weight:600}
+  .qrow{display:grid;grid-template-columns:1fr 112px;gap:4px 10px;align-items:center;margin:10px 0 2px}
+  .qrow label{font-size:13.5px;font-weight:600}
+  .qrow label small{font-weight:400;color:var(--muted)}
+  .qrow input[type=text]{width:112px;text-align:right;font-variant-numeric:tabular-nums}
+  .qrow input[type=range]{grid-column:1/-1}
+  .qi label{color:var(--int)} .qc label{color:var(--ext)}
+  .qi input[type=range]{accent-color:var(--int)} .qc input[type=range]{accent-color:var(--ext)}
+  .presets{display:flex;flex-wrap:wrap;gap:6px}
+  .presets button{font-size:12.5px;padding:5px 10px}
+
+  .regime{border-radius:10px;padding:12px 14px;margin:0 0 12px;border:1px solid var(--line);background:var(--panel)}
+  .regime .tag{display:inline-block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;border-radius:999px;
+    padding:2px 10px;color:#fff;background:var(--muted);margin-right:6px}
+  .regime.under .tag{background:var(--int)} .regime.over .tag{background:var(--ext)} .regime.critical .tag{background:var(--green)}
+  .regime.unphysical .tag{background:#7a2a14}
+  .regime b.head{font-size:15.5px}
+  .regime p{margin:6px 0 0;font-size:13.5px}
+  .budget{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:10px 0 4px;border:1px solid var(--line);gap:2px;background:#fff}
+  .budget i{display:flex;align-items:center;justify-content:center;font-style:normal;font-size:11.5px;color:#fff;font-weight:600;
+    white-space:nowrap;overflow:hidden;transition:width .15s;min-width:0}
+  .budget .bi{background:var(--int)} .budget .bc{background:var(--ext)}
+  .budget-key{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+  .stat{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;min-width:0}
+  .stat span{display:block;font-size:11.5px;color:var(--muted)}
+  .stat b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stat small{display:block;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .stat.big b{font-size:20px}
+  .stat.int{border-left:4px solid var(--int)} .stat.ext{border-left:4px solid var(--ext)} .stat.tot{border-left:4px solid var(--green)}
+  .plotgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:10px}
+  @media(max-width:760px){.plotgrid{grid-template-columns:1fr}}
+  .plot{width:100%;height:250px}
+  .plot.iq{height:510px}
+  @media(max-width:760px){.plot.iq{height:340px}}
+  .look{margin:0;padding-left:18px;font-size:13.5px}
+  .look li{margin:3px 0}
+  svg.schem{width:100%;height:auto;display:block;margin:6px 0 2px}
+  .tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+  /* ---------- fit tab ---------- */
+  .steps{counter-reset:step}
+  .step{position:relative;padding-left:44px}
+  .step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:12px;width:30px;height:30px;border-radius:50%;
+    background:var(--green);color:#fff;font-weight:700;display:grid;place-items:center;font-size:15px}
+  .step.dim::before{background:#b9c6bf}
+  .step>.card{margin-bottom:16px}
+  .step h2.st{font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 4px}
+  .choice{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+  @media(max-width:640px){.choice{grid-template-columns:1fr}}
+  .choice button{flex-direction:column;align-items:flex-start;text-align:left;padding:10px 12px;gap:2px;border-radius:9px}
+  .choice button b{font-size:14px}
+  .choice button span{font-size:12px;color:var(--muted)}
+  .choice button[aria-pressed="true"]{border:2px solid var(--green);background:#eef7f1;padding:9px 11px}
+  .drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);font-size:13.5px;transition:.15s}
+  .drop.over{border-color:var(--green);background:#eef7f1;color:var(--green)}
+  .drop label{color:var(--green);text-decoration:underline;cursor:pointer}
+  .status{font-size:13px;margin:8px 0 0}
+  .status.ok{color:var(--green)} .status.err{color:#b5311a}
+  table{border-collapse:collapse;font-size:13px;width:100%;font-variant-numeric:tabular-nums}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:12px}
+  .tablewrap{overflow-x:auto}
+  td input[type=text]{width:130px;text-align:right;font-variant-numeric:tabular-nums}
+  td.l{text-align:left;white-space:normal}
+  .formula-err{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre;color:#b5311a;margin:4px 0 0;overflow-x:auto}
+  pre.code{background:#0f1f18;color:#d7f0e2;border-radius:8px;padding:12px;font-size:12.3px;overflow:auto;max-height:420px;margin:8px 0}
+  .z-ok{color:var(--green);font-weight:600} .z-meh{color:#9a6a0b;font-weight:600} .z-bad{color:#b5311a;font-weight:600}
+
+  /* ---------- learn tab ---------- */
+  .learn{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
+  @media(max-width:860px){.learn{grid-template-columns:1fr}.toc{position:static!important}}
+  .toc{position:sticky;top:64px;font-size:13.5px;border-left:2px solid var(--line);padding-left:12px}
+  .toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0}
+  .toc a:hover{color:var(--green)}
+  .learn section{scroll-margin-top:70px}
+  .learn p,.learn li{font-size:14px;max-width:820px}
+  dl.gloss{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);gap:8px 16px;margin:0}
+  dl.gloss dt{font-weight:600;font-size:13.5px}
+  dl.gloss dd{margin:0;font-size:13.5px;color:var(--ink)}
+  @media(max-width:560px){dl.gloss{grid-template-columns:1fr}dl.gloss dd{margin-bottom:8px}}
+  .refs li{margin:6px 0}
+  .refs .why{display:block;color:var(--muted);font-size:13px}
+  .term{border-bottom:1px dotted currentColor;cursor:help}
+  #tip{position:fixed;z-index:50;max-width:300px;background:#1b2a24;color:#fff;font-size:12.5px;line-height:1.45;padding:8px 10px;
+    border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);pointer-events:none}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1b2a24;color:#fff;padding:9px 16px;border-radius:9px;
+    font-size:13.5px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+</style>
+</head>
+<body>
+<div class="page">
+<script src="../shared/sitebar.js"></script>
+<script src="../shared/outreach-config.js"></script>
+<script src="../learning/manifest.js"></script>
+<script src="../shared/outreach.js"></script>
+<a class="back" id="back" href="../index.html#research">&larr; All demos</a>
+<h1>📡 Resonator Lab</h1>
+<p class="sub">A superconducting resonator loses energy in two ways: inside itself (the
+  <span class="term" data-term="Qi">internal Q</span>, Q<sub>i</sub>) and out through the line you measure it with (the
+  <span class="term" data-term="Qc">coupling Q</span>, Q<sub>c</sub>). <b>Explore</b> how the two shape what a network analyzer sees,
+  <b>fit</b> a resonance yourself, with our models or your own formula, and <b>learn</b> the background with open references.</p>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab" role="tab" id="tab-explore" aria-controls="explore" data-tab="explore"><span class="n">1</span><span>Explore Q<sub>i</sub> and Q<sub>c</sub></span></button>
+  <button class="tab" role="tab" id="tab-fit" aria-controls="fit" data-tab="fit"><span class="n">2</span>Fit a resonance</button>
+  <button class="tab" role="tab" id="tab-learn" aria-controls="learn" data-tab="learn"><span class="n">3</span>Learn &amp; resources</button>
+</nav>
+
+<!-- ======================================================= EXPLORE -->
+<section id="explore" role="tabpanel" aria-labelledby="tab-explore">
+<p class="note" id="guideNote" style="margin-top:0">New to resonators? Make six quick predictions and check each one against the plots.<span id="guideAnchor"></span></p>
+<div class="layout">
+<aside>
+  <div class="card">
+    <h2>How it is measured</h2>
+    <div class="seg" id="geoSeg" role="group" aria-label="Measurement geometry">
+      <button data-g="hanger">Hanger</button><button data-g="reflection">Reflection</button><button data-g="transmission">Transmission</button>
+    </div>
+    <svg class="schem" id="schem" viewBox="0 0 300 92" aria-hidden="true"></svg>
+    <p class="hint" id="geoText"></p>
+  </div>
+  <div class="card" id="exControls">
+    <h2>Quality factors</h2>
+    <div class="qrow qi"><label for="qiNum">Internal Q<sub>i</sub> <small>losses inside</small></label>
+      <input type="text" id="qiNum" inputmode="decimal" aria-label="Internal Q value">
+      <input type="range" id="qiR" min="2" max="8" step="0.01" aria-label="Internal Q (log scale)"></div>
+    <div class="qrow qc"><label for="qcNum">Coupling Q<sub>c</sub> <small>leak to the line</small></label>
+      <input type="text" id="qcNum" inputmode="decimal" aria-label="Coupling Q value">
+      <input type="range" id="qcR" min="2" max="8" step="0.01" aria-label="Coupling Q (log scale)"></div>
+    <p class="hint">Sliders are logarithmic: each step to the right multiplies Q. Type a value like <code>2e5</code> to set it exactly.</p>
+    <div class="lbl" style="margin-top:10px">Try</div>
+    <div class="presets" id="exPresets"></div>
+  </div>
+</aside>
+
+<div>
+  <div id="regime" aria-live="polite"></div>
+  <div class="card" id="exPlots">
+    <div class="row" style="margin:0 0 6px;justify-content:space-between">
+      <span class="hint" style="margin:0">Hover over (or tap) any plot: the same frequency is marked on all three.</span>
+      <div class="tools">
+        <button id="pinBtn" title="Keep the current curve as a dashed outline to compare against">📌 Pin curve</button>
+        <button id="unpinBtn" hidden>Clear pins</button>
+        <label class="hint" style="display:flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="lockWin"> Keep the zoom</label>
+      </div>
+    </div>
+    <div class="plotgrid">
+      <div><div id="pMag" class="plot"></div><div id="pPh" class="plot"></div></div>
+      <div id="pIQ" class="plot iq"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Read off this resonance</h2>
+    <div class="stats" id="exStats"></div>
+  </div>
+  <div class="card">
+    <h2>What to look for</h2>
+    <ul class="look" id="look"></ul>
+  </div>
+  <details class="card" id="advCard">
+    <summary><h2>Real-world extras</h2></summary>
+    <div class="field"><label for="frIn">Resonance frequency f<sub>r</sub> [GHz]</label><input type="number" id="frIn" min="0.1" max="100" step="0.001"></div>
+    <div class="field" style="margin-top:8px"><label for="phiR">Impedance mismatch (asymmetry) φ: <span class="val" id="phiVal"></span></label>
+      <input type="range" id="phiR" min="-60" max="60" step="1"></div>
+    <label class="hint" style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="envChk">
+      Add the cables: attenuation, phase offset and a 50 ns delay</label>
+    <p class="hint">A real line scales and rotates the signal, and its delay makes the phase wind with frequency, so the circle becomes
+      a spiral. Fitting removes these first. φ makes the dip lopsided; only Re(1/Q<sub>c</sub>) = cos φ / |Q<sub>c</sub>| is a loss channel.</p>
+  </details>
+  <details class="card" id="photonCard">
+    <summary><h2>Photons in the resonator</h2></summary>
+    <div class="field"><label for="pIn">Power arriving at the device [dBm]</label><input type="number" id="pIn" step="1" value="-140"></div>
+    <div id="photonOut" class="stats" style="margin-top:10px"></div>
+    <p class="hint">Mean photon number on resonance, from the Q's above and the power at the device, after all the fridge attenuation
+      (see the <a href="fridge-noise.html">Fridge Noise Explorer</a>). Resonator loss is usually quoted at about one photon,
+      where two-level-system defects matter most.</p>
+  </details>
+  <div class="row" style="margin-top:0"><button id="exCopy">Copy link to this setup</button><button id="exReset">Reset</button></div>
+</div>
+</div>
+</section>
+
+<!-- ======================================================= FIT -->
+<section id="fit" role="tabpanel" aria-labelledby="tab-fit" hidden>
+<div class="steps">
+
+<div class="step" id="stepData"><div class="card">
+  <h2 class="st">Choose data</h2>
+  <p class="hint" style="margin-top:0">Start with a mystery resonator to practise, or bring your own measurement. Files stay in your browser; nothing is uploaded.</p>
+  <div class="choice" id="srcChoice">
+    <button data-src="practice"><b>🎯 Mystery resonator</b><span>Simulated data with a hidden answer to check yourself against</span></button>
+    <button data-src="file"><b>📂 Open a file</b><span>CSV, TXT or a network-analyzer Touchstone file (.s1p, .s2p)</span></button>
+    <button data-src="paste"><b>📋 Paste numbers</b><span>Columns copied from a spreadsheet or a script</span></button>
+  </div>
+
+  <div id="srcPractice" hidden>
+    <div class="row">
+      <div class="field"><label for="prModel">Geometry</label>
+        <select id="prModel"><option value="hanger">Hanger (S21)</option><option value="reflection">Reflection (S11)</option><option value="transmission">Transmission (S21)</option></select></div>
+      <div class="field"><label for="prLevel">Difficulty</label>
+        <select id="prLevel"><option value="1">1 · clean, no cable delay</option><option value="2">2 · with cable delay</option><option value="3">3 · realistic noise and asymmetry</option></select></div>
+      <div class="field"><label for="prSeed">Resonator #</label><input type="number" id="prSeed" min="1" max="999999" step="1" style="width:110px"></div>
+      <button id="prNew">🎲 New mystery</button>
+    </div>
+    <p class="hint">Everyone who opens the same number, geometry and difficulty gets the same data, so a class can work on one resonator
+      (<a href="#" id="prLink">copy a link to it</a>). <a href="#" id="prCsv">Download it as CSV</a> to fit it in Python too.</p>
+  </div>
+
+  <div id="srcFile" hidden>
+    <div class="drop" id="drop">Drop a file here, or <label for="fileIn">choose one</label>
+      <input type="file" id="fileIn" accept=".csv,.txt,.dat,.tsv,.s1p,.s2p" hidden></div>
+  </div>
+
+  <div id="srcPaste" hidden>
+    <textarea id="pasteIn" rows="7" placeholder="frequency, real, imaginary&#10;5.0010, 0.912, -0.031&#10;5.0011, 0.905, -0.044&#10;…"></textarea>
+    <div class="row"><button id="pasteGo" class="primary">Read these numbers</button></div>
+  </div>
+
+  <div id="mapCard" hidden>
+    <h3>What is in each column?</h3>
+    <div class="row" id="mapRow"></div>
+    <div id="mapMsg"></div>
+  </div>
+
+  <div id="dataView" hidden>
+    <div class="status ok" id="dataStatus"></div>
+    <div class="plotgrid" style="margin-top:8px"><div id="dMag" class="plot"></div><div id="dIQ" class="plot"></div></div>
+    <div class="row">
+      <div class="field"><label for="cropLo">Fit from [GHz]</label><input type="number" id="cropLo" step="any" style="width:140px"></div>
+      <div class="field"><label for="cropHi">to [GHz]</label><input type="number" id="cropHi" step="any" style="width:140px"></div>
+      <button id="cropReset">Use all points</button>
+      <span class="hint" id="cropInfo" style="margin:0 0 6px"></span>
+    </div>
+    <p class="hint">Fit a window about 5 to 10 linewidths wide around the resonance. Drag across the left plot to zoom.</p>
+  </div>
+</div></div>
+
+<div class="step dim" id="stepModel"><div class="card">
+  <h2 class="st">Choose a model</h2>
+  <div class="choice" id="modeChoice" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <button data-mode="builtin"><b>Resonator model</b><span>Hanger, reflection or transmission, with cable delay and asymmetry. Gives Q<sub>i</sub> and Q<sub>c</sub> directly.</span></button>
+    <button data-mode="formula"><b>✏️ My own formula</b><span>Type any fit function, such as a Lorentzian. You choose the parameters.</span></button>
+  </div>
+
+  <div id="modeBuiltin" hidden>
+    <div class="row">
+      <div class="field"><label for="bModel">Geometry</label>
+        <select id="bModel"><option value="hanger">Hanger (notch), S21</option><option value="reflection">Reflection, S11</option><option value="transmission">Transmission, S21</option></select></div>
+      <label class="hint" style="display:flex;gap:6px;align-items:center;margin:0 0 7px"><input type="checkbox" id="bNoDelay"> The cable delay is already removed</label>
+    </div>
+    <div class="eq" id="bEq"></div>
+    <p class="hint" id="bTarget"></p>
+  </div>
+
+  <div id="modeFormula" hidden>
+    <div class="row">
+      <div class="field" style="flex:1 1 260px"><label for="fPreset">Start from</label><select id="fPreset"></select></div>
+      <div class="field"><label for="fTarget">Fit it to</label><select id="fTarget"></select></div>
+      <div class="field"><label for="fUnit">f in the formula is in</label>
+        <select id="fUnit"><option>GHz</option><option>MHz</option><option>kHz</option><option>Hz</option></select></div>
+    </div>
+    <div class="field"><label for="fText">Formula, in terms of <code>f</code> and your parameters</label>
+      <textarea id="fText" rows="2" spellcheck="false" autocomplete="off"></textarea></div>
+    <div id="fStatus" class="status"></div>
+    <details style="margin:6px 0"><summary class="hint" style="display:inline">How to write a formula</summary>
+      <p class="hint">Use <code>+ - * / ^</code> (or <code>**</code>) and brackets, always with <code>*</code> for multiplication (<code>2*f</code>, not <code>2f</code>).
+        <code>f</code> is the frequency, <code>i</code> is √−1 and <code>pi</code> is π. Functions: <code>sqrt exp log log10 abs re im conj arg
+        sin cos tan atan sinh cosh tanh</code>. Every other name, like <code>f0</code>, <code>Ql</code> or <code>width</code>, becomes a parameter
+        to fit. Complex formulas are fine: fit them to complex S, or to |S| and the page takes the magnitude.</p></details>
+    <h3 style="margin-top:12px">Parameters</h3>
+    <div class="tablewrap"><table id="pTable"></table></div>
+    <div class="row"><button id="pGuess">Fill starting values from the data</button>
+      <span class="hint" style="margin:0 0 6px">Fits need a sensible start. Names like <code>f0</code>, <code>fr</code>, <code>Ql</code>, <code>Qc</code>, <code>w</code>, <code>A</code>, <code>C</code> are recognised.</span></div>
+    <div class="field" style="margin-top:8px"><label for="fDerived">Derived quantities (optional), one per line, as <code>name = formula of the parameters</code></label>
+      <textarea id="fDerived" rows="2" spellcheck="false" placeholder="Ql = f0/w"></textarea></div>
+  </div>
+</div></div>
+
+<div class="step dim" id="stepRun"><div class="card">
+  <h2 class="st">Fit</h2>
+  <div class="row" style="margin:4px 0"><button class="primary big" id="runFit" disabled>Run the fit</button><span class="hint" id="runHint" style="margin:0 0 8px"></span></div>
+  <div id="fitMsg"></div>
+</div></div>
+
+<div class="step dim" id="stepResult"><div class="card">
+  <h2 class="st">Results</h2>
+  <div id="resEmpty" class="hint">Results appear here after the fit.</div>
+  <div id="resBody" hidden>
+    <div id="resRegime"></div>
+    <div class="stats" id="resStats"></div>
+    <div id="resQuality"></div>
+    <div id="resNotes"></div>
+    <div class="plotgrid" style="margin-top:10px"><div><div id="rMag" class="plot"></div><div id="rPh" class="plot"></div></div><div id="rIQ" class="plot iq"></div></div>
+    <div id="rRes" class="plot" style="height:200px"></div>
+    <div class="tablewrap"><table id="resTable"></table></div>
+    <div class="row">
+      <button id="resCopy">Copy results</button><button id="resCsv">Download data + fit (CSV)</button>
+      <button id="resPy">Python script</button><button id="resExplore" hidden>Open in Explore</button>
+    </div>
+    <div id="pyBox" hidden><pre class="code" id="pyCode"></pre>
+      <p class="hint">This scipy script repeats the fit from the values found here, so you can run it on your own data and computer.</p></div>
+    <div id="checkBox" hidden class="card" style="margin-top:12px;background:var(--panel)">
+      <h2>Mystery resonator: how close did you get?</h2>
+      <p class="hint" style="margin-top:0">Look at your numbers first. Then reveal the values the data were made from.</p>
+      <button id="checkBtn" class="primary">Reveal the answer</button>
+      <div id="checkOut"></div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+</section>
+
+<!-- ======================================================= LEARN -->
+<section id="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+<div class="learn">
+<nav class="toc" aria-label="On this tab">
+  <a href="#l-idea">The idea in one minute</a>
+  <a href="#l-regimes">Under, critical, over</a>
+  <a href="#l-models">The models we fit</a>
+  <a href="#l-check">Fitting checklist</a>
+  <a href="#l-gloss">Glossary</a>
+  <a href="#l-refs">Open papers and tools</a>
+  <a href="#l-math">How the fit works</a>
+</nav>
+<div>
+<section id="l-idea" class="card">
+  <h2>The idea in one minute</h2>
+  <p>A resonator stores energy at its resonance frequency f<sub>r</sub>. A quality factor counts how many radians of oscillation it takes
+    for the stored energy to fall by a factor e: Q = 2πf<sub>r</sub> × (energy stored) / (power lost). Energy leaves through two doors:</p>
+  <ul>
+    <li><b style="color:var(--int)">Inside</b>: dielectric and surface defects (two-level systems), quasiparticles, radiation, vortices. This
+      sets the <b>internal Q<sub>i</sub></b>, the number materials and fabrication work tries to raise.</li>
+    <li><b style="color:var(--ext)">Out through the coupling</b> to the line you measure with. This sets the <b>coupling Q<sub>c</sub></b>,
+      which the designer picks with a coupling capacitor or a gap.</li>
+  </ul>
+  <p>Loss rates add, so the inverse Q's add: the measured linewidth gives the <b>loaded Q<sub>l</sub></b>,</p>
+  <div class="eq"><span class="frac"><span>1</span><span><i>Q</i><sub>l</sub></span></span> = <span class="frac"><span>1</span><span><i>Q</i><sub>i</sub></span></span> + <span class="frac"><span>1</span><span><i>Q</i><sub>c</sub></span></span>,
+    &emsp; <i>κ</i> = <i>κ</i><sub>i</sub> + <i>κ</i><sub>c</sub>, &emsp; <i>κ</i>/2π = <i>f</i><sub>r</sub>/<i>Q</i><sub>l</sub> (the full width at half maximum).</div>
+  <p>The linewidth alone cannot tell the two doors apart. The <b>depth and shape</b> of the resonance can, because the light leaking out
+    through the coupling interferes with the light passing by. That is what the fit uses, and why the phase (the circle in the IQ plane)
+    helps so much.</p>
+</section>
+
+<section id="l-regimes" class="card">
+  <h2>Under, critical and over-coupled</h2>
+  <div class="tablewrap"><table>
+    <tr><th></th><th style="text-align:left">Under-coupled</th><th style="text-align:left">Critically coupled</th><th style="text-align:left">Over-coupled</th></tr>
+    <tr><td>Rule</td><td class="l">Q<sub>i</sub> &lt; Q<sub>c</sub> (κ<sub>i</sub> &gt; κ<sub>c</sub>)</td><td class="l">Q<sub>i</sub> = Q<sub>c</sub></td><td class="l">Q<sub>i</sub> &gt; Q<sub>c</sub></td></tr>
+    <tr><td>Linewidth set by</td><td class="l">internal loss</td><td class="l">both equally</td><td class="l">the coupling</td></tr>
+    <tr><td>Hanger dip, |S21| on resonance</td><td class="l">shallow (above 1/2)</td><td class="l">1/2, about −6 dB</td><td class="l">deep (below 1/2)</td></tr>
+    <tr><td>Reflection, |S11| on resonance</td><td class="l">small dip, phase returns</td><td class="l">0: every photon is absorbed</td><td class="l">small dip, phase winds 360°</td></tr>
+    <tr><td>Measuring Q<sub>i</sub></td><td class="l">easy, but the signal is small</td><td class="l">most precise</td><td class="l">hard: Q<sub>i</sub> hides in a small correction</td></tr>
+    <tr><td>Used for</td><td class="l">materials-loss studies at high Q<sub>c</sub></td><td class="l">loss studies, best Q<sub>i</sub> precision</td><td class="l">qubit readout (fast, Q<sub>c</sub> ~ 10³–10⁴)</td></tr>
+  </table></div>
+  <p class="hint">Try each one on the Explore tab with the "Try" buttons.</p>
+</section>
+
+<section id="l-models" class="card">
+  <h2>The models we fit</h2>
+  <p>With <i>x</i> = <i>f</i>/<i>f</i><sub>r</sub> − 1 and the cable environment <i>a e</i><sup><i>iα</i></sup><i>e</i><sup>−2π<i>i f τ</i></sup>
+    (attenuation <i>a</i>, phase <i>α</i>, delay <i>τ</i>):</p>
+  <p><b>Hanger (notch)</b>, a resonator side-coupled to a through line:</p>
+  <div class="eq"><i>S</i><sub>21</sub> = <i>a e</i><sup><i>iα</i></sup><i>e</i><sup>−2π<i>ifτ</i></sup> [ 1 − <span class="frac"><span>(<i>Q</i><sub>l</sub>/|<i>Q</i><sub>c</sub>|) <i>e</i><sup><i>iφ</i></sup></span><span>1 + 2<i>i Q</i><sub>l</sub><i>x</i></span></span> ]</div>
+  <p><b>Reflection</b>, a resonator at the end of a line (one port), with twice the coupling term:</p>
+  <div class="eq"><i>S</i><sub>11</sub> = <i>a e</i><sup><i>iα</i></sup><i>e</i><sup>−2π<i>ifτ</i></sup> [ 1 − <span class="frac"><span>(2<i>Q</i><sub>l</sub>/|<i>Q</i><sub>c</sub>|) <i>e</i><sup><i>iφ</i></sup></span><span>1 + 2<i>i Q</i><sub>l</sub><i>x</i></span></span> ]</div>
+  <p><b>Transmission</b> through a resonator between two equal ports (Q<sub>c</sub> counts both together):</p>
+  <div class="eq"><i>S</i><sub>21</sub> = <i>a e</i><sup><i>iα</i></sup><i>e</i><sup>−2π<i>ifτ</i></sup> <span class="frac"><span><i>Q</i><sub>l</sub>/<i>Q</i><sub>c</sub></span><span>1 + 2<i>i Q</i><sub>l</sub><i>x</i></span></span></div>
+  <p>In every case <span class="math">1/<i>Q</i><sub>i</sub> = 1/<i>Q</i><sub>l</sub> − cos <i>φ</i> / |<i>Q</i><sub>c</sub>|</span>. The angle φ describes
+    an impedance mismatch around the resonator that makes the dip lopsided; taking only the real part of 1/Q<sub>c</sub> as the coupling loss
+    is the "diameter correction method" of Khalil et al. For transmission, the peak height gives Q<sub>l</sub>/Q<sub>c</sub> only if |S21| is
+    calibrated, so the fit holds <i>a</i> = 1: normalise your data first. These are the forms used by Probst et al. and their
+    <i>resonator_tools</i> package, written with this page's sign convention.</p>
+</section>
+
+<section id="l-check" class="card">
+  <h2>Fitting checklist</h2>
+  <ol>
+    <li><b>Measure the phase, not only |S|.</b> The IQ circle separates Q<sub>i</sub> and Q<sub>c</sub> far better, and in reflection |S11|
+      alone cannot tell over- from under-coupled.</li>
+    <li><b>Span 5 to 10 linewidths</b> around the resonance, with at least a few dozen points inside the linewidth.</li>
+    <li><b>Look at the IQ plot.</b> The data should be a clean circle once the delay is out. A spiral means the delay is wrong; a
+      squashed circle means the line has a standing wave or the resonator is nonlinear (drive power too high).</li>
+    <li><b>Check the residuals.</b> They should look like noise with no structure and about the size of the point-to-point scatter.</li>
+    <li><b>Report what you measured:</b> power or photon number, temperature, the model and whether φ was free, and Q<sub>i</sub> with its
+      uncertainty. Q<sub>i</sub> usually rises with power as two-level systems saturate, so quote the single-photon value for loss studies.</li>
+    <li><b>Be wary far from critical coupling.</b> If Q<sub>i</sub> ≫ Q<sub>c</sub>, the error bar on Q<sub>i</sub> grows quickly; redesign
+      the coupling if you need Q<sub>i</sub> precisely.</li>
+  </ol>
+</section>
+
+<section id="l-gloss" class="card">
+  <h2>Glossary</h2>
+  <dl class="gloss" id="gloss"></dl>
+</section>
+
+<section id="l-refs" class="card">
+  <h2>Open papers and tools</h2>
+  <p class="hint" style="margin-top:0">All free to read.</p>
+  <ul class="refs">
+    <li><a href="https://arxiv.org/abs/1410.3365" target="_blank" rel="noopener">Probst, Song, Bushev, Ustinov and Weides, "Efficient and robust analysis of complex scattering data under noise in microwave resonators", Rev. Sci. Instrum. 86, 024706 (2015)</a>
+      <span class="why">The circle-fit method most labs use, with the hanger and reflection models on this page.</span></li>
+    <li><a href="https://arxiv.org/abs/1108.3117" target="_blank" rel="noopener">Khalil, Stoutimore, Wellstood and Osborn, "An analysis method for asymmetric resonator transmission applied to superconducting devices", J. Appl. Phys. 111, 054510 (2012)</a>
+      <span class="why">Where the asymmetry angle φ and the diameter correction come from.</span></li>
+    <li><a href="https://arxiv.org/abs/2006.04718" target="_blank" rel="noopener">McRae, Wang, Gao, Vissers, Brecht, Dunsworth, Pappas and Mutus, "Materials loss measurements using superconducting microwave resonators", Rev. Sci. Instrum. 91, 091101 (2020)</a>
+      <span class="why">A review of how resonators are used to measure loss: geometries, power and temperature dependence, two-level systems.</span></li>
+    <li><a href="https://arxiv.org/abs/0807.4094" target="_blank" rel="noopener">Göppl et al., "Coplanar waveguide resonators for circuit quantum electrodynamics", J. Appl. Phys. 104, 113904 (2008)</a>
+      <span class="why">How coupling capacitors set Q<sub>c</sub>, with measurements in transmission.</span></li>
+    <li><a href="https://github.com/sebastianprobst/resonator_tools" target="_blank" rel="noopener">resonator_tools</a> (Python) and
+      <a href="https://github.com/Boulder-Cryogenic-Quantum-Testbed/scresonators" target="_blank" rel="noopener">scresonators</a> (Python)
+      <span class="why">Open fitting packages for when you outgrow this page.</span></li>
+    <li><a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a>
+      <span class="why">Our database of published coherence and quality-factor measurements, each traced to its paper, device, fabrication
+        and fridge wiring. Compare your Q<sub>i</sub> with the literature.</span></li>
+  </ul>
+</section>
+
+<section id="l-math" class="card">
+  <h2>How the fit works</h2>
+  <p><b>Starting values.</b> The cable delay is first estimated from the phase slope at both edges, then refined to the delay that puts the
+    data most nearly on a circle. The background (<i>a</i>, <i>α</i>) comes from the edges, f<sub>r</sub> from the strongest response,
+    Q<sub>l</sub> from the half-power width, Q<sub>c</sub> from the depth and φ from the angle of the resonance.</p>
+  <p><b>Least squares.</b> A Levenberg–Marquardt fit then minimises the sum of squared differences, over the real and imaginary parts
+    when the data have phase. It first fits the resonance with the background held, then everything together. Q<sub>l</sub>, Q<sub>c</sub>
+    and <i>a</i> are fitted as logarithms so they stay positive. A weakly coupled resonator makes a small circle, and the delay can lock
+    in a whole turn off, so the fit also tries starting delays a turn either side and keeps the best.</p>
+  <p><b>Uncertainties.</b> The covariance is <i>s</i>²(<i>J</i><sup>T</sup><i>J</i>)<sup>−1</sup>, where <i>J</i> is the Jacobian at the
+    best fit and <i>s</i>² the residual variance, the usual estimate when the noise level is not given. Derived quantities such as
+    Q<sub>i</sub> carry the full covariance, correlations included. On simulated data, the true value falls inside the ±1σ range about 68%
+    of the time, as it should; tests in the repository check this.</p>
+  <p><b>Your own formulas</b> are parsed, never run as code, and evaluated with complex numbers wherever they appear.</p>
+</section>
+</div>
+</div>
+</section>
+</div>
+
+<div id="tip" hidden role="tooltip"></div>
+
+<script>
+'use strict';
+const E = window.ResonatorEngine, K = window.PageKit;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const SITE = 'https://mvwf.github.io/qublitz/';
+const STANDALONE = !!window.QUBLITZ_STANDALONE;
+if (STANDALONE) $('#back').href = SITE + '#research';
+const C = { green:'#00693e', green2:'#12855a', int:'#c84b31', ext:'#2d6fb3', muted:'#5a6b63', grid:'#e3ebe6', data:'#7d8f86', gold:'#d9a521' };
+const PLOT_FONT = { family:'Helvetica, Arial, sans-serif', size:12, color:'#1b2a24' };
+
+/* ------------------------------------------------------------------ formatting */
+const SUP = { '-':'⁻', '0':'⁰', '1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵', '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹' };
+function sci(v, d = 3) {
+  if (!Number.isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const e = Math.floor(Math.log10(Math.abs(v)));
+  if (e >= -2 && e < 4) return (+v.toPrecision(d)).toLocaleString('en-US', { maximumSignificantDigits: d });
+  const m = v / Math.pow(10, e);
+  return `${(+m.toPrecision(d))}×10${String(e).split('').map(c => SUP[c]).join('')}`;
+}
+function hz(ghz, d = 3) {   // a frequency in GHz, shown in the unit that suits it
+  if (!Number.isFinite(ghz)) return '—';
+  const a = Math.abs(ghz);
+  const [u, s] = a >= 1 ? ['GHz', 1] : a >= 1e-3 ? ['MHz', 1e3] : a >= 1e-6 ? ['kHz', 1e6] : ['Hz', 1e9];
+  return `${+(ghz * s).toPrecision(d)} ${u}`;
+}
+function seconds(s) {
+  const a = Math.abs(s);
+  const [u, k] = a >= 1e-3 ? ['ms', 1e3] : a >= 1e-6 ? ['µs', 1e6] : ['ns', 1e9];
+  return `${+(s * k).toPrecision(3)} ${u}`;
+}
+const db = x => 20 * Math.log10(x);
+function pm(v, s, d = 3) {   // value ± sigma with a sensible number of digits
+  if (!Number.isFinite(s) || s <= 0) return sci(v, d);
+  return `${sci(v, Math.max(2, Math.min(7, Math.ceil(Math.log10(Math.abs(v) / s)) + 2)))} ± ${sci(s, 2)}`;
+}
+function parseNum(s) {
+  const t = String(s).trim().replace(/[×x]\s*10\^?/i, 'e').replace(/,/g, '');
+  const m = /^([0-9.]+(?:e[+-]?\d+)?)\s*([kKmM])?$/.exec(t);
+  if (!m) return NaN;
+  return parseFloat(m[1]) * ({ k: 1e3, K: 1e3, m: 1e6, M: 1e6 }[m[2]] || 1);
+}
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+async function copyText(text, what) {
+  try { await navigator.clipboard.writeText(text); toast(`${what} copied`); }
+  catch (e) { window.prompt('Copy this:', text); }
+}
+function download(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ------------------------------------------------------------------ glossary and tooltips */
+const GLOSS = [
+  ['Qi', 'Internal quality factor Q<sub>i</sub>', 'Set by losses inside the resonator: dielectric and surface defects, quasiparticles, radiation, vortices. Higher is better for materials. κ<sub>i</sub>/2π = f<sub>r</sub>/Q<sub>i</sub>.'],
+  ['Qc', 'Coupling (external) quality factor Q<sub>c</sub>', 'Set by how strongly the resonator leaks into the measurement line. Chosen by design. κ<sub>c</sub>/2π = f<sub>r</sub>/Q<sub>c</sub>. With asymmetry, Q<sub>c</sub> is complex and only Re(1/Q<sub>c</sub>) is a loss.'],
+  ['Ql', 'Loaded quality factor Q<sub>l</sub>', 'The total: 1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub>. It sets the measured linewidth, κ/2π = f<sub>r</sub>/Q<sub>l</sub>.'],
+  ['kappa', 'Linewidth κ', 'The energy decay rate, κ = 2πf<sub>r</sub>/Q<sub>l</sub>. κ/2π is the full width at half maximum of the power response. Photons live 1/κ on average.'],
+  ['critical', 'Critical coupling', 'Q<sub>i</sub> = Q<sub>c</sub>: energy is lost inside as fast as it leaks out. In reflection the resonator then absorbs every incoming photon on resonance.'],
+  ['under', 'Under-coupled', 'Q<sub>i</sub> &lt; Q<sub>c</sub>: internal loss dominates the linewidth. The resonance is a small circle that does not reach the origin.'],
+  ['over', 'Over-coupled', 'Q<sub>i</sub> &gt; Q<sub>c</sub>: the coupling dominates. Fast to measure (readout resonators) but Q<sub>i</sub> is hard to pin down.'],
+  ['hanger', 'Hanger (notch) geometry', 'A resonator capacitively side-coupled to a through line. You measure S21 and see a dip. Many resonators can share one line.'],
+  ['reflection', 'Reflection geometry', 'A resonator at the end of a line, measured in S11 through a circulator or directional coupler.'],
+  ['transmission', 'Transmission geometry', 'A resonator between an input and an output port. You measure S21 and see a peak.'],
+  ['S21', 'S-parameters (S21, S11)', 'The complex ratio of the outgoing to the incoming wave: S21 from port 1 to port 2, S11 reflected back to port 1. A vector network analyzer (VNA) measures both magnitude and phase.'],
+  ['IQ', 'IQ plane', 'Plot of Im S against Re S. Near resonance the response traces a circle; its size and position give Q<sub>l</sub>/Q<sub>c</sub>.'],
+  ['phi', 'Asymmetry φ', 'An impedance mismatch or standing wave near the resonator rotates the resonance circle by φ and makes the dip lopsided. The diameter correction method fits it.'],
+  ['delay', 'Electrical (cable) delay τ', 'The time the signal spends in the cables. It adds a phase −2πfτ that winds with frequency; it must be removed before the circle is visible.'],
+  ['TLS', 'Two-level systems (TLS)', 'Atomic-scale defects in amorphous oxides and interfaces that absorb microwave photons. They saturate at high power, so Q<sub>i</sub> rises with power.'],
+  ['photon', 'Single-photon regime', 'Drive weak enough that the resonator holds about one photon on average, like a qubit does. Loss studies quote Q<sub>i</sub> here.'],
+  ['residual', 'Residuals', 'Data minus fit. A good fit leaves residuals that look like random noise of the same size as the point-to-point scatter.'],
+  ['sigma', 'Uncertainty (±1σ)', 'The standard error from the fit: the range that contains the true value about 68% of the time, if the model is right and the noise is random.'],
+];
+$('#gloss').innerHTML = GLOSS.map(([id, t, d]) => `<dt id="g-${id}">${t}</dt><dd>${d}</dd>`).join('');
+const tip = $('#tip');
+function showTip(el) {
+  const g = GLOSS.find(x => x[0] === el.dataset.term); if (!g) return;
+  tip.innerHTML = `<b>${g[1]}</b><br>${g[2]}`; tip.hidden = false;
+  const r = el.getBoundingClientRect(), w = Math.min(300, innerWidth - 20);
+  tip.style.left = Math.max(10, Math.min(innerWidth - w - 10, r.left)) + 'px';
+  tip.style.top = (r.bottom + 8 + tip.offsetHeight > innerHeight ? r.top - tip.offsetHeight - 8 : r.bottom + 8) + 'px';
+}
+document.addEventListener('mouseover', e => { const t = e.target.closest('.term'); if (t) showTip(t); });
+document.addEventListener('mouseout', e => { if (e.target.closest('.term')) tip.hidden = true; });
+document.addEventListener('click', e => { const t = e.target.closest('.term'); if (t) { showTip(t); setTimeout(() => { tip.hidden = true; }, 4000); } });
+const term = (id, text) => `<span class="term" data-term="${id}">${text}</span>`;
+
+/* ------------------------------------------------------------------ tabs */
+const TABS = ['explore', 'fit', 'learn'];
+const plotted = {};
+function showTab(id, push) {
+  if (!TABS.includes(id)) id = 'explore';
+  TABS.forEach(t => { $('#' + t).hidden = t !== id; $('#tab-' + t).setAttribute('aria-selected', t === id); });
+  if (push) { try { history.replaceState(null, '', location.search + '#' + id); } catch (e) { /* file:// */ } }
+  if (id === 'fit') initFit();
+  // Plotly cannot size a plot inside a hidden panel, so resize when its tab appears
+  requestAnimationFrame(() => $$('#' + id + ' .js-plotly-plot').forEach(p => Plotly.Plots.resize(p)));
+  if (window.QL && QL.event) QL.event('tab', { value: id });
+}
+$$('.tab').forEach(b => b.addEventListener('click', () => { showTab(b.dataset.tab, true); window.scrollTo({ top: 0 }); }));
+window.addEventListener('hashchange', () => {
+  const h = location.hash.slice(1);
+  if (TABS.includes(h)) showTab(h);
+  else if (h.startsWith('l-') || h.startsWith('g-')) { showTab('learn'); requestAnimationFrame(() => document.getElementById(h)?.scrollIntoView()); }
+});
+
+/* ================================================================== EXPLORE */
+const GEO = {
+  hanger: { text: `A ${term('hanger', 'hanger')} resonator hangs off a through line. Off resonance the signal passes; on resonance, light leaking back out of the resonator cancels part of it, so S21 dips.`,
+    svg: `<line x1="10" y1="22" x2="290" y2="22" stroke="#1b2a24" stroke-width="3"/><text x="10" y="14" font-size="11" fill="#5a6b63">port 1</text><text x="290" y="14" font-size="11" fill="#5a6b63" text-anchor="end">port 2</text>
+      <path d="M150 22 v14" stroke="#2d6fb3" stroke-width="2.5"/><path d="M140 36 h20 M140 41 h20" stroke="#2d6fb3" stroke-width="2.5"/>
+      <rect x="110" y="48" width="80" height="26" rx="6" fill="#f5f9f6" stroke="#00693e" stroke-width="2"/><text x="150" y="65" font-size="11.5" text-anchor="middle" fill="#00693e">resonator</text>
+      <text x="166" y="42" font-size="11" fill="#2d6fb3">Qc</text><text x="196" y="66" font-size="11" fill="#c84b31">Qi</text><path d="M150 74 v6 l-6 6 m6 -6 l6 6" stroke="#c84b31" stroke-width="2" fill="none"/>
+      <path d="M240 10 l12 0 m-4 -4 l4 4 l-4 4" stroke="#5a6b63" fill="none"/><text x="236" y="40" font-size="11" fill="#5a6b63">S21</text>` },
+  reflection: { text: `In ${term('reflection', 'reflection')}, the resonator sits at the end of the line and you measure what comes back (S11), usually through a circulator.`,
+    svg: `<line x1="10" y1="40" x2="150" y2="40" stroke="#1b2a24" stroke-width="3"/><text x="10" y="30" font-size="11" fill="#5a6b63">port 1</text>
+      <path d="M150 30 v20 M157 30 v20" stroke="#2d6fb3" stroke-width="2.5"/><line x1="157" y1="40" x2="175" y2="40" stroke="#1b2a24" stroke-width="3"/>
+      <rect x="175" y="27" width="90" height="26" rx="6" fill="#f5f9f6" stroke="#00693e" stroke-width="2"/><text x="220" y="44" font-size="11.5" text-anchor="middle" fill="#00693e">resonator</text>
+      <text x="146" y="22" font-size="11" fill="#2d6fb3">Qc</text><text x="270" y="44" font-size="11" fill="#c84b31">Qi</text>
+      <path d="M100 52 h-24 m4 -4 l-4 4 l4 4" stroke="#5a6b63" fill="none"/><text x="78" y="70" font-size="11" fill="#5a6b63">S11</text>` },
+  transmission: { text: `In ${term('transmission', 'transmission')}, the resonator sits between two weakly coupled ports and only passes light near resonance, so S21 shows a peak.`,
+    svg: `<line x1="10" y1="40" x2="90" y2="40" stroke="#1b2a24" stroke-width="3"/><path d="M90 30 v20 M97 30 v20" stroke="#2d6fb3" stroke-width="2.5"/>
+      <rect x="105" y="27" width="90" height="26" rx="6" fill="#f5f9f6" stroke="#00693e" stroke-width="2"/><text x="150" y="44" font-size="11.5" text-anchor="middle" fill="#00693e">resonator</text>
+      <path d="M203 30 v20 M210 30 v20" stroke="#2d6fb3" stroke-width="2.5"/><line x1="210" y1="40" x2="290" y2="40" stroke="#1b2a24" stroke-width="3"/>
+      <line x1="97" y1="40" x2="105" y2="40" stroke="#1b2a24" stroke-width="3"/><line x1="195" y1="40" x2="203" y2="40" stroke="#1b2a24" stroke-width="3"/>
+      <text x="10" y="30" font-size="11" fill="#5a6b63">port 1</text><text x="290" y="30" font-size="11" fill="#5a6b63" text-anchor="end">port 2</text>
+      <text x="150" y="72" font-size="11" fill="#2d6fb3" text-anchor="middle">Qc = both ports together</text><text x="150" y="18" font-size="11" fill="#c84b31" text-anchor="middle">Qi</text>` },
+};
+const EX_DEFAULT = { g: 'hanger', qi: 2e5, qc: 2e5, fr: 5, phi: 0, env: false };
+const ex = Object.assign({}, EX_DEFAULT);
+const ENV = { a: 0.35, alpha: 1.9, tau: 50 };
+let pins = [], cursor = null, win = null;
+
+const EX_PRESETS = [
+  { label: 'Critically coupled', qi: 2e5, qc: 2e5, tip: 'Qi = Qc' },
+  { label: 'Under-coupled', qi: 2e4, qc: 2e5, tip: 'Lossy material, weak coupling' },
+  { label: 'Over-coupled', qi: 1e6, qc: 1e5, tip: 'Good material, strong coupling' },
+  { label: 'Qubit readout resonator', qi: 1e6, qc: 5e3, tip: 'Fast readout: Qc of a few thousand' },
+  { label: 'Loss study', qi: 1e6, qc: 1e6, tip: 'High-Q material near critical coupling' },
+];
+$('#exPresets').innerHTML = EX_PRESETS.map((p, i) => `<button data-i="${i}" title="${p.tip}">${p.label}</button>`).join('');
+$('#exPresets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  const p = EX_PRESETS[+b.dataset.i]; ex.qi = p.qi; ex.qc = p.qc; ex.phi = 0; syncEx(); });
+
+$('#geoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ex.g = b.dataset.g; win = null; syncEx(); } });
+$('#qiR').addEventListener('input', e => { ex.qi = Math.pow(10, +e.target.value); syncEx('slider'); });
+$('#qcR').addEventListener('input', e => { ex.qc = Math.pow(10, +e.target.value); syncEx('slider'); });
+for (const [id, key] of [['#qiNum', 'qi'], ['#qcNum', 'qc']]) {
+  $(id).addEventListener('change', e => { const v = parseNum(e.target.value);
+    if (v >= 10 && v <= 1e10) { ex[key] = v; syncEx(); } else { e.target.value = sci(ex[key]); toast('Enter a Q between 10 and 10¹⁰'); } });
+}
+$('#frIn').addEventListener('change', e => { const v = +e.target.value; if (v > 0) { ex.fr = v; win = null; } syncEx(); });
+$('#phiR').addEventListener('input', e => { ex.phi = +e.target.value * Math.PI / 180; syncEx('slider'); });
+$('#envChk').addEventListener('change', e => { ex.env = e.target.checked; syncEx(); });
+$('#pIn').addEventListener('input', () => renderPhotons());
+$('#lockWin').addEventListener('change', () => { if (!$('#lockWin').checked) { win = null; renderEx(); } });
+$('#pinBtn').addEventListener('click', () => {
+  if (pins.length >= 3) pins.shift();
+  pins.push(Object.assign({}, ex, { label: `Qi ${sci(ex.qi, 2)}, Qc ${sci(ex.qc, 2)}` }));
+  $('#unpinBtn').hidden = false; renderEx();
+});
+$('#unpinBtn').addEventListener('click', () => { pins = []; $('#unpinBtn').hidden = true; renderEx(); });
+$('#exReset').addEventListener('click', () => { Object.assign(ex, EX_DEFAULT); pins = []; win = null; $('#unpinBtn').hidden = true; syncEx(); });
+$('#exCopy').addEventListener('click', e => K.copyLink(e.target, 'qublitz/resonator.html',
+  `g=${ex.g}&qi=${+ex.qi.toPrecision(4)}&qc=${+ex.qc.toPrecision(4)}&fr=${ex.fr}&phi=${Math.round(ex.phi * 180 / Math.PI)}${ex.env ? '&env=1' : ''}#explore`));
+
+function exParams(s = ex) {
+  const p = { fr: s.fr, Qi: s.qi, Qc: s.qc, phi: E.MODELS[s.g].background ? s.phi : 0, a: 1, alpha: 0, tau: 0 };
+  if (s.env) Object.assign(p, ENV);
+  p.Ql = E.loadedQ(p.Qi, p.Qc, p.phi);
+  return p;
+}
+
+// Frequency window: the smallest of a ladder of spans that shows ±4 linewidths, so narrowing a resonance shows as narrowing
+function pickWindow(fr, Ql) {
+  const kap = fr / Ql;   // GHz
+  for (const w of [1e-6, 2e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.5, 1]) if (w >= 4 * kap) return w;
+  return 2;
+}
+function grid(fr, w, Ql) {
+  const n = 500, f = [];
+  for (let j = 0; j <= n; j++) f.push(fr - w + 2 * w * j / n);
+  const kap = fr / Ql;
+  if (kap < w / 40) for (let j = 0; j <= 300; j++) f.push(fr - 6 * kap + 12 * kap * j / 300);   // resolve a narrow line
+  f.sort((a, b) => a - b);
+  return Float64Array.from(f);
+}
+
+function syncEx(from) {
+  $$('#geoSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.g === ex.g));
+  $('#schem').innerHTML = GEO[ex.g].svg;
+  $('#geoText').innerHTML = GEO[ex.g].text;
+  if (from !== 'slider' || document.activeElement !== $('#qiR')) $('#qiR').value = Math.log10(ex.qi);
+  if (from !== 'slider' || document.activeElement !== $('#qcR')) $('#qcR').value = Math.log10(ex.qc);
+  $('#qiNum').value = sci(ex.qi, 3); $('#qcNum').value = sci(ex.qc, 3);
+  $('#frIn').value = ex.fr; $('#phiR').value = Math.round(ex.phi * 180 / Math.PI);
+  $('#phiVal').textContent = `${Math.round(ex.phi * 180 / Math.PI)}°`;
+  $('#phiR').disabled = !E.MODELS[ex.g].background;
+  $('#envChk').checked = ex.env;
+  renderEx();
+}
+
+function regimeHTML(Qi, Qc, phi, g) {
+  const R = E.regime(Qi, Qc, phi), r = R.ratio;
+  const Qce = Qc / Math.cos(phi), Ql = 1 / (1 / Qi + 1 / Qce);
+  const shareI = Ql / Qi, shareC = 1 - shareI;
+  const txt = {
+    under: [`Under-coupled`, `Q<sub>i</sub> is ${sci(1 / r, 2)}× smaller than Q<sub>c</sub>, so the resonator loses energy inside faster than it leaks into the line. The linewidth mostly measures the internal loss.`],
+    critical: [`Critically coupled`, `Q<sub>i</sub> ≈ Q<sub>c</sub>: energy is lost inside about as fast as it leaks out. ${g === 'reflection' ? 'On resonance the resonator absorbs almost every photon, so |S11| drops to nearly zero.' : g === 'hanger' ? 'The hanger dip reaches about −6 dB (|S21| = 1/2).' : 'This is where Q<sub>i</sub> is measured most precisely.'}`],
+    over: [`Over-coupled`, `Q<sub>i</sub> is ${sci(r, 2)}× larger than Q<sub>c</sub>, so energy leaks into the line faster than it is lost inside. The linewidth is set mainly by the coupling, which makes Q<sub>i</sub> harder to measure${g === 'reflection' ? ', and the reflected phase winds a full 360°' : ''}.`],
+    unphysical: ['Unphysical', 'With this asymmetry the coupling term exceeds the total loss, which would need a negative Q<sub>i</sub>.'],
+  }[R.key];
+  return `<div class="regime ${R.key}"><span class="tag">${txt[0]}</span><b class="head">${term(R.key === 'critical' ? 'critical' : R.key === 'over' ? 'over' : 'under', 'Q<sub>i</sub> / Q<sub>c</sub> = ' + sci(r, 2))}</b>
+    <p>${txt[1]}</p>
+    <div class="budget" role="img" aria-label="Of the energy leaving the resonator, ${Math.round(shareI * 100)}% is lost inside and ${Math.round(shareC * 100)}% goes into the line">
+      <i class="bi" style="width:${(shareI * 100).toFixed(1)}%">${shareI > 0.12 ? Math.round(shareI * 100) + '% inside' : ''}</i>
+      <i class="bc" style="width:${(shareC * 100).toFixed(1)}%">${shareC > 0.12 ? Math.round(shareC * 100) + '% to the line' : ''}</i></div>
+    <div class="budget-key"><span style="color:var(--int)">■ lost inside, κ<sub>i</sub>/κ = Q<sub>l</sub>/Q<sub>i</sub></span><span style="color:var(--ext)">■ leaks to the line, κ<sub>c</sub>/κ = Q<sub>l</sub>/Q<sub>c</sub> ■</span></div></div>`;
+}
+
+const AX = { gridcolor: C.grid, zerolinecolor: '#c9d6cf', linecolor: '#c9d6cf', ticks: 'outside', tickcolor: '#c9d6cf' };
+const CFG = { displaylogo: false, responsive: true, modeBarButtonsToRemove: ['select2d', 'lasso2d', 'autoScale2d', 'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian'] };
+function unitFor(w) { return w >= 1e-3 ? ['MHz', 1e3] : w >= 1e-6 ? ['kHz', 1e6] : ['Hz', 1e9]; }
+
+function curves(s, f) {
+  const p = exParams(s), S = E.sweep(s.g, p, f);
+  const mag = Array.from(S.re, (x, j) => db(Math.hypot(x, S.im[j])));
+  const ph = E.unwrap(Array.from(S.re, (x, j) => Math.atan2(S.im[j], x))).map(v => v * 180 / Math.PI);
+  return { p, S, mag, ph };
+}
+
+function renderEx() {
+  const p = exParams();
+  if (!win || !$('#lockWin').checked) win = pickWindow(p.fr, p.Ql);
+  const f = grid(p.fr, win, p.Ql), [un, us] = unitFor(win);
+  const x = Array.from(f, v => (v - p.fr) * us);
+  const cur = curves(ex, f);
+  const traces = { mag: [], ph: [], iq: [] };
+  pins.forEach((pn, k) => {
+    const c = curves(Object.assign({}, pn, { g: ex.g, env: ex.env, fr: ex.fr }), f);
+    const st = { color: ['#9fb0a8', '#c9a26b', '#a58fc0'][k], width: 1.6, dash: 'dash' };
+    traces.mag.push({ x, y: c.mag, mode: 'lines', line: st, name: pn.label, hoverinfo: 'skip' });
+    traces.ph.push({ x, y: c.ph, mode: 'lines', line: st, name: pn.label, hoverinfo: 'skip', showlegend: false });
+    traces.iq.push({ x: Array.from(c.S.re), y: Array.from(c.S.im), mode: 'lines', line: st, name: pn.label, hoverinfo: 'skip', showlegend: false });
+  });
+  const main = { color: C.green, width: 2.6 };
+  const hov = `${un}`;
+  traces.mag.push({ x, y: cur.mag, mode: 'lines', line: main, name: 'now', hovertemplate: `%{x:.4g} ${hov}<br>|S| = %{y:.2f} dB<extra></extra>` });
+  traces.ph.push({ x, y: cur.ph, mode: 'lines', line: main, name: 'now', showlegend: false, hovertemplate: `%{x:.4g} ${hov}<br>phase = %{y:.1f}°<extra></extra>` });
+  traces.iq.push({ x: Array.from(cur.S.re), y: Array.from(cur.S.im), mode: 'lines', line: main, name: 'now', showlegend: false,
+    customdata: x, hovertemplate: `%{customdata:.4g} ${hov} from f<sub>r</sub><br>Re %{x:.3f}, Im %{y:.3f}<extra></extra>` });
+  // the resonance point and the far-off-resonance point
+  const r0 = E.sweep(ex.g, p, new Float64Array([p.fr]));
+  const far = E.sweep(ex.g, Object.assign({}, p, { tau: 0 }), new Float64Array([p.fr * 1.5]));
+  traces.iq.push({ x: [r0.re[0]], y: [r0.im[0]], mode: 'markers', marker: { size: 10, color: C.int, line: { color: '#fff', width: 2 } }, name: 'on resonance', hovertemplate: 'on resonance<extra></extra>', showlegend: false });
+  if (!ex.env) traces.iq.push({ x: [far.re[0]], y: [far.im[0]], mode: 'markers', marker: { size: 9, color: '#fff', line: { color: C.muted, width: 2 } }, hovertemplate: 'far from resonance<extra></extra>', showlegend: false });
+  traces.iq.push({ x: [0], y: [0], mode: 'markers', marker: { size: 7, color: '#1b2a24', symbol: 'cross-thin', line: { width: 2, color: '#1b2a24' } }, hovertemplate: 'origin (S = 0)<extra></extra>', showlegend: false });
+  // the hover cursor, shared by all three plots
+  const ci = cursor == null ? -1 : Math.min(cursor, f.length - 1);
+  const cm = { size: 10, color: C.gold, line: { color: '#1b2a24', width: 1.5 } };
+  traces.mag.push({ x: ci < 0 ? [] : [x[ci]], y: ci < 0 ? [] : [cur.mag[ci]], mode: 'markers', marker: cm, hoverinfo: 'skip', showlegend: false });
+  traces.ph.push({ x: ci < 0 ? [] : [x[ci]], y: ci < 0 ? [] : [cur.ph[ci]], mode: 'markers', marker: cm, hoverinfo: 'skip', showlegend: false });
+  traces.iq.push({ x: ci < 0 ? [] : [cur.S.re[ci]], y: ci < 0 ? [] : [cur.S.im[ci]], mode: 'markers', marker: cm, hoverinfo: 'skip', showlegend: false });
+
+  const base = { font: PLOT_FONT, paper_bgcolor: '#fff', plot_bgcolor: '#fff', hovermode: 'closest', uirevision: ex.g + win };
+  const xt = `f − f<sub>r</sub> [${un}]`;
+  Plotly.react('pMag', traces.mag, Object.assign({}, base, { margin: { l: 56, r: 10, t: 26, b: 34 },
+    title: { text: `|S${ex.g === 'reflection' ? '11' : '21'}| in dB`, font: { size: 13 }, x: 0.01, xanchor: 'left' },
+    xaxis: Object.assign({ title: { text: '' } }, AX), yaxis: Object.assign({}, AX),
+    showlegend: pins.length > 0, legend: { orientation: 'h', y: 1.18, x: 1, xanchor: 'right', font: { size: 11 } } }), CFG);
+  Plotly.react('pPh', traces.ph, Object.assign({}, base, { margin: { l: 56, r: 10, t: 26, b: 42 },
+    title: { text: 'phase in degrees', font: { size: 13 }, x: 0.01, xanchor: 'left' },
+    xaxis: Object.assign({ title: { text: xt, standoff: 4 } }, AX), yaxis: Object.assign({}, AX), showlegend: false }), CFG);
+  const lim = ex.env ? 1.05 * ENV.a * Math.max(1, ex.g === 'reflection' ? 1 : 1) : 1.08;
+  Plotly.react('pIQ', traces.iq, Object.assign({}, base, { margin: { l: 50, r: 10, t: 26, b: 42 },
+    title: { text: `IQ plane: Im S against Re S`, font: { size: 13 }, x: 0.01, xanchor: 'left' },
+    xaxis: Object.assign({ title: { text: 'Re S', standoff: 4 }, range: [-lim * (ex.g === 'hanger' && !ex.env ? 0.15 : 1.05), lim * 1.05], constrain: 'domain' }, AX),
+    yaxis: Object.assign({ title: { text: 'Im S', standoff: 2 }, scaleanchor: 'x', scaleratio: 1, range: [-lim * 0.65, lim * 0.65] }, AX),
+    showlegend: false }), CFG);
+  if (!plotted.ex) {
+    plotted.ex = true;
+    for (const id of ['pMag', 'pPh', 'pIQ']) {
+      const el = document.getElementById(id);
+      el.on('plotly_hover', ev => { const pt = ev.points[0]; if (!pt || pt.curveNumber !== pins.length) return; cursor = pt.pointIndex; renderEx(); });
+    }
+  }
+  $('#regime').innerHTML = regimeHTML(ex.qi, ex.qc, p.phi, ex.g);
+  renderStats(p, cur);
+  renderLook(p);
+  renderPhotons();
+}
+
+function renderStats(p) {
+  const kap = p.fr / p.Ql, kapI = p.fr / p.Qi, kapC = p.fr * Math.cos(p.phi) / p.Qc;
+  const r0 = E.sweep(ex.g, Object.assign({}, p, { a: 1, alpha: 0, tau: 0 }), new Float64Array([p.fr]));
+  const m0 = Math.hypot(r0.re[0], r0.im[0]);
+  const items = [
+    ['tot', `Loaded Q<sub>l</sub>`, sci(p.Ql), `1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub>`],
+    ['tot', `Linewidth κ/2π`, hz(kap), 'full width at half max'],
+    ['int', `Internal κ<sub>i</sub>/2π`, hz(kapI), `f<sub>r</sub>/Q<sub>i</sub>`],
+    ['ext', `Coupling κ<sub>c</sub>/2π`, hz(kapC), `f<sub>r</sub>/Q<sub>c</sub>`],
+    ['tot', 'Photon lifetime 1/κ', seconds(1 / (2 * Math.PI * kap * 1e9)), 'energy decay time'],
+    ['', `|S| on resonance`, `${m0.toFixed(3)}`, `${Number.isFinite(db(m0)) && m0 > 1e-6 ? db(m0).toFixed(1) + ' dB' : '−∞ dB'}${ex.env ? ', before the cables' : ''}`],
+  ];
+  $('#exStats').innerHTML = items.map(([c, t, v, s]) => `<div class="stat ${c}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`).join('');
+}
+
+function renderLook(p) {
+  const k = E.MODELS[ex.g].scale * p.Ql / p.Qc;   // diameter of the circle
+  const Rg = E.regime(p.Qi, p.Qc, p.phi).key, L = [];
+  if (ex.g === 'hanger') {
+    L.push(`On the IQ plane the resonance is a circle that leaves the off-resonance point (1, 0) and comes back. Its diameter is Q<sub>l</sub>/Q<sub>c</sub> = <b>${k.toFixed(3)}</b>: the share of the linewidth that comes from the coupling.`);
+    L.push(`The dip bottoms out at |S21| = 1 − Q<sub>l</sub>/Q<sub>c</sub> = Q<sub>l</sub>/Q<sub>i</sub> = <b>${(1 - k).toFixed(3)}</b> (${db(Math.max(1 - k, 1e-9)).toFixed(1)} dB). A deeper dip means a more over-coupled resonator.`);
+  } else if (ex.g === 'reflection') {
+    L.push(`The circle has diameter 2Q<sub>l</sub>/Q<sub>c</sub> = <b>${k.toFixed(3)}</b>. ${Rg === 'over' ? 'It is larger than 1, so it <b>encloses the origin</b> and the phase winds through a full 360°.' : Rg === 'under' ? 'It is smaller than 1, so it <b>does not reach the origin</b> and the phase swings and comes back.' : 'It is about 1, so it <b>passes through the origin</b>: nothing is reflected on resonance.'}`);
+    L.push(`From |S11| alone you cannot tell over- from under-coupled: swapping Q<sub>i</sub> and Q<sub>c</sub> gives the same magnitude. Try it with the sliders and watch the phase.`);
+  } else {
+    L.push(`The circle passes through the origin (no transmission far from resonance) and reaches Q<sub>l</sub>/Q<sub>c</sub> = <b>${k.toFixed(3)}</b> on resonance.`);
+    L.push(`Peak height gives Q<sub>l</sub>/Q<sub>c</sub> only if you know the line's loss exactly, so transmission measurements often get Q<sub>l</sub> well and Q<sub>i</sub> poorly.`);
+  }
+  L.push(`Move Q<sub>i</sub> and Q<sub>c</sub> separately: both widen the line when lowered, but they change the depth in opposite directions. That difference is what a fit uses to separate them.`);
+  if (ex.env) L.push(`With the cables on, the circle is shrunk by the attenuation, rotated by the phase offset, and the delay turns the off-resonance background into a large arc. The fit removes these before reading off Q's.`);
+  if (Math.abs(p.phi) > 0.05) L.push(`With φ = ${Math.round(p.phi * 180 / Math.PI)}° the circle is rotated about the off-resonance point and the dip is lopsided. Q<sub>c</sub> here is |Q<sub>c</sub>|; the loss through the coupling uses cos φ / |Q<sub>c</sub>|.`);
+  $('#look').innerHTML = L.map(s => `<li>${s}</li>`).join('');
+}
+
+function renderPhotons() {
+  const p = exParams(), P = +$('#pIn').value;
+  const n = E.photonNumber(ex.g, P, p.fr, p.Ql, p.Qc), p1 = E.powerForPhotons(ex.g, 1, p.fr, p.Ql, p.Qc);
+  $('#photonOut').innerHTML = `<div class="stat tot"><span>Mean photon number ⟨n⟩</span><b>${sci(n, 3)}</b></div>
+    <div class="stat"><span>Power for ⟨n⟩ = 1</span><b>${p1.toFixed(1)} dBm</b></div>`;
+}
+
+/* ---------- guided predictions for the Explore tab ---------- */
+const GUIDED = [
+  { title: 'Weaker coupling', intro: 'This hanger resonator is critically coupled: Q<sub>i</sub> = Q<sub>c</sub> = 2×10⁵.', setup: { g: 'hanger', qi: 2e5, qc: 2e5 },
+    ask: 'You make the coupling 10× weaker (Q<sub>c</sub> = 2×10⁶). What happens to the dip?', choices: ['It gets deeper', 'It gets shallower', 'It stays the same depth'], answer: 1,
+    cover: ['#exPlots', '#exStats', '#look', '#regime'], reveal: { qc: 2e6 },
+    explain: 'The dip depth is Q<sub>l</sub>/Q<sub>c</sub>: the share of the energy that leaks back into the line, where it can interfere. With weak coupling, little does, so the dip is shallow and |S21| stays near 1.' },
+  { title: 'The critical dip', intro: 'Back to a critically coupled hanger.', setup: { g: 'hanger', qi: 2e5, qc: 2e5 },
+    ask: 'What is |S21| on resonance, in dB?', answer: -6.02, tol: 0.6, unit: 'dB', cover: ['#exPlots', '#exStats', '#look'],
+    explain: 'On resonance |S21| = 1 − Q<sub>l</sub>/Q<sub>c</sub>, and Q<sub>l</sub> = Q<sub>c</sub>/2 at critical coupling, so |S21| = 1/2, or 20 log₁₀(1/2) = −6.0 dB.' },
+  { title: 'Reflection at critical coupling', intro: 'Now the resonator terminates the line and we measure the reflection, S11.', setup: { g: 'reflection', qi: 2e5, qc: 2e5 },
+    ask: 'At critical coupling, how much of the incoming signal is reflected on resonance?', choices: ['All of it', 'Half of it', 'None of it'], answer: 2,
+    cover: ['#exPlots', '#exStats', '#look', '#regime'],
+    explain: 'S11 = 1 − 2Q<sub>l</sub>/Q<sub>c</sub> on resonance, which is 0 when Q<sub>i</sub> = Q<sub>c</sub>. The wave leaking out of the resonator cancels the reflected wave exactly, and all the power is absorbed inside: impedance matching.' },
+  { title: 'Over-coupled reflection', intro: 'Make the coupling stronger than the internal loss: Q<sub>i</sub> = 10⁶, Q<sub>c</sub> = 10⁵.', setup: { g: 'reflection', qi: 1e6, qc: 1e5 },
+    ask: 'How does the phase of S11 change as you sweep across the resonance?', choices: ['It swings out and comes back', 'It winds through a full 360°', 'It does not change'], answer: 1,
+    cover: ['#exPlots', '#look', '#regime'],
+    explain: 'Over-coupled, the circle in the IQ plane has a diameter 2Q<sub>l</sub>/Q<sub>c</sub> above 1, so it encloses the origin and the phase winds once around. Under-coupled, the circle misses the origin and the phase swings back. The magnitude cannot tell the two apart; the phase can.' },
+  { title: 'Reading the linewidth', intro: 'A hanger at f<sub>r</sub> = 5 GHz with Q<sub>i</sub> = Q<sub>c</sub> = 2×10⁵.', setup: { g: 'hanger', qi: 2e5, qc: 2e5, fr: 5 },
+    ask: 'What is the full linewidth κ/2π, in kHz?', answer: 50, tol: 3, unit: 'kHz', cover: ['#exStats', '#look'],
+    explain: 'Q<sub>l</sub> = (1/Q<sub>i</sub> + 1/Q<sub>c</sub>)⁻¹ = 10⁵, and κ/2π = f<sub>r</sub>/Q<sub>l</sub> = 5 GHz / 10⁵ = 50 kHz. Careful if you read it off the plot: κ/2π is the width where the resonant part |1 − S21|² falls to half its peak, which is not where the dip in dB is half as deep.' },
+  { title: 'Better material, same coupling', intro: 'A readout-style resonator: Q<sub>c</sub> = 10⁴, and Q<sub>i</sub> = 10⁵.', setup: { g: 'hanger', qi: 1e5, qc: 1e4 },
+    ask: 'A better material raises Q<sub>i</sub> 100× to 10⁷. What happens to the linewidth?', choices: ['About 100× narrower', 'About 10× narrower', 'Barely changes'], answer: 2,
+    cover: ['#exPlots', '#exStats', '#look', '#regime'], reveal: { qi: 1e7 },
+    explain: 'The linewidth follows 1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub>, which is dominated by the larger loss, here 1/Q<sub>c</sub>. Q<sub>l</sub> only goes from 9.1×10³ to 1.0×10⁴. This is why loss studies use weakly coupled resonators: in an over-coupled one, Q<sub>i</sub> barely shows.' },
+];
+function applyGuided(s) {
+  if (!s) return;
+  Object.assign(ex, { phi: 0, env: false, fr: 5 }, s);
+  win = null; syncEx();
+}
+function startGuided() {
+  showTab('explore');
+  $('#guideNote').hidden = true;
+  K.guided({ steps: GUIDED, apply: applyGuided, before: $('#explore .layout'), key: 'resonator-explore', onExit: () => { $('#guideNote').hidden = false; syncEx(); } });
+}
+
+/* ================================================================== FIT */
+const fit = { ready: false, src: null, raw: null, data: null, practice: null, mode: null, result: null, lastPython: '' };
+
+const PRESETS = [
+  { id: 'lor-peak', label: 'Lorentzian peak in |S21|² (transmission)', f: 'A/(1 + (2*(f - f0)/w)^2) + C', target: 'pow', derived: 'Ql = f0/w' },
+  { id: 'lor-dip', label: 'Lorentzian dip in |S21|² (hanger, magnitude only, assumes no asymmetry)', f: 'C*(1 - D/(1 + (2*(f - f0)/w)^2))', target: 'pow',
+    derived: 'Ql = f0/w\nQc = f0/w/(1 - sqrt(1 - D))\nQi = f0/w/sqrt(1 - D)' },
+  { id: 'hanger', label: 'Hanger, complex (the full model, written out)', f: 'a*exp(i*alpha)*exp(-2*pi*i*f*tau)*(1 - Ql/Qc*exp(i*phi)/(1 + 2*i*Ql*(f/fr - 1)))',
+    target: 'complex', derived: 'Qi = 1/(1/Ql - cos(phi)/Qc)' },
+  { id: 'refl', label: 'Reflection, complex', f: 'a*exp(i*alpha)*exp(-2*pi*i*f*tau)*(1 - 2*Ql/Qc*exp(i*phi)/(1 + 2*i*Ql*(f/fr - 1)))',
+    target: 'complex', derived: 'Qi = 1/(1/Ql - cos(phi)/Qc)' },
+  { id: 'own', label: 'Write my own (a Lorentzian with a sloped background to start)', f: 'A/(1 + ((f - f0)/g)^2) + B*(f - f0) + C', target: 'pow', derived: 'FWHM = 2*g' },
+];
+$('#fPreset').innerHTML = PRESETS.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+
+function initFit() {
+  if (fit.ready) return;
+  fit.ready = true;
+  const q = K.params();
+  $('#prModel').value = q.str('pm', Object.keys(E.MODELS)) || 'hanger';
+  $('#prLevel').value = String(q.num('pl', 1, 3) || 1);
+  $('#prSeed').value = q.num('seed', 1, 999999) || (1 + Math.floor(Math.random() * 9999));
+  chooseSource('practice');
+  loadPractice();
+}
+
+$('#srcChoice').addEventListener('click', e => { const b = e.target.closest('button'); if (b) chooseSource(b.dataset.src); });
+function chooseSource(src) {
+  fit.src = src;
+  $$('#srcChoice button').forEach(b => b.setAttribute('aria-pressed', b.dataset.src === src));
+  $('#srcPractice').hidden = src !== 'practice'; $('#srcFile').hidden = src !== 'file'; $('#srcPaste').hidden = src !== 'paste';
+  $('#mapCard').hidden = true;
+  if (src === 'practice') loadPractice();
+  else $('#checkBox').hidden = true;
+}
+
+function loadPractice() {
+  const seed = Math.max(1, Math.round(+$('#prSeed').value || 1)), level = +$('#prLevel').value, model = $('#prModel').value;
+  const P = E.practice(seed, level, model);
+  fit.practice = P;
+  setData({ f: P.f, re: P.re, im: P.im, label: `Mystery resonator #${seed}: ${E.MODELS[model].name.toLowerCase()}, difficulty ${level} (${E.LEVELS[level].label.toLowerCase()})` });
+  $('#bModel').value = model;
+  if (!fit.mode) chooseMode('builtin');
+  syncBuiltin();
+}
+$('#prNew').addEventListener('click', () => { $('#prSeed').value = 1 + Math.floor(Math.random() * 99999); loadPractice(); });
+for (const id of ['#prModel', '#prLevel', '#prSeed']) $(id).addEventListener('change', loadPractice);
+$('#prLink').addEventListener('click', e => { e.preventDefault();
+  K.copyLink(e.target, 'qublitz/resonator.html', `seed=${$('#prSeed').value}&pl=${$('#prLevel').value}&pm=${$('#prModel').value}#fit`); });
+$('#prCsv').addEventListener('click', e => { e.preventDefault(); const P = fit.practice; if (!P) return;
+  download(`mystery-resonator-${P.seed}-${P.model}-level${P.level}.csv`,
+    `# Qublitz Resonator Lab mystery resonator #${P.seed}, ${P.model}, difficulty ${P.level}\nfrequency_GHz,re,im\n` +
+    Array.from(P.f, (x, j) => `${x.toPrecision(12)},${P.re[j].toPrecision(8)},${P.im[j].toPrecision(8)}`).join('\n')); });
+
+/* ---------- reading files ---------- */
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const file = e.dataTransfer.files[0]; if (file) readFile(file); });
+$('#fileIn').addEventListener('change', e => { const file = e.target.files[0]; if (file) readFile(file); });
+$('#pasteGo').addEventListener('click', () => readText($('#pasteIn').value, 'pasted data'));
+
+function readFile(file) {
+  if (file.size > 30e6) { mapError('That file is over 30 MB. Export fewer points or a single sweep.'); return; }
+  const r = new FileReader();
+  r.onload = () => readText(String(r.result), file.name);
+  r.readAsText(file);
+}
+
+function mapError(msg) { $('#mapCard').hidden = false; $('#mapRow').innerHTML = ''; $('#mapMsg').innerHTML = `<div class="note err">${msg}</div>`; }
+
+function readText(text, name) {
+  fit.practice = null; $('#checkBox').hidden = true;
+  if (/\.s[12]p$/i.test(name) || /^\s*#\s*(HZ|KHZ|MHZ|GHZ)\b/im.test(text)) {
+    try {
+      const T = E.parseTouchstone(text);
+      fit.raw = { kind: 'touchstone', T, name };
+      showMap();
+    } catch (e) { mapError(`Could not read ${name} as a Touchstone file: ${e.message}.`); }
+    return;
+  }
+  const T = E.parseTable(text);
+  if (T.cols.length < 2 || T.cols[0].length < 10) { mapError(`Could not find at least two columns of numbers and 10 rows in ${name}. Check that it is plain text with one point per line.`); return; }
+  fit.raw = { kind: 'table', T, name };
+  showMap();
+}
+
+const FORMATS = {
+  ri: { label: 'Real and imaginary', cols: ['Real part', 'Imaginary part'] },
+  dbdeg: { label: 'Magnitude (dB) and phase (degrees)', cols: ['Magnitude [dB]', 'Phase [deg]'] },
+  dbrad: { label: 'Magnitude (dB) and phase (radians)', cols: ['Magnitude [dB]', 'Phase [rad]'] },
+  lindeg: { label: 'Magnitude (linear) and phase (degrees)', cols: ['Magnitude', 'Phase [deg]'] },
+  linrad: { label: 'Magnitude (linear) and phase (radians)', cols: ['Magnitude', 'Phase [rad]'] },
+  db: { label: 'Magnitude (dB) only', cols: ['Magnitude [dB]'] },
+  lin: { label: 'Magnitude (linear) only', cols: ['Magnitude'] },
+  pow: { label: 'Power |S|² (linear) only', cols: ['|S|²'] },
+};
+function guessFormat(h) {
+  const s = h.join(' ').toLowerCase();
+  if (/\bre(al)?\b|_re\b|real/.test(s) && /\bim(ag)?\b|_im\b|imag/.test(s)) return 'ri';
+  const hasPh = /phase|ang|deg|rad|\bph\b/.test(s), isDb = /db/.test(s);
+  if (hasPh) return (isDb ? 'db' : 'lin') + (/rad/.test(s) ? 'rad' : 'deg');
+  if (h.length >= 3) return 'ri';
+  return isDb ? 'db' : 'lin';
+}
+function guessFUnit(fcol) {
+  let mx = 0; for (const v of fcol) mx = Math.max(mx, Math.abs(v));
+  return mx > 1e7 ? 'Hz' : mx > 1e4 ? 'kHz' : mx > 200 ? 'MHz' : 'GHz';
+}
+const FU = { Hz: 1e-9, kHz: 1e-6, MHz: 1e-3, GHz: 1 };
+
+function showMap() {
+  $('#mapCard').hidden = false; $('#mapMsg').innerHTML = '';
+  const R = fit.raw;
+  if (R.kind === 'touchstone') {
+    const keys = Object.keys(R.T.S);
+    $('#mapRow').innerHTML = `<div class="field"><label for="tsPar">S-parameter</label><select id="tsPar">${keys.map(k => `<option>${k}</option>`).join('')}</select></div>
+      <span class="hint" style="margin:0 0 8px">${R.name}: ${R.T.fGHz.length} points, ${keys.length === 1 ? 'one port' : 'two ports'}, Z₀ = ${R.T.z0} Ω.</span>`;
+    if (keys.includes('S21')) $('#tsPar').value = 'S21';
+    $('#tsPar').addEventListener('change', applyMap);
+  } else {
+    const h = R.T.header, opts = h.map((c, i) => `<option value="${i}">${c}</option>`).join('');
+    const fmt = guessFormat(h);
+    $('#mapRow').innerHTML = `
+      <div class="field"><label for="mF">Frequency column</label><select id="mF">${opts}</select></div>
+      <div class="field"><label for="mFU">unit</label><select id="mFU"><option>Hz</option><option>kHz</option><option>MHz</option><option>GHz</option></select></div>
+      <div class="field"><label for="mFmt">The data are</label><select id="mFmt">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></div>
+      <div class="field"><label for="mA" id="mAl"></label><select id="mA">${opts}</select></div>
+      <div class="field" id="mBf"><label for="mB" id="mBl"></label><select id="mB">${opts}</select></div>`;
+    $('#mFmt').value = fmt;
+    $('#mFU').value = guessFUnit(R.T.cols[0]);
+    $('#mA').value = String(Math.min(1, h.length - 1)); $('#mB').value = String(Math.min(2, h.length - 1));
+    ['#mF', '#mFU', '#mFmt', '#mA', '#mB'].forEach(id => $(id).addEventListener('change', applyMap));
+    if (R.T.skipped) $('#mapMsg').innerHTML = `<p class="hint">${R.T.skipped} line(s) that were not all numbers were skipped.</p>`;
+  }
+  applyMap();
+}
+
+function applyMap() {
+  const R = fit.raw;
+  let f, re = null, im = null, mag = null;
+  if (R.kind === 'touchstone') {
+    const s = R.T.S[$('#tsPar').value];
+    f = R.T.fGHz; re = s.re; im = s.im;
+  } else {
+    const fmt = $('#mFmt').value, F = FORMATS[fmt];
+    $('#mAl').textContent = F.cols[0]; $('#mBl').textContent = F.cols[1] || ''; $('#mBf').hidden = F.cols.length < 2;
+    const cols = R.T.cols, u = FU[$('#mFU').value];
+    f = cols[+$('#mF').value].map(v => v * u);
+    const A = cols[+$('#mA').value], B = cols[+$('#mB').value];
+    if (fmt === 'ri') { re = A; im = B; }
+    else if (F.cols.length === 2) {
+      const m = fmt.startsWith('db') ? A.map(v => Math.pow(10, v / 20)) : A;
+      const th = fmt.endsWith('deg') ? B.map(v => v * Math.PI / 180) : B;
+      re = m.map((v, j) => v * Math.cos(th[j])); im = m.map((v, j) => v * Math.sin(th[j]));
+    } else mag = fmt === 'db' ? A.map(v => Math.pow(10, v / 20)) : fmt === 'pow' ? A.map(v => Math.sqrt(Math.max(v, 0))) : A;
+  }
+  // sort by frequency, drop repeats
+  const idx = Array.from(f, (_, j) => j).sort((a, b) => f[a] - f[b]).filter((j, k, arr) => k === 0 || f[j] !== f[arr[k - 1]]);
+  const pick = a => a && Float64Array.from(idx, j => a[j]);
+  const d = { f: pick(f), re: pick(re), im: pick(im), mag: pick(mag), label: `${R.name}${R.kind === 'touchstone' ? ', ' + $('#tsPar').value : ''}` };
+  if (d.f.length < 10) { $('#mapMsg').innerHTML = '<div class="note err">Fewer than 10 distinct frequencies.</div>'; return; }
+  setData(d);
+}
+
+function setData(d) {
+  if (d.re && !d.mag) d.mag = Float64Array.from(d.re, (x, j) => Math.hypot(x, d.im[j]));
+  fit.data = d; fit.result = null;
+  $('#dataView').hidden = false;
+  $('#cropLo').value = +d.f[0].toPrecision(10); $('#cropHi').value = +d.f[d.f.length - 1].toPrecision(10);
+  $('#stepModel').classList.remove('dim');
+  showResultEmpty();
+  plotData(); updateCropInfo(); syncTargets(); syncRun();
+}
+
+function cropped() {
+  const d = fit.data, lo = +$('#cropLo').value, hi = +$('#cropHi').value;
+  const keep = []; for (let j = 0; j < d.f.length; j++) if (d.f[j] >= lo && d.f[j] <= hi) keep.push(j);
+  const pick = a => a && Float64Array.from(keep, j => a[j]);
+  return { f: pick(d.f), re: pick(d.re), im: pick(d.im), mag: pick(d.mag) };
+}
+function updateCropInfo() { const c = cropped(); $('#cropInfo').textContent = `${c.f.length} of ${fit.data.f.length} points used`; syncRun(); }
+['#cropLo', '#cropHi'].forEach(id => $(id).addEventListener('change', () => { updateCropInfo(); plotData(); }));
+$('#cropReset').addEventListener('click', () => { const d = fit.data; $('#cropLo').value = +d.f[0].toPrecision(10); $('#cropHi').value = +d.f[d.f.length - 1].toPrecision(10); updateCropInfo(); plotData(); });
+
+function plotData() {
+  const d = fit.data, lo = +$('#cropLo').value, hi = +$('#cropHi').value;
+  $('#dataStatus').textContent = `✓ ${d.label}: ${d.f.length} points from ${hz(d.f[0], 7)} to ${hz(d.f[d.f.length - 1], 7)}${d.re ? ', with phase' : ', magnitude only'}.`;
+  const col = Array.from(d.f, v => (v >= lo && v <= hi ? C.green : '#c3cec8'));
+  const lay = { font: PLOT_FONT, margin: { l: 56, r: 10, t: 26, b: 42 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff', hovermode: 'closest', dragmode: 'zoom' };
+  Plotly.react('dMag', [{ x: Array.from(d.f), y: Array.from(d.mag, db), mode: 'markers', marker: { size: 4, color: col },
+    hovertemplate: '%{x:.7f} GHz<br>%{y:.2f} dB<extra></extra>' }],
+  Object.assign({}, lay, { title: { text: '|S| in dB', font: { size: 13 }, x: 0.01, xanchor: 'left' }, xaxis: Object.assign({ title: { text: 'frequency [GHz]', standoff: 4 } }, AX), yaxis: AX }), CFG);
+  const iq = $('#dIQ');
+  if (d.re) {
+    iq.hidden = false;
+    Plotly.react('dIQ', [{ x: Array.from(d.re), y: Array.from(d.im), mode: 'markers', marker: { size: 4, color: col }, hovertemplate: 'Re %{x:.3f}, Im %{y:.3f}<extra></extra>' }],
+      Object.assign({}, lay, { title: { text: 'IQ plane', font: { size: 13 }, x: 0.01, xanchor: 'left' }, xaxis: Object.assign({ title: { text: 'Re S', standoff: 4 } }, AX),
+        yaxis: Object.assign({ title: { text: 'Im S', standoff: 2 }, scaleanchor: 'x', scaleratio: 1 }, AX) }), CFG);
+  } else iq.hidden = true;
+  hookZoom();
+}
+// zooming the data plot sets the fit window
+function hookZoom() {
+  const el = document.getElementById('dMag');
+  if (el.__hooked || !el.on) return; el.__hooked = true;
+  el.on('plotly_relayout', ev => {
+    if (ev['xaxis.range[0]'] != null) { $('#cropLo').value = +(+ev['xaxis.range[0]']).toPrecision(10); $('#cropHi').value = +(+ev['xaxis.range[1]']).toPrecision(10); updateCropInfo(); }
+  });
+}
+
+/* ---------- model choice ---------- */
+$('#modeChoice').addEventListener('click', e => { const b = e.target.closest('button'); if (b) chooseMode(b.dataset.mode); });
+function chooseMode(m) {
+  fit.mode = m;
+  $$('#modeChoice button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  $('#modeBuiltin').hidden = m !== 'builtin'; $('#modeFormula').hidden = m !== 'formula';
+  if (m === 'formula' && !$('#fText').value) applyPreset('lor-peak');
+  $('#stepRun').classList.remove('dim');
+  syncBuiltin(); syncRun();
+}
+const EQS = {
+  hanger: '<i>S</i><sub>21</sub> = <i>a e</i><sup><i>iα</i>−2π<i>ifτ</i></sup> [1 − (<i>Q</i><sub>l</sub>/|<i>Q</i><sub>c</sub>|) <i>e</i><sup><i>iφ</i></sup> / (1 + 2<i>iQ</i><sub>l</sub>(<i>f</i>/<i>f</i><sub>r</sub> − 1))]',
+  reflection: '<i>S</i><sub>11</sub> = <i>a e</i><sup><i>iα</i>−2π<i>ifτ</i></sup> [1 − (2<i>Q</i><sub>l</sub>/|<i>Q</i><sub>c</sub>|) <i>e</i><sup><i>iφ</i></sup> / (1 + 2<i>iQ</i><sub>l</sub>(<i>f</i>/<i>f</i><sub>r</sub> − 1))]',
+  transmission: '<i>S</i><sub>21</sub> = <i>e</i><sup><i>iα</i>−2π<i>ifτ</i></sup> (<i>Q</i><sub>l</sub>/<i>Q</i><sub>c</sub>) / (1 + 2<i>iQ</i><sub>l</sub>(<i>f</i>/<i>f</i><sub>r</sub> − 1))',
+};
+$('#bModel').addEventListener('change', syncBuiltin);
+$('#bNoDelay').addEventListener('change', syncBuiltin);
+function syncBuiltin() {
+  const m = $('#bModel').value;
+  $('#bEq').innerHTML = EQS[m] + '<span class="hint" style="font-family:Helvetica,Arial;font-size:12.5px">&emsp;with 1/<i>Q</i><sub>i</sub> = 1/<i>Q</i><sub>l</sub> − cos <i>φ</i>/|<i>Q</i><sub>c</sub>|</span>';
+  const d = fit.data;
+  $('#bTarget').innerHTML = !d ? '' : d.re
+    ? 'Fitted to the real and imaginary parts, so the phase helps separate Q<sub>i</sub> from Q<sub>c</sub>.'
+    : `Your data have no phase, so the fit uses |S| only and holds the cable delay and phase offset at zero.${m === 'reflection' ? ' <b>In reflection, |S11| alone cannot tell over- from under-coupled</b>: expect two equally good answers with Q<sub>i</sub> and Q<sub>c</sub> swapped.' : ''}`;
+  $('#bNoDelay').disabled = !(d && d.re);
+}
+
+/* ---------- formula ---------- */
+$('#fPreset').addEventListener('change', e => applyPreset(e.target.value));
+function applyPreset(id) {
+  const p = PRESETS.find(x => x.id === id);
+  $('#fPreset').value = id; $('#fText').value = p.f; $('#fDerived').value = p.derived || '';
+  syncTargets(p.target);
+  fit.starts = {}; fit.fixed = {};
+  parseFormula(); autoStart(); renderParams(); syncRun();
+}
+function syncTargets(want) {
+  const d = fit.data, sel = $('#fTarget'), cur = want || sel.value;
+  const ok = Object.keys(E.TARGETS).filter(k => d && d.re ? true : k !== 'complex' && k !== 'phase');
+  sel.innerHTML = ok.map(k => `<option value="${k}">${E.TARGETS[k]}</option>`).join('');
+  sel.value = ok.includes(cur) ? cur : (ok.includes('pow') ? 'pow' : ok[0]);
+}
+$('#fTarget').addEventListener('change', () => { renderParams(); syncRun(); });
+$('#fUnit').addEventListener('change', () => { autoStart(true); renderParams(); });
+let parseTimer = 0;
+$('#fText').addEventListener('input', () => { clearTimeout(parseTimer); parseTimer = setTimeout(() => { parseFormula(); renderParams(); syncRun(); }, 200); });
+
+function parseFormula() {
+  const src = $('#fText').value, st = $('#fStatus');
+  try {
+    fit.formula = E.parse(src);
+    const n = fit.formula.params.length;
+    st.className = 'status ok';
+    st.innerHTML = n ? `✓ ${n} parameter${n > 1 ? 's' : ''} to fit: ${fit.formula.params.map(p => `<code>${p}</code>`).join(' ')}` : '⚠ No parameters: every name is the variable f, i, pi or a function.';
+    if (!/\bf\b/.test(src)) st.innerHTML += ' <span style="color:#9a6a0b">(The formula does not use <code>f</code>, so it is a constant.)</span>';
+  } catch (e) {
+    fit.formula = null;
+    st.className = 'status err';
+    st.innerHTML = `✗ ${e.message}<div class="formula-err">${escapeHTML(src)}\n${' '.repeat(e.pos || 0)}^</div>`;
+  }
+}
+const escapeHTML = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// Starting values for names the page recognises, from the resonator guess and the data's baseline
+function autoStart(overwrite) {
+  if (!fit.formula || !fit.data) return;
+  fit.starts = fit.starts || {};
+  const c = cropped(), u = 1 / FU[$('#fUnit').value];   // GHz → formula units
+  const g = c.re ? E.guess($('#bModel').value === 'transmission' ? 'transmission' : 'hanger', c.f, c.re, c.im)
+    : E.guess('hanger', c.f, c.mag, new Float64Array(c.f.length), { noDelay: true });
+  const tgt = $('#fTarget').value, y = targetData(c, tgt) || Array.from(c.mag);
+  const n = y.length, e = Math.max(3, Math.floor(n * 0.1));
+  const edges = [...y.slice(0, e), ...y.slice(n - e)].sort((a, b) => a - b), base = edges[Math.floor(edges.length / 2)];
+  let ext = y[0]; for (const v of y) if (Math.abs(v - base) > Math.abs(ext - base)) ext = v;
+  const width = g.fr / g.Ql * u;
+  const map = [
+    [/^(f0|fr|fc|f_?r|f_?res|fres|nu0|center)$/i, g.fr * u],
+    [/^(ql|q|q_?l|qload|qtot)$/i, g.Ql], [/^(qc|q_?c|qe|q_?e|qext)$/i, g.Qc], [/^(qi|q_?i|qint)$/i, Math.abs(E.internalQ(g.Ql, g.Qc, g.phi))],
+    [/^(w|fw|fwhm|width|lw|kappa|gamma_?f|df)$/i, width], [/^(g|gamma|hwhm|halfwidth)$/i, width / 2],
+    [/^a$/, g.a], [/^alpha$/i, g.alpha], [/^tau$/i, g.tau / u], [/^(phi|theta)$/i, g.phi],
+    [/^(A|amp|amplitude|peak|height)$/, ext - base], [/^(C|c0|offset|bg|base|baseline|y0)$/, base], [/^(D|depth)$/, base ? 1 - ext / base : 0.5],
+    [/^(B|slope|m)$/, 0],
+  ];
+  for (const nm of fit.formula.params) {
+    if (!overwrite && Number.isFinite(fit.starts[nm])) continue;
+    const hit = map.find(([re]) => re.test(nm));
+    fit.starts[nm] = hit ? +(+hit[1]).toPrecision(6) : (Number.isFinite(fit.starts[nm]) ? fit.starts[nm] : 1);
+  }
+}
+$('#pGuess').addEventListener('click', () => { autoStart(true); renderParams(); toast('Starting values filled in'); });
+
+function renderParams() {
+  const F = fit.formula, t = $('#pTable');
+  if (!F) { t.innerHTML = ''; return; }
+  fit.starts = fit.starts || {}; fit.fixed = fit.fixed || {};
+  autoStart(false);
+  const R = fit.result && fit.result.kind === 'formula' ? fit.result : null;
+  t.innerHTML = `<tr><th>Parameter</th><th>Starting value</th><th>Hold fixed</th><th>Fitted value ± 1σ</th></tr>` +
+    F.params.map(nm => `<tr><td><code>${nm}</code></td>
+      <td><input type="text" data-p="${nm}" value="${fit.starts[nm]}" aria-label="Starting value of ${nm}"></td>
+      <td style="text-align:center"><input type="checkbox" data-fx="${nm}" ${fit.fixed[nm] ? 'checked' : ''} aria-label="Hold ${nm} fixed"></td>
+      <td>${R && R.params[nm] != null ? pm(R.params[nm], R.sigma[nm], 4) : '<span class="hint">—</span>'}</td></tr>`).join('');
+  t.querySelectorAll('input[data-p]').forEach(i => i.addEventListener('change', () => {
+    const v = Number(i.value.replace(/[×x]\s*10\^?/, 'e'));
+    if (Number.isFinite(v)) fit.starts[i.dataset.p] = v; else { i.value = fit.starts[i.dataset.p]; toast('Not a number'); }
+  }));
+  t.querySelectorAll('input[data-fx]').forEach(i => i.addEventListener('change', () => { fit.fixed[i.dataset.fx] = i.checked; }));
+}
+
+function targetData(c, tgt) {
+  if (tgt === 'complex') return null;
+  if (tgt === 'phase') return c.re ? Array.from(E.unwrap(Array.from(c.re, (x, j) => Math.atan2(c.im[j], x)))) : null;
+  return Array.from(c.mag, m => tgt === 'dB' ? db(m) : tgt === 'pow' ? m * m : m);
+}
+
+/* ---------- run ---------- */
+function syncRun() {
+  const ok = fit.data && fit.mode && (fit.mode === 'builtin' || fit.formula) && cropped().f.length >= 10;
+  $('#runFit').disabled = !ok;
+  $('#runHint').textContent = !fit.data ? 'Choose data first.' : !fit.mode ? 'Choose a model.' : fit.mode === 'formula' && !fit.formula ? 'Fix the formula first.' :
+    cropped().f.length < 10 ? 'The fit window has fewer than 10 points.' : `${cropped().f.length} points, ${fit.mode === 'builtin' ? E.MODELS[$('#bModel').value].name.toLowerCase() + ' model' : 'your formula'}.`;
+}
+$('#runFit').addEventListener('click', () => {
+  $('#runFit').disabled = true; $('#runFit').textContent = 'Fitting…';
+  setTimeout(() => {
+    try { fit.mode === 'builtin' ? runBuiltin() : runFormula(); }
+    catch (e) { $('#fitMsg').innerHTML = `<div class="note err">The fit failed: ${escapeHTML(e.message)}</div>`; }
+    $('#runFit').textContent = 'Run the fit'; syncRun();
+  }, 30);
+});
+
+function showResultEmpty() { $('#resEmpty').hidden = false; $('#resBody').hidden = true; $('#stepResult').classList.add('dim'); $('#fitMsg').innerHTML = ''; }
+
+function qualityHTML(rms, noise) {
+  if (!(noise > 0)) return '';
+  const r = rms / noise;
+  const [cls, msg] = r < 1.3 ? ['ok', 'The residuals are as small as the point-to-point noise: the model describes the data.'] :
+    r < 2.5 ? ['warn', 'The residuals are somewhat larger than the noise. Look at the residual plot for structure: a wrong delay, a background slope or a second resonance.'] :
+    ['err', 'The residuals are much larger than the noise: the model misses something. Check the geometry, the fit window and the IQ plot.'];
+  return `<div class="note ${cls}"><b>Fit quality:</b> RMS residual ${sci(rms, 2)}, noise level about ${sci(noise, 2)} (ratio ${r.toFixed(2)}). ${msg}</div>`;
+}
+
+function runBuiltin() {
+  const c = cropped(), m = $('#bModel').value;
+  const data = c.re ? { f: c.f, re: c.re, im: c.im } : { f: c.f, mag: c.mag };
+  const R = E.fitResonator(m, data, { noDelay: $('#bNoDelay').checked });
+  R.kind = 'builtin'; R.c = c;
+  fit.result = R;
+  const D = R.derived;
+  $('#fitMsg').innerHTML = R.converged ? `<div class="note ok">✓ Converged in ${R.iters} steps.</div>` : `<div class="note warn">${escapeHTML(R.message)}</div>`;
+  $('#resEmpty').hidden = true; $('#resBody').hidden = false; $('#stepResult').classList.remove('dim');
+  $('#resRegime').innerHTML = D.Qi.value > 0 ? regimeHTML(D.Qi.value, D.Qc.value, m === 'transmission' ? 0 : D.phi.value, m) : '';
+  const rel = x => Number.isFinite(x.sigma) ? `± ${sci(x.sigma, 2)} (${(100 * x.sigma / Math.abs(x.value)).toPrecision(2)}%)` : 'uncertainty unknown';
+  $('#resStats').innerHTML = [
+    ['int big', 'Internal Q<sub>i</sub>', sci(D.Qi.value, 4), rel(D.Qi)],
+    ['ext big', m === 'transmission' ? 'Coupling Q<sub>c</sub> (both ports)' : 'Coupling |Q<sub>c</sub>|', sci(D.Qc.value, 4), rel(D.Qc)],
+    ['tot big', 'Loaded Q<sub>l</sub>', sci(D.Ql.value, 4), rel(D.Ql)],
+    ['tot big', 'Resonance f<sub>r</sub>', `${D.fr.value.toFixed(Math.min(9, Math.max(4, -Math.floor(Math.log10(D.fr.sigma || 1e-9)))))} GHz`, `± ${hz(D.fr.sigma, 2)}`],
+    ['tot', 'Linewidth κ/2π', hz(D.kappa.value), `± ${hz(D.kappa.sigma, 2)}`],
+    ['int', 'κ<sub>i</sub>/2π', hz(D.kappaI.value), `± ${hz(D.kappaI.sigma, 2)}`],
+    ['ext', 'κ<sub>c</sub>/2π', hz(D.kappaC.value), `± ${hz(D.kappaC.sigma, 2)}`],
+    ...(m !== 'transmission' ? [['', 'Asymmetry φ', `${(D.phi.value * 180 / Math.PI).toFixed(1)}°`, `± ${(D.phi.sigma * 180 / Math.PI).toFixed(1)}°`]] : []),
+    ...(R.complex ? [['', 'Cable delay τ', `${D.tau.value.toFixed(2)} ns`, `± ${D.tau.sigma.toPrecision(2)} ns`]] : []),
+  ].map(([cl, t, v, s]) => `<div class="stat ${cl}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`).join('');
+  $('#resQuality').innerHTML = qualityHTML(R.rms, R.noise);
+  $('#resNotes').innerHTML = R.notes.map(n => `<div class="note warn">${n}</div>`).join('');
+  $('#resTable').innerHTML = '';
+  $('#resExplore').hidden = !(D.Qi.value > 0);
+  fit.lastPython = builtinPython(m, R);
+  $('#pyBox').hidden = true;
+  plotFit(R);
+  practiceBox();
+}
+
+function builtinPython(m, R) {
+  const form = m === 'transmission'
+    ? 'exp(i*alpha)*exp(-2*pi*i*f*tau)*Ql/Qc/(1 + 2*i*Ql*(f/fr - 1))'
+    : `a*exp(i*alpha)*exp(-2*pi*i*f*tau)*(1 - ${m === 'reflection' ? '2*' : ''}Ql/Qc*exp(i*phi)/(1 + 2*i*Ql*(f/fr - 1)))`;
+  const P = R.params, F = E.parse(form);
+  const fixed = { tau: !R.complex || $('#bNoDelay').checked, alpha: !R.complex, a: m === 'transmission', phi: m === 'transmission' };
+  let py = E.pythonScript(F, R.complex ? 'complex' : 'mag', P, fixed);
+  py = py.replace('# f, S = ...', '# f in GHz (tau in ns), S complex:  f, S = ...').replace('# f, y = ...', '# f in GHz, y = |S| (linear):  f, y = ...');
+  py += `\n\n# internal Q from the fitted values\nvals = dict(zip(${JSON.stringify(F.params.filter(n => !fixed[n]))}, res.x))\nQl, Qc = vals["Ql"], vals["Qc"]\n` +
+    `phi = vals.get("phi", ${m === 'transmission' ? 0 : 'phi' in P ? +P.phi.toPrecision(8) : 0})\nprint("Qi =", 1 / (1 / Ql - np.cos(phi) / Qc))`;
+  return py;
+}
+
+function runFormula() {
+  const c = cropped(), tgt = $('#fTarget').value, u = 1 / FU[$('#fUnit').value];
+  const fU = Float64Array.from(c.f, v => v * u);
+  const data = tgt === 'complex' ? { f: fU, re: c.re, im: c.im } : { f: fU, y: targetData(c, tgt) };
+  const R = E.fitFormula(fit.formula, tgt, data, fit.starts, fit.fixed, $('#fDerived').value.split('\n'));
+  R.kind = 'formula'; R.c = c; R.target = tgt; R.u = u;
+  // noise from point-to-point differences of the fitted quantity
+  let dn = 0, m = c.f.length;
+  if (tgt === 'complex') { for (let j = 1; j < m; j++) dn += (c.re[j] - c.re[j - 1]) ** 2 + (c.im[j] - c.im[j - 1]) ** 2; R.noise = Math.sqrt(dn / ((m - 1) * 4)); }
+  else { const y = data.y; for (let j = 1; j < m; j++) dn += (y[j] - y[j - 1]) ** 2; R.noise = Math.sqrt(dn / ((m - 1) * 2)); }
+  fit.result = R;
+  $('#fitMsg').innerHTML = R.converged ? `<div class="note ok">✓ Converged in ${R.iters} steps.</div>` : `<div class="note warn">${escapeHTML(R.message)}</div>`;
+  $('#resEmpty').hidden = true; $('#resBody').hidden = false; $('#stepResult').classList.remove('dim');
+  $('#resRegime').innerHTML = '';
+  const der = R.derived.filter(d => !d.error);
+  $('#resStats').innerHTML = der.map(d => `<div class="stat tot big"><span>${escapeHTML(d.name)}</span><b>${sci(d.value, 4)}</b><small>${Number.isFinite(d.sigma) ? '± ' + sci(d.sigma, 2) : ''}</small></div>`).join('');
+  $('#resQuality').innerHTML = qualityHTML(R.rms, R.noise);
+  $('#resNotes').innerHTML = R.notes.map(n => `<div class="note warn">${n}</div>`).join('') +
+    R.derived.filter(d => d.error).map(d => `<div class="note err">Derived "${escapeHTML(d.name)}": ${escapeHTML(d.error)}</div>`).join('');
+  $('#resTable').innerHTML = `<tr><th>Parameter</th><th>Fitted value</th><th>± 1σ</th><th>Relative</th><th>Start</th></tr>` +
+    R.names.map(n => `<tr><td><code>${n}</code>${fit.fixed[n] ? ' <span class="hint">(held)</span>' : ''}</td><td>${sci(R.params[n], 6)}</td>
+      <td>${fit.fixed[n] ? '—' : sci(R.sigma[n], 2)}</td><td>${fit.fixed[n] || !Number.isFinite(R.sigma[n]) ? '' : (100 * R.sigma[n] / Math.abs(R.params[n])).toPrecision(2) + '%'}</td><td>${sci(fit.starts[n], 4)}</td></tr>`).join('');
+  $('#resExplore').hidden = true;
+  fit.lastPython = R.python.replace('f must be in the same unit as on the page.', `f in ${$('#fUnit').value}${tgt === 'phase' ? ', y = unwrapped phase in radians' : ''}.`);
+  $('#pyBox').hidden = true;
+  renderParams();
+  plotFit(R);
+  practiceBox();
+}
+
+function plotFit(R) {
+  const c = R.c, n = c.f.length;
+  const fd = Float64Array.from({ length: 1201 }, (_, j) => c.f[0] + (c.f[n - 1] - c.f[0]) * j / 1200);
+  const lay = (t, xt, extra = {}) => Object.assign({ font: PLOT_FONT, margin: { l: 58, r: 10, t: 26, b: xt ? 42 : 30 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff', hovermode: 'closest',
+    title: { text: t, font: { size: 13 }, x: 0.01, xanchor: 'left' }, xaxis: Object.assign({ title: { text: xt, standoff: 4 } }, AX), yaxis: Object.assign({}, AX),
+    legend: { orientation: 'h', y: 1.16, x: 1, xanchor: 'right', font: { size: 11 } } }, extra);
+  const dataMk = { size: 4.5, color: C.data, opacity: 0.75 }, fitLn = { color: C.int, width: 2.4 };
+  const xf = Array.from(c.f), xd = Array.from(fd);
+  let curveC = null, resid;
+  if (R.kind === 'builtin' || R.target === 'complex') {
+    const S = R.kind === 'builtin' ? R.curve(fd) : (() => { const v = R.curve(Float64Array.from(fd, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(fd.length) }; })();
+    curveC = S;
+    if (c.re) {
+      const ph = E.unwrap(Array.from(c.re, (x, j) => Math.atan2(c.im[j], x)));
+      const phF = E.unwrap(Array.from(S.re, (x, j) => Math.atan2(S.im[j], x)));
+      const shift = 2 * Math.PI * Math.round((ph[0] - phF[0]) / (2 * Math.PI));
+      $('#rPh').hidden = false; $('#rIQ').hidden = false;
+      Plotly.react('rPh', [{ x: xf, y: Array.from(ph, v => v * 180 / Math.PI), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: '%{x:.7f} GHz<br>%{y:.1f}°<extra>data</extra>' },
+        { x: xd, y: Array.from(phF, v => (v + shift) * 180 / Math.PI), mode: 'lines', line: fitLn, name: 'fit', hovertemplate: '%{y:.1f}°<extra>fit</extra>' }],
+      lay('phase in degrees', 'frequency [GHz]', { showlegend: false }), CFG);
+      Plotly.react('rIQ', [{ x: Array.from(c.re), y: Array.from(c.im), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: 'Re %{x:.3f}, Im %{y:.3f}<extra>data</extra>' },
+        { x: Array.from(S.re), y: Array.from(S.im), mode: 'lines', line: fitLn, name: 'fit', hoverinfo: 'skip' }],
+      lay('IQ plane', 'Re S', { yaxis: Object.assign({ title: { text: 'Im S', standoff: 2 }, scaleanchor: 'x', scaleratio: 1 }, AX) }), CFG);
+    } else { $('#rPh').hidden = true; $('#rIQ').hidden = true; }
+    const magF = Array.from(S.re, (x, j) => db(Math.hypot(x, S.im[j])));
+    Plotly.react('rMag', [{ x: xf, y: Array.from(c.mag, db), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: '%{x:.7f} GHz<br>%{y:.2f} dB<extra>data</extra>' },
+      { x: xd, y: magF, mode: 'lines', line: fitLn, name: 'fit', hovertemplate: '%{y:.2f} dB<extra>fit</extra>' }], lay('|S| in dB: data and fit', c.re ? '' : 'frequency [GHz]'), CFG);
+    const Sd = R.kind === 'builtin' ? R.curve(c.f) : (() => { const v = R.curve(Float64Array.from(c.f, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(n) }; })();
+    resid = c.re ? [{ x: xf, y: Array.from(c.re, (v, j) => v - Sd.re[j]), mode: 'markers', marker: { size: 4, color: C.ext }, name: 'Re' },
+      { x: xf, y: Array.from(c.im, (v, j) => v - Sd.im[j]), mode: 'markers', marker: { size: 4, color: C.gold }, name: 'Im' }]
+      : [{ x: xf, y: Array.from(c.mag, (v, j) => v - Math.hypot(Sd.re[j], Sd.im[j])), mode: 'markers', marker: { size: 4, color: C.ext }, name: '|S|' }];
+  } else {
+    const y = targetData(c, R.target), yf = R.curve(Float64Array.from(fd, x => x * R.u)).re, yd = R.curve(Float64Array.from(c.f, x => x * R.u)).re;
+    $('#rPh').hidden = true; $('#rIQ').hidden = true;
+    Plotly.react('rMag', [{ x: xf, y, mode: 'markers', marker: dataMk, name: 'data' }, { x: xd, y: Array.from(yf), mode: 'lines', line: fitLn, name: 'fit' }],
+      lay(`${E.TARGETS[R.target]}: data and fit`, 'frequency [GHz]'), CFG);
+    resid = [{ x: xf, y: y.map((v, j) => v - yd[j]), mode: 'markers', marker: { size: 4, color: C.ext }, name: 'data − fit' }];
+  }
+  Plotly.react('rRes', resid, lay('Residuals (data − fit): should look like noise', 'frequency [GHz]', { showlegend: resid.length > 1, margin: { l: 58, r: 10, t: 26, b: 42 } }), CFG);
+  $('.plotgrid #rPh').parentElement.parentElement.style.gridTemplateColumns = $('#rIQ').hidden ? '1fr' : '';
+  requestAnimationFrame(() => ['rMag', 'rPh', 'rIQ', 'rRes'].forEach(id => { const el = document.getElementById(id); if (!el.hidden) Plotly.Plots.resize(el); }));
+  fit.curveC = curveC;
+}
+
+function practiceBox() {
+  const P = fit.practice;
+  $('#checkBox').hidden = !P; $('#checkOut').innerHTML = '';
+  $('#checkBtn').hidden = false;
+}
+$('#checkBtn').addEventListener('click', () => {
+  const P = fit.practice, R = fit.result; if (!P || !R) return;
+  const t = P.truth, Ql = E.loadedQ(t.Qi, t.Qc, t.phi);
+  const rows = [['Q<sub>i</sub>', 'Qi', t.Qi], ['Q<sub>c</sub>', 'Qc', t.Qc], ['Q<sub>l</sub>', 'Ql', Ql], ['f<sub>r</sub> [GHz]', 'fr', t.fr]];
+  const get = k => {
+    if (R.kind === 'builtin') return R.derived[k];
+    const names = { Qi: /^(qi|q_?i)$/i, Qc: /^(qc|q_?c)$/i, Ql: /^(ql|q_?l|q)$/i, fr: /^(fr|f0|fc)$/i }[k];
+    const d = R.derived.find(x => !x.error && names.test(x.name));
+    if (d) return d;
+    const p = R.names.find(n => names.test(n));
+    if (!p) return null;
+    return k === 'fr' ? { value: R.params[p] / R.u, sigma: R.sigma[p] / R.u } : { value: R.params[p], sigma: R.sigma[p] };
+  };
+  let html = `<div class="tablewrap"><table><tr><th>Quantity</th><th>Your fit</th><th>True value</th><th>Off by</th><th>Verdict</th></tr>`;
+  for (const [lab, k, tv] of rows) {
+    const g = get(k);
+    if (!g) { html += `<tr><td>${lab}</td><td colspan="4" class="l hint">not in your fit (add it as a derived quantity, e.g. <code>Qi = …</code>)</td></tr>`; continue; }
+    const z = (g.value - tv) / g.sigma, rel = (g.value - tv) / tv;
+    const [cls, word] = !Number.isFinite(z) ? ['z-meh', 'no error bar'] : Math.abs(z) <= 2 ? ['z-ok', 'within 2σ ✓'] : Math.abs(z) <= 4 ? ['z-meh', 'a bit off'] : ['z-bad', 'off: check the model'];
+    html += `<tr><td>${lab}</td><td>${k === 'fr' ? g.value.toFixed(7) : sci(g.value, 4)}</td><td>${k === 'fr' ? tv.toFixed(7) : sci(tv, 4)}</td>
+      <td>${Number.isFinite(z) ? z.toFixed(1) + 'σ' : ''} (${(100 * rel).toPrecision(2)}%)</td><td class="${cls}">${word}</td></tr>`;
+  }
+  html += `</table></div><p class="hint">"Off by" counts error bars: an honest fit lands within 1σ about two times in three and within 2σ
+    about 19 times in 20. The data were made with φ = ${(t.phi * 180 / Math.PI).toFixed(1)}°, τ = ${t.tau.toFixed(1)} ns and noise you can see in the residuals.
+    Try a harder difficulty, or fit the same data with a Lorentzian formula and compare.</p>`;
+  $('#checkOut').innerHTML = html;
+  $('#checkBtn').hidden = true;
+  if (window.QL && QL.event) QL.event('practice_check', { level: P.level });
+});
+
+$('#resCopy').addEventListener('click', () => {
+  const R = fit.result; if (!R) return;
+  let t = `Qublitz Resonator Lab fit of ${fit.data.label}\n`;
+  if (R.kind === 'builtin') {
+    const D = R.derived;
+    t += `model: ${E.MODELS[R.model].name}, ${R.complex ? 'complex' : '|S| only'}, ${R.c.f.length} points, ${hz(R.c.f[0], 8)} to ${hz(R.c.f[R.c.f.length - 1], 8)}\n`;
+    for (const [k, lab] of [['Qi', 'Qi'], ['Qc', 'Qc'], ['Ql', 'Ql'], ['fr', 'fr [GHz]'], ['phi', 'phi [rad]'], ['tau', 'tau [ns]'], ['a', 'a']])
+      t += `${lab} = ${D[k].value.toPrecision(7)} ± ${Number(D[k].sigma).toPrecision(2)}\n`;
+  } else {
+    t += `formula: ${fit.formula.src}  (fit to ${E.TARGETS[R.target]}, f in ${$('#fUnit').value})\n`;
+    for (const n of R.names) t += `${n} = ${R.params[n].toPrecision(7)} ± ${Number(R.sigma[n]).toPrecision(2)}${fit.fixed[n] ? ' (held)' : ''}\n`;
+    for (const d of R.derived.filter(d => !d.error)) t += `${d.name} = ${d.value.toPrecision(7)} ± ${Number(d.sigma).toPrecision(2)}\n`;
+  }
+  t += `RMS residual ${R.rms.toPrecision(3)}, noise ${R.noise.toPrecision(3)}`;
+  copyText(t, 'Results');
+});
+$('#resCsv').addEventListener('click', () => {
+  const R = fit.result; if (!R) return;
+  const c = R.c, n = c.f.length;
+  let rows;
+  if (R.kind === 'builtin' || R.target === 'complex') {
+    const S = R.kind === 'builtin' ? R.curve(c.f) : (() => { const v = R.curve(Float64Array.from(c.f, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(n) }; })();
+    rows = ['frequency_GHz,data_re,data_im,data_mag,fit_re,fit_im,fit_mag'].concat(Array.from(c.f, (f, j) =>
+      [f.toPrecision(12), c.re ? c.re[j] : '', c.im ? c.im[j] : '', c.mag[j], S.re[j], S.im[j], Math.hypot(S.re[j], S.im[j])].join(',')));
+  } else {
+    const y = targetData(c, R.target), yf = R.curve(Float64Array.from(c.f, x => x * R.u)).re;
+    rows = [`frequency_GHz,data,fit,residual`].concat(Array.from(c.f, (f, j) => [f.toPrecision(12), y[j], yf[j], y[j] - yf[j]].join(',')));
+  }
+  download('resonator-fit.csv', rows.join('\n'));
+});
+$('#resPy').addEventListener('click', () => {
+  const box = $('#pyBox');
+  if (!box.hidden) { box.hidden = true; return; }
+  $('#pyCode').textContent = fit.lastPython; box.hidden = false;
+  copyText(fit.lastPython, 'Python script');
+});
+$('#resExplore').addEventListener('click', () => {
+  const D = fit.result.derived;
+  Object.assign(ex, { g: fit.result.model, qi: D.Qi.value, qc: D.Qc.value, fr: +D.fr.value.toFixed(6), phi: fit.result.model === 'transmission' ? 0 : D.phi.value, env: false });
+  win = null; showTab('explore', true); syncEx(); window.scrollTo({ top: 0 });
+});
+
+/* ================================================================== start */
+(function start() {
+  const q = K.params();
+  const g = q.str('g', Object.keys(E.MODELS)); if (g) ex.g = g;
+  const qi = q.num('qi', 10, 1e10); if (qi) ex.qi = qi;
+  const qc = q.num('qc', 10, 1e10); if (qc) ex.qc = qc;
+  const fr = q.num('fr', 0.01, 100); if (fr) ex.fr = fr;
+  const ph = q.num('phi', -60, 60); if (ph != null) ex.phi = ph * Math.PI / 180;
+  if (q.has('env')) ex.env = true;
+  syncEx();
+  const h = location.hash.slice(1);
+  showTab(TABS.includes(h) ? h : q.has('seed') ? 'fit' : 'explore');
+  if (h.startsWith('l-') || h.startsWith('g-')) { showTab('learn'); requestAnimationFrame(() => document.getElementById(h)?.scrollIntoView()); }
+  if (K.wantsGuided()) startGuided(); else K.guidedEntry($('#guideAnchor'), startGuided);
+  if (window.QL && QL.event) QL.event('open');
+})();
+</script>
+</body>
+</html>
