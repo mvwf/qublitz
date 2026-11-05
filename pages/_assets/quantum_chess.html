@@ -981,7 +981,7 @@ const GATE_INFO = {
   T: {label:'T Gate',short:'+π/4 relative phase',effect:'45° phase shift',ctrl:'45° Z-axis rotation (φ→φ+π/4). Non-Clifford — essential for universal computation. Like S/Z, it only changes outcomes through X-basis interference (GUARD).'},
   Rx:{label:'Rx(π/4)',short:'π/4 X-axis tilt',effect:'Tilt charge & phase',ctrl:'π/4 X-axis rotation, modelling Larmor spin precession. Tilts the qubit toward the equator, adjusting both charge and the X-basis phase.'},
   Ry:{label:'Ry(π/4)',short:'π/4 Y-axis tilt',effect:'Small charge boost',ctrl:'π/4 Y-axis rotation, modelling Rabi oscillation — the cleanest coherent qubit drive. Nudges charge without adding a complex phase.'},
-  CNOT:   {label:'CNOT',short:'entangle two qubits',effect:'Entangle a neighbor',ctrl:'Conditional X: flips target if control |1⟩. Forms a correlated Bell pair — a strike on one bleeds onto the other (no faster-than-light control; only the correlation is shared).'},
+  CNOT:   {label:'CNOT',short:'entangle two qubits',effect:'Entangle a neighbor',ctrl:'Conditional X: flips the target if the control is |1⟩, does nothing if it is |0⟩. With the control in superposition it makes an entangled pair: |+⟩|0⟩ → |Φ+⟩. Pulsing one half cannot change the other half\'s odds (no faster-than-light signalling), but it can change whether the two outcomes match.'},
   MEASURE:{label:'Measure',short:'collapse to eigenstate',effect:'Discharge & reset',ctrl:'Projective Z-basis measurement. Collapses |ψ⟩ to |0⟩ or |1⟩ and stabilizes the unit (coherence +12). "Discharging" to |0⟩ is a game-mechanic reward, not a physical one — |0⟩ is simply the low-energy ground state a real qubit relaxes to anyway; |1⟩ is high-energy and short-lived by nature.'},
 };
 
@@ -1608,6 +1608,185 @@ const DuelCore = (() => {
              deltaOdds: odds(after) - odds(before) };
   }
 
+  // ── Entangled pair: an exact two-qubit density matrix ────────────────
+  // While linked, the two duellists are ONE 4×4 density matrix ρ, not two
+  // Bloch vectors. Basis index i = 2·bA + bB (A = qubit 0). Every operation is
+  // the textbook one: a local pulse is (R ⊗ I) ρ (R ⊗ I)†, decay is each
+  // qubit's own amplitude-damping + dephasing Kraus channel (identical to
+  // QPhysics.lindbladStep on a product state), the coupler is a CNOT, and a
+  // MEASURE is a Z projection on one half. Each ship's displayed Bloch vector
+  // is its reduced state Tr_other(ρ), so odds, spheres and the bot read the
+  // real marginals. Entanglement is quantified by the negativity of the
+  // partial transpose (0 for separable, ½ for a Bell state).
+  const Pair = (() => {
+    const N = 4;
+    const mk = () => ({ re: new Float64Array(16), im: new Float64Array(16) });
+    const bit = (i, q) => q === 0 ? (i >> 1) & 1 : i & 1;
+
+    function fromBloch(rA, rB) {
+      const one = r => ({ re: [(1+r.z)/2, r.x/2, r.x/2, (1-r.z)/2],
+                          im: [0, -r.y/2, r.y/2, 0] });           // [[00,01],[10,11]]
+      const A = one(rA), B = one(rB), P = mk();
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const ai = (i>>1)*2 + (j>>1), bi = (i&1)*2 + (j&1);
+        P.re[i*4+j] = A.re[ai]*B.re[bi] - A.im[ai]*B.im[bi];
+        P.im[i*4+j] = A.re[ai]*B.im[bi] + A.im[ai]*B.re[bi];
+      }
+      return P;
+    }
+
+    // U ρ U† for a 4×4 complex U given as {re,im}.
+    function conj(P, U) {
+      const T = mk(), O = mk();
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        let r = 0, m = 0;
+        for (let k = 0; k < N; k++) {
+          const ur = U.re[i*4+k], ui = U.im[i*4+k], pr = P.re[k*4+j], pi = P.im[k*4+j];
+          r += ur*pr - ui*pi; m += ur*pi + ui*pr;
+        }
+        T.re[i*4+j] = r; T.im[i*4+j] = m;
+      }
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        let r = 0, m = 0;
+        for (let k = 0; k < N; k++) {       // T · U†, U†[k][j] = conj(U[j][k])
+          const tr = T.re[i*4+k], ti = T.im[i*4+k], ur = U.re[j*4+k], ui = -U.im[j*4+k];
+          r += tr*ur - ti*ui; m += tr*ui + ti*ur;
+        }
+        O.re[i*4+j] = r; O.im[i*4+j] = m;
+      }
+      return O;
+    }
+
+    // Embed a 2×2 operator {re:[a,b,c,d], im:[...]} on qubit q.
+    function embed(K, q) {
+      const U = mk();
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const o = 1 - q;                                   // the other qubit
+        if (bit(i, o) !== bit(j, o)) continue;
+        const k = bit(i, q) * 2 + bit(j, q);
+        U.re[i*4+j] = K.re[k]; U.im[i*4+j] = K.im[k];
+      }
+      return U;
+    }
+
+    // Right-handed rotation by θ about unit axis n: R = cos(θ/2) I − i sin(θ/2) n·σ.
+    // Same convention as rotateBloch (asserted in the harness).
+    function rot(n, theta) {
+      const c = Math.cos(theta/2), s = Math.sin(theta/2);
+      return { re: [c, -s*n.y, s*n.y, c], im: [-s*n.z, -s*n.x, -s*n.x, s*n.z] };
+    }
+    const rotate = (P, q, axis, theta) => conj(P, embed(rot(norm(axis), theta), q));
+
+    function cnot(P, control) {
+      const t = 1 - control, perm = i => bit(i, control) ? i ^ (t === 0 ? 2 : 1) : i;
+      const O = mk();
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        O.re[perm(i)*4+perm(j)] = P.re[i*4+j];
+        O.im[perm(i)*4+perm(j)] = P.im[i*4+j];
+      }
+      return O;
+    }
+
+    // One qubit's T₁ amplitude damping, then pure dephasing so coherences
+    // decay as e^{−dt/T₂} overall (needs T₂ ≤ 2T₁, enforced as in lindbladStep).
+    function decay(P, q, { T1, T2, dt }) {
+      T1 = Math.max(1e-6, T1); T2 = Math.max(1e-6, Math.min(T2, 2 * T1));
+      const g = 1 - Math.exp(-dt / T1);
+      const f = Math.exp(-dt * (1 / T2 - 1 / (2 * T1)));
+      const Ks = [
+        { re: [1, 0, 0, Math.sqrt(1 - g)], im: [0, 0, 0, 0] },
+        { re: [0, Math.sqrt(g), 0, 0],     im: [0, 0, 0, 0] },
+      ];
+      const add = (A, B) => { for (let k = 0; k < 16; k++) { A.re[k] += B.re[k]; A.im[k] += B.im[k]; } return A; };
+      let O = mk();
+      for (const K of Ks) O = add(O, conj(P, embed(K, q)));
+      const D = mk();
+      const d0 = Math.sqrt((1 + f) / 2), d1 = Math.sqrt((1 - f) / 2);
+      for (const K of [{ re: [d0, 0, 0, d0], im: [0,0,0,0] }, { re: [d1, 0, 0, -d1], im: [0,0,0,0] }])
+        add(D, conj(O, embed(K, q)));
+      return D;
+    }
+
+    function reduced(P, q) {
+      let r00 = 0, r11 = 0, re01 = 0, im01 = 0;
+      for (let k = 0; k < 2; k++) {
+        const i0 = q === 0 ? k : k * 2, i1 = q === 0 ? 2 + k : k * 2 + 1;
+        r00 += P.re[i0*4+i0]; r11 += P.re[i1*4+i1];
+        re01 += P.re[i0*4+i1]; im01 += P.im[i0*4+i1];
+      }
+      return { x: 2 * re01, y: -2 * im01, z: r00 - r11 };
+    }
+    const p1 = (P, q) => { let s = 0; for (let i = 0; i < N; i++) if (bit(i, q)) s += P.re[i*4+i]; return s; };
+    // ⟨Z⊗Z⟩: +1 when the two Z outcomes always match, −1 when always opposite.
+    const zz = P => { let s = 0; for (let i = 0; i < N; i++) s += P.re[i*4+i] * ((bit(i,0) ^ bit(i,1)) ? -1 : 1); return s; };
+
+    // Z measurement on qubit q with the Born rule; returns both outcomes and
+    // the two post-measurement Bloch vectors (the pair is a product state
+    // afterwards, so the link ends).
+    function measure(P, q, rand = Math.random) {
+      const p = p1(P, q), draw = rand(), outcome = draw < p ? 1 : 0;
+      const pm = outcome ? p : 1 - p;
+      const O = mk();
+      if (pm > 1e-12) for (let i = 0; i < N; i++) for (let j = 0; j < N; j++)
+        if (bit(i, q) === outcome && bit(j, q) === outcome) {
+          O.re[i*4+j] = P.re[i*4+j] / pm; O.im[i*4+j] = P.im[i*4+j] / pm;
+        }
+      const self = reduced(O, q), partner = reduced(O, 1 - q);
+      return { outcome, p, draw, self, partner,
+               partnerP1: (1 - partner.z) / 2 };
+    }
+
+    // Smallest eigenvalue of a Hermitian 4×4, via its real 8×8 embedding
+    // [[A, −B], [B, A]] (each eigenvalue appears twice) and cyclic Jacobi.
+    function minEig(H) {
+      const n = 8, M = Array.from({ length: n }, () => new Float64Array(n));
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+        const a = H.re[i*4+j], b = H.im[i*4+j];
+        M[i][j] = a; M[i+4][j+4] = a; M[i][j+4] = -b; M[i+4][j] = b;
+      }
+      for (let sweep = 0; sweep < 30; sweep++) {
+        let off = 0;
+        for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += M[p][q] * M[p][q];
+        if (off < 1e-22) break;
+        for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+          if (Math.abs(M[p][q]) < 1e-15) continue;
+          const th = (M[q][q] - M[p][p]) / (2 * M[p][q]);
+          const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+          const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+          for (let k = 0; k < n; k++) {
+            const mkp = M[k][p], mkq = M[k][q];
+            M[k][p] = c * mkp - s * mkq; M[k][q] = s * mkp + c * mkq;
+          }
+          for (let k = 0; k < n; k++) {
+            const mpk = M[p][k], mqk = M[q][k];
+            M[p][k] = c * mpk - s * mqk; M[q][k] = s * mpk + c * mqk;
+          }
+        }
+      }
+      let m = Infinity; for (let i = 0; i < n; i++) m = Math.min(m, M[i][i]);
+      return m;
+    }
+    // Negativity of ρ^{T_B}: Σ|negative eigenvalues|. For two qubits at most
+    // one is negative, so N = max(0, −λmin). 0 = separable, ½ = Bell state.
+    function negativity(P) {
+      const T = mk();
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const a = i >> 1, b = i & 1, a2 = j >> 1, b2 = j & 1;
+        const src = (a * 2 + b2) * 4 + (a2 * 2 + b);       // swap B indices
+        T.re[i*4+j] = P.re[src]; T.im[i*4+j] = P.im[src];
+      }
+      return Math.max(0, -minEig(T));
+    }
+    // How far ρ is from the product of its marginals (max entry difference).
+    function productGap(P) {
+      const Q = fromBloch(reduced(P, 0), reduced(P, 1));
+      let g = 0;
+      for (let k = 0; k < 16; k++) g = Math.max(g, Math.abs(P.re[k] - Q.re[k]), Math.abs(P.im[k] - Q.im[k]));
+      return g;
+    }
+    return { fromBloch, rotate, cnot, decay, reduced, p1, zz, measure, negativity, productGap };
+  })();
+
   // ── Pickups ──────────────────────────────────────────────────────────
   // calib and tgate are the originals (and the only ones in Duel Training,
   // whose missions are tuned around them). The free duel adds four more, each
@@ -1660,12 +1839,12 @@ const DuelCore = (() => {
         : { blocked:false } },
 
     { id:2, title:'THE BELL GAMBIT', concept:'Entanglement & correlated collapse',
-      brief:'This opponent is shielded: a direct MEASURE cannot resolve them. ENTANGLE first (E) — once you share |Φ+⟩, one measurement collapses BOTH, correlated, and that is a result the shield cannot refuse.',
+      brief:'This opponent is shielded: a direct MEASURE cannot resolve them. Your coupler (E) is a CNOT with YOUR qubit as control, so first put yourself in superposition (self-pulse F, about π/2). From |+⟩|0⟩ the CNOT makes |Φ+⟩, and one MEASURE then collapses BOTH: a result the shield cannot refuse.',
       win:'Correlated collapse: you did not measure them, you measured the PAIR.',
       shielded:true,
       gate: ev => ev.entangled
         ? { blocked:false }
-        : { blocked:true, reason:'Shielded — a lone qubit cannot be resolved here. Entangle (E) and measure the pair.' } },
+        : { blocked:true, reason:'Shielded: a lone qubit cannot be resolved here. Self-pulse into superposition, entangle (E), then measure the pair.' } },
 
     { id:3, title:'SUPERPOSITION GAMBIT', concept:'Superposition',
       brief:'Their armour only yields to a beam fired from superposition. Put YOUR OWN qubit off the poles first (a partial X-charge, not a full π), then fire.',
@@ -1743,7 +1922,7 @@ const DuelCore = (() => {
   return { debriefLines, parkPulse,
            K, AXES, BEAMS, ZONE, ZENO, DUEL_MISSIONS, missionGate,
            mulberry32, chargeToTheta, driveTheta, rotateBloch,
-           detunedRotate, reducedBloch, PICKUPS, PICKUP_CYCLE,
+           detunedRotate, reducedBloch, Pair, PICKUPS, PICKUP_CYCLE,
            eigenstateAngleDeg, isEigenstate, isCardinal, applyBeamHit,
            resolveBeam, decayStep, zoneAt, odds, measureRoll,
            sigmaFor, applyFidelity, bellPair, bellOdds, bellMeasure };
@@ -1921,6 +2100,15 @@ function duelPickupsHTML() {
   const P = DuelCore.PICKUPS;
   return `<div class="lb-wrap" data-pickups="v1">${DuelCore.PICKUP_CYCLE.map(k => `
     <div class="lb-row"><span style="white-space:nowrap;margin-right:14px"><b style="color:${P[k].color}">${P[k].glyph}</b> ${P[k].name}</span><span class="lb-val">${P[k].effect}</span></div>`).join('')}
+  </div>`;
+}
+function duelEntangleHTML() {
+  const row = (k, v) => `<div class="lb-row"><span style="white-space:nowrap;margin-right:14px">${k}</span><span class="lb-val">${v}</span></div>`;
+  return `<div class="lb-wrap" data-entangle="v1">
+    ${row('E is a CNOT', 'Your qubit is the control. At |0⟩ nothing happens; at |1⟩ it flips theirs; in superposition it entangles you (|+⟩|0⟩ → |Φ+⟩) and their odds become 50%.')}
+    ${row('Match or opposite', 'A MEASURE on one half collapses both. If outcomes MATCH, a dud drops you to |0⟩ with them; if OPPOSITE, a dud leaves you at |1⟩.')}
+    ${row('Flip it', 'An X or Y π-pulse on either half swaps MATCH and OPPOSITE. It cannot change the other side\'s odds (no signalling). Sage flips when it sees your MEASURE wind up.')}
+    ${row('Keep it alive', 'Each qubit still decays: T₁/T₂ wear the link down, and a hotspot destroys it in about 2 s. Active reset breaks it instantly.')}
   </div>`;
 }
 function duelControlsHTML() {
@@ -2557,6 +2745,7 @@ const DUEL = (() => {
     ];
     S.pickups = []; S.pickupTimer = 4; S.beam = 'X'; S.bell = null;
     S.reveal = null; S.hitStop = 0; S.pendingEnd = null; S.pickupSeq = 0;
+    S.pairNeg = 0; S.pairZZ = 0; S.botFlipT = 0;
     S.stars = [];
     for (let i = 0; i < 140; i++)
       S.stars.push({ x: S.rand() * K.WORLD_W, y: S.rand() * K.WORLD_H,
@@ -2655,17 +2844,38 @@ const DUEL = (() => {
     const th = spec.fixedTheta != null ? spec.fixedTheta
       : DuelCore.applyFidelity(theta, ship.fidelity, S.rand);
     const before = ship.bloch;
-    ship.bloch = DuelCore.rotateBloch(before, DuelCore.AXES[spec.axis], th);
-    ship.arc = { from: before, to: ship.bloch, t: 0 };
+    if (S.bell && ship.bellIdx >= 0) linkedPulse(ship, DuelCore.AXES[spec.axis], th, spec.color, false);
+    else {
+      ship.bloch = DuelCore.rotateBloch(before, DuelCore.AXES[spec.axis], th);
+      ship.arc = { from: before, to: ship.bloch, t: 0 };
+    }
     ship.beamCd = K.BEAM_CD_S;
     spawnParts(10, ship.x, ship.y, spec.color, 70, 0.45);
-    floatTxt(ship, 'SELF ' + beamKey, spec.color);
+    if (ship.bellIdx < 0) floatTxt(ship, 'SELF ' + beamKey, spec.color);
     sweep(300, 620, 0.14, 'sine', 0.12);
     if (ship.owner === 0 && S.ev) {
       S.selfPulses = (S.selfPulses || 0) + 1;
       if (S.rstat) S.rstat.selfPulses++;
       if (!DuelCore.isEigenstate(ship.bloch, 'Z')) S.ev.superposedShot = true;
     }
+  }
+
+  // ── Entangled link (S.bell holds a DuelCore.Pair density matrix) ──────
+  // Ship k of the pair is qubit bellIdx; its .bloch is always its reduced
+  // state, so every reader (odds, spheres, bot) sees the real marginal.
+  const LINK_ENT_MIN = 0.05;          // negativity that counts as entangled (Bell = 0.5)
+  function syncPair() {
+    if (!S.bell) return;
+    for (const sh of S.ships) if (sh.bellIdx >= 0) sh.bloch = DuelCore.Pair.reduced(S.bell, sh.bellIdx);
+    S.pairNeg = DuelCore.Pair.negativity(S.bell);
+    S.pairZZ = DuelCore.Pair.zz(S.bell);
+    // Once the pair is (numerically) a product state, nothing is shared any
+    // more and two Bloch vectors describe it exactly: drop the link.
+    if (DuelCore.Pair.productGap(S.bell) < 2e-3) endLink();
+  }
+  function endLink() {
+    for (const sh of S.ships) sh.bellIdx = -1;
+    S.bell = null; S.pairNeg = 0; S.pairZZ = 0;
   }
 
   const rabiMult = ship => ship.driveUntil > S.t ? DuelCore.PICKUPS.drive.rabiMult : 1;
@@ -2692,13 +2902,28 @@ const DUEL = (() => {
   // A landed beam: rotate the target's qubit. The 250ms arc animation IS the
   // damage number — the sphere swinging is the feedback (design pillar 2).
   function landBeam(p, target) {
+    // Linked target: the pulse is a local unitary on the PAIR. It cannot
+    // change the partner's marginal (no-signalling), but it can change the
+    // correlations: an X or Y π-pulse turns "outcomes match" into "opposite".
+    if (S.bell && target.bellIdx >= 0 && !(target.zenoUntil > S.t)) {
+      const spec = DuelCore.BEAMS[p.beam] || DuelCore.BEAMS.X;
+      const shooter = S.ships[p.owner];
+      let axis = DuelCore.AXES[spec.axis];
+      let th = spec.fixedTheta != null ? spec.fixedTheta
+        : DuelCore.applyFidelity(p.theta, shooter.fidelity, S.rand);
+      const d = spec.kind === 'attack' ? detuneOf(target) : 0;
+      if (d) { axis = { x: axis.x, y: axis.y, z: axis.z + d }; th *= Math.sqrt(1 + d * d); }
+      linkedPulse(target, axis, th, spec.color, true);
+      sfxHit();
+      return;
+    }
     const before = target.bloch;
     const wasCardinal = DuelCore.isCardinal(before);
     const shooter = S.ships[p.owner];
     const res = DuelCore.resolveBeam(before, p.beam, p.theta, {
       fidelity: shooter.fidelity, rand: S.rand,
       zenoUntil: target.zenoUntil, now: S.t,
-      detune: target.bellIdx >= 0 ? 0 : detuneOf(target),
+      detune: detuneOf(target),
     });
     if (res.zenoBlocked) {
       target.shieldFlash = 0.4;
@@ -2713,15 +2938,6 @@ const DUEL = (() => {
       floatTxt(target, 'EIGENSTATE!', '#9aa3cf');
       if (p.owner === 0 && S.rstat) S.rstat.shieldedAgainstYou++;
       sfxShield();
-      return;
-    }
-    // While entangled, a local rotation cannot change the partner's odds —
-    // the no-communication theorem. We keep the pair's 50/50 and just show
-    // the beam landing; the link is broken only by a MEASURE.
-    if (target.bellIdx >= 0) {
-      target.hitFlash = 0.35;
-      spawnParts(10, p.x, p.y, '#c97bff', 100, 0.5);
-      floatTxt(target, 'NO-SIGNALLING', '#c97bff');
       return;
     }
     target.bloch = res.bloch;
@@ -2755,25 +2971,29 @@ const DUEL = (() => {
     if (S.pendingEnd) return;                      // round already decided this frame
     const other = S.ships[1 - (target.owner)];
     let res, method = 'measure';
+    let partnerP1 = null, wasEntangled = false;
     if (S.bell && target.bellIdx >= 0) {
-      // Entangled: one measurement collapses BOTH, correlated. The shooter
-      // wins only if the TARGET lands on |1⟩ — which is now a coin flip
-      // regardless of how charged either side was before the link.
-      const r = DuelCore.bellMeasure(S.bell, target.bellIdx, S.rand);
-      target.bloch = r.blochSelf;
-      other.bloch = r.blochPartner;
-      target.bellIdx = other.bellIdx = -1; S.bell = null;
-      floatTxt(target, 'CORRELATED', '#c97bff');
-      res = { outcome: r.outcome, p: r.p };
+      // Linked: a Z measurement on one half of the real two-qubit state.
+      // The target collapses by the Born rule on its marginal, and the
+      // partner collapses to whatever the correlations leave it in (for
+      // |Φ+⟩ the same outcome, for |Ψ+⟩ the opposite one).
+      wasEntangled = (S.pairNeg || 0) > LINK_ENT_MIN;
+      const r = DuelCore.Pair.measure(S.bell, target.bellIdx, S.rand);
+      endLink();
+      target.bloch = r.self;
+      other.bloch = r.partner;
+      partnerP1 = r.partnerP1;
+      floatTxt(other, partnerP1 > 0.98 ? 'COLLAPSED → |1⟩' : partnerP1 < 0.02 ? 'COLLAPSED → |0⟩' : `P(1) NOW ${(partnerP1*100).toFixed(0)}%`, '#c97bff');
+      res = { outcome: r.outcome, p: r.p, draw: r.draw };
       method = 'bell-measure';
-      if (p.owner === 0 && S.ev) S.ev.bellCollapse = true;
+      if (p.owner === 0 && S.ev && wasEntangled) S.ev.bellCollapse = true;
     } else {
       res = DuelCore.measureRoll(target.bloch, S.rand);
       target.bloch = res.bloch;
     }
     target.arc = null;
     S.reveal = { shooter: p.owner, p: res.p, draw: res.draw, outcome: res.outcome,
-                 bell: method === 'bell-measure', blocked: false, t: 0 };
+                 bell: method === 'bell-measure', partnerP1, blocked: false, t: 0 };
 
     // Zeno bookkeeping: NEEDED landings inside WINDOW pin the target.
     target.measStamps.push(S.t);
@@ -2818,18 +3038,52 @@ const DUEL = (() => {
     }
   }
 
-  // Entangle beam: puts both duellists into |Φ+⟩ (see DuelCore's Bell notes).
+  // A pulse on one half of a linked pair (a beam on them, or a self-pulse).
+  function linkedPulse(ship, axis, theta, col, incoming) {
+    const before = ship.bloch, zz0 = DuelCore.Pair.zz(S.bell);
+    S.bell = DuelCore.Pair.rotate(S.bell, ship.bellIdx, axis, theta);
+    syncPair();
+    ship.arc = { from: before, to: ship.bloch, t: 0 };
+    if (incoming) ship.hitFlash = 0.35;
+    spawnParts(12, ship.x, ship.y, col, 100, 0.5);
+    const zz1 = S.bell ? DuelCore.Pair.zz(S.bell) : 0;
+    if (S.bell && zz0 > 0.3 && zz1 < -0.3) floatTxt(ship, 'NOW OPPOSITE', '#c97bff');
+    else if (S.bell && zz0 < -0.3 && zz1 > 0.3) floatTxt(ship, 'NOW MATCHED', '#c97bff');
+    else floatTxt(ship, 'PAIR PULSE', '#c97bff');
+  }
+
+  // Coupler beam: a CNOT on the real two-qubit state, shooter = control.
+  //   your qubit at |0⟩ → nothing happens
+  //   your qubit at |1⟩ → their qubit is flipped (X)
+  //   your qubit in superposition → entanglement (|+⟩|0⟩ → |Φ+⟩)
+  // and with a control in superposition the target's P(|1⟩) becomes 50%
+  // whatever it was, which is why entangling is the comeback move.
   function landEntangle(p, target) {
     const shooter = S.ships[p.owner];
     if (S.bell) return;
-    S.bell = DuelCore.bellPair();
+    const Pr = DuelCore.Pair;
+    const rho = Pr.cnot(Pr.fromBloch(shooter.bloch, target.bloch), 0);
+    const neg = Pr.negativity(rho), gap = Pr.productGap(rho);
+    const before = target.bloch;
+    if (gap < 2e-3) {
+      // Nothing shared: the CNOT acted as identity or as a plain X on them.
+      target.bloch = Pr.reduced(rho, 1);
+      target.arc = { from: before, to: target.bloch, t: 0 };
+      const flipped = DuelCore.odds(target.bloch) - DuelCore.odds(before);
+      floatTxt(target, Math.abs(flipped) > 0.05 ? 'CNOT FLIP' : 'CNOT: CONTROL AT |0⟩', '#c97bff');
+      if (Math.abs(flipped) <= 0.05) floatTxt(shooter, 'NEED SUPERPOSITION', '#c97bff');
+      sfxShield();
+      return;
+    }
+    S.bell = rho;
     shooter.bellIdx = 0; target.bellIdx = 1;
-    shooter.arc = target.arc = null;
+    syncPair();
+    shooter.arc = null; target.arc = { from: before, to: target.bloch, t: 0 };
     spawnParts(40, target.x, target.y, '#c97bff', 190, 1.0);
-    floatTxt(target, 'ENTANGLED — 50/50', '#c97bff');
-    if (p.owner === 0 && S.ev) S.ev.entangled = true;
+    floatTxt(target, neg > LINK_ENT_MIN ? `ENTANGLED · ${S.pairZZ >= 0 ? 'MATCH' : 'OPPOSITE'}` : 'CORRELATED (classical)', '#c97bff');
+    if (p.owner === 0 && S.ev && neg > LINK_ENT_MIN) S.ev.entangled = true;
     sfxShield();
-    tele('entangled', { by: p.owner === 0 ? 'player' : 'sage' });
+    tele('entangled', { by: p.owner === 0 ? 'player' : 'sage', negativity: +neg.toFixed(3) });
   }
 
   const REVEAL_S = 2.2, REVEAL_WIN_STOP_S = 1.1, REVEAL_DUD_STOP_S = 0.35;
@@ -2858,8 +3112,8 @@ const DUEL = (() => {
         // Resetting one half of a pair leaves the partner in its reduced
         // state: for |Φ+⟩ that is the maximally mixed I/2 (P(|1⟩) = 50%).
         const other = S.ships[1 - sh.owner];
-        other.bloch = DuelCore.reducedBloch(S.bell, other.bellIdx);
-        sh.bellIdx = other.bellIdx = -1; S.bell = null;
+        other.bloch = DuelCore.Pair.reduced(S.bell, other.bellIdx);
+        endLink();
       }
       const before = sh.bloch;
       sh.bloch = { x: 0, y: 0, z: 1 };
@@ -2876,7 +3130,15 @@ const DUEL = (() => {
 
   // Small world-space floater, reusing the campaign's float list shape.
   function floatTxt(ship, text, col) {
-    const f = { text, x: w2sx(ship.x), y: w2sy(ship.y) - 26, vy: -0.5,
+    // Stack above any fresh floater nearby (either ship) so labels never overprint.
+    const x = w2sx(ship.x);
+    let y = w2sy(ship.y) - 26;
+    for (let pass = 0, moved = true; moved && pass < 8; pass++) {
+      moved = false;
+      for (const o of S.floats)
+        if (o.life > 0.3 && Math.abs(o.x - x) < 130 && Math.abs(o.y - y) < 13) { y = o.y - 14; moved = true; }
+    }
+    const f = { text, x, y, vy: -0.5,
                 life: 1.6, color: col, size: 8 };
     S.floats.push(f);
     if (S.floats.length > 24) S.floats.shift();
@@ -2978,9 +3240,12 @@ const DUEL = (() => {
       const zone = DuelCore.zoneAt(sh.x, sh.y, S.zones);
       const oddsBeforeDecay = DuelCore.odds(sh.bloch);
       sh.inHot = !!zone;
-      // An entangled qubit's own vector is meaningless until collapse (the
-      // pair holds the state), so skip local decay while linked.
-      if (sh.bellIdx < 0) sh.bloch = DuelCore.decayStep(sh.bloch, dt, zone);
+      // Linked: each qubit decays through its own channel on the pair's
+      // density matrix (hotspots kill entanglement fast). syncPair() below.
+      if (sh.bellIdx >= 0 && S.bell)
+        S.bell = DuelCore.Pair.decay(S.bell, sh.bellIdx,
+          { T1: (zone && zone.t1) || K.T1_S, T2: (zone && zone.t2) || K.T2_S, dt });
+      else sh.bloch = DuelCore.decayStep(sh.bloch, dt, zone);
       if (sh.owner === 0 && zone && S.rstat) {
         S.rstat.hotspotTime += dt;
         if (sh.bellIdx < 0 && oddsBeforeDecay >= 0.35
@@ -3004,6 +3269,7 @@ const DUEL = (() => {
         if (sh.winding === 0) fireMeasure(sh);
       }
     }
+    syncPair();
     if (S.gateMsgT > 0) S.gateMsgT = Math.max(0, S.gateMsgT - dt);
     if (S.actions.aim.active) {
       S.aim.x = me.x + S.actions.aim.x * K.WORLD_W;
@@ -3095,7 +3361,7 @@ const DUEL = (() => {
       const d = Math.hypot(z.x - foe.x, z.y - foe.y);
       if (d < best) { best = d; nearestZone = z; }
     }
-    const foeOdds = S.bell ? 0.5 : DuelCore.odds(me.bloch);     // odds on the PLAYER
+    const foeOdds = DuelCore.odds(me.bloch);     // odds on the PLAYER (reduced state if linked)
     return {
       me: { x: foe.x, y: foe.y, inHot: foe.inHot, tCharges: foe.tCharges,
             beamReady: foe.beamCd === 0, measReady: foe.measCd === 0 && foe.winding === 0,
@@ -3103,7 +3369,7 @@ const DUEL = (() => {
       foe: { x: me.x, y: me.y, measReady: me.measCd === 0 },
       foeOdds,                                   // what the bot can win with
       foeOddsFalling: foeOdds < _botPrevOdds - 1e-4,
-      myOdds: S.bell ? 0.5 : DuelCore.odds(foe.bloch),
+      myOdds: DuelCore.odds(foe.bloch),
       myEigen: eig(foe.bloch), foeEigen: eig(me.bloch),
       myBloch: foe.bloch,
       foeAxisCounts: S.axisCounts,
@@ -3146,9 +3412,23 @@ const DUEL = (() => {
     }
     foe.ang = it.aim;
 
+    // Linked counterplay: when the player telegraphs a MEASURE while the
+    // outcomes MATCH, a π self-pulse makes them OPPOSITE, so a dud leaves the
+    // player at |1⟩. Duelist and up, after a human-ish reaction delay.
+    if (S.bell && foe.bellIdx >= 0 && me.winding > 0 && (S.pairZZ || 0) > 0.3
+        && L.useBell && foe.beamCd === 0) {
+      S.botFlipT = (S.botFlipT || 0) + dt;
+      if (S.botFlipT > 0.45) { selfPulse(foe, Math.PI, 'X'); S.botFlipT = 0; }
+    } else S.botFlipT = 0;
+
     // One-shot actions, cleared so they fire once per decision.
     if (it.measure && foe.measCd === 0 && foe.winding === 0) {
       windMeasure(foe); it.measure = false;
+    } else if (it.entangle && !S.bell && (foe.entCd || 0) <= 0
+               && Math.abs(foe.bloch.z) > 0.7 && foe.beamCd === 0) {
+      // A CNOT from a pole does nothing useful: get into superposition first.
+      selfPulse(foe, Math.PI / 2, 'X');
+      it.entangle = false;
     } else if (it.entangle && !S.bell && (foe.entCd || 0) <= 0) {
       const q = take(S.proj);
       if (q) {
@@ -3356,8 +3636,9 @@ const DUEL = (() => {
   function drawEntangleLink() {
     if (!S.bell) return;
     const [a, b] = S.ships;
-    ctx.strokeStyle = `rgba(201,123,255,${0.5 + 0.25 * Math.sin(S.t * 8)})`;
-    ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+    const e = Math.min(1, 2 * (S.pairNeg || 0));            // 1 = Bell pair, 0 = none left
+    ctx.strokeStyle = `rgba(201,123,255,${(0.2 + 0.6 * e) * (0.75 + 0.25 * Math.sin(S.t * 8))})`;
+    ctx.lineWidth = 1 + 2.5 * e; ctx.setLineDash(e > 0.1 ? [8, 6] : [2, 8]);
     ctx.beginPath();
     ctx.moveTo(w2sx(a.x), w2sy(a.y)); ctx.lineTo(w2sx(b.x), w2sy(b.y));
     ctx.stroke(); ctx.setLineDash([]);
@@ -3420,17 +3701,23 @@ const DUEL = (() => {
   function drawHud() {
     const me = S.ships[0], foe = S.ships[1];
     // Opponent — top-left, with the live win-odds readout (§5).
-    drawMiniSphere(ctx, 62, 74, 42, S.bell ? null : shownBloch(foe), foe.col, true);
-    const od = S.bell ? DuelCore.bellOdds(S.bell, foe.bellIdx) : DuelCore.odds(foe.bloch);
+    drawMiniSphere(ctx, 62, 74, 42, shownBloch(foe), foe.col, true);
+    const od = DuelCore.odds(foe.bloch);
     hudText('MEASURE ODDS', 118, 52, '#aeb8e6', 'var');
     ctx.font = `600 ${Math.round(BOARD * 0.045)}px 'Rajdhani','Space Grotesk',sans-serif`;
     ctx.fillStyle = od > 0.75 ? '#3fe08a' : od > 0.4 ? '#f5b73c' : '#ff5a72';
     ctx.textAlign = 'left';
     ctx.fillText(`${(od * 100).toFixed(0)}%`, 118, 92);
-    hudText(S.bell ? 'ENTANGLED — one MEASURE collapses BOTH, correlated'
+    const zz = S.pairZZ || 0, ent = (S.pairNeg || 0) > LINK_ENT_MIN;
+    const corr = zz > 0.3 ? 'outcomes MATCH' : zz < -0.3 ? 'outcomes OPPOSITE' : 'outcomes uncorrelated';
+    hudText(S.bell ? `${ent ? `ENTANGLED ${Math.round(S.pairNeg * 200)}%` : 'CORRELATED, no entanglement left'} · ${corr} (⟨ZZ⟩ ${zz >= 0 ? '+' : ''}${zz.toFixed(2)})`
                    : 'their qubit — rotate it to |1⟩, then MEASURE',
             118, 112, S.bell ? '#c97bff' : '#6f79a8');
-    if (foe.zenoUntil > S.t) hudText('ZENO-PINNED — cannot be rotated', 118, 130, '#8b7dff');
+    if (S.bell && Math.abs(zz) > 0.3)
+      hudText(zz > 0 ? 'a dud MEASURE on them drops you to |0⟩ too · hotspots break the link'
+                     : 'careful: a dud MEASURE on them leaves YOU at |1⟩ · π self-pulse to re-match',
+              118, 130, zz > 0 ? '#c97bff' : '#f5b73c');
+    else if (foe.zenoUntil > S.t) hudText('ZENO-PINNED — cannot be rotated', 118, 130, '#8b7dff');
     else if (!S.bell && foe.detuneUntil > S.t)
       hudText(`DETUNED ${(foe.detuneUntil - S.t).toFixed(0)}s — your X/Y beams are off-resonant (from |0⟩: ${Math.round(100 / (1 + DuelCore.PICKUPS.detune.dOverO ** 2))}% max)`,
               118, 130, DuelCore.PICKUPS.detune.color);
@@ -3481,9 +3768,9 @@ const DUEL = (() => {
 
     // Player — bottom-left.
     const by = BOARD - BAND;
-    drawMiniSphere(ctx, 62, by + 74, 42, S.bell ? null : shownBloch(me), me.col, true);
+    drawMiniSphere(ctx, 62, by + 74, 42, shownBloch(me), me.col, true);
     hudText('YOUR QUBIT', 118, by + 34, '#aeb8e6');
-    const myOdds = S.bell ? 0.5 : DuelCore.odds(me.bloch);
+    const myOdds = DuelCore.odds(me.bloch);
     hudText(`their odds on you: ${(myOdds * 100).toFixed(0)}%`
             + (me.inHot ? '   ·  IN HOTSPOT: discharging fast' : ''),
             118, by + 54, me.inHot ? '#3fe08a' : myOdds > 0.6 ? '#ff5a72' : '#6f79a8');
@@ -3584,17 +3871,21 @@ const DUEL = (() => {
     ctx.fillStyle = '#cfd6ee';
     if (R.p < 0.84) { ctx.textAlign = 'right'; ctx.fillText(`|0⟩ ${((1 - R.p) * 100).toFixed(0)}%`, bx + bw - 6, by + 12); }
     let line;
-    if (!R.bell && R.draw != null) {
+    if (R.draw != null) {
       const k = REDUCE_MOTION ? 1 : Math.min(1, R.t / 0.3), e = 1 - Math.pow(1 - k, 3);
       const mx = bx + bw * R.draw * e;
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(mx - 1.5, by - 5, 3, bh + 10);
       ctx.beginPath(); ctx.moveTo(mx - 6, by - 9); ctx.lineTo(mx + 6, by - 9); ctx.lineTo(mx, by - 3); ctx.fill();
       line = `random draw ${R.draw.toFixed(2)} ${R.outcome ? '<' : '≥'} P(|1⟩) ${R.p.toFixed(2)}  →  |${R.outcome}⟩`;
+      if (R.bell && R.partnerP1 != null) {
+        const pp = R.partnerP1, who = yours ? 'you' : 'Sage';
+        line += pp > 0.98 ? ` · ${who} → |1⟩` : pp < 0.02 ? ` · ${who} → |0⟩` : ` · ${who} now ${(pp * 100).toFixed(0)}%`;
+      }
     } else {
       line = `entangled: P(|1⟩) = ${(R.p * 100).toFixed(0)}% and both qubits collapse to |${R.outcome}⟩`;
     }
-    const verdict = R.blocked ? ' · SHIELDED (mission rule)'
+    const verdict = R.blocked ? ' · SHIELDED'
       : R.outcome ? (yours ? ' · HIT' : ' · YOU ARE HIT') : ' · DUD';
     ctx.textAlign = 'center';
     hudText(line + verdict, BOARD / 2, y0 + 68,
@@ -4039,6 +4330,8 @@ function openMenu() {
 </div>
 <h3>CONTROLS</h3>
 ${duelControlsHTML()}
+<h3>ENTANGLEMENT</h3>
+${duelEntangleHTML()}
 <h3>POWER-UPS · FREE DUEL</h3>
 ${duelPickupsHTML()}
 <h3>LAB TOOLS</h3>

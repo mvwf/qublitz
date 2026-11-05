@@ -617,6 +617,70 @@ const MINUS = { x: -1, y: 0, z: 0 };
     DuelCore.PICKUP_CYCLE.includes('calib') && DuelCore.PICKUP_CYCLE.includes('tgate'));
 }
 
+// ── Case E — the entangled pair is an exact two-qubit density matrix ──
+{
+  const Pr = DuelCore.Pair;
+  const rA = { x: 0.3, y: -0.5, z: 0.6 }, rB = { x: -0.2, y: 0.1, z: -0.7 };
+  const close = (u, v, e = 1e-12) => approx(u.x, v.x, e) && approx(u.y, v.y, e) && approx(u.z, v.z, e);
+  const R = Pr.fromBloch(rA, rB);
+  check('E1. a product pair reduces back to its two Bloch vectors',
+    close(Pr.reduced(R, 0), rA) && close(Pr.reduced(R, 1), rB) && Pr.negativity(R) < 1e-12);
+
+  check('E2. a local pulse on the pair equals rotateBloch on that half',
+    close(Pr.reduced(Pr.rotate(R, 0, DuelCore.AXES.Y, 1.3), 0), DuelCore.rotateBloch(rA, DuelCore.AXES.Y, 1.3)) &&
+    close(Pr.reduced(Pr.rotate(R, 1, DuelCore.AXES.X, 2.1), 1), DuelCore.rotateBloch(rB, DuelCore.AXES.X, 2.1)));
+
+  const T = { T1: 4, T2: 2, dt: 0.7 };
+  check('E3. pair decay on each half equals QPhysics.lindbladStep',
+    close(Pr.reduced(Pr.decay(R, 0, T), 0), QPhysics.lindbladStep(rA, T), 1e-12) &&
+    close(Pr.reduced(Pr.decay(R, 1, T), 1), QPhysics.lindbladStep(rB, T), 1e-12));
+
+  const none = Pr.cnot(Pr.fromBloch(KET0, rB), 0);
+  const flip = Pr.cnot(Pr.fromBloch(KET1, KET0), 0);
+  const bell = Pr.cnot(Pr.fromBloch(PLUS, KET0), 0);
+  check('E4. CNOT: control |0⟩ does nothing, |1⟩ flips, |+⟩|0⟩ makes |Φ+⟩',
+    close(Pr.reduced(none, 1), rB) && approx(DuelCore.odds(Pr.reduced(flip, 1)), 1, 1e-12) &&
+    approx(Pr.negativity(bell), 0.5, 1e-9) && approx(Pr.zz(bell), 1, 1e-12),
+    `N(Φ+) = ${Pr.negativity(bell).toFixed(6)}`);
+
+  // Comeback: with the control in superposition the target's P(|1⟩) is ½,
+  // whatever it was (half the branches flip it).
+  const low = { x: 0, y: 0, z: 1 - 2 * 0.05 };
+  const cb = Pr.cnot(Pr.fromBloch(PLUS, low), 0);
+  check('E5. entangling from |+⟩ turns a 5% target into exactly 50%',
+    approx(Pr.p1(cb, 1), 0.5, 1e-12), `${Pr.p1(cb, 1).toFixed(6)}`);
+
+  // No-signalling: anything done to A leaves B's reduced state alone.
+  const kicked = Pr.decay(Pr.rotate(bell, 0, DuelCore.AXES.Y, 0.9), 0, T);
+  check('E6. pulses and decay on one half never change the other half (no-signalling)',
+    close(Pr.reduced(kicked, 1), Pr.reduced(bell, 1), 1e-12));
+
+  const psi = Pr.rotate(bell, 0, DuelCore.AXES.X, Math.PI);
+  check('E7. an X π-pulse on one half turns MATCH into OPPOSITE and keeps the entanglement',
+    approx(Pr.zz(psi), -1, 1e-12) && approx(Pr.negativity(psi), 0.5, 1e-9));
+
+  const rng = DuelCore.mulberry32(99);
+  let same = 0, opp = 0, ones = 0;
+  for (let i = 0; i < 4000; i++) {
+    const m1 = Pr.measure(bell, 1, rng), m2 = Pr.measure(psi, 1, rng);
+    if ((m1.partnerP1 > 0.5 ? 1 : 0) === m1.outcome) same++;
+    if ((m2.partnerP1 > 0.5 ? 1 : 0) !== m2.outcome) opp++;
+    ones += m1.outcome;
+  }
+  check('E8. measuring |Φ+⟩ collapses the partner to the same outcome, |Ψ+⟩ to the opposite',
+    same === 4000 && opp === 4000 && Math.abs(ones / 4000 - 0.5) < 0.03, `P(1) = ${(ones / 4000).toFixed(3)}`);
+
+  // Entanglement sudden death: hotspot noise (T₁ 4 s, T₂ 2 s) on both halves
+  // destroys it within 2 s, while on the open chip (90 s / 30 s) it fades only as e^{−2t/T₂}.
+  const run = (Tq, secs) => { let r = bell; const st = { ...Tq, dt: 1 / 60 };
+    for (let i = 0; i < secs * 60; i++) r = Pr.decay(Pr.decay(r, 0, st), 1, st); return r; };
+  const hot = run({ T1: DuelCore.ZONE.HOT_T1, T2: DuelCore.ZONE.HOT_T2 }, 2), cold = run({ T1: K.T1_S, T2: K.T2_S }, 2);
+  let tr = 0; for (let i = 0; i < 4; i++) tr += hot.re[i * 5];
+  check('E9. hotspots kill entanglement within 2 s; open chip keeps most of it (trace stays 1)',
+    Pr.negativity(hot) < 1e-9 && Pr.negativity(cold) > 0.4 && approx(tr, 1, 1e-12),
+    `N hot ${Pr.negativity(hot).toExponential(1)}, cold ${Pr.negativity(cold).toFixed(3)}`);
+}
+
 // ── Case 8 — the campaign engine is untouched ─────────────────────────
 {
   const st = QPhysics.selfTest();
