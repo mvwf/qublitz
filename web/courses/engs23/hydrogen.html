@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../../shared/retro-fonts.js"></script>
+<script src="../../shared/retro.js"></script>
+<title>The Hydrogen Atom — States, Lines and Laser Spectroscopy</title>
+<script src="../../vendor/plotly-2.35.2.min.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --green:#00693e; --green2:#12855a; --ink:#1b2a24; --muted:#5a6b63;
+    --line:#d8e2dc; --panel:#f5f9f6; --accent:#c84b31; --blue:#2d6fb3; --gold:#d9a521;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  .page{max-width:1200px;margin:0 auto}
+  a{color:var(--green)}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green);font-weight:700}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 10px;max-width:980px}
+  .eqn,.eqn i,.mvar{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,'Times New Roman',serif}
+  .eqns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 40px;margin:10px 0 14px}
+  .eqn{font-size:19px;white-space:nowrap}
+  .eqn i,.mvar{font-style:italic}
+  .eqnum{color:var(--muted);font-size:13px;margin-left:6px}
+  .frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.05;font-size:.9em}
+  .frac>span:first-child{border-bottom:1.2px solid currentColor;padding:0 4px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px;min-width:0}
+  .card h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  .grid3{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 300px;gap:14px}
+  @media(max-width:1100px){.grid3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .grid3 .side{grid-column:1/-1}}
+  .grid2.lab{grid-template-columns:minmax(0,1fr) 340px}
+  @media(max-width:860px){.grid2,.grid2.lab,.grid3{grid-template-columns:minmax(0,1fr)}}
+  @media(max-width:600px){.eqn{font-size:16px;white-space:normal} .eqns{gap:6px 18px} body{padding:12px 12px 40px}}
+  canvas{display:block;width:100%;border-radius:8px}
+  #levels{height:440px;cursor:pointer;background:var(--panel)}
+  #orbital{aspect-ratio:1;background:#000004}
+  .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:6px 0}
+  .lbl{font-size:12.5px;color:var(--muted)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+  .seg button{border:none;border-radius:0;border-right:1px solid var(--line);min-width:34px}
+  .seg button:last-child{border-right:none}
+  .seg button[aria-pressed="true"]{background:var(--green);color:#fff}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:5px 11px;cursor:pointer}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  button:disabled{opacity:.4;cursor:default}
+  input[type=number],select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff;color:var(--ink);width:130px}
+  input[type=range]{accent-color:var(--green);width:100%}
+  .field{display:flex;flex-direction:column;gap:2px;min-width:0;margin:0 0 8px}
+  .field label{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+  .field label b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+  .facts{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin:4px 0 8px}
+  .facts dt{color:var(--muted)} .facts dd{margin:0;font-variant-numeric:tabular-nums}
+  table{border-collapse:collapse;font-size:12.5px;width:100%;font-variant-numeric:tabular-nums}
+  th,td{padding:3px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:11.5px}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .note{font-size:12.5px;color:var(--muted);max-width:980px}
+  .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0}
+  .readout div{border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:var(--panel)}
+  .readout span{display:block;font-size:11.5px;color:var(--muted)}
+  .readout b{font-size:15px;font-variant-numeric:tabular-nums}
+  .check{list-style:none;padding:0;margin:0;font-size:13px}
+  .check li{padding:4px 0 4px 26px;position:relative;border-bottom:1px solid var(--line)}
+  .check li::before{content:"○";position:absolute;left:4px;color:var(--muted)}
+  .check li.done::before{content:"✓";color:var(--green);font-weight:700}
+  .check li.done{color:var(--muted)}
+  .plot{width:100%;height:300px}
+  #scanPlot{height:340px}
+  .refs{font-size:12.5px;color:var(--muted);padding-left:20px}
+  .refs li{margin:3px 0}
+  details summary{cursor:pointer;font-weight:600;font-size:13.5px}
+  .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-left:6px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="page">
+<script src="../../shared/sitebar.js"></script>
+<script src="../../shared/outreach-config.js"></script>
+<script src="../../learning/manifest.js"></script>
+<script src="../../shared/outreach.js"></script>
+<script src="../../learning/hydrogen.js"></script>
+<a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
+<h1>The Hydrogen Atom</h1>
+<p class="sub" id="intro">The one atom we can solve exactly (Griffiths §4.2). Explore its states ψ<sub><i>nlm</i></sub>, see
+where each one decays and how fast, then run a spectroscopy experiment: tune a laser, find the Lyman lines from the
+ground state, and measure a lifetime from a linewidth. Every number on this page is computed in your browser from the
+Schrödinger solution and the free-space rate of spontaneous emission; the sources are listed at the bottom.</p>
+
+<div class="eqns">
+  <span class="eqn"><i>E<sub>n</sub></i> = &minus;<span class="frac"><span>13.6 eV</span><span><i>n</i><sup>2</sup></span></span></span>
+  <span class="eqn">&psi;<sub><i>nlm</i></sub> = <i>R<sub>nl</sub></i>(<i>r</i>) <i>Y<sub>l</sub><sup>m</sup></i>(&theta;, &phi;)</span>
+  <span class="eqn"><span class="frac"><span>1</span><span>&lambda;</span></span> = <i>R</i> <span style="font-size:1.2em">(</span><span class="frac"><span>1</span><span><i>n</i><sub>f</sub><sup>2</sup></span></span> &minus; <span class="frac"><span>1</span><span><i>n</i><sub>i</sub><sup>2</sup></span></span><span style="font-size:1.2em">)</span></span>
+  <span class="eqn"><i>A</i> = <span class="frac"><span>&omega;<sup>3</sup> |&#10216;<i>b</i>|<i>q</i><b>r</b>|<i>a</i>&#10217;|<sup>2</sup></span><span>3&pi;&epsilon;<sub>0</sub>&#8463;<i>c</i><sup>3</sup></span></span>,&ensp; &tau; = <span class="frac"><span>1</span><span>&Sigma; <i>A</i></span></span></span>
+</div>
+
+<div id="qlPanel"></div>
+
+<!-- ───────── states ───────── -->
+<div class="grid3">
+  <div class="card">
+    <h2>Energy levels · click a level</h2>
+    <canvas id="levels" data-retro-ink aria-label="Energy-level diagram of hydrogen, n = 1 to 7, columns s, p, d, f"></canvas>
+    <p class="hint">Energies to scale (E<sub><i>n</i></sub> = −13.6 eV/<i>n</i><sup>2</sup>): every <i>l</i> in a shell has the
+    same energy. Arrows are the selected level's decays, labelled with the photon wavelength; colour is the real
+    colour of visible light, <span style="color:#7b4fd6">violet dashes</span> mark ultraviolet and <span style="color:#b03a2e">red dots</span> infrared.</p>
+  </div>
+  <div class="card">
+    <h2>State <span id="stLabel">2p, m = 0</span> · |ψ|² in the x–z plane</h2>
+    <div class="row">
+      <span class="lbl">n</span><span class="seg" id="segN"></span>
+    </div>
+    <div class="row">
+      <span class="lbl">l</span><span class="seg" id="segL"></span>
+      <span class="lbl" style="margin-left:8px">m</span><span class="seg" id="segM"></span>
+    </div>
+    <canvas id="orbital" aria-label="Probability density of the selected state in the x–z plane"></canvas>
+    <div class="row" style="justify-content:space-between">
+      <label class="lbl"><input type="checkbox" id="logScale"> log colour scale</label>
+      <span class="lbl" id="scaleTxt"></span>
+    </div>
+    <p class="hint">Inferno colour scale, brightest where the electron is most likely. The z axis points up; |ψ|² does not
+    depend on φ, so this slice through the z axis shows the whole 3D shape when you spin it about z.</p>
+  </div>
+  <div class="card side">
+    <h2>About this state</h2>
+    <dl class="facts" id="facts"></dl>
+    <div id="decayBox"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Radial probability r² |R<sub>nl</sub>|²</h2>
+  <div id="radialPlot" class="plot" style="height:260px"></div>
+  <p class="hint">The chance of finding the electron between <i>r</i> and <i>r</i> + d<i>r</i>. It has <i>n</i> − <i>l</i> − 1
+  zeros (radial nodes) and its mean is ⟨<i>r</i>⟩ = (<i>a</i>/2)[3<i>n</i>² − <i>l</i>(<i>l</i>+1)] (dashed line).</p>
+</div>
+
+<!-- ───────── spectroscopy ───────── -->
+<div class="grid2 lab">
+  <div class="card">
+    <h2>Spectroscopy lab · laser-induced fluorescence</h2>
+    <div class="row">
+      <span class="lbl">Atoms start in</span>
+      <span class="seg" id="segStart"><button data-s="1,0" aria-pressed="true">1s (ground)</button><button data-s="2,0">2s (metastable)</button></span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="primary" id="survey">Survey scan</button>
+      <button id="zoom">Zoom on nearest line</button>
+    </div>
+    <div id="scanPlot" class="plot"></div>
+    <div class="readout" id="readout"></div>
+    <p class="hint" id="scanNote"></p>
+  </div>
+  <div class="card">
+    <h2>Laser and atoms</h2>
+    <div class="field"><label for="lam">Wavelength (vacuum) <b id="lamTxt"></b></label>
+      <input type="range" id="lamSlider" min="0" max="1000" step="1">
+      <div class="row"><input type="number" id="lam" step="0.001"> <span class="lbl">nm</span>
+        <button id="snap" title="Tune exactly onto the nearest allowed line">Snap to line</button></div></div>
+    <div class="field"><label for="det">Fine detuning <b id="detTxt"></b></label><input type="range" id="det" min="-100" max="100" step="0.1" value="0"></div>
+    <div class="field"><label for="inten">Intensity <b id="intTxt"></b></label><input type="range" id="inten" min="-6" max="4" step="0.1" value="-1"></div>
+    <div class="field"><label for="temp">Atom temperature <b id="tempTxt"></b></label><input type="range" id="temp" min="-4" max="3.5" step="0.05" value="2.477"></div>
+    <div class="field"><label for="lw">Laser linewidth</label>
+      <select id="lw" style="width:100%"><option value="1000000">1 MHz (stabilised CW laser)</option><option value="100000000">100 MHz</option><option value="3000000000" selected>3 GHz (pulsed dye laser)</option><option value="30000000000">30 GHz (broadband survey)</option></select></div>
+    <p class="hint">Light is polarized along z (Δm = 0). Intensity is in W/cm²; temperature sets the Doppler width.</p>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Driving the line in time · optical Bloch equations</h2>
+    <div id="blochPlot" class="plot"></div>
+    <p class="hint" id="blochNote"></p>
+  </div>
+  <div class="card">
+    <h2>What the atom emits after one excitation</h2>
+    <div id="cascadePlot" class="plot"></div>
+    <p class="hint" id="cascadeNote"></p>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Lab checklist · <span id="ckCount">0 of 6</span> done</h2>
+    <ul class="check" id="checklist"></ul>
+    <div class="row" style="margin-top:8px"><button id="copyLink">Copy link to this setup</button><button id="reset">Reset</button></div>
+  </div>
+  <div class="card">
+    <h2>The physics</h2>
+    <details open><summary>Where the lifetimes come from</summary>
+    <p class="note">An excited atom is coupled to the electromagnetic field even in the dark. Fermi's golden rule with the
+    free-space density of photon modes, ρ(ω) = ω²<i>V</i>/(π²<i>c</i>³), summed over both polarizations and every
+    direction, gives the Einstein <i>A</i> coefficient (Griffiths §11.3)
+    <span class="eqn" style="font-size:16px">&ensp;<i>A</i> = ω³|⟨<i>b</i>|<i>q</i><b>r</b>|<i>a</i>⟩|²/(3πε<sub>0</sub>ħ<i>c</i>³)</span>.
+    The page evaluates the dipole matrix element exactly: the angular part with the <i>Y<sub>l</sub><sup>m</sup></i>
+    (it vanishes unless Δ<i>l</i> = ±1 and Δ<i>m</i> = 0, ±1, the selection rules), the radial part ∫<i>R<sub>nl</sub>R<sub>n′l′</sub></i><i>r</i>³d<i>r</i>
+    numerically. Adding every downward channel gives the lifetime, τ = 1/Σ<i>A</i>: 1.60 ns for 2p, 158 ns for 3s.
+    The ω³ is why ultraviolet transitions are fast and infrared ones slow.</p></details>
+    <details><summary>Why 2s lives 0.12 seconds</summary>
+    <p class="note">The only state below 2s is 1s, and Δ<i>l</i> = 0 is forbidden for a single photon, so 2s cannot decay the way
+    2p does. It decays by emitting two photons at once (a second-order process, 8.229 s⁻¹: Spitzer &amp; Greenstein; Goldman &amp; Drake),
+    which this page quotes rather than computes. That makes 2s <i>metastable</i>: atoms can be parked there and probed
+    with visible light on the Balmer lines.</p></details>
+    <details><summary>Line shapes: natural, power and Doppler width</summary>
+    <p class="note">A state that lives τ has an energy spread ħ/τ, so the line is a Lorentzian of full width Γ/2π = 1/(2πτ),
+    99.7 MHz for Lyman-α. Strong light broadens it by √(1 + <i>s</i>), with <i>s</i> = <i>I</i>/<i>I</i><sub>sat</sub>
+    and <i>I</i><sub>sat</sub> = ħ²Γ²<i>c</i>ε<sub>0</sub>/(4<i>d</i>²). Moving atoms see the laser Doppler shifted, which
+    smears the line into a Gaussian of FWHM ν<sub>0</sub>√(8<i>k</i><sub>B</sub><i>T</i> ln2/<i>mc</i>²): about 30 GHz for
+    Lyman-α at room temperature, 300 times the natural width. Only below about 3 mK does the natural width show
+    (Foot, ch. 7–8). The page combines the two with a pseudo-Voigt profile (Thompson, Cox &amp; Hastings).</p></details>
+    <details><summary>What this model leaves out</summary>
+    <p class="note">Fine structure, the Lamb shift and hyperfine structure (they split and shift these lines by ~10⁻⁵ of
+    their wavelength, e.g. Lyman-α is really two lines at 121.5668 and 121.5673 nm); photoionization above 13.6 eV;
+    optical pumping (an atom driven on 1s→3p falls to 2s 11.8% of the time and stays there, so a real experiment slowly
+    empties the ground state); and the two-level Bloch equations treat each line on its own. Real Lyman-α light is
+    vacuum ultraviolet: air absorbs it, so these experiments run in vacuum with frequency-tripled or -quadrupled lasers
+    (Eikema, Walz &amp; Hänsch 2001). The record-precise 1s→2s measurement instead uses two 243 nm photons
+    (Parthey et al. 2011), a two-photon transition this page does not simulate.</p></details>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Sources</h2>
+  <ol class="refs">
+    <li>D. J. Griffiths &amp; D. F. Schroeter, <i>Introduction to Quantum Mechanics</i>, 3rd ed. (Cambridge University Press, 2018): §4.2 The Hydrogen Atom (<i>R<sub>nl</sub></i>, <i>Y<sub>l</sub><sup>m</sup></i>, <i>E<sub>n</sub></i>, the Rydberg formula) and §11.3 Spontaneous Emission (Einstein <i>A</i>, lifetimes, selection rules).</li>
+    <li>H. A. Bethe &amp; E. E. Salpeter, <i>Quantum Mechanics of One- and Two-Electron Atoms</i> (Springer, 1957): hydrogen radial integrals, transition probabilities and lifetimes.</li>
+    <li>W. L. Wiese &amp; J. R. Fuhr, “Accurate atomic transition probabilities for hydrogen, helium, and lithium,” <i>J. Phys. Chem. Ref. Data</i> <b>38</b>, 565 (2009).</li>
+    <li>A. Kramida, Yu. Ralchenko, J. Reader &amp; NIST ASD Team, <i>NIST Atomic Spectra Database</i>, <a href="https://physics.nist.gov/asd" target="_blank" rel="noopener">physics.nist.gov/asd</a>: measured H I wavelengths.</li>
+    <li>E. Tiesinga, P. J. Mohr, D. B. Newell &amp; B. N. Taylor, “CODATA recommended values of the fundamental physical constants: 2018,” <i>Rev. Mod. Phys.</i> <b>93</b>, 025010 (2021): R<sub>∞</sub>, <i>a</i><sub>0</sub>, α, <i>m</i><sub>e</sub>/<i>m</i><sub>p</sub> and the other constants.</li>
+    <li>L. Spitzer &amp; J. L. Greenstein, <i>Astrophys. J.</i> <b>114</b>, 407 (1951); S. P. Goldman &amp; G. W. F. Drake, <i>Phys. Rev. A</i> <b>24</b>, 183 (1981): the two-photon decay of 2s, 8.229 s⁻¹.</li>
+    <li>C. J. Foot, <i>Atomic Physics</i> (Oxford University Press, 2005), ch. 7–8: optical Bloch equations, saturation, power and Doppler broadening.</li>
+    <li>P. Thompson, D. E. Cox &amp; J. B. Hastings, “Rietveld refinement of Debye–Scherrer synchrotron X-ray data from Al₂O₃,” <i>J. Appl. Cryst.</i> <b>20</b>, 79 (1987): the pseudo-Voigt approximation.</li>
+    <li>K. S. E. Eikema, J. Walz &amp; T. W. Hänsch, “Continuous coherent Lyman-α excitation of atomic hydrogen,” <i>Phys. Rev. Lett.</i> <b>86</b>, 5679 (2001).</li>
+    <li>C. G. Parthey <i>et al.</i>, “Improved measurement of the hydrogen 1S–2S transition frequency,” <i>Phys. Rev. Lett.</i> <b>107</b>, 203001 (2011).</li>
+  </ol>
+  <p class="note">The physics engine (<code>hydrogen-engine.js</code>) is checked against these sources by an automated test:
+  normalization and nodes of <i>R<sub>nl</sub></i>, ⟨<i>r</i>⟩, the wavelengths against NIST, <i>A</i>(2p→1s) = 6.2649 × 10⁸ s⁻¹,
+  and nine lifetimes against the tabulated values. Built for ENGS 23. <a id="dlLink" href="hydrogen-offline.html" download>Download this page</a>
+  as a single file that runs offline.</p>
+</div>
+</div>
+
+<script src="../../shared/pagekit.js"></script>
+<script src="hydrogen-engine.js"></script>
+<script>
+(function () {
+'use strict';
+const H = window.HydrogenEngine, K = H.K, $ = id => document.getElementById(id);
+const DK = !!(window.RETRO && window.RETRO.palette);
+const INK = DK ? '#eaf0ff' : '#1b2a24', MUTED = DK ? '#9aa3cf' : '#5a6b63', ACC = DK ? '#2fe0d0' : '#00693e';
+const GOLD = DK ? '#f5b73c' : '#b8860b', LINE = DK ? 'rgba(124,140,230,.25)' : '#d8e2dc';
+const CONFIG = { responsive: true, displaylogo: false };
+const INFERNO = ['#000004', '#160b39', '#420a68', '#6a176e', '#932667', '#bc3754', '#dd513a', '#f37819', '#fca50a', '#f6d746', '#fcffa4'];
+const infernoRGB = INFERNO.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
+const inferno = x => { x = Math.max(0, Math.min(1, x)) * (infernoRGB.length - 1); const i = Math.min(infernoRGB.length - 2, Math.floor(x)), f = x - i;
+  return infernoRGB[i].map((c, k) => c + (infernoRGB[i + 1][k] - c) * f); };
+const fmtTime = s => !isFinite(s) ? 'stable' : s >= 1e-3 ? (s >= 1 ? s.toFixed(2) + ' s' : (s * 1e3).toFixed(1) + ' ms') : s >= 1e-6 ? (s * 1e6).toFixed(2) + ' µs' : (s * 1e9).toFixed(s < 1e-8 ? 3 : 1) + ' ns';
+const fmtHz = f => f >= 1e9 ? (f / 1e9).toPrecision(3) + ' GHz' : f >= 1e6 ? (f / 1e6).toPrecision(3) + ' MHz' : (f / 1e3).toPrecision(3) + ' kHz';
+const fmtNm = m => (m * 1e9).toFixed(m * 1e9 < 200 ? 3 : 2) + ' nm';
+const ev = (name, data) => { try { window.QL && QL.event(name, data); } catch (e) { /* counting is optional */ } };
+
+// ───────── state viewer ─────────
+const st = { n: 2, l: 1, m: 0, start: [1, 0], lam: H.wavelength(1, 2), det: 0, logI: -1, logT: Math.log10(300), lw: 3e9 };
+function segButtons(el, items, cur, onPick) {
+  el.innerHTML = items.map(v => `<button data-v="${v}" aria-pressed="${v === cur}">${v}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (b) onPick(+b.dataset.v); };
+}
+function drawSelectors() {
+  segButtons($('segN'), [1, 2, 3, 4, 5, 6, 7], st.n, v => { st.n = v; st.l = Math.min(st.l, v - 1); st.m = Math.max(-st.l, Math.min(st.l, st.m)); refreshState(); });
+  const ls = []; for (let l = 0; l < st.n; l++) ls.push(l);
+  $('segL').innerHTML = ls.map(l => `<button data-v="${l}" aria-pressed="${l === st.l}">${H.L[l]}</button>`).join('');
+  $('segL').onclick = e => { const b = e.target.closest('button'); if (b) { st.l = +b.dataset.v; st.m = Math.max(-st.l, Math.min(st.l, st.m)); refreshState(); } };
+  const ms = []; for (let m = -st.l; m <= st.l; m++) ms.push(m);
+  segButtons($('segM'), ms, st.m, v => { st.m = v; refreshState(); });
+}
+function drawOrbital() {
+  const c = $('orbital'), dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(c.clientWidth * dpr) || 300;
+  c.width = W; c.height = W;
+  const g = c.getContext('2d'), img = g.createImageData(W, W), N = W;
+  const Lr = Math.max(5, 1.15 * (2 * st.n * st.n + 2 * st.n));   // half-width of the window, in units of a
+  const vals = new Float32Array(N * N); let mx = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const x = (i + 0.5) / N * 2 * Lr - Lr, z = Lr - (j + 0.5) / N * 2 * Lr, r = Math.hypot(x, z), th = Math.atan2(Math.abs(x), z);
+    const R = H.radialR(st.n, st.l, r), v = R * R * H.Ylm2(st.l, st.m, th);
+    vals[j * N + i] = v; if (v > mx) mx = v;
+  }
+  const log = $('logScale').checked;
+  for (let k = 0; k < N * N; k++) {
+    let t = vals[k] / mx;
+    t = log ? Math.max(0, 1 + Math.log10(t + 1e-12) / 4) : Math.sqrt(t);   // √ (or 4 decades of log) so faint lobes show
+    const [r, gg, b] = inferno(t); img.data[4 * k] = r; img.data[4 * k + 1] = gg; img.data[4 * k + 2] = b; img.data[4 * k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  // axes and a scale bar
+  g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = dpr; g.setLineDash([4 * dpr, 4 * dpr]);
+  g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, W); g.moveTo(0, W / 2); g.lineTo(W, W / 2); g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `${12 * dpr}px Helvetica,Arial`; g.fillText('z', W / 2 + 5 * dpr, 14 * dpr); g.fillText('x', W - 12 * dpr, W / 2 - 6 * dpr);
+  const nice = [1, 2, 5, 10, 20, 50, 100, 200]; const bar = nice.find(b => b >= Lr / 4) || 200, px = bar / (2 * Lr) * W;
+  g.fillRect(10 * dpr, W - 16 * dpr, px, 3 * dpr); g.fillText(`${bar} a`, 10 * dpr, W - 22 * dpr);
+  $('scaleTxt').textContent = `window ±${Lr.toFixed(0)} a (a = 0.0529 nm)`;
+}
+function drawRadial() {
+  const rmax = Math.max(6, 2.2 * H.meanR(st.n, st.l) + 4 * st.n), N = 600, r = [], p = [];
+  for (let i = 0; i <= N; i++) { const x = i / N * rmax, R = H.radialR(st.n, st.l, x); r.push(x); p.push(x * x * R * R); }
+  const mr = H.meanR(st.n, st.l);
+  Plotly.react('radialPlot', [{ x: r, y: p, mode: 'lines', line: { color: ACC, width: 2.5 }, name: H.label(st.n, st.l), fill: 'tozeroy', fillcolor: DK ? 'rgba(47,224,208,.12)' : 'rgba(0,105,62,.10)',
+    hovertemplate: 'r = %{x:.2f} a<br>r²R² = %{y:.4f}<extra></extra>' }], {
+    margin: { t: 10, r: 10, b: 42, l: 55 }, showlegend: false,
+    xaxis: { title: { text: 'r / a' }, range: [0, rmax] }, yaxis: { title: { text: 'r² |R|² (1/a)' }, rangemode: 'tozero' },
+    shapes: [{ type: 'line', x0: mr, x1: mr, yref: 'paper', y0: 0, y1: 1, line: { color: GOLD, dash: 'dash', width: 2 } }],
+    annotations: [{ x: mr, yref: 'paper', y: 1, text: `⟨r⟩ = ${mr.toFixed(1)} a`, showarrow: false, xanchor: 'left', yanchor: 'top', xshift: 4, font: { color: GOLD } }],
+  }, CONFIG);
+}
+function refreshState() {
+  drawSelectors();
+  $('stLabel').textContent = `${H.label(st.n, st.l)}, m = ${st.m}`;
+  const E = H.energyEV(st.n), tau = H.lifetime(st.n, st.l);
+  const reach = st.n > 1 && st.l === 1 ? `yes: one photon at ${fmtNm(H.wavelength(1, st.n))} (${H.seriesName(1, st.n)})${st.m !== 0 ? ', with σ light (Δm = ±1)' : ''}`
+    : st.n === 1 ? 'this is the ground state' : `no: Δl = ${st.l} from 1s is not ±1, so no single photon gets there`;
+  $('facts').innerHTML = [
+    ['Energy', `${E.toFixed(3)} eV`], ['Binding', `${(-E).toFixed(3)} eV`], ['Degeneracy of n', `${st.n * st.n} states (${2 * st.n * st.n} with spin)`],
+    ['⟨r⟩', `${H.meanR(st.n, st.l).toFixed(1)} a`], ['Nodes', `${H.radialNodes(st.n, st.l)} radial, ${st.l} angular`],
+    ['Lifetime τ', st.n === 2 && st.l === 0 ? '0.122 s (two-photon)' : fmtTime(tau)],
+    ['Natural width', st.n === 1 ? '—' : fmtHz(1 / (2 * Math.PI * tau))], ['From 1s?', reach],
+  ].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
+  if (st.n === 1) $('decayBox').innerHTML = '<p class="hint">1s is the ground state: nothing below it, so it never decays.</p>';
+  else {
+    const d = H.decays(st.n, st.l);
+    $('decayBox').innerHTML = `<table><thead><tr><th>Decays to</th><th>λ</th><th>A (s⁻¹)</th><th>Branch</th></tr></thead><tbody>` +
+      d.map(x => { const col = x.lambda ? H.photonColor(x.lambda) : null;
+        return `<tr><td>${x.twoPhoton ? '1s (2 photons)' : H.label(x.n, x.l)}</td><td>${x.lambda ? `<i class="sw" style="background:${col.css}"></i>${fmtNm(x.lambda)}` : 'continuum'}</td>` +
+          `<td>${x.A.toExponential(2)}</td><td>${(100 * x.branch).toFixed(1)}%</td></tr>`; }).join('') + '</tbody></table>' +
+      `<p class="hint">${d.filter(x => x.lambda).map(x => H.seriesName(x.n, st.n)).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</p>`;
+  }
+  drawOrbital(); drawRadial(); drawLevels();
+  try { window.QL && QL.context({ level: H.label(st.n, st.l) }); } catch (e) { /* optional */ }
+}
+
+// ───────── level diagram ─────────
+let levelHits = [];
+function drawLevels() {
+  const c = $('levels'), dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(c.clientWidth * dpr), Hh = Math.round(c.clientHeight * dpr);
+  c.width = W; c.height = Hh;
+  const g = c.getContext('2d'), m = { l: 46 * dpr, r: 10 * dpr, t: 22 * dpr, b: 16 * dpr };
+  g.fillStyle = '#f5f9f6'; g.fillRect(0, 0, W, Hh);
+  const cols = 5, cw = (W - m.l - m.r) / cols, y = E => m.t + (Hh - m.t - m.b) * (E - 0) / (H.energyEV(1) - 0);
+  g.font = `${11 * dpr}px Helvetica,Arial`; g.textAlign = 'center'; g.fillStyle = '#5a6b63';
+  for (let l = 0; l < cols; l++) g.fillText(l < 4 ? H.L[l] : 'g…', m.l + cw * (l + 0.5), 13 * dpr);
+  g.textAlign = 'right';
+  // ionization limit
+  g.strokeStyle = '#d8e2dc'; g.setLineDash([3 * dpr, 3 * dpr]); g.beginPath(); g.moveTo(m.l, y(0)); g.lineTo(W - m.r, y(0)); g.stroke(); g.setLineDash([]);
+  g.fillText('0 eV', m.l - 6 * dpr, y(0) + 4 * dpr);
+  levelHits = [];
+  for (let n = 1; n <= H.NMAX; n++) {
+    const yy = y(H.energyEV(n));
+    if (n <= 4) { g.fillStyle = '#5a6b63'; g.fillText(`n=${n}`, m.l - 6 * dpr, yy + 4 * dpr); }
+    for (let l = 0; l < Math.min(n, cols); l++) {
+      const x0 = m.l + cw * l + cw * 0.18, x1 = m.l + cw * (l + 1) - cw * 0.18, sel = n === st.n && l === Math.min(st.l, cols - 1);
+      g.strokeStyle = sel ? '#d9a521' : '#1b2a24'; g.lineWidth = (sel ? 4 : 2) * dpr;
+      g.beginPath(); g.moveTo(x0, yy); g.lineTo(x1, yy); g.stroke();
+      levelHits.push({ n, l, x0, x1, y: yy });
+    }
+  }
+  g.fillStyle = '#5a6b63'; g.textAlign = 'left'; g.fillText(`${H.energyEV(1).toFixed(1)} eV`, 4 * dpr, y(H.energyEV(1)) - 8 * dpr);
+  const cx = l => m.l + cw * (Math.min(l, cols - 1) + 0.5);
+  const arrow = (x0, y0, x1, y1, color, dash, label, up) => {
+    g.save(); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 2.2 * dpr; g.setLineDash(dash.map(v => v * dpr));
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
+    const a = Math.atan2(y1 - y0, x1 - x0), s = 7 * dpr;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - s * Math.cos(a - 0.4), y1 - s * Math.sin(a - 0.4)); g.lineTo(x1 - s * Math.cos(a + 0.4), y1 - s * Math.sin(a + 0.4)); g.fill();
+    if (label) { g.font = `600 ${10.5 * dpr}px Helvetica,Arial`; g.textAlign = 'center';
+      const mx = (x0 + x1) / 2 + (up ? -14 : 14) * dpr, my = (y0 + y1) / 2, w = g.measureText(label).width + 6 * dpr;
+      g.fillStyle = 'rgba(245,249,246,.92)'; g.fillRect(mx - w / 2, my - 7 * dpr, w, 14 * dpr); g.fillStyle = color; g.fillText(label, mx, my + 4 * dpr); }
+    g.restore();
+  };
+  // decays of the selected state
+  if (st.n > 1 && st.l < cols) for (const d of H.decays(st.n, st.l)) {
+    if (!d.lambda) { arrow(cx(0) + 10 * dpr, y(H.energyEV(2)), cx(0) + 10 * dpr, y(H.energyEV(1)) - 3 * dpr, '#5a6b63', [2, 3], '2γ', false); continue; }
+    const pc = H.photonColor(d.lambda), dash = pc.band === 'UV' ? [6, 4] : pc.band === 'IR' ? [2, 3] : [];
+    const col = pc.band === 'UV' ? '#7b4fd6' : pc.band === 'IR' ? '#b03a2e' : pc.css;
+    arrow(cx(st.l) + (d.l > st.l ? 6 : -6) * dpr, y(H.energyEV(st.n)) + 3 * dpr, cx(d.l), y(H.energyEV(d.n)) - 3 * dpr, col, dash, fmtNm(d.lambda).replace(' nm', ''), false);
+  }
+  // the laser, if it is on a line
+  const hit = nearestLine();
+  if (hit && Math.abs(hit.off) < 5 * hit.resp.fwhm) {
+    const [n0, l0] = st.start;
+    arrow(cx(l0) - 14 * dpr, y(H.energyEV(n0)) - 3 * dpr, cx(hit.line.l) - 14 * dpr, y(H.energyEV(hit.line.n)) + 3 * dpr, '#c84b31', [], 'laser', true);
+  }
+}
+$('levels').addEventListener('click', e => {
+  const c = $('levels'), r = c.getBoundingClientRect(), dpr = c.width / r.width, x = (e.clientX - r.left) * dpr, yy = (e.clientY - r.top) * dpr;
+  let best = null, bd = 1e9;
+  for (const h of levelHits) { const dx = x < h.x0 ? h.x0 - x : x > h.x1 ? x - h.x1 : 0, d = Math.hypot(dx, yy - h.y); if (d < bd) { bd = d; best = h; } }
+  if (best && bd < 18 * dpr) { st.n = best.n; st.l = best.l; st.m = Math.max(-st.l, Math.min(st.l, st.m)); refreshState(); }
+});
+
+// ───────── spectroscopy ─────────
+const range = () => st.start[0] === 1 ? [88, 126] : [360, 670];
+const lamFromSlider = v => { const [a, b] = range(); return (a + (b - a) * v / 1000) * 1e-9; };
+const sliderFromLam = lam => { const [a, b] = range(); return Math.round((lam * 1e9 - a) / (b - a) * 1000); };
+const intensity = () => Math.pow(10, st.logI) * 1e4;    // W/m²
+const temperature = () => Math.pow(10, st.logT);
+const laserNu = () => K.c / st.lam + st.det * 1e9;
+function nearestLine() {
+  const L = H.lines(st.start); if (!L.length) return null;
+  const nu = laserNu(); let best = null;
+  for (const line of L) { const off = nu - line.nu; if (!best || Math.abs(off) < Math.abs(best.off)) best = { line, off }; }
+  best.resp = H.lineResponse(best.line, nu, intensity(), temperature(), st.lw, st.start);
+  return best;
+}
+// fluorescence counts per bin: 10⁴ atoms in the beam, 1% of photons collected, 1 ms per point, dark counts 2 per bin
+const fluor = nu => H.lines(st.start).reduce((s, line) => s + line.Gamma * H.lineResponse(line, nu, intensity(), temperature(), st.lw, st.start).rho, 0);
+const counts = nu => 1e4 * 0.01 * 1e-3 * fluor(nu) + 2;
+function poisson(mu) {
+  if (mu > 50) { const u = 1 - Math.random(), v = Math.random(); return Math.max(0, Math.round(mu + Math.sqrt(mu) * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v))); }
+  let L = Math.exp(-mu), k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1;
+}
+let lastScan = null;
+function survey() {
+  const [a, b] = range(), pts = new Set();
+  for (let i = 0; i <= 1500; i++) pts.add(a + (b - a) * i / 1500);
+  for (const line of H.lines(st.start)) {       // sample densely across each line so the narrow peaks are caught
+    const r = H.lineResponse(line, line.nu, intensity(), temperature(), st.lw, st.start), w = r.fwhm * line.lambda * line.lambda / K.c * 1e9;
+    for (let k = -40; k <= 40; k++) pts.add(line.lambda * 1e9 + k * w / 8);
+  }
+  const x = [...pts].filter(v => v >= a && v <= b).sort((p, q) => p - q), y = x.map(nm => poisson(counts(K.c / (nm * 1e-9))));
+  lastScan = { kind: 'survey' };
+  const ion = st.start[0] === 1 ? 1e9 / K.RH : 4e9 / K.RH;
+  Plotly.react('scanPlot', [{ x, y, mode: 'lines', line: { color: ACC, width: 1.6 }, name: 'counts', hovertemplate: '%{x:.4f} nm<br>%{y} counts<extra></extra>' }], {
+    margin: { t: 14, r: 10, b: 44, l: 60 }, showlegend: false,
+    xaxis: { title: { text: 'Laser wavelength (nm, vacuum)' }, range: [a, b] },
+    yaxis: { title: { text: 'Fluorescence counts per 1 ms' }, type: 'log', rangemode: 'tozero' },
+    shapes: [{ type: 'rect', x0: a, x1: ion, yref: 'paper', y0: 0, y1: 1, fillcolor: DK ? 'rgba(124,140,230,.10)' : 'rgba(90,107,99,.10)', line: { width: 0 } },
+      { type: 'line', x0: st.lam * 1e9, x1: st.lam * 1e9, yref: 'paper', y0: 0, y1: 1, layer: 'below', line: { color: GOLD, width: 1.5, dash: 'dot' }, opacity: 0.6 }],
+    annotations: [{ x: (a + ion) / 2, yref: 'paper', y: 0.95, text: 'ionization<br>continuum', showarrow: false, font: { size: 11, color: MUTED } },
+      ...H.lines(st.start).filter(l => l.lambda * 1e9 > a && l.n <= 5).map(l => ({ x: l.lambda * 1e9, yref: 'paper', y: 1, yanchor: 'bottom', showarrow: false, text: H.seriesName(st.start[0], l.n).split('-')[1], font: { size: 12, color: INK } }))],
+  }, CONFIG);
+  $('scanNote').innerHTML = `Survey: ${x.length} laser settings, each counting fluorescence for 1 ms. Peaks are the ${st.start[0] === 1 ? 'Lyman' : 'Balmer'} lines
+    ${st.start[0] === 1 ? '1s → np' : '2s → np'}; they crowd together towards the series limit at ${(ion).toFixed(2)} nm, past which the photon has enough
+    energy to ionize the atom (shaded). Log scale: the lines get weaker as n grows. Lines are only ~${fmtNm(nearestLine().resp.fwhm * st.lam * st.lam / K.c)} wide here, so zoom in to see their shape.`;
+  ev('scan', { level: 'survey', start: H.label(...st.start) });
+  checks.survey = true; updateChecks();
+}
+function zoom() {
+  const hit = nearestLine(); if (!hit) return;
+  const { line } = hit, r0 = H.lineResponse(line, line.nu, intensity(), temperature(), st.lw, st.start), half = Math.max(5 * r0.fwhm, 3 * Math.abs(hit.off));
+  const x = [], y = [], fit = [];
+  for (let i = 0; i <= 400; i++) { const d = -half + 2 * half * i / 400, nu = line.nu + d; x.push(d / 1e9); const mu = counts(nu); y.push(poisson(mu)); fit.push(mu); }
+  lastScan = { kind: 'zoom', line, fwhm: r0.fwhm, fL: r0.fL, fD: r0.fD, s: r0.s, T: temperature(), lw: st.lw };
+  Plotly.react('scanPlot', [
+    { x, y, mode: 'markers', marker: { color: ACC, size: 4 }, name: 'counts', hovertemplate: 'Δ = %{x:.3f} GHz<br>%{y} counts<extra></extra>' },
+    { x, y: fit, mode: 'lines', line: { color: GOLD, width: 2 }, name: 'model (Voigt)', hoverinfo: 'skip' }], {
+    margin: { t: 14, r: 10, b: 44, l: 60 }, legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right' },
+    xaxis: { title: { text: `Laser detuning from ${H.seriesName(st.start[0], line.n)} (GHz), line centre ${fmtNm(line.lambda)}` } },
+    yaxis: { title: { text: 'Fluorescence counts per 1 ms' }, rangemode: 'tozero' },
+    shapes: [{ type: 'line', x0: hit.off / 1e9, x1: hit.off / 1e9, yref: 'paper', y0: 0, y1: 1, line: { color: GOLD, width: 1.5, dash: 'dot' } }],
+  }, CONFIG);
+  const dom = r0.fD > r0.fL ? 'Doppler broadening dominates: cool the atoms to see the natural line' : 'the natural (lifetime) width dominates';
+  $('scanNote').innerHTML = `Zoom on ${H.seriesName(st.start[0], line.n)} (${H.label(...st.start)} → ${H.label(line.n, line.l)}): measured FWHM ≈ <b>${fmtHz(r0.fwhm)}</b>.
+    Natural width Γ/2π = ${fmtHz(line.Gamma / 2 / Math.PI)} (τ = ${fmtTime(line.tau)}); with power broadening (×√(1+s), s = ${r0.s.toPrecision(2)}) the Lorentzian is ${fmtHz(r0.fL)}; Doppler ${fmtHz(r0.fD)}; laser ${fmtHz(st.lw)}. Here ${dom}.
+    ${r0.fD < 0.3 * r0.fL && st.lw < 0.3 * r0.fL ? `From this width, τ = 1/(2π·FWHM) = ${fmtTime(1 / (2 * Math.PI * r0.fwhm / Math.sqrt(1 + r0.s)))} after removing power broadening.` : ''}`;
+  ev('scan', { level: 'zoom', line: H.label(line.n, line.l), t_k: +temperature().toPrecision(2) });
+  checks.lines.add(line.n);
+  if (st.start[0] === 2) checks.balmer = true;
+  if (r0.fD < r0.fL / 2 && st.lw < r0.fL / 2) checks.natural = true;
+  if (r0.s > 10) checks.saturate = true;
+  updateChecks();
+}
+function drawBloch() {
+  const hit = nearestLine(); if (!hit) return;
+  const { line } = hit, Om = H.rabi(st.start[0], st.start[1], line.n, line.l, intensity()), Delta = 2 * Math.PI * hit.off;
+  const tEnd = Math.min(8 * line.tau, Math.max(5 * line.tau, 0)), sim = H.bloch(Om, Delta, line.Gamma, tEnd, 400);
+  const ss = (Om * Om / 4) / (Delta * Delta + line.Gamma * line.Gamma / 4 + Om * Om / 2);
+  Plotly.react('blochPlot', [{ x: sim.t.map(t => t * 1e9), y: sim.rho, mode: 'lines', line: { color: ACC, width: 2.2 }, name: 'ρ_ee(t)',
+    hovertemplate: 't = %{x:.3f} ns<br>excited %{y:.4f}<extra></extra>' }], {
+    margin: { t: 10, r: 10, b: 44, l: 60 }, showlegend: false,
+    xaxis: { title: { text: 'Time after the laser turns on (ns)' } }, yaxis: { title: { text: `Population of ${H.label(line.n, line.l)}` }, rangemode: 'tozero' },
+    shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: ss, y1: ss, line: { color: GOLD, dash: 'dash', width: 1.5 } }],
+  }, CONFIG);
+  $('blochNote').innerHTML = `One atom at rest, ${H.label(...st.start)} → ${H.label(line.n, line.l)}, Rabi frequency Ω/2π = ${fmtHz(Om / 2 / Math.PI)}, detuning
+    ${fmtHz(Math.abs(hit.off))}, decay Γ/2π = ${fmtHz(line.Gamma / 2 / Math.PI)}. ${Om > line.Gamma ? 'Ω > Γ: the population <b>Rabi-flops</b> before decay damps it.' : 'Ω < Γ: decay wins, so the population rises smoothly with no oscillation.'}
+    It settles at the dashed steady state, (Ω²/4)/(Δ² + Γ²/4 + Ω²/2) = ${ss.toPrecision(3)}, which never exceeds ½: a laser alone cannot invert a two-level atom.`;
+}
+function drawCascade() {
+  const hit = nearestLine(); if (!hit) return;
+  const { line } = hit, cs = H.cascade(line.n, line.l);
+  const xs = cs.map(c => c.lambda ? c.lambda * 1e9 : null), cols = cs.map(c => c.lambda ? H.photonColor(c.lambda).css : MUTED);
+  const named = cs.filter(c => c.lambda);
+  Plotly.react('cascadePlot', [{ type: 'bar', x: named.map(c => c.lambda * 1e9), y: named.map(c => c.num), width: named.map(c => c.lambda * 1e9 * 0.03),
+    marker: { color: named.map(c => H.photonColor(c.lambda).css) }, text: named.map(c => `${H.label(...c.from)}→${H.label(...c.to)}`), textposition: 'outside',
+    hovertemplate: '%{text}<br>λ = %{x:.2f} nm<br>%{y:.3f} photons per excitation<extra></extra>', cliponaxis: false }], {
+    margin: { t: 26, r: 10, b: 44, l: 55 }, showlegend: false,
+    xaxis: { title: { text: 'Photon wavelength (nm, log scale)' }, type: 'log', range: [Math.log10(80), Math.log10(5000)], tickvals: [100, 200, 500, 1000, 2000, 5000], ticktext: ['100', '200', '500', '1000', '2000', '5000'] },
+    yaxis: { title: { text: 'Photons per excitation' }, range: [0, 1.15] },
+    shapes: [{ type: 'rect', x0: 380, x1: 750, yref: 'paper', y0: 0, y1: 1, fillcolor: DK ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.035)', line: { width: 0 } }],
+    annotations: [{ x: Math.log10(530), y: 1.12, text: 'visible', showarrow: false, font: { size: 11, color: MUTED }, xref: 'x' }],
+  }, CONFIG);
+  const two = cs.find(c => !c.lambda);
+  $('cascadeNote').innerHTML = `Excited to ${H.label(line.n, line.l)}, the atom cascades back to 1s through every allowed path; each bar is the expected
+    number of photons at that wavelength (branching ratios from the A coefficients). ${two ? `${(100 * two.num).toFixed(1)}% of excitations pass through the metastable 2s and leave as a two-photon continuum (not shown).` : ''}
+    Watching the visible Balmer light while driving in the ultraviolet is how a fluorescence experiment can see these lines.`;
+}
+
+// ───────── checklist ─────────
+const checks = { survey: false, lines: new Set(), natural: false, saturate: false, balmer: false };
+const ITEMS = [
+  ['survey', 'Run a <b>survey scan</b> from 1s and count the Lyman lines before the series limit.'],
+  ['lya', 'Zoom on <b>Lyman-α</b> (1s → 2p, 121.57 nm) and read its width.'],
+  ['three', 'Find <b>Lyman-β and Lyman-γ</b> too (tune near them, then zoom).'],
+  ['natural', 'Resolve the <b>natural linewidth</b>: make Doppler and laser widths smaller than Γ/2π, then zoom (hint: millikelvin atoms, 1 MHz laser).'],
+  ['saturate', '<b>Saturate</b> a line (I ≫ I<sub>sat</sub>, s > 10) and see power broadening and Rabi flopping.'],
+  ['balmer', 'Start in the metastable <b>2s</b> and zoom on a visible Balmer line.'],
+];
+let doneBefore = 0;
+function updateChecks() {
+  const ok = { survey: checks.survey, lya: checks.lines.has(2), three: checks.lines.has(3) && checks.lines.has(4), natural: checks.natural, saturate: checks.saturate, balmer: checks.balmer };
+  $('checklist').innerHTML = ITEMS.map(([k, t]) => `<li class="${ok[k] ? 'done' : ''}">${t}</li>`).join('');
+  const n = Object.values(ok).filter(Boolean).length; $('ckCount').textContent = `${n} of ${ITEMS.length}`;
+  if (n > doneBefore) { ev('level_complete', { value: n }); if (n === ITEMS.length && window.QL) QL.offerQuiz && QL.offerQuiz('Lab checklist done. One-minute debrief?'); }
+  doneBefore = n;
+}
+
+// ───────── laser controls ─────────
+function laserUI() {
+  $('lamSlider').value = sliderFromLam(st.lam); $('lam').value = (st.lam * 1e9).toFixed(4); $('lamTxt').textContent = fmtNm(st.lam);
+  $('det').value = st.det; $('detTxt').textContent = `${st.det >= 0 ? '+' : ''}${st.det.toFixed(1)} GHz`;
+  $('inten').value = st.logI; const I = Math.pow(10, st.logI);
+  const hit = nearestLine();
+  $('intTxt').textContent = `${I < 0.01 ? I.toExponential(1) : I.toPrecision(2)} W/cm²` + (hit ? ` · s = ${hit.resp.s.toPrecision(2)}` : '');
+  $('temp').value = st.logT; const T = temperature(); $('tempTxt').textContent = T < 1 ? `${(T * 1e3).toPrecision(2)} mK` : `${T.toPrecision(3)} K`;
+  $('lw').value = String(Math.round(st.lw));
+  for (const b of $('segStart').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.s === st.start.join(','));
+  if (hit) {
+    const { line, resp } = hit;
+    $('readout').innerHTML = [
+      ['Nearest line', `${H.seriesName(st.start[0], line.n)} · ${fmtNm(line.lambda)}`],
+      ['Transition', `${H.label(...st.start)} → ${H.label(line.n, line.l)}`],
+      ['Laser offset', `${(hit.off / 1e9).toFixed(3)} GHz`],
+      ['Lifetime of upper state', fmtTime(line.tau)],
+      ['Natural width Γ/2π', fmtHz(line.Gamma / 2 / Math.PI)],
+      ['Doppler FWHM', fmtHz(resp.fD)],
+      ['I<sub>sat</sub>', `${(H.Isat(line, st.start) / 1e4).toPrecision(3)} W/cm²`],
+      ['Excited fraction now', resp.rho.toExponential(2)],
+    ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  }
+  drawLevels(); drawBloch(); drawCascade();
+}
+function setLam(lam) { st.lam = lam; laserUI(); }
+$('lamSlider').addEventListener('input', e => setLam(lamFromSlider(+e.target.value)));
+$('lam').addEventListener('change', e => { const v = parseFloat(e.target.value); if (isFinite(v) && v > 50 && v < 5000) setLam(v * 1e-9); });
+$('det').addEventListener('input', e => { st.det = +e.target.value; laserUI(); });
+$('inten').addEventListener('input', e => { st.logI = +e.target.value; laserUI(); });
+$('temp').addEventListener('input', e => { st.logT = +e.target.value; laserUI(); });
+$('lw').addEventListener('change', e => { st.lw = +e.target.value; laserUI(); });
+$('snap').addEventListener('click', () => { const h = nearestLine(); if (h) { st.lam = h.line.lambda; st.det = 0; laserUI(); } });
+$('segStart').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  st.start = b.dataset.s.split(',').map(Number); st.lam = H.wavelength(st.start[0], st.start[0] + (st.start[0] === 1 ? 1 : 2)); st.det = 0; laserUI(); survey(); });
+$('survey').addEventListener('click', survey);
+$('zoom').addEventListener('click', zoom);
+$('logScale').addEventListener('change', drawOrbital);
+$('reset').addEventListener('click', () => { location.href = location.pathname; });
+
+// ───────── shareable link ─────────
+function shareQuery() {
+  return `n=${st.n}&l=${st.l}&m=${st.m}&start=${st.start.join('')}&lam=${(st.lam * 1e9).toFixed(5)}&det=${st.det}&I=${st.logI}&T=${st.logT.toFixed(3)}&lw=${st.lw}`;
+}
+$('copyLink').addEventListener('click', e => PageKit.copyLink(e.target, 'courses/engs23/hydrogen.html', shareQuery()));
+(function readLink() {
+  if (!window.PageKit) return;
+  const P = PageKit.params();
+  const n = P.num('n', 1, 7); if (n) st.n = Math.round(n);
+  const l = P.num('l', 0, 6); if (l != null) st.l = Math.min(Math.round(l), st.n - 1);
+  const m = P.num('m', -6, 6); if (m != null) st.m = Math.max(-st.l, Math.min(st.l, Math.round(m)));
+  const s = P.str('start', ['10', '20']); if (s) st.start = [+s[0], +s[1]];
+  const lam = P.num('lam', 80, 2000); if (lam) st.lam = lam * 1e-9;
+  const det = P.num('det', -100, 100); if (det != null) st.det = det;
+  const I = P.num('I', -6, 4); if (I != null) st.logI = I;
+  const T = P.num('T', -4, 3.5); if (T != null) st.logT = T;
+  const lw = P.num('lw', 1e5, 1e11); if (lw) st.lw = lw;
+})();
+
+addEventListener('resize', () => { drawOrbital(); drawLevels(); });
+refreshState(); laserUI(); survey(); updateChecks();
+})();
+</script>
+</body>
+</html>

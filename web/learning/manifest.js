@@ -19,6 +19,7 @@
     { id: 'string',      title: 'The Vibrating String',           path: 'courses/engs23/vibrating-string.html',     group: 'ENGS 23' },
     { id: 'drum',        title: 'The Drum Head',                  path: 'courses/engs23/drum-head.html',            group: 'ENGS 23' },
     { id: 'spectrogram', title: 'Spectrogram Explorer',           path: 'courses/engs23/spectrogram.html',          group: 'ENGS 23' },
+    { id: 'hydrogen',    title: 'The Hydrogen Atom',              path: 'courses/engs23/hydrogen.html',             group: 'ENGS 23' },
     { id: 'sonify',      title: 'Sonify Images',                  path: 'qublitz/sonify.html',                      group: 'Fun' },
     { id: 'hub',         title: 'Demo hub',                       path: '',                                         group: 'Site' },
   ];
