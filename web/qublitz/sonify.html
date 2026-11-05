@@ -59,11 +59,13 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/sonify.js"></script>
 <a class="back" id="back" href="../index.html#fun">&larr; All demos</a>
 <h1>🎵 Sonify Images</h1>
 <p class="sub">Turn an image's pixel rows into sound. Each row of the grayscale image is an envelope over time: brightness
   becomes amplitude. Multiplying it by a carrier at the modulation frequency turns that envelope into a tone you can hear,
   and its spectrum peaks at the carrier. Try the gallery, upload your own picture, or run a sound file the other way.</p>
+<div id="qlPanel"></div>
 
 <div class="card">
   <h2>Choose an image</h2>
@@ -94,6 +96,7 @@
     <div id="sig" class="plot"></div>
     <div id="mod" class="plot"></div>
     <div id="fft" class="plot"></div>
+    <p class="hint" id="aliasNote" hidden></p>
   </div>
 </div>
 
@@ -222,6 +225,7 @@ document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click'
   document.querySelectorAll('[data-for]').forEach(el => { el.hidden = el.dataset.for !== b.dataset.mode; });
   status('');
   if (b.dataset.mode === 'gallery') loadGallery(+$('#gallery').value);
+  qlNote('mode', { level: b.dataset.mode });
 }));
 
 /* ---------- drawing ---------- */
@@ -260,7 +264,19 @@ function update() {
   $('#sigTitle').textContent = `Row ${row}: signal, modulated signal and spectrum`;
   plot('sig', x, env, `Row ${row} signal`, 'Time (s)', 'Amplitude');
   plot('mod', x, mod, `Row ${row} modulated signal (modulation frequency = ${f} Hz)`, 'Time (s)', 'Amplitude');
-  plot('fft', Array.from(fr), mag, `Peak @ ~${f.toFixed(1)} Hz (modulation frequency)`, 'Frequency (Hz)', 'Magnitude');
+  // The plotted signal has one sample per column, cols/dur per second. A carrier above half that rate cannot show at
+  // its own frequency in this plot: it folds to |f − k·fs|. The audio is resampled to 22 050 Hz, so it is not affected.
+  const fsCol = img.cols / dur;
+  let fTitle = `Peak @ ~${f.toFixed(1)} Hz (modulation frequency)`, note = '';
+  if (f > fsCol / 2) {
+    let fa = f % fsCol; if (fa > fsCol / 2) fa = fsCol - fa;
+    fTitle = `Plotted peak aliased to ~${fa.toFixed(1)} Hz (carrier ${f.toFixed(1)} Hz)`;
+    note = `This plot has one sample per image column, ${fsCol.toFixed(1)} per second, so it can only show frequencies up to `
+      + `${(fsCol / 2).toFixed(1)} Hz and the ${f.toFixed(1)} Hz carrier folds down to ${fa.toFixed(1)} Hz (aliasing). `
+      + `The audio is played at 22 050 samples per second and is not aliased. A longer image or a shorter duration fixes the plot.`;
+  }
+  plot('fft', Array.from(fr), mag, fTitle, 'Frequency (Hz)', 'Magnitude');
+  $('#aliasNote').textContent = note; $('#aliasNote').hidden = !note;
 
   const wav = S.toWav(S.generateAudio(env, t, f, dur), S.DEFAULT_SR);
   if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -277,13 +293,26 @@ $('#freq').addEventListener('change', update);
 $('#flip').addEventListener('click', () => {
   const { rows, cols, data } = img;
   for (let r = 0; r < rows; r++) data.subarray(r * cols, (r + 1) * cols).reverse();
-  drawHeat(); update();
+  drawHeat(); update(); qlNote('flip');
 });
 $('#resetImg').addEventListener('click', () => { img.data.set(original.data); drawHeat(); update(); });
 $('#randRow').addEventListener('click', () => setRow(Math.floor(Math.random() * img.rows)));
 
 $('#gallery').innerHTML = GALLERY.map((e, i) => `<option value="${i}">${esc(e.text || e.name)}</option>`).join('');
-$('#gallery').addEventListener('change', e => loadGallery(+e.target.value));
+$('#gallery').addEventListener('change', e => { loadGallery(+e.target.value); qlNote('preset', { level: (GALLERY[+e.target.value] || {}).name }); });
+
+/* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/sonify.js) ---------- */
+const QLK = window.QL || { event() {}, panel() {}, offerQuiz() {}, context() {} };
+QLK.panel(document.getElementById('qlPanel'));
+function qlNote(name, data) { QLK.event(name, data); if (name === 'preset' || name === 'mode') QLK.context({ level: name === 'mode' ? data.level : 'gallery', step: name === 'preset' ? data.level : undefined }); }
+QLK.context({ level: 'gallery' });
+// Each press of play counts once; after rows from a few different places have been heard, offer the debrief.
+const qlHeard = new Set();
+$('#player').addEventListener('play', () => {
+  qlNote('start');
+  qlHeard.add($('#caption').textContent.slice(0, 40) + '|' + row);
+  if (qlHeard.size >= 4) QLK.offerQuiz('You have heard ' + qlHeard.size + ' rows. A 1-minute debrief: a few questions and what you thought.');
+});
 const start = Math.floor(Math.random() * GALLERY.length);
 $('#gallery').value = start;
 loadGallery(start).then(() => {

@@ -150,6 +150,7 @@
   function event(name, data) {
     // A new level resets the place, but a page that already set this level's step keeps it.
     if (name === 'level_start' && data && data.level != null && place.split('|')[0] !== String(data.level)) context({ level: data.level });
+    if (name === 'level_start' && data && data.level != null) context({ level: data.level });
     if (name === 'level_complete') completedThisVisit++;
     if (!enabled() || !game || sentCount >= MAX_EVENTS) return;
     const e = cleanEvent(game, name, data, ctx());
@@ -231,6 +232,8 @@
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
       o.noDebrief ? null : el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
+      spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun }) : null,
+      el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
     if (o.replace) host.replaceChildren(box); else host.append(box);
     return box;
@@ -370,6 +373,7 @@
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
   root.QL = { event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { event, context, answer, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 

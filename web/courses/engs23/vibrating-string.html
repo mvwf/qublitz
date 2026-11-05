@@ -87,11 +87,13 @@
 <script src="../../shared/outreach-config.js"></script>
 <script src="../../learning/manifest.js"></script>
 <script src="../../shared/outreach.js"></script>
+<script src="../../learning/string.js"></script>
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>The Vibrating String</h1>
 <p class="sub" id="intro">An ideal string obeys the wave equation on 0 ≤ <span class="mvar">x</span> ≤ <span class="mvar">L</span>,
   with both ends fixed (<span class="mvar">y</span> = 0) and wave speed <span class="mvar">v</span>. Give it a shape,
   watch each Fourier mode oscillate at its own frequency, see what the pickup coil reads, and hear the result.</p>
+<div id="qlPanel"></div>
 <div class="eqn-wrap"><span class="eqn"><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>x</i><sup>2</sup></span></span><span class="eqop">=</span><span class="frac"><span class="num">1</span><span class="den"><i>v</i><sup>2</sup></span></span><span class="frac"><span class="num">&part;<sup>2</sup><i>y</i></span><span class="den">&part;<i>t</i><sup>2</sup></span></span></span><span class="eqnum">(1)</span></div>
 
 <div class="card" id="fbCard" style="margin-bottom:16px">
@@ -236,7 +238,8 @@
 <div class="footer">
   Built for ENGS 23 · Systems, Fields &amp; Waves. Same skeleton as heat and Schrödinger:
   separate variables → eigenfunctions from the spatial problem + boundary conditions → each mode evolves by its eigenvalue.
-  Here the eigenvalue is real-and-imaginary-free in space but gives ±iω in time, so modes oscillate instead of decay.
+  Here the spatial eigenvalue λ<sub>n</sub> = (nπ/L)² is real and positive, and the time equation T″ = −v²λ<sub>n</sub>T is second order,
+  so each mode goes as e<sup>±iω<sub>n</sub>t</sup> with ω<sub>n</sub> = v√λ<sub>n</sub> = nπv/L: modes oscillate instead of decay.
   <br><br>
   Developed with Claude (Anthropic) through extensive prompt engineering and deep knowledge of the ENGS 23 course material.
 <p class="dl" id="offlineHint"><a href="vibrating-string-offline.html" download="engs23-vibrating-string.html">Download this demo</a>
@@ -734,11 +737,11 @@ if (window.QUBLITZ_STANDALONE) {
     box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
       box.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
       b.classList.add('active'); cb(b.dataset.v); })); }
-  document.getElementById('play').addEventListener('click',()=>{ playing?pause():play(); });
+  document.getElementById('play').addEventListener('click',()=>{ if(playing) pause(); else { play(); qlNote('start'); } });
   document.getElementById('reset').addEventListener('click',()=>{ clock=0; pause(); drawStrings(); updateTimePill(); });
-  document.getElementById('sound').addEventListener('click',listen);
+  document.getElementById('sound').addEventListener('click',()=>{ listen(); qlNote('sound'); });
   document.getElementById('speed').addEventListener('input',e=>{ speed=+e.target.value; });
-  document.getElementById('sense').addEventListener('change',()=>drawAll());
+  document.getElementById('sense').addEventListener('change',e=>{ drawAll(); qlNote('mode',{level:e.target.value}); });
   document.getElementById('gain').addEventListener('input',e=>{ gainDb=+e.target.value;
     document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; drawScope(); drawSpectrum(); });
   const L0=0.648;              // guitar scale length (25.5 in)
@@ -810,8 +813,9 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('retune').addEventListener('click',()=>{ cents=0;
     document.getElementById('detune').value=0;
     document.getElementById('detv').textContent='0 cents · in tune'; updateChord(); drawStrings(); drawScope(); drawSpectrum(); });
-  document.getElementById('pr').addEventListener('input',e=>{ pluckPos=+e.target.value; document.getElementById('pv').textContent=pluckPos.toFixed(2); });
-  document.querySelectorAll('[data-pre]').forEach(b=>b.addEventListener('click',()=>{ if(playing) pause(); setPreset(b.dataset.pre); }));
+  document.getElementById('pr').addEventListener('input',e=>{ pluckPos=+e.target.value; document.getElementById('pv').textContent=pluckPos.toFixed(2);
+    if(['gauss','triangle','square'].includes(shapeTag)){ if(playing) pause(); setPreset(shapeTag); } });
+  document.querySelectorAll('[data-pre]').forEach(b=>b.addEventListener('click',()=>{ if(playing) pause(); setPreset(b.dataset.pre); qlNote('preset',{level:b.dataset.pre}); }));
 
   // pure-mode selector: set the initial condition to a single mode n
   const pmSel=document.getElementById('puremode');
@@ -819,7 +823,7 @@ if (window.QUBLITZ_STANDALONE) {
     coeffs=new Array(modes.length).fill(0); coeffs[Math.min(n-1,modes.length-1)]=1; shapeTag='mode'+n; drawAll(); }
   if(pmSel){ for(let n=1;n<=N;n++){ const o=document.createElement('option'); o.value=n; o.textContent='mode '+n; pmSel.appendChild(o); }
     pmSel.addEventListener('change',applyPure);
-    const pb=document.getElementById('puremodeset'); if(pb) pb.addEventListener('click',applyPure); }
+    const pb=document.getElementById('puremodeset'); if(pb) pb.addEventListener('click',()=>{ applyPure(); qlNote('preset',{level:'mode'+pmSel.value}); }); }
 
   window.addEventListener('resize',()=>{ layout(); layoutFret(); drawFretboard(); drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); live.redraw(); });
 
@@ -871,6 +875,31 @@ if (window.QUBLITZ_STANDALONE) {
   }
   document.getElementById('copyLink').addEventListener('click',e=>PageKit.copyLink(e.target,'courses/engs23/vibrating-string.html',shareQuery()));
 
+  /* ---------- outreach: learning panel, events, end-of-activity debrief (web/learning/<id>.js) ---------- */
+  const QLK = window.QL || { event(){}, panel(){}, offerQuiz(){}, context(){}, answer(){ return null; } };
+  QLK.panel(document.getElementById('qlPanel'));
+  let qlActs = 0; const qlT0 = Date.now();
+  // Counted actions (preset, mode, play, sound); after a few minutes of exploring, offer the debrief once.
+  function qlNote(name, data){ QLK.event(name, data); if(name === 'preset' || name === 'mode') QLK.context({ level: 'explore', step: data && data.level }); if(++qlActs >= 6 && Date.now() - qlT0 > 150000) QLK.offerQuiz(); }
+  // Guided mode is the page's predict-then-reveal: each step sets the quit-map context, and every multiple-choice
+  // prediction is recorded with QL.answer as a question item (added when answered, so the debrief skips it).
+  // obj maps a 1-based step number to the learning objective it checks.
+  function qlGuided(steps, key, obj) { return {
+    onStep: i => QLK.context({ level: 'guided', step: i < steps.length ? 'step' + (i + 1) : 'done' }),
+    onAnswer: (i, ok, pick) => {
+      QLK.event('level_complete', { level: 'step' + (i + 1), value: ok ? 1 : 0 });
+      const st = steps[i], sp = window.QL && QL.spec, id = key + '-g' + (i + 1);
+      if (!st.choices || !obj[i + 1] || !sp || !QLK.answer) return;
+      sp.quiz = sp.quiz || [];
+      if (!sp.quiz.some(q => q.id === id))
+        sp.quiz.push({ id, objective: obj[i + 1], q: st.ask, choices: st.choices, answer: st.answer, explain: st.explain });
+      QLK.answer(id, pick);
+    },
+    onDone: (right, total) => { QLK.event('win', { value: right });
+      QLK.offerQuiz('You finished the guided predictions (' + right + ' of ' + total + ' held up). A 1-minute debrief: a few more questions and what you thought.'); },
+  }; }
+  QLK.context({ level: 'explore' });
+
   /* ---------- guided predictions (?guided=1) ---------- */
   const OPEN_E=[0,null,null,null,null,null];
   const GUIDED=[
@@ -902,7 +931,8 @@ if (window.QUBLITZ_STANDALONE) {
       choices:['None, it just gets louder','Even harmonics only (2f, 4f, …)','Odd harmonics only (3f, 5f, …)','All harmonics'], answer:2,
       explain:'tanh flattens the top and bottom of the sine by the same amount, so the output still satisfies V(t + T/2) = −V(t). Any signal with that half-wave symmetry has only odd harmonics. Clipping invents frequencies the string never had: that is distortion. An amp that clips the top and bottom differently would add even harmonics too.' },
   ];
-  function startGuided(){ PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'vibrating-string' }); }
+  function startGuided(){ QLK.event('mode',{level:'guided'});
+    PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'vibrating-string', ...qlGuided(GUIDED, 'vibrating-string', {1:'pluck',2:'pluck',5:'clip'}) }); }
 
   layout(); layoutFret(); buildBasis(); updateChord(); drawFretboard(); setPreset('mode1');
   { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
