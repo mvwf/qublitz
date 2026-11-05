@@ -67,6 +67,31 @@
   .card .badge{position:absolute;top:10px;left:10px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;
     background:rgba(255,255,255,.92);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:2px 9px}
   .card .badge.ext{left:auto;right:10px;color:var(--blue)}
+  .card .badge.seen{left:auto;right:10px;color:var(--green);border-color:rgba(0,105,62,.35)}
+  .card .badge.new{left:auto;right:10px;color:#8a5a00;border-color:rgba(217,165,33,.6);background:#fff8e6}
+  .card canvas.thumb{cursor:ew-resize;touch-action:pan-y}
+  .card .thint{position:absolute;top:104px;right:10px;font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.9);
+    border-radius:999px;padding:1px 8px;opacity:0;transition:opacity .15s;pointer-events:none}
+  .card:hover .thint{opacity:1}
+  .btn.ask{border-color:rgba(217,165,33,.7);color:#7a5200;background:#fff8e6}
+  .btn.ask:hover{border-color:#d9a521;color:#5c3d00}
+  .card .qa{position:absolute;inset:0;background:#fff;display:flex;flex-direction:column;padding:16px 16px 14px;z-index:2;overflow:auto}
+  .card .qa[hidden]{display:none}
+  .card .qa .qk{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#8a5a00;margin:0 0 6px}
+  .card .qa .qq{font-size:14.5px;font-weight:600;margin:0 0 10px;line-height:1.4}
+  .card .qa .qc{display:flex;flex-direction:column;gap:6px;margin:0 0 10px}
+  .card .qa .qc button{font:inherit;font-size:13px;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 10px;cursor:pointer;color:var(--ink)}
+  .card .qa .qc button:hover:not(:disabled){border-color:var(--green2)}
+  .card .qa .qc button.right{border-color:var(--green);background:#e6f5ec}
+  .card .qa .qc button.wrong{border-color:#c84b31;background:#fdeceb}
+  .card .qa .qc button:disabled{cursor:default}
+  .card .qa .qx{font-size:12.8px;color:var(--ink);background:var(--panel);border-radius:8px;padding:8px 10px;margin:0 0 10px}
+  .card .qa .qrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+  .explore{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 0;font-size:13.5px;color:var(--muted)}
+  .explore .bar{flex:0 0 160px;height:8px;border-radius:999px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+  .explore .bar i{display:block;height:100%;background:var(--green2);width:0}
+  .explore b{color:var(--ink)}
   .card .body{padding:13px 15px 15px;display:flex;flex-direction:column;flex:1}
   .card h3{font-size:16.5px;margin:0 0 3px}
   .eqtag{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;font-size:13px;color:var(--green);margin:0 0 7px;min-height:20px;overflow-x:auto}
@@ -143,6 +168,7 @@
   </div>
 </nav>
 
+<div class="wrap"><div class="explore" id="explore" aria-live="polite"></div></div>
 <div class="wrap">
   <details class="howto" id="outreach" open>
     <summary>Using these demos for outreach <span>a suggested path, and how each activity works</span></summary>
@@ -622,7 +648,9 @@ function cardHTML(d,i){
   return `<article class="card" data-i="${i}">
     <canvas class="thumb" data-thumb="${d.thumb}" aria-hidden="true"></canvas>
     <span class="badge">${esc(GROUPS.find(g=>g.id===d.group).code)}</span>
-    ${d.external?'<span class="badge ext">Web app</span>':''}
+    ${d.external?'<span class="badge ext">Web app</span>'
+      : (gameOf(d) ? (isExplored(d) ? '<span class="badge seen">✓ Explored</span>' : '<span class="badge new">New to you</span>') : '')}
+    ${d.external?'':'<span class="thint">drag to scrub ⇆</span>'}
     <div class="body">
       <h3>${esc(d.title)}</h3>
       <p class="eqtag">${d.eq||''}</p>
@@ -630,12 +658,77 @@ function cardHTML(d,i){
       <div class="tags">${(d.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="actions">
         ${local
-          ? `<button class="btn primary" data-open="${i}">Try it ▸</button><a class="btn" href="${d.href}" target="_blank" rel="noopener">New tab ↗</a>`
+          ? `<button class="btn primary" data-open="${i}">Try it ▸</button>${teaserFor(d) ? `<button class="btn ask" data-ask="${i}" title="A one-question taste of this activity">? Question</button>` : ''}<a class="btn" href="${d.href}" target="_blank" rel="noopener" title="Open in a new tab" aria-label="Open ${esc(d.title)} in a new tab">↗</a>`
           : `<a class="btn primary" href="${d.href}" target="_blank" rel="noopener">Launch app ↗</a>`}
         ${d.repo?`<a class="btn" href="${d.repo}" target="_blank" rel="noopener">Code</a>`:''}
       </div>
     </div>
+    <div class="qa" hidden></div>
   </article>`;
+}
+
+/* ---------- explore: quick questions, explored badges, surprise me ----------
+ * Each activity's learning file (web/learning/<id>.js) has questions with explanations. The hub borrows one
+ * short question per card as a taste of the activity. "Explored" is remembered in this browser only
+ * (QL.explored(), set by each page when it opens); nothing about it is sent. */
+const SPECS = {};
+const pageOf = d => (d.href || '').replace(/^\.\//, '');
+function gameOf(d) { const g = (window.QL_GAMES || []).find(x => x.path === pageOf(d)); return g ? g.id : null; }
+function exploredIds() { try { return (window.QL && QL.explored) ? QL.explored() : []; } catch (e) { return []; } }
+const isExplored = d => exploredIds().includes(gameOf(d));
+const plain = h => String(h).replace(/<[^>]+>/g, '');
+const shortItem = q => q && q.choices && q.choices.length >= 2 && q.choices.length <= 4 && q.choices.every(c => plain(c).length <= 70) && plain(q.q).length <= 170;
+const TEASER = {};
+function teaserFor(d) {
+  const id = gameOf(d); if (!id || !SPECS[id]) return null;   // learning file not loaded (yet): no question
+  if (TEASER[id] !== undefined) return TEASER[id];
+  const items = ((SPECS[id] || {}).quiz || []).filter(shortItem);
+  return (TEASER[id] = items.length ? items[Math.floor(Math.random() * items.length)] : null);
+}
+function loadSpecs(done) {
+  // Load every learning file with QL.learning temporarily pointed at a collector, then restore it, so the
+  // hub's own learning spec (and its page id) are left untouched.
+  const games = (window.QL_GAMES || []).filter(g => g.id !== 'hub' && g.path);
+  if (!window.QL || !games.length) return done();
+  const real = QL.learning; let left = games.length;
+  QL.learning = sp => { if (sp && sp.id) SPECS[sp.id] = sp; };
+  const fin = () => { if (--left === 0) { QL.learning = real; done(); } };
+  games.forEach(g => { const sc = document.createElement('script'); sc.src = 'learning/' + g.id + '.js';
+    sc.onload = fin; sc.onerror = fin; document.head.appendChild(sc); });
+}
+function renderExplore() {
+  const local = DEMOS.filter(d => !d.external && gameOf(d)), seen = local.filter(isExplored).length;
+  const el = $('#explore'); if (!el) return;
+  el.innerHTML = `<span class="bar" aria-hidden="true"><i style="width:${local.length ? Math.round(100 * seen / local.length) : 0}%"></i></span>
+    <span>${seen ? `You've explored <b>${seen} of ${local.length}</b> activities.` : `<b>${local.length} activities</b> to explore. Try a quick question on any card.`}</span>
+    <button class="btn" id="surprise" title="Open an activity you haven't tried yet">🎲 Surprise me</button>`;
+}
+function surprise() {
+  const pool = DEMOS.map((d, i) => [d, i]).filter(([d]) => !d.external && gameOf(d));
+  const fresh = pool.filter(([d]) => !isExplored(d)), pick = (fresh.length ? fresh : pool);
+  const [d, i] = pick[Math.floor(Math.random() * pick.length)];
+  if (window.QL) QL.event('surprise', { level: gameOf(d) });
+  openDemo(i);
+}
+function showQuestion(card, i) {
+  const d = DEMOS[i], q = teaserFor(d), box = card.querySelector('.qa'); if (!q || !box) return;
+  const id = gameOf(d);
+  box.innerHTML = `<p class="qk">${esc(d.title)} · quick question</p><p class="qq">${q.q}</p>
+    <div class="qc">${q.choices.map((c, k) => `<button type="button" data-k="${k}">${c}</button>`).join('')}</div>
+    <div class="qx" hidden></div>
+    <div class="qrow"><button class="btn primary" data-open="${i}">Play to see why ▸</button><button class="btn" data-back>Back</button></div>`;
+  box.hidden = false;
+  box.querySelector('.qc').addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]'); if (!b) return;
+    const k = +b.dataset.k, ok = k === q.answer;
+    box.querySelectorAll('.qc button').forEach(x => { x.disabled = true; if (+x.dataset.k === q.answer) x.classList.add('right'); });
+    if (!ok) b.classList.add('wrong');
+    const x = box.querySelector('.qx'); x.hidden = false;
+    x.innerHTML = (ok ? '<b>✓ Right.</b> ' : '<b>Not quite.</b> ') + (q.explain || '');
+    if (window.QL) QL.event('teaser', { level: id, value: ok ? 1 : 0 });
+  });
+  box.querySelector('[data-back]').addEventListener('click', () => { box.hidden = true; });
+  const first = box.querySelector('.qc button'); if (first) first.focus();
 }
 
 function render(){
@@ -679,10 +772,22 @@ function setupThumbs(){
   thumbs=[...document.querySelectorAll('canvas.thumb')].map(cv=>{
     const r=cv.getBoundingClientRect(), dpr=Math.min(2,devicePixelRatio||1);
     cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
-    return {cv, g:cv.getContext('2d'), dpr, w:r.width, h:r.height, fn:THUMBS[cv.dataset.thumb], st:{}, vis:false, hover:false};
+    return {cv, g:cv.getContext('2d'), dpr, w:r.width, h:r.height, fn:THUMBS[cv.dataset.thumb], st:{}, vis:false, hover:false,
+            clock:1.2, drag:null};
+  });
+  // Touchable thumbnails: hovering plays a card's animation three times faster; dragging sideways scrubs its
+  // clock back and forth (the scrubbed time is the animation's own t, so each preview can be rewound).
+  thumbs.forEach(T=>{
+    const cv=T.cv;
+    cv.addEventListener('pointerenter',()=>{ T.hover=true; });
+    cv.addEventListener('pointerleave',()=>{ T.hover=false; });
+    cv.addEventListener('pointerdown',e=>{ T.drag={x:e.clientX, c:T.clock}; cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener('pointermove',e=>{ if(!T.drag) return; T.clock=Math.max(0, T.drag.c+(e.clientX-T.drag.x)*0.03); drawThumb(T,T.clock); });
+    const end=()=>{ if(T.drag && !T.dragged){ if(window.QL) QL.event('thumb_scrub', { level: cv.dataset.thumb }); T.dragged=true; } T.drag=null; };
+    cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',end);
   });
   io=new IntersectionObserver(es=>es.forEach(e=>{ const T=thumbs.find(x=>x.cv===e.target); if(T) T.vis=e.isIntersecting; }));
-  thumbs.forEach(T=>{ io.observe(T.cv); drawThumb(T,1.2); });
+  thumbs.forEach(T=>{ io.observe(T.cv); drawThumb(T,T.clock); });
 }
 function drawThumb(T,t){
   if(!T.fn) return;
@@ -726,11 +831,11 @@ hero.parentElement.addEventListener('pointermove',e=>{const r=hero.getBoundingCl
 hero.parentElement.addEventListener('pointerleave',()=>mouse=null);
 
 /* ---------- main loop ---------- */
-let t0=performance.now();
+let t0=performance.now(), tPrev=t0;
 function loop(now){
-  const t=(now-t0)/1000;
+  const t=(now-t0)/1000, dt=Math.min(0.1,(now-tPrev)/1000); tPrev=now;
   heroStep(); heroDraw(t);
-  thumbs.forEach(T=>{ if(T.vis) drawThumb(T,t); });
+  thumbs.forEach(T=>{ if(!T.drag) T.clock+=dt*(T.hover?3:1); if(T.vis) drawThumb(T,T.clock); });
   requestAnimationFrame(loop);
 }
 
@@ -742,7 +847,7 @@ function openDemo(i){
   dlg.showModal(); history.replaceState(null,'','#demo='+encodeURIComponent(d.href));
 }
 function closeDemo(){ dlg.close(); }
-dlg.addEventListener('close',()=>{ $('#vframe').src='about:blank'; history.replaceState(null,'',location.pathname+location.search); });
+dlg.addEventListener('close',()=>{ $('#vframe').src='about:blank'; history.replaceState(null,'',location.pathname+location.search); render(); renderExplore(); });
 $('#vclose').onclick=closeDemo;
 dlg.addEventListener('click',e=>{ if(e.target===dlg) closeDemo(); });
 
@@ -750,11 +855,15 @@ dlg.addEventListener('click',e=>{ if(e.target===dlg) closeDemo(); });
 $('#chips').addEventListener('click',e=>{ const b=e.target.closest('.chip'); if(!b) return;
   active=b.dataset.g; renderChips(); render(); });
 $('#q').addEventListener('input',e=>{ query=e.target.value; render(); });
-$('#main').addEventListener('click',e=>{ const b=e.target.closest('[data-open]'); if(b) openDemo(+b.dataset.open); });
+$('#main').addEventListener('click',e=>{
+  const a=e.target.closest('[data-ask]'); if(a){ showQuestion(a.closest('.card'), +a.dataset.ask); return; }
+  const b=e.target.closest('[data-open]'); if(b) openDemo(+b.dataset.open); });
+document.addEventListener('click',e=>{ if(e.target.closest('#surprise')) surprise(); });
 let rz; addEventListener('resize',()=>{ clearTimeout(rz); rz=setTimeout(()=>{ sizeHero(); setupThumbs(); },150); });
 
 /* ---------- boot ---------- */
-renderStats(); renderChips(); sizeHero(); render();
+renderStats(); renderChips(); sizeHero(); render(); renderExplore();
+loadSpecs(()=>{ render(); renderExplore(); });
 const deep=decodeURIComponent((location.hash.match(/demo=([^&]+)/)||[])[1]||'');
 if(deep){ const i=DEMOS.findIndex(d=>d.href===deep); if(i>=0) openDemo(i); }
 if(reduceMotion){ heroDraw(0); thumbs.forEach(T=>drawThumb(T,1.2)); }
