@@ -107,6 +107,7 @@ html.retro .card{background:${p.panel};border:1px solid ${p.line};border-radius:
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-family:${PIX};font-weight:400;font-size:9.5px;
   letter-spacing:.08em;line-height:1.6;color:${p.accent};text-shadow:0 0 10px ${p.accent}55}
+@media (max-width:640px){html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:${p.plain ? 12 : 10.5}px}}
 html.retro button,html.retro .btn{font-family:${BODY};background:rgba(255,255,255,.035);color:${p.ink};border:1px solid ${p.lineHi};border-radius:8px}
 /* hover glow, except on buttons that are already a bright fill (gold Start/Fire, held pads, pressed chips) */
 html.retro button:not(.go):not(.fire):not(.on):not([aria-pressed="true"]):not(.primary):hover,html.retro .btn:not(.primary):hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
@@ -409,6 +410,66 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
         set(v) { d.set.call(this, this.canvas && this.canvas.hasAttribute && this.canvas.hasAttribute('data-retro-ink') ? remap(v, fill) : v); } });
     }
   }
+
+  // ── phones and tablets (every theme, Classic included) ──────────────────────────────────────────────────────────
+  // 1. Finger-sized controls on touch screens (pointer: coarse): 40 px buttons and fields, taller sliders, bigger boxes.
+  // 2. Plotly charts: drag-to-zoom would swallow the swipe that scrolls the page, so on touch screens 2D charts start in
+  //    "no drag" mode (tap still shows values; the chart's toolbar still zooms). 3D scenes keep drag-to-rotate.
+  // 3. On narrow screens a long intro paragraph under the title folds to three lines with a "More" button, so the
+  //    activity itself is on the first screen.
+  const TOUCH = !!(root.matchMedia && root.matchMedia('(pointer: coarse)').matches);
+  const touchCss = doc.createElement('style'); touchCss.id = 'retro-touch-css';
+  touchCss.textContent = `
+@media (pointer: coarse) {
+  button, .btn, select, input[type=number], input[type=text], input[type=search], input[type=url] { min-height: 40px; }
+  .seg button, .tab, .chip { min-height: 40px; }
+  input[type=range] { min-height: 32px; }
+  input[type=checkbox], input[type=radio] { width: 20px; height: 20px; vertical-align: middle; }
+  .rt-theme { height: 36px; }
+  button { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .pad button, .ctrl button, .stagebtn { touch-action: none; }   /* hold-to-drive buttons: a slight drift must not turn into a scroll */
+  .js-plotly-plot .plotly .modebar-btn { padding: 6px 4px; }
+}
+.rt-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.rt-more { display: inline-block; margin: 0 0 10px; font: 600 13px Helvetica, Arial, sans-serif; background: none; border: 0;
+  padding: 6px 0; color: inherit; text-decoration: underline; cursor: pointer; min-height: 0; }
+.rt-more[hidden] { display: none; }`;
+  (doc.head || html).appendChild(touchCss);
+  if (TOUCH) {
+    const touchPlotly = Pl => {
+      if (!Pl || Pl.__touch) return Pl;
+      const fix = (layout, config) => {
+        const L = layout || {};
+        if (!Object.keys(L).some(k => /^scene\d*$/.test(k)) && L.dragmode == null) L.dragmode = false;
+        return [L, Object.assign({ scrollZoom: false }, config || {})];
+      };
+      const wrap = fn => function (gd, data, layout, config) {
+        if (data && !Array.isArray(data) && typeof data === 'object' && data.data) { const [L, C] = fix(data.layout, data.config); data.layout = L; data.config = C; return fn.call(this, gd, data); }
+        const [L, C] = fix(layout, config); return fn.call(this, gd, data, L, C);
+      };
+      if (Pl.newPlot) Pl.newPlot = wrap(Pl.newPlot);
+      if (Pl.react) Pl.react = wrap(Pl.react);
+      Pl.__touch = true;
+      return Pl;
+    };
+    // chain onto whatever setter retro already installed (or install one), so both wrappers apply in either order
+    const d = Object.getOwnPropertyDescriptor(root, 'Plotly');
+    if (root.Plotly) touchPlotly(root.Plotly);
+    else if (d && d.set) Object.defineProperty(root, 'Plotly', { configurable: true, enumerable: true, get: d.get, set(v) { d.set(v); touchPlotly(d.get()); } });
+    else { let pl; try { Object.defineProperty(root, 'Plotly', { configurable: true, enumerable: true, get() { return pl; }, set(v) { pl = touchPlotly(v); } }); } catch (e) { /* fine */ } }
+  }
+  function foldIntro() {
+    if (!root.matchMedia || !root.matchMedia('(max-width: 640px)').matches) return;
+    const h1 = doc.querySelector('h1'); if (!h1) return;
+    let p = h1.nextElementSibling;
+    while (p && !(p.tagName === 'P' && p.classList.contains('sub'))) { if (p.tagName !== 'P' && p.tagName !== 'SPAN') return; p = p.nextElementSibling; }
+    if (!p || p.dataset.rtFold || p.textContent.trim().length < 260) return;
+    p.dataset.rtFold = '1'; p.classList.add('rt-clamp');
+    const b = doc.createElement('button'); b.type = 'button'; b.className = 'rt-more'; b.textContent = 'More ▾'; b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', () => { const open = p.classList.toggle('rt-clamp') === false; b.textContent = open ? 'Less ▴' : 'More ▾'; b.setAttribute('aria-expanded', String(open)); });
+    p.after(b);
+  }
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', foldIntro); else foldIntro();
 
   // ── the theme switch: a button in the site bar (as in Q-Vault) that opens a menu of every theme ─────────────────
   const SW = {   // swatches for the menu: background, accent, title colour
