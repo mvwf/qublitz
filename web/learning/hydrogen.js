@@ -21,7 +21,7 @@ if (window.QL) QL.learning({
     'Drag the wavelength near a peak (or press <b>Snap to line</b>), then <b>Zoom on nearest line</b> to see its shape and width.',
     'Lower the <b>temperature</b> and the <b>laser linewidth</b> until the natural width shows; raise the <b>intensity</b> to saturate the line and watch the Bloch plot Rabi-flop.',
     'Switch the atoms to start in <b>2s</b> to drive the visible Balmer lines. The cascade plot shows which photons come back out.',
-    'In the <b>pulse lab</b>, build π, π/2 and wait sequences on the line you are tuned to, watch the Bloch vector move, and open the same sequence in the Virtual Qubit Lab.',
+    'In the <b>pulse lab</b>, fire a π pulse on the line you are tuned to and watch the atom go all the way up the Bloch sphere; then try the same pulse on a qubit in the Virtual Qubit Lab.',
     'Pick another <b>atom</b> (D, T, He⁺, Li²⁺) or a <b>mystery atom</b>, and identify it from its lines.',
   ],
   goals: [

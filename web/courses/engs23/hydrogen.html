@@ -36,7 +36,7 @@
   @media(max-width:860px){.grid2,.grid2.lab,.grid3{grid-template-columns:minmax(0,1fr)}}
   @media(max-width:600px){.eqn{font-size:16px;white-space:normal} .eqns{gap:6px 18px} body{padding:12px 12px 40px}}
   canvas{display:block;width:100%;border-radius:8px}
-  #levels{height:440px;cursor:pointer;background:var(--panel)}
+  #levels{height:480px;cursor:pointer;background:var(--panel)}
   #orbital{aspect-ratio:1;background:#000004}
   #orb3d{width:100%;aspect-ratio:1;border-radius:8px;overflow:hidden}
   .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:6px 0}
@@ -81,6 +81,8 @@
   .pchip button{border:0;background:none;padding:0 6px;font-size:13px;line-height:1}
   .btn{display:inline-block;text-decoration:none;font-size:13px;border:1px solid var(--line);border-radius:7px;padding:6px 12px}
   .btn.primary{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  .pulseBtns button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.2;padding:7px 14px;font-weight:600}
+  .pulseBtns button small{font-weight:400;font-size:11px;opacity:.8}
   .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-left:6px;color:var(--muted)}
 </style>
 </head>
@@ -111,10 +113,13 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
 <div class="grid3">
   <div class="card">
     <h2>Energy levels · click a level</h2>
+    <div class="row">
+      <span class="lbl">Arrows</span>
+      <span class="seg" id="arrowSeg"><button data-v="laser" aria-pressed="true" title="The photon the laser drives: one arrow up from where the atoms start">Laser photon</button><button data-v="decay" aria-pressed="false" title="The photons the selected level can emit as it decays">Decays of the selected level</button></span>
+      <label class="lbl"><input type="checkbox" id="zoomLevels"> zoom on n ≥ 2</label>
+    </div>
     <canvas id="levels" data-retro-ink aria-label="Energy-level diagram of hydrogen, n = 1 to 7, columns s, p, d, f"></canvas>
-    <p class="hint">Energies to scale (E<sub><i>n</i></sub> = −13.6 eV/<i>n</i><sup>2</sup>): every <i>l</i> in a shell has the
-    same energy. Arrows are the selected level's decays, labelled with the photon wavelength; colour is the real
-    colour of visible light, <span style="color:#7b4fd6">violet dashes</span> mark ultraviolet and <span style="color:#b03a2e">red dots</span> infrared.</p>
+    <p class="hint" id="levelsHint"></p>
   </div>
   <div class="card">
     <h2>State <span id="stLabel">2p, m = 0</span> · <span id="viewTitle">3D electron cloud</span></h2>
@@ -199,25 +204,28 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
 </div>
 
 <div class="card" id="pulseCard">
-  <h2>Pulse lab · Rabi flopping on the selected line</h2>
+  <h2>Pulse lab · flip the atom with a laser pulse</h2>
   <p class="hint" id="pulseIntro"></p>
-  <div class="row"><span class="lbl">Presets</span>
-    <button data-p="flop">Rabi flop (one long pulse)</button><button data-p="pi">π pulse</button>
-    <button data-p="ramsey">Ramsey: π/2 · wait · π/2</button><button data-p="echo">Echo: π/2 · π · π/2</button><button id="pClear">Clear</button></div>
-  <div class="row"><span class="lbl">Add a pulse</span>
-    <select id="pArea" style="width:auto"><option value="0.5">π/2</option><option value="1" selected>π</option><option value="2">2π</option><option value="custom">custom length</option></select>
-    <input id="pLen" type="number" value="1" min="0.001" step="0.01" style="width:90px" hidden><span class="lbl" id="pLenUnit" hidden>ns</span>
-    <span class="lbl">about</span><span class="seg" id="pPhase"><button data-v="0" aria-pressed="true">x</button><button data-v="1" aria-pressed="false">y</button><button data-v="2" aria-pressed="false">−x</button><button data-v="3" aria-pressed="false">−y</button></span>
-    <button id="pAdd">Add pulse</button>
-    <span class="lbl" style="margin-left:6px">or wait</span><input id="pWait" type="number" value="1" min="0" step="0.1" style="width:80px"><span class="lbl">ns</span><button id="pAddWait">Add wait</button></div>
-  <div class="row" id="pList"></div>
+  <div class="row pulseBtns"><span class="lbl">Fire one pulse:</span>
+    <button data-p="half">π/2 pulse<small>half way</small></button><button data-p="pi" class="primary">π pulse<small>all the way up</small></button>
+    <button data-p="two">2π pulse<small>up and back</small></button><button data-p="flop">Leave it on<small>Rabi flopping</small></button></div>
   <div class="grid2">
     <div id="pulsePlot" class="plot"></div>
     <div id="blochSphere" class="plot" aria-label="Bloch-sphere trajectory of the driven atom; drag to rotate"></div>
   </div>
   <div class="readout" id="pulseReadout"></div>
-  <div class="row"><a id="toLab" class="btn primary" href="../../qublitz/qubit-simulator.html" target="_blank" rel="noopener">Open this sequence in the Virtual Qubit Lab ↗</a></div>
-  <p class="hint" id="labMapNote"></p>
+  <div class="row"><a id="toLab" class="btn primary" href="../../qublitz/qubit-simulator.html" target="_blank" rel="noopener">Try the same pulse on a qubit in the Virtual Qubit Lab ↗</a></div>
+  <details><summary>Build a sequence (Ramsey, echo, phases, waits)</summary>
+    <div class="row"><button data-p="ramsey">Ramsey: π/2 · wait · π/2</button><button data-p="echo">Echo: π/2 · π · π/2</button><button id="pClear">Clear</button></div>
+    <div class="row"><span class="lbl">Add</span>
+      <select id="pArea" style="width:auto"><option value="0.5">π/2</option><option value="1" selected>π</option><option value="2">2π</option><option value="custom">custom length</option></select>
+      <input id="pLen" type="number" value="1" min="0.001" step="0.01" style="width:90px" hidden><span class="lbl" id="pLenUnit" hidden>ns</span>
+      <span class="lbl">about</span><span class="seg" id="pPhase"><button data-v="0" aria-pressed="true">x</button><button data-v="1" aria-pressed="false">y</button><button data-v="2" aria-pressed="false">−x</button><button data-v="3" aria-pressed="false">−y</button></span>
+      <button id="pAdd">Add pulse</button>
+      <span class="lbl" style="margin-left:6px">or wait</span><input id="pWait" type="number" value="1" min="0" step="0.1" style="width:80px"><span class="lbl">ns</span><button id="pAddWait">Add wait</button></div>
+    <div class="row" id="pList"></div>
+  </details>
+  <details><summary>How the lab link works</summary><p class="hint" id="labMapNote"></p></details>
 </div>
 
 <div class="grid2">
@@ -483,60 +491,97 @@ function refreshState() {
 
 // ───────── level diagram ─────────
 let levelHits = [];
+// One arrow is one photon and one transition. "Laser photon" draws the single absorption the laser drives (from the
+// starting state up to the line it is tuned to); "Decays" draws each photon the selected level can emit on its way
+// down. The two views are never mixed, so a transition is never drawn twice.
+let arrowMode = 'laser';
 function drawLevels() {
   const c = $('levels'), dpr = Math.min(2, window.devicePixelRatio || 1), W = Math.round(c.clientWidth * dpr), Hh = Math.round(c.clientHeight * dpr);
   c.width = W; c.height = Hh;
-  const g = c.getContext('2d'), m = { l: 46 * dpr, r: 10 * dpr, t: 22 * dpr, b: 16 * dpr };
+  const g = c.getContext('2d'), m = { l: 14 * dpr, r: 92 * dpr, t: 26 * dpr, b: 18 * dpr };
   g.fillStyle = '#f5f9f6'; g.fillRect(0, 0, W, Hh);
-  const cols = 5, cw = (W - m.l - m.r) / cols, y = E => m.t + (Hh - m.t - m.b) * (E - 0) / (H.energyEV(1) - 0);
+  const zoom = $('zoomLevels').checked, E1 = H.energyEV(1), E2 = H.energyEV(2), top = m.t, bot = Hh - m.b;
+  // true scale, or (zoom) n ≥ 2 stretched over most of the height with n = 1 below an axis break
+  const y = E => !zoom ? top + (bot - top) * E / E1
+    : E < E2 * 1.15 ? bot : top + (bot - 46 * dpr - top) * E / (E2 * 1.06);
+  const cols = 5, cw = (W - m.l - m.r) / cols;
   g.font = `${11 * dpr}px Helvetica,Arial`; g.textAlign = 'center'; g.fillStyle = '#5a6b63';
-  for (let l = 0; l < cols; l++) g.fillText(l < 4 ? H.L[l] : 'g…', m.l + cw * (l + 0.5), 13 * dpr);
-  g.textAlign = 'right';
+  for (let l = 0; l < cols; l++) g.fillText(l < 4 ? `l = ${l} (${H.L[l]})` : 'l ≥ 4', m.l + cw * (l + 0.5), 14 * dpr);
   // ionization limit
-  g.strokeStyle = '#d8e2dc'; g.setLineDash([3 * dpr, 3 * dpr]); g.beginPath(); g.moveTo(m.l, y(0)); g.lineTo(W - m.r, y(0)); g.stroke(); g.setLineDash([]);
-  g.fillText('0 eV', m.l - 6 * dpr, y(0) + 4 * dpr);
+  g.strokeStyle = '#d8e2dc'; g.lineWidth = dpr; g.setLineDash([3 * dpr, 3 * dpr]); g.beginPath(); g.moveTo(m.l, y(0)); g.lineTo(W - m.r, y(0)); g.stroke(); g.setLineDash([]);
+  g.textAlign = 'left'; g.fillStyle = '#5a6b63'; g.fillText('0 eV (ionized)', W - m.r + 6 * dpr, y(0) + 4 * dpr);
+  if (zoom) { const yb = bot - 24 * dpr; g.strokeStyle = '#5a6b63'; g.lineWidth = 1.5 * dpr; g.beginPath();
+    for (let k = 0; k <= 8; k++) g.lineTo(m.l + (W - m.r - m.l) * k / 8, yb + (k % 2 ? 4 : -4) * dpr); g.stroke();
+    g.fillText('axis break', W - m.r + 6 * dpr, yb + 4 * dpr); }
   levelHits = [];
+  let lastLabelY = -1e9;
   for (let n = 1; n <= H.NMAX; n++) {
     const yy = y(H.energyEV(n));
-    if (n <= 4) { g.fillStyle = '#5a6b63'; g.fillText(`n=${n}`, m.l - 6 * dpr, yy + 4 * dpr); }
     for (let l = 0; l < Math.min(n, cols); l++) {
-      const x0 = m.l + cw * l + cw * 0.18, x1 = m.l + cw * (l + 1) - cw * 0.18, sel = n === st.n && l === Math.min(st.l, cols - 1);
+      const x0 = m.l + cw * l + cw * 0.15, x1 = m.l + cw * (l + 1) - cw * 0.15, sel = n === st.n && l === Math.min(st.l, cols - 1);
       g.strokeStyle = sel ? '#d9a521' : '#1b2a24'; g.lineWidth = (sel ? 4 : 2) * dpr;
       g.beginPath(); g.moveTo(x0, yy); g.lineTo(x1, yy); g.stroke();
       levelHits.push({ n, l, x0, x1, y: yy });
     }
+    // energy label on the right, skipped where the levels crowd together
+    if (Math.abs(yy - lastLabelY) > 12 * dpr) { g.fillStyle = '#1b2a24'; g.font = `600 ${11 * dpr}px Helvetica,Arial`; g.textAlign = 'left';
+      g.fillText(`n=${n}`, W - m.r + 6 * dpr, yy + 4 * dpr); g.fillStyle = '#5a6b63'; g.font = `${10.5 * dpr}px Helvetica,Arial`;
+      g.fillText(`${H.energyEV(n).toFixed(2)} eV`, W - m.r + 36 * dpr, yy + 4 * dpr); lastLabelY = yy; }
   }
-  g.fillStyle = '#5a6b63'; g.textAlign = 'left'; g.fillText(`${H.energyEV(1).toFixed(1)} eV`, 4 * dpr, y(H.energyEV(1)) - 8 * dpr);
   const cx = l => m.l + cw * (Math.min(l, cols - 1) + 0.5);
-  const arrow = (x0, y0, x1, y1, color, dash, label, up) => {
-    g.save(); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 2.2 * dpr; g.setLineDash(dash.map(v => v * dpr));
+  const placed = [];   // label boxes already drawn, so new ones slide out of their way
+  const arrow = (x0, y0, x1, y1, color, dash, label, side) => {
+    g.save(); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 2.4 * dpr; g.setLineDash(dash.map(v => v * dpr));
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
-    const a = Math.atan2(y1 - y0, x1 - x0), s = 7 * dpr;
+    const a = Math.atan2(y1 - y0, x1 - x0), s = 8 * dpr;
     g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - s * Math.cos(a - 0.4), y1 - s * Math.sin(a - 0.4)); g.lineTo(x1 - s * Math.cos(a + 0.4), y1 - s * Math.sin(a + 0.4)); g.fill();
-    if (label) { g.font = `600 ${10.5 * dpr}px Helvetica,Arial`; g.textAlign = 'center';
-      const mx = (x0 + x1) / 2 + (up ? -14 : 14) * dpr, my = (y0 + y1) / 2, w = g.measureText(label).width + 6 * dpr;
-      g.fillStyle = 'rgba(245,249,246,.92)'; g.fillRect(mx - w / 2, my - 7 * dpr, w, 14 * dpr); g.fillStyle = color; g.fillText(label, mx, my + 4 * dpr); }
+    if (label) { g.font = `600 ${10.5 * dpr}px Helvetica,Arial`; const lines = label.split('\n'), w = Math.max(...lines.map(t => g.measureText(t).width)) + 8 * dpr, h = lines.length * 13 * dpr + 3 * dpr;
+      const mx = Math.min(W - m.r - w / 2, Math.max(m.l + w / 2, (x0 + x1) / 2 + side * (w / 2 + 6 * dpr)));
+      let my = (y0 + y1) / 2;
+      const clash = yy => placed.some(r => Math.abs(r.x - mx) < (r.w + w) / 2 + 2 * dpr && Math.abs(r.y - yy) < (r.h + h) / 2 + 2 * dpr);
+      for (let k = 1; k < 12 && clash(my); k++) my = (y0 + y1) / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (h + 4 * dpr);
+      my = Math.min(bot - h / 2, Math.max(top + h / 2, my)); placed.push({ x: mx, y: my, w, h });
+      g.fillStyle = 'rgba(245,249,246,.94)'; g.fillRect(mx - w / 2, my - h / 2, w, h); g.strokeStyle = color; g.lineWidth = dpr; g.strokeRect(mx - w / 2, my - h / 2, w, h);
+      g.fillStyle = color; g.textAlign = 'center'; lines.forEach((t, k) => g.fillText(t, mx, my - h / 2 + 12 * dpr + k * 13 * dpr)); }
     g.restore();
   };
-  // decays of the selected state
-  if (st.n > 1 && st.l < cols) for (const d of H.decays(st.n, st.l)) {
-    if (!d.lambda) { arrow(cx(0) + 10 * dpr, y(H.energyEV(2)), cx(0) + 10 * dpr, y(H.energyEV(1)) - 3 * dpr, '#5a6b63', [2, 3], '2γ', false); continue; }
-    const pc = H.photonColor(d.lambda), dash = pc.band === 'UV' ? [6, 4] : pc.band === 'IR' ? [2, 3] : [];
-    const col = pc.band === 'UV' ? '#7b4fd6' : pc.band === 'IR' ? '#b03a2e' : pc.css;
-    arrow(cx(st.l) + (d.l > st.l ? 6 : -6) * dpr, y(H.energyEV(st.n)) + 3 * dpr, cx(d.l), y(H.energyEV(d.n)) - 3 * dpr, col, dash, fmtNm(d.lambda).replace(' nm', ''), false);
-  }
-  // the laser, if it is on a line
-  const hit = st.mystery ? null : nearestLine();
-  if (hit && Math.abs(hit.off) < 5 * hit.resp.fwhm) {
-    const [n0, l0] = st.start;
-    arrow(cx(l0) - 14 * dpr, y(H.energyEV(n0)) - 3 * dpr, cx(hit.line.l) - 14 * dpr, y(H.energyEV(hit.line.n)) + 3 * dpr, '#c84b31', [], 'laser', true);
-  }
+  const colorOf = lam => { const pc = H.photonColor(lam); return { col: pc.band === 'UV' ? '#7b4fd6' : pc.band === 'IR' ? '#b03a2e' : pc.css, dash: pc.band === 'UV' ? [7, 4] : pc.band === 'IR' ? [2, 3] : [] }; };
+  const dE = (a, b) => Math.abs(H.energyEV(a) - H.energyEV(b));
+  let hint;
+  if (arrowMode === 'laser') {
+    const hit = st.mystery ? null : nearestLine(), [n0, l0] = st.start;
+    if (hit && Math.abs(hit.off) < 5 * hit.resp.fwhm) {
+      const L = hit.line;
+      arrow(cx(l0) + 0.18 * cw, y(H.energyEV(n0)) - 3 * dpr, cx(L.l) - 0.18 * cw, y(H.energyEV(L.n)) + 3 * dpr, '#c84b31', [],
+        `laser: ${H.label(n0, l0)} → ${H.label(L.n, L.l)}\n${fmtNm(L.lambda)} · ${dE(n0, L.n).toFixed(2)} eV`, 1);
+      hint = `<b>One arrow, one photon.</b> The laser's photon (${fmtNm(L.lambda)}) carries exactly the energy gap ${dE(n0, L.n).toFixed(3)} eV = E<sub>${L.n}</sub> − E<sub>${n0}</sub>, and lifts the atom from ${H.label(n0, l0)} to ${H.label(L.n, L.l)} (Δl = +1). Each absorption is a single photon; this page has no multiphoton transitions. Switch to <b>Decays</b> to see how ${H.label(L.n, L.l)} gets rid of that energy again.`;
+    } else {
+      hint = st.mystery ? 'The laser arrow is hidden while the atom is a mystery.' : `The laser (${fmtNm(st.lam)}) is not on any line from ${H.label(n0, l0)}, so it drives nothing. Tune it onto a line (Snap to line) to see its one photon here.`;
+    }
+  } else if (st.n > 1 && st.l < cols) {
+    const ds = H.decays(st.n, st.l), many = ds.length > 2;
+    ds.forEach((d, k) => {
+      if (!d.lambda) { arrow(cx(0) + 0.25 * cw, y(H.energyEV(2)) + 3 * dpr, cx(0) + 0.25 * cw, y(H.energyEV(1)) - 3 * dpr, '#5a6b63', [2, 3], `2 photons\n(two-photon decay)`, 1); return; }
+      const { col, dash } = colorOf(d.lambda);
+      const spread = many ? (k - (ds.length - 1) / 2) * 0.12 * cw : 0;
+      arrow(cx(st.l) + spread, y(H.energyEV(st.n)) + 3 * dpr, cx(d.l) + spread * 0.4, y(H.energyEV(d.n)) - 3 * dpr, col, dash,
+        `${fmtNm(d.lambda)} · ${dE(st.n, d.n).toFixed(2)} eV\n${(100 * d.branch).toFixed(d.branch < 0.1 ? 1 : 0)}% of decays`, d.l > st.l ? 1 : -1);
+    });
+    hint = `<b>Every way ${H.label(st.n, st.l)} can decay</b>, one arrow per photon, each labelled with its wavelength, its energy E<sub>upper</sub> − E<sub>lower</sub>, and the share of atoms that take that path. Only Δl = ±1 is allowed. Colour is the real colour of visible light; <span style="color:#7b4fd6">violet dashes</span> are ultraviolet, <span style="color:#b03a2e">red dots</span> infrared.`;
+  } else hint = st.n === 1 ? '1s is the ground state: nothing below it, so it never decays. Click another level.' : 'Click a level to see its decays.';
+  $('levelsHint').innerHTML = hint + (zoom ? '' : ' Energies are to scale (E<sub>n</sub> = −13.6 eV/n²); tick <b>zoom on n ≥ 2</b> to spread out the crowded upper levels.');
 }
+$('arrowSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; arrowMode = b.dataset.v;
+  $('arrowSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawLevels(); });
+$('zoomLevels').addEventListener('change', drawLevels);
 $('levels').addEventListener('click', e => {
   const c = $('levels'), r = c.getBoundingClientRect(), dpr = c.width / r.width, x = (e.clientX - r.left) * dpr, yy = (e.clientY - r.top) * dpr;
   let best = null, bd = 1e9;
   for (const h of levelHits) { const dx = x < h.x0 ? h.x0 - x : x > h.x1 ? x - h.x1 : 0, d = Math.hypot(dx, yy - h.y); if (d < bd) { bd = d; best = h; } }
-  if (best && bd < 18 * dpr) { st.n = best.n; st.l = best.l; st.m = Math.max(-st.l, Math.min(st.l, st.m)); refreshState(); }
+  if (best && bd < 18 * dpr) { st.n = best.n; st.l = best.l; st.m = Math.max(-st.l, Math.min(st.l, st.m));
+    if (arrowMode !== 'decay') { arrowMode = 'decay'; $('arrowSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === 'decay'))); }
+    if (st.n >= 3) $('zoomLevels').checked = true;   // decays of upper levels are easier to read with them spread out
+    refreshState(); }
 });
 
 // ───────── spectroscopy ─────────
@@ -703,6 +748,8 @@ const PH = ['x', 'y', '−x', '−y'];
 const PRESETS = {
   flop: () => [{ kind: 'pulse', area: 6, phase: 0 }],
   pi: () => [{ kind: 'pulse', area: 1, phase: 0 }],
+  half: () => [{ kind: 'pulse', area: 0.5, phase: 0 }],
+  two: () => [{ kind: 'pulse', area: 2, phase: 0 }],
   ramsey: Om => [{ kind: 'pulse', area: 0.5, phase: 0 }, { kind: 'wait', t: 4 * Math.PI / Om }, { kind: 'pulse', area: 0.5, phase: 0 }],
   echo: Om => [{ kind: 'pulse', area: 0.5, phase: 0 }, { kind: 'wait', t: 2 * Math.PI / Om }, { kind: 'pulse', area: 1, phase: 1 }, { kind: 'wait', t: 2 * Math.PI / Om }, { kind: 'pulse', area: 0.5, phase: 0 }],
 };
@@ -718,13 +765,13 @@ function pulseTimeline(Om) {      // → [{t0, dur, Om, phase}] in seconds, and 
 const drawPulses = lab(function () {
   const hit = nearestLine(); if (!hit) return;
   const { line } = hit, Om = H.rabi(st.start[0], st.start[1], line.n, line.l, intensity()), Delta = 2 * Math.PI * hit.off, G = line.Gamma;
-  if (!st.seq.length) { if (st.seqCleared) return drawPulsesEmpty(); st.seq = PRESETS.flop(Om); }
+  if (!st.seq.length) { if (st.seqCleared) return drawPulsesEmpty(); st.seq = PRESETS.pi(Om); }
   const { pulses, total } = pulseTimeline(Om), tEnd = Math.max(total * 1.25, total + 0.5 / G * Math.min(1, Om / G));
   if (H.farOff(Om, Delta, G, tEnd)) { Plotly.purge('pulsePlot'); Plotly.purge('blochSphere'); $('pulseReadout').innerHTML = ''; $('pulseIntro').innerHTML = `The laser is ${fmtHz(Math.abs(hit.off))} from the nearest line: pulses this far off resonance do nothing. Tune onto a line (Snap to line) first.`; $('labMapNote').textContent = ''; return; }
   const sim = H.blochPulses(pulses, Delta, G, tEnd, 500);
   const who = st.mystery ? 'the mystery atom' : `${H.atom().sym} ${H.label(...st.start)} → ${H.label(line.n, line.l)}`;
-  $('pulseIntro').innerHTML = `Driving ${who} with the laser above: Ω/2π = ${fmtHz(Om / 2 / Math.PI)} (set by the intensity), π pulse ${fmtTime(Math.PI / Om)},
-    decay Γ/2π = ${fmtHz(G / 2 / Math.PI)}, detuning ${fmtHz(Math.abs(hit.off))}. ${Om < 3 * G ? '<b>Ω is not much bigger than Γ, so the atom decays before it can flop: raise the intensity.</b>' : 'Ω ≫ Γ: clean Rabi flops.'}`;
+  $('pulseIntro').innerHTML = `A short burst of the laser above rotates ${who} from the ground state (bottom of the sphere) toward the excited state (top).
+    The pulse length sets how far: a <b>π pulse</b> goes all the way. ${Om < 3 * G ? '<b>Right now the laser is too weak: the atom decays before it gets there. Raise the intensity.</b>' : ''}`;
   $('pList').innerHTML = st.seq.map((it, i) => `<span class="pchip">${it.kind === 'wait' ? `wait ${fmtTime(it.t)}` : `${it.len != null ? fmtTime(it.len) : (it.area === 0.5 ? 'π/2' : it.area === 1 ? 'π' : it.area + 'π')} about ${PH[it.phase]}`}<button data-i="${i}" aria-label="Remove">×</button></span>`).join('') || '<span class="lbl">No pulses yet</span>';
   $('pList').querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { st.seq.splice(+b.dataset.i, 1); drawPulses(); }));
   const ns = t => t * 1e9;
@@ -749,7 +796,7 @@ const drawPulses = lab(function () {
       zaxis: { range: [-1.1, 1.1], title: { text: 'w' }, showticklabels: false } },
   }, CONFIG);
   const end = sim.rho[sim.rho.length - 1], endPulse = sim.rho[Math.min(sim.rho.length - 1, Math.round((total / tEnd) * (sim.rho.length - 1)))];
-  $('pulseReadout').innerHTML = [['Sequence length', fmtTime(total)], ['Excited right after the last pulse', endPulse.toFixed(3)], ['Ω / Γ', (Om / G).toPrecision(3)], ['Excited at the end of the plot', end.toFixed(3)]]
+  $('pulseReadout').innerHTML = [['A π pulse takes', fmtTime(Math.PI / Om)], ['Atoms excited after the pulse', `${Math.round(100 * endPulse)}%`], ['Lifetime of the excited state', fmtTime(1 / G)]]
     .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   if (endPulse > 0.9 && st.seq.some(it => it.kind === 'pulse')) { checks.pulse = true; updateChecks(); }
   labLinkFor(Om, Delta, G, line.tau, pulses, total);
