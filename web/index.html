@@ -724,7 +724,7 @@ function cardHTML(d,i){
       <div class="tags">${(d.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
       <div class="actions">
         ${local
-          ? `<button class="btn primary" data-open="${i}">Try it ▸</button>${teaserFor(d) ? `<button class="btn ask" data-ask="${i}" title="A one-question taste of this activity">Question ?</button>` : ''}<a class="btn" href="${d.href}" target="_blank" rel="noopener" title="Open in a new tab" aria-label="Open ${esc(d.title)} in a new tab">↗</a>`
+          ? `<button class="btn primary" data-open="${i}">Try it ▸</button>${teaserFor(d) ? `<button class="btn ask" data-ask="${i}" title="A one-question taste of this activity">Question?</button>` : ''}<a class="btn" href="${d.href}" target="_blank" rel="noopener" title="Open in a new tab" aria-label="Open ${esc(d.title)} in a new tab">↗</a>`
           : `<a class="btn primary" href="${d.href}" target="_blank" rel="noopener">Launch app ↗</a>`}
         ${d.repo?`<a class="btn" href="${d.repo}" target="_blank" rel="noopener">Code</a>`:''}
       </div>

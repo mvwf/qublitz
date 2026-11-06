@@ -775,11 +775,27 @@ const drawPulses = lab(function () {
   $('pList').innerHTML = st.seq.map((it, i) => `<span class="pchip">${it.kind === 'wait' ? `wait ${fmtTime(it.t)}` : `${it.len != null ? fmtTime(it.len) : (it.area === 0.5 ? 'π/2' : it.area === 1 ? 'π' : it.area + 'π')} about ${PH[it.phase]}`}<button data-i="${i}" aria-label="Remove">×</button></span>`).join('') || '<span class="lbl">No pulses yet</span>';
   $('pList').querySelectorAll('[data-i]').forEach(b => b.addEventListener('click', () => { st.seq.splice(+b.dataset.i, 1); drawPulses(); }));
   const ns = t => t * 1e9;
-  Plotly.react('pulsePlot', [{ x: sim.t.map(ns), y: sim.rho, mode: 'lines', line: { color: ACC, width: 2.2 }, hovertemplate: 't = %{x:.4f} ns<br>excited %{y:.3f}<extra></extra>' }], {
-    margin: { t: 10, r: 10, b: 44, l: 55 }, showlegend: false,
-    xaxis: { title: { text: 'Time (ns)' } }, yaxis: { title: { text: 'Excited population ρ_ee' }, range: [-0.02, 1.02] },
-    shapes: pulses.map(p => ({ type: 'rect', x0: ns(p.t0), x1: ns(p.t0 + p.dur), yref: 'paper', y0: 0, y1: 1, layer: 'below',
-      fillcolor: ['rgba(245,183,60,.16)', 'rgba(95,180,255,.18)', 'rgba(255,77,157,.14)', 'rgba(169,139,255,.16)'][p.item.phase], line: { width: 0 } })),
+  // Two stacked panels on one time axis: the laser (a square pulse for each burst, labelled with its area and axis)
+  // above, and the excited population below, with the pulses shaded through both.
+  const PCOL = DK ? ['#f5b73c', '#5fb4ff', '#ff4d9d', '#a98bff'] : ['#b8860b', '#2d6fb3', '#c4307e', '#7b4fd6'];
+  // the laser strip: a baseline, then one filled bar per pulse in that pulse's colour
+  const laser = [{ x: [0, ns(tEnd)], y: [0, 0], xaxis: 'x', yaxis: 'y2', mode: 'lines', line: { color: PCOL[0], width: 2 }, hoverinfo: 'skip' },
+    ...pulses.map(q => ({ x: [ns(q.t0), ns(q.t0), ns(q.t0 + q.dur), ns(q.t0 + q.dur)], y: [0, 1, 1, 0], xaxis: 'x', yaxis: 'y2', mode: 'lines',
+      line: { color: PCOL[q.item.phase], width: 2.5 }, fill: 'toself', fillcolor: PCOL[q.item.phase] + (DK ? '66' : '44'), hoverinfo: 'skip' }))];
+  const areaTxt = it => it.len != null ? fmtTime(it.len) : it.area === 0.5 ? 'π/2' : it.area === 1 ? 'π' : it.area + 'π';
+  Plotly.react('pulsePlot', [
+    ...laser,
+    { x: sim.t.map(ns), y: sim.rho, xaxis: 'x', yaxis: 'y', mode: 'lines', line: { color: ACC, width: 2.6 }, hovertemplate: 't = %{x:.4f} ns<br>excited %{y:.3f}<extra></extra>' }], {
+    margin: { t: 10, r: 10, b: 44, l: 60 }, showlegend: false,
+    xaxis: { title: { text: 'Time (ns)' }, anchor: 'y' },
+    yaxis: { domain: [0, 0.72], title: { text: 'Atoms excited' }, range: [-0.02, 1.04], tickformat: '.0%' },
+    yaxis2: { domain: [0.78, 1], range: [0, 1.9], showticklabels: false, showgrid: false, zeroline: false, title: { text: 'Laser', standoff: 6 } },
+    shapes: pulses.flatMap(q => [
+      { type: 'rect', xref: 'x', yref: 'paper', x0: ns(q.t0), x1: ns(q.t0 + q.dur), y0: 0, y1: 0.72, layer: 'below',
+        fillcolor: PCOL[q.item.phase] + (DK ? '33' : '2a'), line: { width: 0 } },
+      ...[q.t0, q.t0 + q.dur].map(t => ({ type: 'line', xref: 'x', yref: 'paper', x0: ns(t), x1: ns(t), y0: 0, y1: 1, line: { color: PCOL[q.item.phase], width: 1.2, dash: 'dot' } }))]),
+    annotations: pulses.map(q => ({ x: ns(q.t0 + q.dur / 2), y: 1.35, yanchor: 'bottom', xref: 'x', yref: 'y2', showarrow: false,
+      text: `<b>${areaTxt(q.item)}</b>${q.item.phase ? ' about ' + PH[q.item.phase] : ''}`, font: { size: 13, color: PCOL[q.item.phase] } })),
   }, CONFIG);
   // Bloch sphere: a wireframe, the trajectory, and the start and end points. Up is the excited state.
   const ring = (f) => { const a = [], b = [], c = []; for (let k = 0; k <= 72; k++) { const [x, y, z] = f(2 * Math.PI * k / 72); a.push(x); b.push(y); c.push(z); } return { x: a, y: b, z: c }; };
