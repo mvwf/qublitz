@@ -203,6 +203,7 @@
           <li><a href="qublitz/beamline.html">Beamline</a>: a laser puzzle about pulse area and phase.</li>
           <li><a href="qublitz/arena.html">QuBlitz Arena</a>: a two-player duel where you measure at the right moment.</li>
           <li><a id="hubLab" href="qublitz/qubit-simulator.html">Virtual Qubit Lab</a>: finish by running your own pulse sequences on a simulated qubit.</li>
+          <li><a href="qublitz/errorsweeper.html">ErrorSweeper</a>: then protect qubits from errors you cannot see, the way quantum error correction does.</li>
         </ol></div>
       <div><h3>Waves and sound: ENGS 23</h3>
         <ol>
@@ -280,6 +281,11 @@ const DEMOS = [
     eq:'<i>&theta;</i> = &int;&Omega; d<i>t</i>, &nbsp; <i>n</i> = (cos <i>&phi;</i>, sin <i>&phi;</i>, 0)',
     desc:'A laser puzzle about pulses. Route a resonant drive with mirrors, change its axis with phase plates and its angle with attenuators, and bring every qubit to its target: flips, superpositions, a 2π return and turns that do not commute. Twelve levels with stars, hints and a sandbox.',
     tags:['quantum','Bloch sphere','pulses','puzzle','game'] },
+  { group:'labs', title:'ErrorSweeper', thumb:'sweeper',
+    href:'qublitz/errorsweeper.html',
+    eq:'<i>S</i>&thinsp;|&psi;&#10217; = +|&psi;&#10217;, &ensp; <i>s</i> = <i>H</i><i>e</i> mod 2',
+    desc:'Quantum error correction as a deduction game. Read the check lamps, find errors you cannot see, and fix them without crossing the code: surface, toric, Steane and Shor codes, a code lab to design your own, and a live threshold experiment.',
+    tags:['error correction','surface code','game'] },
   { group:'labs', title:'QuBlitz Arena', thumb:'arena',
     href:'qublitz/arena.html', repo:'https://github.com/mvwf/qublitz',
     eq:'<i>P</i>(hit) = |&lang;1|<i>&psi;</i>&rang;|<sup>2</sup>',
@@ -649,6 +655,16 @@ const THUMBS = {
     if(ph>0.5){ const yy=Y(up)+(Y(1)-Y(up))*(ph-0.5)*2; g.strokeStyle=(window.RETRO&&window.RETRO.palette)?'#b48cff':'#7b4fd6'; g.lineWidth=1.6; g.beginPath();
       for(let s=0;s<=20;s++){ const y=Y(up)+(yy-Y(up))*s/20; g.lineTo(xp+4*Math.sin(s*1.6),y); } g.stroke(); }
     g.fillStyle=C.muted; g.font='10px Helvetica,Arial'; g.fillText('n=1',lx1-22,Y(1)-4);
+  },
+  sweeper(g,w,h,t){
+    // a d = 3 surface-code patch: an error appears, its two Z lamps light, the fix turns them off
+    const n=3, s=Math.min((w-20)/(n+0.4),(h-16)/(n+0.2)), x0=(w-s*(n-1))/2, y0=(h-s*(n-1))/2, P=(i,j)=>[x0+i*s,y0+j*s];
+    for(let j=0;j<n-1;j++) for(let i=0;i<n-1;i++){ const [a,b]=P(i,j); g.fillStyle=(i+j)%2?'rgba(95,180,255,.18)':'rgba(245,183,60,.18)'; g.fillRect(a,b,s,s); }
+    const ph=(t%4)/4, err=ph>0.2&&ph<0.8, fixed=ph>=0.6;
+    const lampsOn=err&&!fixed;
+    [[0,1],[1,0]].forEach(([i,j])=>{ const [a,b]=P(i+0.5,j+0.5); g.fillStyle=lampsOn?'#5fb4ff':'rgba(200,210,235,.25)'; if(lampsOn){g.shadowColor='#5fb4ff';g.shadowBlur=10;} g.beginPath(); g.arc(a,b,s*0.12,0,7); g.fill(); g.shadowBlur=0; });
+    for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const [a,b]=P(i,j), r=s*0.18; g.fillStyle='#1a2440'; g.strokeStyle='rgba(160,190,230,.5)'; g.lineWidth=1.2; g.fillRect(a-r,b-r,2*r,2*r); g.strokeRect(a-r,b-r,2*r,2*r);
+      if(i===1&&j===1&&err){ g.fillStyle=fixed?'#2fe0d0':'#ff5a72'; g.font='bold '+Math.round(s*0.22)+'px Helvetica,Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(fixed?'X':'⚡',a,b+1); } }
   },
   sonify(g,w,h,t){
     // a grayscale strip; the highlighted row plays out as an amplitude-modulated tone

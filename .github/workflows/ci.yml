@@ -78,6 +78,11 @@ jobs:
       - name: Hydrogen Atom engine test
         run: node web/courses/engs23/tests/hydrogen-engine.test.js
 
+      # ErrorSweeper: [[n,k,d]] of every built-in code, syndromes, decoders correct all errors up to (d−1)/2,
+      # logical detection, threshold behaviour, and code-lab validation.
+      - name: ErrorSweeper engine test
+        run: node web/qublitz/tests/qec-engine.test.js
+
       # Qubit Copter: on-resonance rotations, the steering rule, and that every target can be reached in time.
       - name: Qubit Copter engine test
         run: node web/qublitz/tests/copter-engine.test.js
