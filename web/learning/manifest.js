@@ -11,6 +11,7 @@
     { id: 'copter',      title: 'Qubit Copter',                   path: 'qublitz/qubit-copter.html',                group: 'Virtual Qubit Labs' },
     { id: 'rider',       title: 'Rabi Rider',                     path: 'qublitz/rabi-rider.html',                  group: 'Virtual Qubit Labs' },
     { id: 'beamline',    title: 'Beamline',                       path: 'qublitz/beamline.html',                    group: 'Virtual Qubit Labs' },
+    { id: 'errorsweeper', title: 'ErrorSweeper',                 path: 'qublitz/errorsweeper.html',                group: 'Virtual Qubit Labs' },
     { id: 'arena',       title: 'QuBlitz Arena (Photon Duel)',    path: 'qublitz/arena.html',                       group: 'Virtual Qubit Labs' },
     { id: 'fridge',      title: 'Fridge Noise Explorer',          path: 'qublitz/fridge-noise.html',                group: 'Research' },
     { id: 'resonator',   title: 'Resonator Lab',                  path: 'qublitz/resonator.html',                   group: 'Research' },
