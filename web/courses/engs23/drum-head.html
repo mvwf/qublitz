@@ -1065,6 +1065,33 @@ if (window.QUBLITZ_STANDALONE) {
   srcUI();
   { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
   setPlaying(playing);
+  /* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ----------
+     Each check reads the page's own state (drum-engine.js). Nodal circle of (2,0): r = j01/j02 a = 2.4048/5.5201 a = 0.436 a.
+     A centre strike projects only onto n = 0 (100 % at r = 0, 89 % at r = 0.04 a with the 0.08 a mallet); at r ≥ 0.8 a
+     the n = 0 row keeps about 7 %. Drum partials 1, 1.593, 2.136, 2.295 … ν10 are Bessel-zero ratios, not integers. */
+  const chSel=(...want)=> src==='modes' && sel.length===want.length && want.every(([m,n],i)=>sel[i][0]===m&&sel[i][1]===n);
+  const chN0=()=>{ if(src!=='strike'||!strikeAt) return 0; const sh=energyShares(); let s=0; modes.forEach((md,i)=>{ if(md.n===0) s+=sh[i]; }); return s; };
+  let chHeardDrum=false, chHeardHarm=false;
+  $('listenDrum').addEventListener('click',()=>{ if(src==='strike') chHeardDrum=true; });
+  $('listen').addEventListener('click',()=>{ if(src==='strike') chHeardDrum=true; });
+  $('listenString').addEventListener('click',()=>{ if(src==='strike') chHeardHarm=true; });
+  if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
+    { id:'fundamental', text:'Press <b>Clear</b>, then click the <b>(1,0)</b> tile to watch the fundamental on its own.',
+      hint:'(1,0) is the top-left tile: no nodal lines inside the rim, so the whole head goes up and down together.',
+      check:()=> chSel([1,0]) },
+    { id:'nodal-circle', text:'Show only <b>(2,0)</b> and tick <b>sand</b>. Where does the sand collect?',
+      hint:'Sand gathers where the head never moves. J<sub>0</sub>(k<sub>20</sub>r/a) = 0 at r = 2.4048/5.5201 a ≈ 0.44 a, a circle inside the rim.',
+      check:()=> chSel([2,0]) && sand },
+    { id:'centre', text:'Switch to <b>Mallet strike</b> and hit the dead <b>centre</b>, so that ≥ 85 % of the energy lands in the top row (n = 0).',
+      hint:'A centre blow is the same at every angle, so it cannot excite modes with nodal diameters (n ≥ 1). Use View → top to aim; within about 0.04 a of the centre works.',
+      check:()=> chN0()>=0.85 },
+    { id:'rim', text:'Now strike <b>near the rim</b> (r ≥ 0.8 a): watch the energy spread into the n ≥ 1 tiles.',
+      hint:'Off centre, the blow has a cos nθ part for every n, so modes with nodal diameters ring too. Near the rim the n = 0 row keeps only about 7 %.',
+      check:()=> src==='strike' && strikeAt && strikeAt.rho>=0.8 && chN0()<0.15 },
+    { id:'inharmonic', text:'After a strike, press <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b>. Which one has a clear pitch?',
+      hint:'The drum rings at 1, 1.59, 2.14, 2.30, … ν<sub>10</sub>: Bessel-zero ratios, not whole numbers, so it sounds like a thud. Re-tuned to 1, 2, 3, … it sounds like a pitched note.',
+      check:()=> chHeardDrum && chHeardHarm },
+  ]);
   if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry($('intro'), startGuided);
   window.__drum={modes,D,state:()=>({src,sel,clock,zMax,strikeAt})};
   console.log('[drum-head] ready. modes='+modes.length);

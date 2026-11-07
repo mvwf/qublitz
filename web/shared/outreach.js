@@ -42,10 +42,19 @@
  *   QL.addItems([item, ...])    add question items at runtime (e.g. a guided step's prediction), same shape as
  *                               spec.quiz entries; duplicates by id are ignored
  *   QL.answered(itemId)         true once that item has been answered in this page load
- *   QL.showQuiz()               open the debrief: any unanswered items, two ratings and two free-text boxes
+ *   QL.showQuiz()               open the debrief: a few unanswered items and two 1-5 ratings (no free text)
  *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
  *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
  *   QL.toLab(anchor, query)     the same, set on a link, counting the click as a to_lab event
+ *   QL.challenges(list, opts)   live goals for an explore page: a small tracker ("Challenges 1/3") that ticks each
+ *                               one off from the page's own state. list = [{ id, text, hint?, check?() }], where
+ *                               check() returns true once done (polled ~3×/s, errors count as not done; omit it and
+ *                               call QL.challengeDone(id) instead). Done ones are remembered in this browser only.
+ *                               The current one sends level_start and each completion a level_complete, both
+ *                               with level 'c:<id>' (value = how many are done), so the dashboard's level table shows how far people get. The hint
+ *                               appears after opts.hintAfter seconds (default 40) on the current challenge.
+ *                               opts: { title, hintAfter, done(message) } — the final one offers the debrief.
+ *   QL.challengeDone(id)        mark a challenge done from page code (for things a check() cannot see, e.g. a sound played)
  *   QL.submitDesign(rec)       send an ErrorSweeper code design to the frontier board: rec = { mission, family
  *                               ('lattice'|'bb'), n, k, d, dExact, score, spec }; numbers and a layout string only.
  *                               Returns true if sent (never from test hosts, opted-out or offline copies)
@@ -289,7 +298,22 @@
 .ql-offer{position:fixed;right:16px;bottom:16px;z-index:99998;background:#fff;color:#1b2a24;border:1px solid #00693e;border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.2);font:14px Helvetica,Arial,sans-serif;max-width:320px}
 .ql-offer .ql-row{margin-top:8px}
 .ql-privacy{font:12px/1.5 Helvetica,Arial,sans-serif;color:#5a6b63;text-align:center;margin:24px 12px 10px}
-.ql-privacy button{font:inherit;color:#00693e;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}`;
+.ql-privacy button{font:inherit;color:#00693e;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.ql-ch{position:fixed;left:14px;bottom:14px;z-index:99990;max-width:min(340px,calc(100vw - 28px));background:#fff;color:#1b2a24;border:1px solid #00693e;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.18);font:13.5px/1.45 Helvetica,"Helvetica Neue",Arial,sans-serif}
+.ql-ch>button.ql-ch-head{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;width:100%;padding:8px 12px;cursor:pointer;font-weight:700;color:#00693e}
+.ql-ch>button.ql-ch-head:focus-visible{outline:3px solid #ffd166;outline-offset:2px;border-radius:9px}
+.ql-ch-bar{flex:1;height:6px;border-radius:3px;background:#e3ebe6;overflow:hidden;min-width:40px}.ql-ch-bar i{display:block;height:100%;background:#00693e;transition:width .4s}
+.ql-ch ol{list-style:none;margin:0;padding:0 12px 6px}.ql-ch li{display:flex;gap:8px;padding:4px 0;border-top:1px solid #eef3f0}
+.ql-ch li .ql-ck{flex:0 0 18px;height:18px;border-radius:50%;border:2px solid #9fb3a9;box-sizing:border-box;margin-top:1px;text-align:center;font:700 11px/14px Helvetica,Arial,sans-serif;color:#fff}
+.ql-ch li.done .ql-ck{background:#00693e;border-color:#00693e}.ql-ch li.done .ql-ct{color:#5a6b63;text-decoration:line-through;text-decoration-color:#9fb3a9}
+.ql-ch li.now .ql-ct{font-weight:600}.ql-ch li.later{opacity:.75}
+.ql-ch .ql-hint{margin:3px 0 0;padding:4px 8px;border-radius:6px;background:#fff6d6;font-size:12.5px;font-weight:400;text-decoration:none}
+.ql-ch .ql-ch-foot{display:flex;justify-content:space-between;gap:8px;padding:2px 12px 8px;font-size:12px;color:#5a6b63}
+.ql-ch .ql-ch-foot button{font:inherit;color:#00693e;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.ql-ch.ql-min ol,.ql-ch.ql-min .ql-ch-foot{display:none}
+.ql-ch:not(.ql-all) li.done,.ql-ch:not(.ql-all) li.later{display:none}.ql-ch:not(.ql-all) li.now{border-top:0}
+.ql-ch.ql-pop{animation:qlpop .6s}@keyframes qlpop{0%{transform:scale(1)}30%{transform:scale(1.06)}100%{transform:scale(1)}}
+@media print{.ql-ch{display:none}}`;
   doc.head.appendChild(css);
 
   const el = (tag, attrs, ...kids) => {
@@ -463,6 +487,90 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
+  // ── Challenges: live goals that tick off from the page's own state ───────────────────────────────────
+  let chList = [], chBox = null, chDone = new Set(), chEarly = new Set(), chTimer = 0, chOpts = {}, chSince = 0, chCur = null, chStarted = new Set();
+  const chKey = () => `ql_ch:${game || 'page'}`;
+  function challenges(list, opts) {
+    chList = (list || []).filter(c => c && ID.test(c.id || '') && c.text);
+    chOpts = opts || {};
+    try { const a = JSON.parse(store.get(chKey()) || '[]'); chDone = new Set(Array.isArray(a) ? a.filter(id => chList.some(c => c.id === id)) : []); } catch (e) { chDone = new Set(); }
+    const mount = () => { if (chBox) chBox.remove(); chBox = el('aside', { class: 'ql-ch', 'aria-label': 'Challenges' }); doc.body.append(chBox);
+      // Phones start folded so the tracker never covers the page; first-time desktop visitors see the list.
+      const touch = root.matchMedia && root.matchMedia('(max-width: 640px)').matches;
+      if (touch || store.get(chKey() + ':min') === '1') chBox.classList.add('ql-min');
+      chDraw(); clearInterval(chTimer); chTimer = setInterval(chPoll, 320); };
+    if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', mount); else mount();
+    return { done: challengeDone, reset: chReset };
+  }
+  function chNext() { return chList.find(c => !chDone.has(c.id)) || null; }
+  function chDraw() {
+    if (!chBox) return;
+    const n = chDone.size, N = chList.length, cur = chNext();
+    if (!cur || !chCur || cur.id !== chCur.id) {
+      chCur = cur; chSince = performance.now();
+      // One start per challenge per page load, so the dashboard's level table reads as a funnel and the quit map
+      // shows which challenge people stop on.
+      if (cur && !chStarted.has(cur.id)) { chStarted.add(cur.id); event('level_start', { level: 'c:' + cur.id, value: chDone.size }); }
+    }
+    const hintAfter = (chOpts.hintAfter != null ? chOpts.hintAfter : 40) * 1000;
+    const showHint = cur && cur.hint && performance.now() - chSince > hintAfter;
+    const min = chBox.classList.contains('ql-min');
+    const head = el('button', { class: 'ql-ch-head', type: 'button', 'aria-expanded': String(!min), onclick: () => {
+      chBox.classList.toggle('ql-min'); store.set(chKey() + ':min', chBox.classList.contains('ql-min') ? '1' : '0'); chDraw(); } },
+      el('span', {}, (n === N ? '🏆 ' : '🎯 ') + (chOpts.title || 'Challenges')),
+      el('span', { class: 'ql-ch-bar', 'aria-hidden': 'true' }, el('i', { style: `width:${N ? 100 * n / N : 0}%` })),
+      el('span', {}, `${n}/${N}`), el('span', { 'aria-hidden': 'true' }, min ? '▴' : '▾'));
+    const ol = el('ol');
+    chList.forEach(c => {
+      const done = chDone.has(c.id), now = cur && c.id === cur.id;
+      ol.append(el('li', { class: done ? 'done' : now ? 'now' : 'later' },
+        el('span', { class: 'ql-ck', 'aria-hidden': 'true' }, done ? '✓' : ''),
+        el('span', { class: 'ql-ct' }, el('span', { html: c.text }), done ? el('span', { class: 'ql-sr', style: 'position:absolute;left:-9999px' }, ' (done)') : null,
+          now && showHint ? el('div', { class: 'ql-hint', html: '💡 ' + c.hint }) : null)));
+    });
+    if (n === N) chBox.classList.add('ql-all');
+    const all = chBox.classList.contains('ql-all');
+    const foot = el('div', { class: 'ql-ch-foot' },
+      n === N ? el('span', {}, 'All done. Nice work!')
+        : el('button', { type: 'button', 'aria-expanded': String(all), onclick: () => { chBox.classList.toggle('ql-all'); chDraw(); } }, all ? 'Show just the next one' : `See all ${N}`),
+      n ? el('button', { type: 'button', onclick: chReset }, 'Start over') : el('span', {}, 'Ticks off as you explore'));
+    chBox.replaceChildren(head, ol, foot);
+    chBox._sig = `${n}|${cur && cur.id}|${showHint}|${min}`;
+  }
+  function chPoll() {
+    if (!chBox || !chBox.isConnected) return;
+    let changed = false;
+    for (const c of chList) {
+      if (chDone.has(c.id) || (typeof c.check !== 'function' && !chEarly.has(c.id))) continue;
+      let ok = chEarly.has(c.id); if (!ok) try { ok = c.check() === true; } catch (e) { ok = false; }
+      // In order only: a later challenge can be met by accident, but it ticks once the earlier ones are done.
+      if (ok && c === chNext()) { chMark(c.id); changed = true; } else if (ok) chEarly.add(c.id);
+    }
+    const cur = chNext(), hintAfter = (chOpts.hintAfter != null ? chOpts.hintAfter : 40) * 1000;
+    const sig = `${chDone.size}|${cur && cur.id}|${!!(cur && cur.hint && performance.now() - chSince > hintAfter)}|${chBox.classList.contains('ql-min')}`;
+    if (changed || sig !== chBox._sig) chDraw();
+  }
+  function chMark(id) {
+    if (chDone.has(id) || !chList.some(c => c.id === id)) return false;
+    chDone.add(id); store.set(chKey(), JSON.stringify([...chDone]));
+    event('level_complete', { level: 'c:' + id, value: chDone.size });
+    if (chBox) { chBox.classList.remove('ql-pop'); void chBox.offsetWidth; chBox.classList.add('ql-pop'); }
+    if (chDone.size === chList.length) {
+      event('win', { level: 'challenges', value: chDone.size });
+      if (typeof chOpts.done === 'function') chOpts.done(); else setTimeout(() => offerQuiz('🏆 All challenges done! A 1-minute debrief checks what stuck and helps us improve this page.'), 900);
+    }
+    return true;
+  }
+  function challengeDone(id) {
+    const c = chNext();
+    if (!c) return false;
+    if (c.id === id) { const r = chMark(id); chDraw(); return r; }
+    // Done out of order: remember it, and tick it when its turn comes.
+    if (chList.some(x => x.id === id)) chEarly.add(id);
+    return false;
+  }
+  function chReset() { chDone = new Set(); store.set(chKey(), '[]'); chEarly = new Set(); if (chBox) chBox.classList.remove('ql-all'); chDraw(); }
+
   // ── The frontier board (ErrorSweeper's code designs) ─────────────────────────────────────────────────────
   // submitDesign sends a design (blocked on test hosts, opt-out, DNT and offline like everything else);
   // frontier reads the shared board, which sends nothing, so it works on test hosts too.
@@ -477,7 +585,7 @@
       .then(j => (j && Array.isArray(j.designs) ? j.designs : [])).catch(() => []);
   }
 
-  root.QL = { submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { challenges, challengeDone, submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 

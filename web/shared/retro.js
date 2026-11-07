@@ -165,6 +165,11 @@ html.retro .ql-q .ql-why.ok{background:${p.green}1f} html.retro .ql-q .ql-why.no
 html.retro .ql-rate button{background:transparent;color:${p.ink};border-color:${p.lineHi};font-family:${BODY}}
 html.retro .ql-rate button[aria-pressed="true"]{background:${p.accent};color:${p.onAccent};border-color:${p.accent}}
 html.retro .ql-privacy{color:${p.dim};font-family:${BODY}} html.retro .ql-privacy button{color:${p.accent}}
+html.retro .ql-ch{background:${p.bg2};color:${p.ink};border-color:${p.accent};font-family:${BODY};box-shadow:0 0 22px ${p.accent}22,0 10px 30px rgba(0,0,0,.5)}
+html.retro .ql-ch>button.ql-ch-head{color:${p.gold}} html.retro .ql-ch-bar{background:${p.line}} html.retro .ql-ch-bar i{background:${p.accent}}
+html.retro .ql-ch li{border-color:${p.line}} html.retro .ql-ch li .ql-ck{border-color:${p.dim};color:${p.onAccent}}
+html.retro .ql-ch li.done .ql-ck{background:${p.green};border-color:${p.green}} html.retro .ql-ch li.done .ql-ct{color:${p.dim}}
+html.retro .ql-ch .ql-hint{background:${p.gold}22;color:${p.ink}} html.retro .ql-ch .ql-ch-foot{color:${p.dim}} html.retro .ql-ch .ql-ch-foot button{color:${p.accent}}
 /* PageKit guided tours */
 html.retro .gd-panel{background:${p.panel};border-color:${p.accent};box-shadow:0 0 22px ${p.accent}22}
 html.retro .gd-head b{font-family:${PIX};font-weight:400;font-size:9.5px;color:${p.accent}}

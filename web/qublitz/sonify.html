@@ -319,6 +319,50 @@ $('#player').addEventListener('play', () => {
   qlHeard.add($('#caption').textContent.slice(0, 40) + '|' + row);
   if (qlHeard.size >= 4) QLK.offerQuiz('You have heard ' + qlHeard.size + ' rows. A 1-minute debrief: a few questions and what you thought.');
 });
+/* ---------- challenges: the goals as a live checklist (QL.challenges, web/shared/outreach.js) ---------- */
+// The sound is e(t)·cos(2πft) (sonify-engine.js). Its spectrum is the envelope's spectrum shifted to ±f: the row's
+// mean brightness becomes the carrier peak, its variations become side peaks. By Parseval, the share of power in
+// the side peaks is var(e)/⟨e²⟩; the gravitational-wave images have rows under 10 %, the limit cycle rows over 40 %.
+const chIds = new WeakMap(); let chN = 0; const chImg = m => { if (!chIds.has(m)) chIds.set(m, ++chN); return chIds.get(m); };
+const ch = { heard: [], flipped: false, img: null, autoRow: null, narrow: false, wide: false };
+$('#flip').addEventListener('click', () => { ch.flipped = !ch.flipped; });
+$('#resetImg').addEventListener('click', () => { ch.flipped = false; });
+$('#player').addEventListener('timeupdate', () => {
+  const pl = $('#player'), f = +$('#freq').value, last = ch.heard[ch.heard.length - 1];
+  if (pl.currentTime < 1.5) return;
+  const rec = { img: img, row, f, flipped: ch.flipped };
+  if (!last || last.img !== rec.img || last.row !== rec.row || last.f !== rec.f || last.flipped !== rec.flipped) ch.heard.push(rec);
+});
+const sideShare = () => {
+  const e = img.data.subarray(row * img.cols, (row + 1) * img.cols); let m = 0, m2 = 0;
+  for (const v of e) { m += v; m2 += v * v; } m /= e.length; m2 /= e.length;
+  return m < 0.05 ? null : (m2 - m * m) / m2;    // null: a near-black row is almost silent
+};
+setInterval(() => {
+  if (!img) return;
+  // The row the page picked when an image loaded doesn't count: only rows the player chose.
+  if (img !== ch.img) { ch.img = img; ch.autoRow = row; ch.flipped = false; return; }
+  if (row === ch.autoRow) return;
+  const r = sideShare(); if (r == null) return;
+  if (r < 0.1) ch.narrow = true; if (r > 0.4) ch.wide = true;
+}, 300);
+if (window.QL && QL.challenges) QL.challenges([
+  { id: 'listen', text: 'Press ▶ on the <b>Audio</b> player and listen. The <i>Row signal</i> plot is the loudness over time.',
+    hint: 'The player is in the Audio card on the right. Columns are time, so the tone gets louder where the row is bright.',
+    check: () => ch.heard.length >= 1 },
+  { id: 'two-rows', text: 'Click a different row on the image (or move the <b>Row</b> slider) and play it. Do bright rows sound louder?',
+    hint: 'Brightness is amplitude: a bright row is a loud tone, a dark row a quiet one. The pitch stays the same.',
+    check: () => new Set(ch.heard.map(h => chImg(h.img) + ':' + h.row)).size >= 2 },
+  { id: 'octave', text: 'Set <b>Modulation frequency</b> to 130.81 Hz, double the 65.41 Hz default, and play again.',
+    hint: 'The sound is e(t)·cos(2πft), so f is the pitch you hear. Doubling it raises the note one octave (C2 → C3); the loudness pattern is unchanged.',
+    check: () => ch.heard.some(h => Math.abs(h.f - 130.81) <= 1.3) },
+  { id: 'flip', text: 'Press <b>Flip horizontally</b> and play a row. What changed, and what stayed the same?',
+    hint: 'Columns are time, so flipping plays the loudness pattern backwards. The carrier, and so the pitch, is unchanged.',
+    check: () => ch.heard.some(h => h.flipped) },
+  { id: 'sidebands', text: 'Find a row whose spectrum is almost one clean peak, and a row with strong side peaks. Switch images if you need to.',
+    hint: 'A nearly uniform row keeps over 90 % of its power in the carrier peak; big light–dark changes move power into side peaks at f ± their rate. Try a gravitational-wave image for a clean peak and the limit cycle for side peaks.',
+    check: () => ch.narrow && ch.wide },
+]);
 const start = Math.floor(Math.random() * GALLERY.length);
 $('#gallery').value = start;
 loadGallery(start).then(() => {

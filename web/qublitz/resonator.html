@@ -183,6 +183,7 @@
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
+<script src="../learning/resonator.js"></script>
 <a class="back" id="back" href="../index.html#research">&larr; All demos</a>
 <h1>📡 Resonator Lab</h1>
 <p class="sub">A superconducting resonator loses energy in two ways: inside itself (the
@@ -1406,6 +1407,7 @@ $('#checkBtn').addEventListener('click', () => {
   $('#checkOut').innerHTML = html;
   $('#checkBtn').hidden = true;
   if (window.QL && QL.event) QL.event('practice_check', { level: P.level });
+  if (window.QL && QL.challengeDone) QL.challengeDone('fit');
 });
 
 $('#resCopy').addEventListener('click', () => {
@@ -1450,6 +1452,28 @@ $('#resExplore').addEventListener('click', () => {
   win = null; showTab('explore', true); syncEx(); window.scrollTo({ top: 0 });
 });
 
+/* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ---------- */
+// Checks read the Explore state `ex` and the engine's own Q relations: 1/Q_l = 1/Q_i + 1/Q_c (φ = 0), hanger dip
+// |S21| = 1 − Q_l/Q_c, reflection S11 = 1 − 2Q_l/Q_c on resonance (circle diameter 2Q_l/Q_c). The page starts
+// critically coupled in the hanger geometry, which no check accepts.
+const chRatio = () => ex.qi / ex.qc;
+if (window.QL && QL.challenges && !K.wantsGuided()) QL.challenges([
+  { id: 'under', text: 'Make the hanger <b>under-coupled</b>: lower Q<sub>i</sub> (or pick the preset) until Q<sub>i</sub> is at most a third of Q<sub>c</sub>. What happens to the dip?',
+    hint: 'Click <b>Under-coupled</b>, or drag Q<sub>i</sub> left. The dip depth is Q<sub>l</sub>/Q<sub>c</sub>, the share of energy that leaks back into the line to interfere; most is now lost inside, so the dip gets shallow.',
+    check: () => ex.g === 'hanger' && chRatio() <= 1 / 3 },
+  { id: 'absorb', text: 'Switch to <b>Reflection</b> and make it <b>critically coupled</b> (Q<sub>i</sub> = Q<sub>c</sub>). How much is reflected on resonance?',
+    hint: 'Pick Reflection, then the <b>Critically coupled</b> preset. On resonance S11 = 1 − 2Q<sub>l</sub>/Q<sub>c</sub> = 0 when Q<sub>i</sub> = Q<sub>c</sub>: the wave leaking out cancels the reflection and every photon is absorbed.',
+    check: () => ex.g === 'reflection' && Math.abs(Math.log10(chRatio())) < 0.05 && Math.abs(ex.phi) < 0.02 },
+  { id: 'wind', text: 'Still in Reflection, <b>over-couple</b> it (Q<sub>i</sub> at least 3× Q<sub>c</sub>) and watch the IQ circle swallow the origin.',
+    hint: 'The IQ circle has diameter 2Q<sub>l</sub>/Q<sub>c</sub> = 2Q<sub>i</sub>/(Q<sub>i</sub> + Q<sub>c</sub>), above 1 once Q<sub>i</sub> > Q<sub>c</sub>, so it encloses the origin and the phase winds a full 360°. The magnitude alone cannot tell over- from under-coupled.',
+    check: () => ex.g === 'reflection' && chRatio() >= 3 },
+  { id: 'readout', text: 'Hanger, Q<sub>c</sub> ≈ 10⁴ (a readout resonator): 📌 <b>Pin</b> the curve at Q<sub>i</sub> ≈ 10⁵, then raise Q<sub>i</sub> past 10⁶. Does the line get narrower?',
+    hint: '1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub> is dominated by the larger loss, 1/Q<sub>c</sub>: Q<sub>l</sub> only goes from 9.1×10³ to 9.9×10³. That is why loss studies use weakly coupled resonators.',
+    check: () => ex.g === 'hanger' && ex.qc >= 5e3 && ex.qc <= 2e4 && ex.qi >= 1e6 && pins.some(p => p.g === 'hanger' && p.qc >= 5e3 && p.qc <= 2e4 && p.qi <= 2e5) },
+  { id: 'fit', text: 'Open <b>2 · Fit a resonance</b>, fit a 🎯 <b>Mystery resonator</b>, and press <b>Reveal the answer</b>. Is the truth within your error bars?',
+    hint: 'Choose Mystery resonator, keep the built-in model that matches its geometry, press Run the fit, then Reveal the answer. A good fit lands within 2σ about 19 times in 20.' },
+], { done: () => { toast('🏆 All five resonator challenges done!'); setTimeout(() => { if (window.QL && QL.offerQuiz) QL.offerQuiz('🏆 All five done! A 1-minute debrief checks what stuck and helps us improve this page.'); }, 2500); } });
+
 /* ================================================================== start */
 (function start() {
   const q = K.params();
@@ -1464,7 +1488,6 @@ $('#resExplore').addEventListener('click', () => {
   showTab(TABS.includes(h) ? h : q.has('seed') ? 'fit' : 'explore');
   if (h.startsWith('l-') || h.startsWith('g-')) { showTab('learn'); requestAnimationFrame(() => document.getElementById(h)?.scrollIntoView()); }
   if (K.wantsGuided()) startGuided(); else K.guidedEntry($('#guideAnchor'), startGuided);
-  if (window.QL && QL.event) QL.event('open');
 })();
 </script>
 </body>
