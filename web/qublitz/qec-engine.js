@@ -14,13 +14,17 @@
  * n = d², with X and Z boundaries; the toric code (Kitaev 2003), n = 2L² on a torus, k = 2; Steane's [[7,1,3]]
  * (the smallest 2D color code); Shor's [[9,1,3]]; and any CSS code drawn in the code lab.
  *
- * Decoders. For codes where every qubit sits in at most two checks of a type (repetition, surface, toric) X and Z
- * errors are decoded by exact minimum-weight perfect matching (greedy above 16 defects of one type) of the lit checks on the decoding graph (checks are
- * nodes, qubits edges, one boundary node for qubits in a single check), done by dynamic programming over subsets of
- * defects (Dennis, Kitaev, Landahl & Preskill 2002 for the idea; we solve the small matchings exactly instead of with
- * Edmonds' blossom algorithm). For other small codes, a minimum-weight correction is found by searching errors in
- * order of weight. X and Z are decoded independently (the standard CSS treatment), so for Y errors the decoder ignores
- * their correlation.
+ * Decoders. All of them aim for the same thing, the lightest error that explains the lamps (minimum-weight decoding).
+ * When every qubit sits in at most two checks of a type (repetition, surface, toric codes) the checks and qubits form a
+ * graph (checks are nodes, qubits edges, one boundary node for qubits in a single check), and the lightest explanation
+ * is a minimum-weight perfect matching of the lit checks (Dennis, Kitaev, Landahl & Preskill 2002). We solve the small
+ * matchings exactly by dynamic programming over subsets of lit checks (greedy above 16 of one type) instead of with
+ * Edmonds' blossom algorithm. When some qubit sits in three or more checks of a type (Steane and other color codes,
+ * many hand-drawn codes) one error lights three or more lamps and pairing does not apply; then a lookup table built by
+ * breadth-first search over syndromes gives the exact lightest correction (up to 18 checks of a type), and beyond that
+ * an exact branch-and-bound search with a greedy fallback. X and Z are decoded independently (the standard CSS
+ * treatment), so for Y errors the decoder ignores their correlation. Distances come from an exact branch-and-bound
+ * search for the lightest logical operator.
  */
 (function (root) {
   'use strict';
@@ -237,36 +241,134 @@
     }
     return null;
   }
-  // decode one Pauli type: returns the correction vector over n
-  function decodeType(code, synd, type) {
+  // ---- exact minimum-weight search by branching (any CSS code) ----
+  // Finds the lightest v with H v = target. If u ⊂ v is a partial guess whose syndrome still differs from the target
+  // on some check, then v \ u must contain a qubit of that check (its parity there is odd), so branching over the
+  // qubits of one mismatched check at a time reaches every minimal v; iterative deepening over the weight makes the
+  // first hit a lightest one. With target = 0 and accept(v) = "v is not a stabilizer", the same search finds the
+  // lightest logical operator, i.e. the distance: a minimal logical has no proper zero-syndrome subset, since that
+  // subset would be a stabilizer (and removing it leaves a lighter logical) or a lighter logical itself.
+  // budget caps the number of search nodes; past it the result is marked inexact.
+  function rowsOf(H, n) { return H.map(h => { const a = []; for (let q = 0; q < n; q++) if (h[q]) a.push(q); return a; }); }
+  function incidence(H, n) { const inc = Array.from({ length: n }, () => []); H.forEach((h, r) => { for (let q = 0; q < n; q++) if (h[q]) inc[q].push(r); }); return inc; }
+  function branchSearch(H, n, target, opts) {
+    const o = opts || {}, wmax = Math.min(o.wmax || n, n), budget = o.budget || 2e5, accept = o.accept || null, logical = !!o.logical;
+    const m = H.length, rows = rowsOf(H, n), inc = incidence(H, n), maxInc = Math.max(1, ...inc.map(a => a.length));
+    const cur = Uint8Array.from(target), chosen = new Uint8Array(n), pick = [];
+    let mis = 0; for (let r = 0; r < m; r++) mis += cur[r];
+    let nodes = 0, exhausted = false;
+    const flip = q => { chosen[q] ^= 1; for (const r of inc[q]) { cur[r] ^= 1; mis += cur[r] ? 1 : -1; } };
+    function rec(w, minQ) {
+      if (++nodes > budget) { exhausted = true; return null; }
+      if (mis === 0 && pick.length) return !accept || accept(pick) ? pick.slice() : null;
+      if (mis === 0) return null;
+      if (w === 0 || mis > w * maxInc) return null;
+      let best = -1, bc = Infinity;   // the mismatched check with the fewest free qubits
+      for (let r = 0; r < m; r++) if (cur[r]) { let c = 0; for (const q of rows[r]) if (!chosen[q] && q >= minQ) c++; if (c < bc) { bc = c; best = r; } }
+      if (!bc) return null;
+      for (const q of rows[best]) if (!chosen[q] && q >= minQ) {
+        flip(q); pick.push(q); const f = rec(w - 1, minQ); pick.pop(); flip(q);
+        if (f || exhausted) return f;
+      }
+      return null;
+    }
+    for (let w = 1; w <= wmax; w++) {
+      let found = null;
+      if (logical) {   // target 0: the first qubit is the smallest index of v; the rest must be larger
+        for (let q0 = 0; q0 < n && !found && !exhausted; q0++) { flip(q0); pick.push(q0); found = w === 1 ? (mis === 0 && (!accept || accept(pick)) ? pick.slice() : null) : rec(w - 1, q0 + 1); pick.pop(); flip(q0); }
+      } else found = mis === 0 ? [] : rec(w, 0);
+      if (found) return { v: fromSet(n, found), support: found.slice().sort((a, b) => a - b), w: found.length, exact: !exhausted };
+      if (exhausted) return { v: null, support: null, w: null, exact: false, atLeast: w };
+    }
+    return { v: null, support: null, w: null, exact: true, atLeast: wmax + 1 };
+  }
+  // the lightest correction for a syndrome, as a lookup table built once by breadth-first search over syndromes
+  // (2^m entries for m checks of one type): exact minimum-weight decoding for any small code
+  function tableFor(code, checkType) {
+    const key = '_tab' + checkType; if (code[key] !== undefined) return code[key];
+    const cs = code.checks.filter(c => c.type === checkType), m = cs.length;
+    if (m > 18) return (code[key] = null);
+    const col = new Int32Array(code.n); cs.forEach((c, r) => { for (const q of c.q) col[q] ^= (1 << r); });
+    const N = 1 << m, par = new Int16Array(N).fill(-1), seen = new Uint8Array(N), queue = new Int32Array(N);
+    seen[0] = 1; let head = 0, tail = 0; queue[tail++] = 0;
+    while (head < tail) { const s = queue[head++]; for (let q = 0; q < code.n; q++) { const t = s ^ col[q]; if (!seen[t]) { seen[t] = 1; par[t] = q; queue[tail++] = t; } } }
+    return (code[key] = { m, col, par, seen });
+  }
+  function fromTable(T, n, s) {
+    let mask = 0; s.forEach((b, r) => { if (b) mask |= (1 << r); });
+    const v = zeros(n); if (!T.seen[mask]) return null;
+    while (mask) { const q = T.par[mask]; v[q] ^= 1; mask ^= T.col[q]; }
+    return v;
+  }
+  // which qubit (if any) stops a check type from forming a matching graph: it sits in three or more such checks
+  function nonGraphQubit(code, checkType) {
+    const cs = code.checks.filter(c => c.type === checkType);
+    for (let q = 0; q < code.n; q++) { const t = cs.filter(c => c.vec[q]); if (t.length > 2) return { q, checks: t.map(c => c.id) }; }
+    return null;
+  }
+
+  // decode one Pauli type, with a record of how: returns { corr, method, pairs?, defects }
+  // pairs: [{ a, b, path }] with a, b check ids (b = null for the boundary) and path the qubits flipped between them
+  function traceType(code, synd, type) {
     const G = type === 'X' ? code.graphX : code.graphZ, checkType = type === 'X' ? 'Z' : 'X';
     const cs = code.checks.filter(c => c.type === checkType), s = cs.map(c => synd[c.id]);
-    if (!cs.length) return zeros(code.n);
+    const defects = cs.filter((c, i) => s[i]).map(c => c.id);
+    if (!cs.length || !defects.length) return { corr: zeros(code.n), method: G ? 'matching' : 'none', pairs: [], defects };
     if (G) {
-      const defects = []; s.forEach((b, i) => { if (b) defects.push(i); });
-      const corr = zeros(code.n);
-      for (const [a, b] of matchDefects(G, defects)) for (const q of G.path(a, b)) corr[q] ^= 1;
-      return corr;
+      const nodes = []; s.forEach((b, i) => { if (b) nodes.push(i); });
+      const corr = zeros(code.n), pairs = [];
+      for (const [a, b] of matchDefects(G, nodes)) {
+        const path = G.path(a, b); for (const q of path) corr[q] ^= 1;
+        pairs.push({ a: G.checks[a].id, b: b === G.B ? null : G.checks[b].id, path });
+      }
+      return { corr, method: nodes.length > 16 ? 'greedy' : 'matching', pairs, defects };
     }
-    return lightest(cs.map(c => c.vec), code.n, s, Math.min(code.n, 8)) || zeros(code.n);
+    const T = tableFor(code, checkType);
+    if (T) { const v = fromTable(T, code.n, s); if (v) return { corr: v, method: 'table', defects }; }
+    const H = cs.map(c => c.vec), r = branchSearch(H, code.n, s, { wmax: Math.min(code.n, 10), budget: 6e4 });
+    if (r.v) return { corr: r.v, method: r.exact ? 'search' : 'search-partial', defects };
+    return { corr: greedyFlip(H, code.n, s), method: 'greedy-flip', defects };
   }
-  function decode(code, synd) { return { x: decodeType(code, synd, 'X'), z: decodeType(code, synd, 'Z') }; }
-
-  // ---- distances (by search; for small codes) ----
-  // lightest nontrivial X logical: v with Hz v = 0, v ∉ rowspace(Hx); search weights 1..wmax
-  function distanceOf(code, type, wmax) {
-    const n = code.n, H = type === 'X' ? code.Hz : code.Hx, other = type === 'X' ? code.bx : code.bz;
-    const pick = [];
-    for (let w = 1; w <= Math.min(wmax || 8, n); w++) {
-      let found = null;
-      (function rec(start, depth) {
-        if (found) return;
-        if (depth === w) { const v = fromSet(n, pick); if (H.every(h => dot(h, v) === 0) && !inSpan(other, v)) found = pick.slice(); return; }
-        for (let i = start; i < n && !found; i++) { pick.push(i); rec(i + 1, depth + 1); pick.pop(); }
-      })(0, 0);
-      if (found) return { d: w, support: found };
+  // last resort for big non-graph codes: flip whichever qubit fixes the most mismatched checks, until none remain
+  function greedyFlip(H, n, s) {
+    const inc = incidence(H, n), cur = Uint8Array.from(s), v = zeros(n);
+    for (let it = 0; it < 4 * n && cur.some(Boolean); it++) {
+      let bq = -1, bg = -Infinity;
+      for (let q = 0; q < n; q++) { let g = 0; for (const r of inc[q]) g += cur[r] ? 1 : -1; if (g > bg) { bg = g; bq = q; } }
+      v[bq] ^= 1; for (const r of inc[bq]) cur[r] ^= 1;
     }
-    return { d: null, support: null };
+    return v;
+  }
+  function decodeType(code, synd, type) { return traceType(code, synd, type).corr; }
+  function decode(code, synd) { return { x: decodeType(code, synd, 'X'), z: decodeType(code, synd, 'Z') }; }
+  function trace(code, synd) { return { X: traceType(code, synd, 'X'), Z: traceType(code, synd, 'Z') }; }
+
+  // ---- distances ----
+  // lightest nontrivial X logical: v with Hz v = 0, v ∉ rowspace(Hx); exact up to the node budget
+  function distanceOf(code, type, wmax, budget) {
+    const n = code.n, H = type === 'X' ? code.Hz : code.Hx, other = type === 'X' ? code.bx : code.bz;
+    if (code.k <= 0) return { d: null, support: null, exact: true };
+    const r = branchSearch(H, n, zeros(H.length), { logical: true, wmax: wmax || n, budget: budget || 4e5, accept: pick => !inSpan(other, fromSet(n, pick)) });
+    return { d: r.w, support: r.support, exact: r.exact, atLeast: r.atLeast };
+  }
+  // the 2D figure of merit k·d²/n: codes with local checks in a plane obey k·d² ≤ c·n (Bravyi, Poulin & Terhal 2010)
+  const kd2n = (n, k, d) => (k > 0 && d ? k * d * d / n : 0);
+
+  // probability that k bare (unencoded) qubits suffer a logical-equivalent error under the same noise
+  function bareRate(p, mode, k) {
+    const one = mode === 'XZ' ? 1 - (1 - p) * (1 - p) : p;
+    return 1 - Math.pow(1 - one, Math.max(1, k || 1));
+  }
+  // the pseudo-threshold: where the code's failure rate crosses the bare rate (interpolated on log scales);
+  // pts = [{ p, v }] sorted by p. Returns null if no crossing inside the range.
+  function crossing(pts, mode, k) {
+    const f = q => Math.log(Math.max(q.v, 1e-9)) - Math.log(bareRate(q.p, mode, k));
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i]; if (!(a.v > 0 && b.v > 0)) continue;
+      const fa = f(a), fb = f(b);
+      if (fa < 0 && fb >= 0) { const t = fa / (fa - fb); return Math.exp(Math.log(a.p) + t * (Math.log(b.p) - Math.log(a.p))); }
+    }
+    return null;
   }
 
   // ---- Monte Carlo: logical failure rate of the decoder ----
@@ -285,7 +387,7 @@
   const BUILD = { rep: repetition, surface: rotatedSurface, toric, steane, shor };
   const api = { zeros, fromSet, weight, add, dot, reduce, rank, inSpan, nullspace, finalize, repetition, rotatedSurface, toric,
     steane, shor, custom, pauli, syndrome, combine, classify, sample, graphFor, matchDefects, lightest, decode, decodeType,
-    distanceOf, logicalRate, rng, BUILD };
+    distanceOf, logicalRate, rng, BUILD, branchSearch, tableFor, nonGraphQubit, trace, traceType, kd2n, bareRate, crossing };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.QECEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
