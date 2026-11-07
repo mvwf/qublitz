@@ -55,6 +55,9 @@
   .overlay .lessons button[aria-pressed=true]{border-color:#ffd166;color:#ffd166}
   .overlay .lessons button.done::after{content:' ✓';color:#9cf09f}
   .overlay .go{font-size:16px;padding:10px 26px;margin-top:10px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  /* one obvious action at the top of the menu */
+  .overlay .go.startbig{display:block;margin:4px auto 10px;font-size:18px;padding:12px 30px;box-shadow:0 0 0 3px rgba(255,209,102,.25)}
+  @media(max-width:640px){.overlay .go.startbig{width:100%;font-size:16px}}
   .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
   .overlay .row button:not(.go),.overlay .row a.btn{background:transparent;color:#e8eef7;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:6px 11px;font-size:13px;text-decoration:none}
   .overlay .big{font-size:52px;font-weight:800;color:#ffd166;line-height:1;margin:6px 0}
@@ -152,6 +155,7 @@
 
   <div class="overlay" id="menu">
     <h2>Qubit Copter<small>NO PRECESSION · YOU DRIVE EVERY ROTATION</small></h2>
+    <button class="go startbig" id="play">Start ▶</button>
     <div class="modes" role="group" aria-label="Mode">
       <button data-mode="learn" aria-pressed="true"><b>📘 Learn</b><span>Goal: finish six short lessons by resting in the gold ring</span></button>
       <button data-mode="free" aria-pressed="false"><b>🧪 Free flight</b><span>No goal or clock: try any rotation, then replay it in the lab</span></button>
@@ -160,7 +164,6 @@
     <label id="circuitOpt" style="font-size:13px;color:#c7d3e6"><input type="checkbox" id="optCircuit"> targets from a real gate circuit (H, S, T, √X…)</label>
     <div class="lessons" id="lessonPick" role="group" aria-label="Lesson"></div>
     <p id="menuHelp"></p>
-    <button class="go" id="play">Start ▶</button>
     <p class="best" id="menuBest"></p>
   </div>
 
@@ -469,6 +472,9 @@ function syncMenu() {
   $('#lessonPick').innerHTML = C.LESSONS.map((l, i) => `<button data-l="${l.id}" aria-pressed="${l.id === S.lesson}" class="${S.learned.includes(l.id) ? 'done' : ''}">${i + 1}. ${l.title}</button>`).join('');
   $('#lessonPick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.lesson = b.dataset.l; store.set('copter:lesson', S.lesson); syncMenu(); }));
   $('#menuHelp').innerHTML = MENU_HELP[gameMode()];
+  // The Start button sits first and says what it starts (most first visits used to end on this menu).
+  const li = C.LESSONS.findIndex(l => l.id === S.lesson), L = C.LESSONS[li];
+  $('#play').textContent = S.mode === 'learn' && L ? `▶ ${S.learned.length ? 'Continue' : 'Start'}: lesson ${li + 1}, ${L.title}` : S.mode === 'free' ? '▶ Start free flight' : '▶ Start: hit the targets';
   const b = isGame() ? store.get('copter:best:' + gameMode(), 0) : 0;
   $('#menuBest').textContent = b ? `Best ${gameMode() === 'circuit' ? 'circuit' : ''} score: ${b}` : S.mode === 'learn' ? `${S.learned.length} of ${C.LESSONS.length} lessons done` : '';
 }
