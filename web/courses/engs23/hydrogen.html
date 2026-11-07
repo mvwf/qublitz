@@ -86,6 +86,14 @@
   .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-left:6px;color:var(--muted)}
   #decayBoard{height:540px;background:var(--panel);touch-action:pan-y}
   @media(max-width:600px){#decayBoard{height:470px}}
+  canvas.strip{height:128px;background:#0b1220;margin-top:8px}
+  @media(max-width:600px){canvas.strip{height:150px}}
+  .stripCap{font-size:12px;color:var(--muted);margin:3px 0 0}
+  #driveBoard{height:430px;background:var(--panel);touch-action:pan-y}
+  @media(max-width:600px){#driveBoard{height:380px}}
+  .dlExp .seg button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15;padding:5px 10px;font-weight:600}
+  .dlExp .seg button small{font-weight:400;font-size:10.5px;opacity:.85}
+  .goal{border-left:3px solid var(--gold);padding:6px 10px;margin:6px 0 8px;background:var(--panel);border-radius:0 8px 8px 0;font-size:13.5px}
   .dbSteps .seg button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15;padding:5px 10px;font-weight:600}
   .dbSteps .seg button small{font-weight:400;font-size:10.5px;opacity:.85}
   #dbTable td:nth-child(2){white-space:normal;text-align:left}
@@ -237,13 +245,16 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
   <h2>Decay board · a quantum Galton board</h2>
   <p class="hint">A π pulse lifts atoms from 1s to the state you pick. Then let go. Each atom waits a random time on its level
   (the lifetime is the average wait), then drops to a lower level and emits one photon. Which level it drops to is random too,
-  weighted by the branching ratios <i>A</i>/Σ<i>A</i> from the dipole matrix elements. Every atom ends in 1s; the slots at the
-  bottom sort the atoms by the route they took, and the dashed outlines show the predicted share of each route.</p>
+  weighted by the branching ratios <i>A</i>/Σ<i>A</i> from the dipole matrix elements. Every atom ends in 1s and stays there, so
+  no atom is ever lost: atoms dropped = atoms in 1s + atoms still on the way. The tally at the bottom counts the route each
+  atom took, and the dashed outlines show the predicted share of each route.</p>
   <div class="row dbSteps"><span class="lbl">1 · Excite 1s →</span><span class="seg" id="dbStart"></span></div>
   <div class="row"><span class="lbl">2 · Release</span><button class="primary" id="dbDrop1">Drop 1 atom</button><button class="primary" id="dbDrop100">Drop 100 atoms</button>
     <button id="dbSkip">Skip to the end ⏭</button><span class="lbl">Speed</span><span class="seg" id="dbSpeed"><button data-v="0" aria-pressed="false">Slow</button><button data-v="1" aria-pressed="true">Normal</button><button data-v="2" aria-pressed="false">Fast</button></span>
     <button id="dbClear">Clear</button></div>
   <canvas id="decayBoard" data-retro-ink aria-label="Decay board: levels as shelves, atoms as balls falling from the excited state to 1s, and slots that count each decay route. The table below lists the same counts."></canvas>
+  <canvas id="dbStrip" class="strip" aria-label="Emission spectrum of the photons the atoms have emitted so far: bright lines at their wavelengths, ultraviolet on the left, visible in the middle, infrared on the right"></canvas>
+  <p class="stripCap" id="dbStripCap">What a spectrometer would record: each line is one transition, brighter and taller for more photons. Only the middle band is visible to the eye.</p>
   <div class="readout" id="dbReadout"></div>
   <table id="dbTable" aria-label="Decay routes: predicted and observed"></table>
   <details id="dbSpecBox"><summary>The photons they emitted</summary><div id="dbSpec" class="plot"></div><p class="hint" id="dbSpecNote"></p></details>
@@ -277,9 +288,68 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
     The 2s two-photon decay shares its energy between the two photons in a continuous spectrum, so it adds no line.</p></details>
 </div>
 
+<div class="card" id="driveCard">
+  <h2>Drive and decay · you steer the laser, nature rolls the dice</h2>
+  <p class="goal"><b>The idea:</b> a laser <b>drives</b> a transition. It moves an atom smoothly up and back down (Rabi
+  flopping), as hard and as often as you like. <b>Decay</b> is not yours to steer. Every excited level empties at a fixed
+  <b>rate</b> set by Fermi's golden rule, only into the levels the <b>selection rules</b> allow (Δ<i>l</i> = ±1), and
+  chance decides which atom goes when. Keep driving one transition and watch decay shuffle the atoms into other levels.</p>
+  <div class="row dlExp"><span class="lbl">Experiment</span><span class="seg" id="dlPreset"></span></div>
+  <div class="row"><span class="seg" id="dlView"><button data-v="mc" aria-pressed="true">🎲 Monte Carlo atoms</button><button data-v="p" aria-pressed="false">📊 Probabilities</button></span>
+    <button class="primary" id="dlRun">Run ▶</button><span class="lbl">Speed</span><span class="seg" id="dlSpeed"><button data-v="0.5" aria-pressed="false">Slow</button><button data-v="1" aria-pressed="true">Normal</button><button data-v="3" aria-pressed="false">Fast</button></span></div>
+  <canvas id="driveBoard" data-retro-ink aria-label="Drive and decay board: levels as shelves, the laser as a double arrow between two levels, atoms as dots. The plot and readouts below give the same populations."></canvas>
+  <canvas id="dlStrip" class="strip" aria-label="Emission spectrum of the photons emitted so far in this experiment"></canvas>
+  <p class="stripCap">The light the atoms give off, as a spectrometer would record it. Photons sent back into the laser beam (stimulated emission) are not included.</p>
+  <div class="readout" id="dlReadout"></div>
+  <p class="hint" id="dlNote"></p>
+  <div id="dlPlot" class="plot"></div>
+  <details id="dlOwn"><summary>Design your own experiment</summary>
+    <div class="row"><span class="lbl">Atoms start in</span><span class="lbl">n</span><span class="seg" id="dlSN"></span><span class="lbl">l</span><span class="seg" id="dlSL"></span></div>
+    <div class="row"><span class="lbl">Laser from</span><span class="seg" id="dlG"><button data-v="1" aria-pressed="true">1s</button><button data-v="2" aria-pressed="false">2s</button></span>
+      <span class="lbl">to n</span><span class="seg" id="dlEN"></span><span class="lbl">l</span><span class="seg" id="dlEL"></span><button id="dlOff">Laser off</button></div>
+    <div class="row"><span class="lbl">Strength Ω</span><input type="range" id="dlOm" min="-1" max="1.3" step="0.05" value="0" style="width:180px" aria-label="Rabi frequency in units of the upper level's decay rate"><b id="dlOmTxt"></b>
+      <span class="lbl">Atoms</span><span class="seg" id="dlN"><button data-v="100" aria-pressed="false">100</button><button data-v="200" aria-pressed="true">200</button><button data-v="1000" aria-pressed="false">1000</button></span></div>
+    <p class="hint">The laser always starts from an s state (1s or 2s), which has a single sublevel, and uses linearly polarized
+    light, so it drives the upper level's m = 0 sublevel. Pick an upper state with the wrong l and see what the selection rules say.</p></details>
+  <details><summary>Fermi's golden rule: why decay is a rate and driving is not</summary>
+    <p class="note">A state coupled weakly to a <b>continuum</b> of final states leaks into it at a constant rate,
+    <span class="eqn">&ensp;Γ<sub>i→f</sub> = (2π/ħ) |⟨<i>f</i>|<i>H</i>′|<i>i</i>⟩|² ρ(<i>E<sub>f</sub></i>)</span>
+    (Fermi's golden rule; Griffiths §11.3–11.4). For spontaneous emission the continuum is the photon modes of empty space,
+    with density ρ(ω) ∝ ω², and the coupling is the electric dipole <i>H</i>′ = −<i>q</i><b>E</b>·<b>r</b> with the vacuum field
+    (∝ √ω). Together they give the Einstein <i>A</i> coefficient, ∝ ω³|⟨<i>f</i>|<b>r</b>|<i>i</i>⟩|². Three consequences you can see here:</p>
+    <ol class="note"><li><b>A constant rate means a memoryless decay.</b> The chance to jump in the next nanosecond does not depend on how
+    long the atom has waited, so waiting times are exponential and the Monte Carlo atoms jump at random.</li>
+    <li><b>The matrix element sets the selection rules.</b> ⟨<i>f</i>|<b>r</b>|<i>i</i>⟩ vanishes unless Δ<i>l</i> = ±1 (and Δ<i>m</i> = 0, ±1), so each level has
+    only a few exits, with branching ratios <i>A</i>/Σ<i>A</i>. The same matrix element decides what a laser can drive.</li>
+    <li><b>The ω³</b> makes ultraviolet decays fast (2p: 1.6 ns) and infrared ones slow.</li></ol>
+    <p class="note">A laser is the opposite case: one mode, strongly occupied, coherent. It does not empty a level at a rate; it
+    rotates the atom between two states, <i>P</i><sub>e</sub> = sin²(Ω<i>t</i>/2), which grows as <i>t</i>² at first, not as <i>t</i>.
+    With strong driving you see that flopping in the first few nanoseconds before decay scrambles it. A rate description of
+    absorption (Einstein's <i>B</i> coefficient, again the golden rule) returns only for broadband light, or once decay has
+    destroyed the coherence.</p></details>
+  <details><summary>Monte Carlo and probabilities: two views of one equation</summary>
+    <p class="note"><b>📊 Probabilities</b> solve the master equation: the optical Bloch equations for the driven pair (populations
+    ρ<sub>gg</sub>, ρ<sub>ee</sub> and the coherence ρ<sub>eg</sub>), plus a rate equation for every other level, d<i>P<sub>k</sub></i>/d<i>t</i> =
+    −Γ<sub>k</sub><i>P<sub>k</sub></i> + Σ<i>A<sub>j→k</sub></i><i>P<sub>j</sub></i>. This is what a large cloud of atoms does on average,
+    and it is smooth and deterministic.</p>
+    <p class="note"><b>🎲 Monte Carlo atoms</b> follow single atoms (the Monte Carlo wavefunction method, Dalibard, Castin &amp; Mølmer 1992).
+    While an atom is in the driven pair it evolves smoothly (it rides up and down the laser arrow), slowly losing norm at the rate
+    Γ<sub>e</sub>|<i>c</i><sub>e</sub>|²; when a random threshold is crossed it makes a <b>quantum jump</b>, emitting one photon to a level picked by the
+    branching ratios. Levels outside the laser simply wait an exponential time and jump. Average many atoms and you get the
+    probabilities back: the dots on the plot scatter around the lines by about √(<i>P</i>(1 − <i>P</i>)/<i>N</i>), which is why 1000 atoms look
+    smoother than 100. This is what a single trapped atom or ion does, photon by photon; its fluorescence switches on and off as it falls into and out of dark states.</p></details>
+  <details><summary>What this leaves out</summary>
+    <p class="note">The laser sits exactly on resonance and the atoms do not move (no Doppler shift). Levels are gross structure (no
+    fine or hyperfine structure), drawn evenly spaced by <i>n</i>, not to energy scale. Linearly polarized light drives only the
+    upper level's m = 0 sublevel; atoms that cascade into that level from above arrive unpolarized, so a third of them land in m = 0
+    and are driven, and the rest (hollow dots) just decay. Photons scattered back into the laser beam by stimulated emission are not counted as
+    emitted photons. 2s decays by two photons (τ = 0.12 s), far slower than anything shown, so on these time scales it is a trap; the
+    laser could also ionize atoms or mix in nearby levels at high power, which is ignored.</p></details>
+</div>
+
 <div class="grid2">
   <div class="card">
-    <h2>Lab checklist · <span id="ckCount">0 of 8</span> done</h2>
+    <h2>Lab checklist · <span id="ckCount">0 of 9</span> done</h2>
     <ul class="check" id="checklist"></ul>
     <div class="row" style="margin-top:8px"><button id="copyLink">Copy link to this setup</button><button id="reset">Reset</button></div>
   </div>
@@ -766,7 +836,7 @@ function setAtomChoice(v) {
   H.setAtom(st.atom);
   st.lam = inLab(() => H.wavelength(st.start[0], st.start[0] + 1)) * (st.mystery ? 1.004 : 1); st.det = 0;
   $('atomSel').value = st.mystery ? 'mystery' : st.atom;
-  refreshState(); laserUI(); survey(); dbReset();
+  refreshState(); laserUI(); survey(); dbReset(); dlBuild();
   ev('atom', { level: st.mystery ? 'mystery' : st.atom });
 }
 function drawMystery() {
@@ -903,7 +973,7 @@ function drawPulsesEmpty() { Plotly.purge('pulsePlot'); Plotly.purge('blochSpher
 $('toLab').addEventListener('click', () => ev('to_lab', { level: 'pulses' }));
 
 // ───────── checklist ─────────
-const checks = { survey: false, lines: new Set(), natural: false, saturate: false, balmer: false, mystery: false, pulse: false };
+const checks = { survey: false, lines: new Set(), natural: false, saturate: false, balmer: false, mystery: false, pulse: false, pump: false, empty: false };
 const ITEMS = [
   ['survey', 'Run a <b>survey scan</b> from 1s and watch the Lyman lines crowd together towards the series limit.'],
   ['lya', 'Zoom on <b>Lyman-α</b> (1s → 2p, 121.57 nm) and read its width.'],
@@ -913,10 +983,11 @@ const ITEMS = [
   ['balmer', 'Start in the metastable <b>2s</b> and zoom on a visible Balmer line.'],
   ['pulse', 'In the <b>pulse lab</b>, invert the atom with a π pulse (ρ<sub>ee</sub> > 0.9 right after it), then open it in the Virtual Qubit Lab.'],
   ['mystery', 'Identify a <b>mystery atom</b> (Atom → Mystery) from its lines.'],
+  ['pump', 'In <b>Drive and decay</b>, pump atoms into the dark 2s with a leaky cycle, then empty 2s again with the Hα laser.'],
 ];
 let doneBefore = 0;
 function updateChecks() {
-  const ok = { survey: checks.survey, lya: checks.lines.has(2), three: checks.lines.has(3) && checks.lines.has(4), natural: checks.natural, saturate: checks.saturate, balmer: checks.balmer, pulse: checks.pulse, mystery: checks.mystery };
+  const ok = { survey: checks.survey, lya: checks.lines.has(2), three: checks.lines.has(3) && checks.lines.has(4), natural: checks.natural, saturate: checks.saturate, balmer: checks.balmer, pulse: checks.pulse, mystery: checks.mystery, pump: checks.pump && checks.empty };
   $('checklist').innerHTML = ITEMS.map(([k, t]) => `<li class="${ok[k] ? 'done' : ''}">${t}</li>`).join('');
   const n = Object.values(ok).filter(Boolean).length; $('ckCount').textContent = `${n} of ${ITEMS.length}`;
   if (n > doneBefore) { ev('level_complete', { value: n }); if (n === ITEMS.length && window.QL) QL.offerQuiz && QL.offerQuiz('Lab checklist done. One-minute debrief?'); }
@@ -967,6 +1038,69 @@ $('survey').addEventListener('click', survey);
 $('zoom').addEventListener('click', zoom);
 $('logScale').addEventListener('change', drawOrbital);
 $('reset').addEventListener('click', () => { location.href = location.pathname; });
+
+// ───────── the spectrometer strip ─────────
+// lines: [{ lambda (m), count }]; two: number of 2s two-photon decays. The axis is in three pieces, each logarithmic in
+// wavelength: ultraviolet 90–380 nm, visible 380–750 nm (with a faint rainbow to read colours against), infrared
+// 0.75–13 µm. The two-photon continuum is the spectrum of Nussbaumer & Schmutz (1984): A(y) for one photon carrying
+// the fraction y of the 10.2 eV (λ = 121.6 nm / y); it integrates to 2 × 8.23 s⁻¹, two photons per decay.
+const SPEC_BANDS = [[90e-9, 380e-9, 0, 0.27], [380e-9, 750e-9, 0.27, 0.66], [750e-9, 13e-6, 0.66, 1]];
+const twoPhotonA = y => { const q = y * (1 - y), f = Math.pow(4 * q, 0.8); return 202 * (q * (1 - f) + 0.88 * Math.pow(q, 1.53) * f); };
+function specX(lam, x0, w) {
+  for (const [a, b, u0, u1] of SPEC_BANDS) if (lam <= b || b === 13e-6) { const u = Math.log(Math.max(lam, a) / a) / Math.log(b / a); return x0 + w * (u0 + (u1 - u0) * Math.min(1, u)); }
+  return x0 + w;
+}
+function drawSpectrum(cv, lines, two, lyEnergy) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth, Hh = cv.clientHeight;
+  if (!W) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(Hh * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const narrow = W < 600, x0 = 8, w = W - 16, base = Hh - 30, top = 18, sm = narrow ? 9.5 : 10.5;
+  g.fillStyle = '#0b1220'; g.fillRect(0, 0, W, Hh);
+  // band backgrounds and labels
+  for (const [a, b, u0, u1] of SPEC_BANDS) {
+    const xa = x0 + w * u0, xb = x0 + w * u1;
+    if (a === 380e-9) { for (let x = xa; x < xb; x++) { const lam = a * Math.pow(b / a, (x - xa) / (xb - xa)); g.fillStyle = H.photonColor(lam).css; g.globalAlpha = 0.16; g.fillRect(x, base + 2, 1.2, 7); } g.globalAlpha = 1; }
+    g.strokeStyle = 'rgba(200,210,235,.25)'; g.beginPath(); g.moveTo(xb, top - 6); g.lineTo(xb, base + 10); g.stroke();
+    g.fillStyle = '#9aa3cf'; g.font = `600 ${sm}px Helvetica,Arial`; g.textAlign = 'center';
+    g.fillText(a === 90e-9 ? (narrow ? 'UV (invisible)' : 'ULTRAVIOLET (invisible)') : a === 380e-9 ? 'VISIBLE' : (narrow ? 'IR (invisible)' : 'INFRARED (invisible)'), (xa + xb) / 2, 11);
+  }
+  // wavelength ticks
+  g.font = `${sm}px Helvetica,Arial`; g.fillStyle = '#9aa3cf'; g.textAlign = 'center';
+  for (const t of [100, 200, 300, 400, 500, 600, 700, 1000, 2000, 5000, 10000]) { const x = specX(t * 1e-9, x0, w); g.fillRect(x, base + 9, 1, 4); if (!(narrow && [300, 500, 700, 2000].includes(t))) g.fillText(t >= 1000 ? t / 1000 + ' µm' : t + '', x, base + 23); }
+  g.strokeStyle = 'rgba(200,210,235,.45)'; g.beginPath(); g.moveTo(x0, base + 9); g.lineTo(x0 + w, base + 9); g.stroke();
+  const maxC = Math.max(1, ...lines.map(l => l.count));
+  // two-photon continuum: a faint glow from 121.6 nm (y = 1) to long wavelengths
+  if (two > 0) {
+    // photons per pixel: A(y) |dy/dx| with y = λ0/λ(x), λ(x) the inverse of the axis map
+    const lam0 = (lyEnergy || 121.57e-9), bins = new Float64Array(Math.ceil(w));
+    const lamAt = x => { const u = x / w; for (const [a, b, u0, u1] of SPEC_BANDS) if (u <= u1) return a * Math.pow(b / a, (u - u0) / (u1 - u0)); return 13e-6; };
+    for (let x = 0; x < bins.length; x++) { const y1 = lam0 / lamAt(x), y2 = lam0 / lamAt(x + 1); if (y1 <= 1 && y2 > 0) bins[x] = twoPhotonA(Math.min(1, (y1 + y2) / 2)) * Math.abs(y1 - y2); }
+    let mx = 0; for (const v of bins) mx = Math.max(mx, v);
+    const hmax = Math.min(0.45, 0.15 + 0.3 * Math.min(1, two / maxC)) * (base - top);
+    g.fillStyle = 'rgba(169,139,255,.30)';
+    for (let x = 0; x < bins.length; x++) if (bins[x]) { const h = hmax * bins[x] / mx; g.fillRect(x0 + x, base - h, 1.2, h); }
+    g.fillStyle = '#e6dcff'; g.textAlign = 'left'; g.font = `${sm}px Helvetica,Arial`;
+    g.fillText(`2s two-photon glow (${two} pair${two === 1 ? '' : 's'})`, specX(135e-9, x0, w), base - 4);
+  }
+  // the lines: height and brightness by photon count
+  const sorted = lines.filter(l => l.count > 0).sort((a, b) => b.count - a.count), labelled = [];
+  for (const L of sorted) {
+    const x = specX(L.lambda, x0, w), f = L.count / maxC, h = (base - top - 14) * (0.12 + 0.88 * f), pc = H.photonColor(L.lambda);
+    g.save(); g.shadowColor = pc.css; g.shadowBlur = 10 * f + 2; g.fillStyle = pc.css; g.globalAlpha = 0.45 + 0.55 * f;
+    g.fillRect(x - 1.5, base - h, 3, h); g.restore();
+    if (labelled.every(px => Math.abs(px - x) > (narrow ? 42 : 54)) && labelled.length < (narrow ? 5 : 8)) {
+      labelled.push(x); g.fillStyle = '#eaf0ff'; g.font = `600 ${sm}px Helvetica,Arial`; g.textAlign = 'center';
+      g.fillText(`${L.name || ''} ${(L.lambda * 1e9).toFixed(L.lambda < 1e-6 ? 0 : 0)}${L.lambda < 1e-6 ? '' : ''}`.trim(), Math.min(W - 26, Math.max(26, x)), base - h - 4);
+    }
+  }
+  if (!sorted.length && !two) { g.fillStyle = '#9aa3cf'; g.font = `${sm + 1}px Helvetica,Arial`; g.textAlign = 'center'; g.fillText('no photons yet', W / 2, (top + base) / 2); }
+}
+// a short name for a line: Greek letter within its series (Lyα, Hβ, Paα, …)
+function lineName(nu, nl) {
+  const ser = { 1: 'Ly', 2: 'H', 3: 'Pa', 4: 'Br', 5: 'Pf', 6: 'Hu' }[nl] || '', gr = 'αβγδεζη'[nu - nl - 1] || '';
+  return H.atom().Z > 1 ? '' : ser + gr;
+}
 
 // ───────── decay board: a quantum Galton board ─────────
 // Atoms put in one state by a π pulse cascade to 1s. Each wait is exponential with the state's lifetime 1/ΣA, each exit
@@ -1027,7 +1161,7 @@ function dbHop(a, h, now, quiet) {
 function dbDrop(count) {
   const now = performance.now();
   if (DB.ff) dbSkip();                                         // a new batch never waits for the slow 2s tail
-  if (!DB.atoms.some(a => !a.binned)) { DB.t = 0; DB.atoms = DB.atoms.filter(a => !a.binned).concat([]); }
+  if (!DB.atoms.some(a => !a.binned)) DB.t = 0;              // a fresh batch restarts the clock; landed atoms stay in 1s
   for (let i = 0; i < count; i++) DB.atoms.push(dbAtom(now));
   DB.N += count;
   ev('decay_drop', { level: H.label(...DB.start), value: count });
@@ -1039,9 +1173,9 @@ function dbSkip() {
     if (a.binned) continue;
     if (a.t0 == null) a.t0 = DB.t;
     while (a.k < a.hops.length) dbHop(a, a.hops[a.k], now, true);
-    a.binned = true; a.bin.count++;
+    a.binned = true; a.bin.count++; a.state = [1, 0];
   }
-  DB.atoms = []; DB.flying = []; DB.ff = false;
+  DB.flying = []; DB.ff = false;
   cancelAnimationFrame(DB.raf); DB.raf = 0;
   dbDraw(now); dbUI(true);
 }
@@ -1053,13 +1187,13 @@ function dbFrame(now) {
   for (const a of live) {
     if (a.t0 == null && now - a.pumpReal >= PUMP) a.t0 = DB.t;
     if (a.t0 != null) while (a.k < a.hops.length && a.t0 + a.hops[a.k].t <= DB.t) dbHop(a, a.hops[a.k], now, false);
-    if (a.landReal != null && now - a.landReal > TRANS + FALL) { a.binned = true; a.bin.count++; }
+    if (a.landReal != null && now - a.landReal > TRANS) { a.binned = true; a.bin.count++; }   // home in 1s, for good
   }
   DB.flying = DB.flying.filter(f => now - f.born < 900);
   dbDraw(now);
   if (now - DB.lastUI > 200) dbUI(false);
   if (DB.atoms.some(a => !a.binned) || DB.flying.length) DB.raf = requestAnimationFrame(dbFrame);
-  else { DB.raf = 0; DB.atoms = []; DB.ff = false; dbDraw(now); dbUI(true); }
+  else { DB.raf = 0; DB.ff = false; dbDraw(now); dbUI(true); }
 }
 
 // geometry: rows evenly spaced by n (not to energy scale), columns by l, slots below
@@ -1072,9 +1206,10 @@ function dbGeom() {
   const sl = { x0: 8, x1: W - 8, top: Hh - slotH - 6, bot: Hh - 22 }, bw = (sl.x1 - sl.x0) / Math.max(1, DB.bins.length);
   return { W, Hh, narrow, X, Y, hw, sl, bw, nMax };
 }
-function shelfSpot(G, s, i) {          // the i-th ball resting on shelf s
+function shelfSpot(G, s, i) {          // the i-th ball resting on shelf s (1s holds a taller pile)
   const per = Math.max(3, Math.floor((2 * G.hw - 8) / 10)), row = Math.floor(i / per);
-  return row > 2 ? null : [G.X(s[1]) - G.hw + 6 + (i % per) * 10, G.Y(s[0]) - 7 - row * 10];
+  const rows = s[0] === 1 ? Math.max(3, Math.floor(((G.Y(1) - G.Y(2)) - 42) / 9)) : 3;
+  return row >= rows ? null : [G.X(s[1]) - G.hw + 6 + (i % per) * 10, G.Y(s[0]) - 7 - row * 9];
 }
 function ball(g, x, y, r, col) { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.strokeStyle = '#1b2a24'; g.lineWidth = 1; g.stroke(); }
 function squiggle(g, x, y, len, col, ang) {
@@ -1099,7 +1234,7 @@ function dbDraw(now) {
   g.textAlign = 'right'; if (!G.narrow) g.fillText('rows: n (not to energy scale) · columns: l', G.W - 10, 18);
   // shelves
   const resting = new Map();
-  for (const a of DB.atoms) if (!a.binned && a.t0 != null && now - a.lastReal > TRANS && a.landReal == null) { const k = a.state.join(','); resting.set(k, (resting.get(k) || 0) + 1); }
+  for (const a of DB.atoms) if (a.binned || (a.t0 != null && now - a.lastReal > TRANS)) { const k = a.binned ? '1,0' : a.state.join(','); resting.set(k, (resting.get(k) || 0) + 1); }
   for (const o of DB.states) {
     const [n, l] = o.s, x = G.X(l), y = G.Y(n), trap = is2s(o.s), start = n === DB.start[0] && l === DB.start[1];
     g.strokeStyle = start ? '#b8860b' : '#1b2a24'; g.lineWidth = start ? 4 : 3; g.lineCap = 'round';
@@ -1107,10 +1242,10 @@ function dbDraw(now) {
     if (trap) { g.strokeStyle = '#c84b31'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.strokeRect(x - G.hw - 4, y - 36, 2 * G.hw + 8, 42); g.setLineDash([]); }
     g.textAlign = 'right'; g.fillStyle = '#1b2a24'; g.font = `700 ${sm + 1}px Helvetica,Arial`; g.fillText(H.label(n, l), x - G.hw - (trap ? 8 : 5), y + 4);
     g.font = `${sm - 1}px Helvetica,Arial`; g.fillStyle = trap ? '#c84b31' : '#5a6b63'; g.textAlign = 'center';
-    const tl = n === 1 ? 'ground state' : trap ? `trapped: metastable, τ = ${fmtTime(tau2s())}` : `τ = ${fmtTime(H.lifetime(n, l))}`;
+    const tl = n === 1 ? 'ground state' : trap ? (G.narrow ? `trap, τ = ${fmtTime(tau2s())}` : `trapped: metastable, τ = ${fmtTime(tau2s())}`) : `τ = ${fmtTime(H.lifetime(n, l))}`;
     g.fillText(tl, x, y + 15);
     const c = resting.get(o.s.join(',')) || 0;
-    if (c > 0) { g.textAlign = 'left'; g.fillStyle = '#1b2a24'; g.font = `600 ${sm}px Helvetica,Arial`; g.fillText(`×${c}`, Math.min(x + G.hw + 5, G.W - 28), y + 4); }
+    if (c > 0) { g.textAlign = 'left'; g.fillStyle = '#1b2a24'; g.font = `600 ${sm}px Helvetica,Arial`; g.fillText(`×${c}`, Math.min(x + G.hw + 5, G.W - 34), y + (n === 1 ? -6 : 4)); }
   }
   // the pump: the laser lifts atoms from 1s to the start state
   const pumping = DB.atoms.filter(a => !a.binned && a.t0 == null);
@@ -1124,13 +1259,10 @@ function dbDraw(now) {
   // balls: pumping, resting, jumping, dropping into a slot
   const slotCount = new Map(), shelfIdx = new Map();
   for (const a of DB.atoms) {
-    if (a.binned) continue;
     let x, y;
+    if (a.binned) { const i = shelfIdx.get('1,0') || 0; shelfIdx.set('1,0', i + 1); const p = shelfSpot(G, [1, 0], i); if (!p) continue; ball(g, p[0], p[1], 4.5, BALL); continue; }
     if (a.t0 == null) { const u = Math.min(1, (now - a.pumpReal) / PUMP); x = G.X(0) + (G.X(DB.start[1]) - G.X(0)) * u; y = G.Y(1) - 7 + (G.Y(DB.start[0]) - G.Y(1)) * u; }
-    else if (a.landReal != null && now - a.landReal > TRANS) {
-      const u = Math.min(1, (now - a.landReal - TRANS) / FALL), bi = DB.bins.indexOf(a.bin), bx = G.sl.x0 + G.bw * (bi + 0.5);
-      x = G.X(0) + (bx - G.X(0)) * u; y = G.Y(1) + (G.sl.top + 6 - G.Y(1)) * u * u;
-    } else if (now - a.lastReal < TRANS && a.prev) {
+    else if (now - a.lastReal < TRANS && a.prev) {
       const u = (now - a.lastReal) / TRANS, e = u * u * (3 - 2 * u), k = a.state.join(','), i = shelfIdx.get(k) || 0;
       const to = shelfSpot(G, a.state, i) || [G.X(a.state[1]), G.Y(a.state[0]) - 7], fr = [G.X(a.prev[1]), G.Y(a.prev[0]) - 7];
       x = fr[0] + (to[0] - fr[0]) * e; y = fr[1] + (to[1] - fr[1]) * e;
@@ -1155,6 +1287,8 @@ function dbDraw(now) {
   const tot = DB.bins.reduce((a, b) => a + b.count, 0), N = Math.max(DB.N, tot, 1);
   const scale = Math.max(1, ...DB.bins.map(b => Math.max(b.count, b.p * N))), hh = G.sl.bot - G.sl.top - 18;
   g.strokeStyle = '#d8e2dc'; g.lineWidth = 1; g.beginPath(); g.moveTo(G.sl.x0, G.sl.bot); g.lineTo(G.sl.x1, G.sl.bot); g.stroke();
+  g.fillStyle = '#5a6b63'; g.font = `${sm}px Helvetica,Arial`; g.textAlign = 'left';
+  g.fillText('Route tally: one count per atom that reached 1s (the atoms stay in 1s) · dashed = predicted', G.sl.x0, G.sl.top - 4);
   DB.bins.forEach((b, i) => {
     const x0 = G.sl.x0 + G.bw * i + 4, w = G.bw - 8, hObs = hh * b.count / scale, hPre = hh * b.p * N / scale;
     g.strokeStyle = '#d8e2dc'; g.beginPath(); g.moveTo(x0 - 4, G.sl.top); g.lineTo(x0 - 4, G.sl.bot); g.stroke();
@@ -1178,13 +1312,18 @@ function dbUI(full) {
   DB.lastUI = performance.now();
   const tot = DB.bins.reduce((a, b) => a + b.count, 0), [n, l] = DB.start;
   $('dbReadout').innerHTML = [
-    ['Atoms dropped', `${DB.N}${DB.N > tot ? ` (${DB.N - tot} not yet in 1s)` : ''}`],
+    ['Atoms: dropped = in 1s + on the way', `${DB.N} = ${tot} + ${DB.N - tot}`],
     [`Lifetime of ${H.label(n, l)}`, fmtTime(H.lifetime(n, l))],
     ['Through the metastable 2s', `${DB.times.length ? (100 * DB.via2s / DB.times.length).toFixed(1) + '% seen · ' : ''}${(100 * DB.routes.filter(r => r.path.some(is2s)).reduce((a, r) => a + r.p, 0)).toFixed(1)}% predicted`],
   ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('dbTable').innerHTML = `<tr><th>Slot</th><th>Route</th><th>Predicted</th><th>Seen</th></tr>` + DB.bins.map(b =>
     `<tr><td>${b.tag}</td><td>${b.path ? b.key : `${b.nOther} rarer routes`}</td><td>${(100 * b.p).toFixed(b.p < 0.01 ? 2 : 1)}%</td><td>${b.count}${tot ? ` (${(100 * b.count / tot).toFixed(1)}%)` : ''}</td></tr>`).join('');
+  dbStrip();
   if (full || DB.lastUI - DB.lastPlot > 1000) { DB.lastPlot = DB.lastUI; if ($('dbSpecBox').open) dbSpec(); if ($('dbTimeBox').open) dbTime(); }
+}
+function dbStrip() {
+  const lines = [...DB.lines].map(([k, c]) => { const [a, b] = k.split('-').map(Number); return { lambda: H.wavelength(a, b), count: c, name: lineName(a, b) }; });
+  drawSpectrum($('dbStrip'), lines, DB.two, H.wavelength(1, 2));
 }
 function dbSpec() {
   const ks = [...new Set([...DB.lines.keys()].concat(H.cascade(...DB.start).filter(c => c.lambda).map(c => c.from[0] + '-' + c.to[0])))]
@@ -1248,6 +1387,227 @@ $('dbBell').addEventListener('click', dbBell);
 $('dbSpecBox').addEventListener('toggle', () => { if ($('dbSpecBox').open) dbSpec(); });
 $('dbTimeBox').addEventListener('toggle', () => { if ($('dbTimeBox').open) dbTime(); });
 
+// ───────── drive and decay ─────────
+// One laser drives g ↔ e coherently while every level decays at its golden-rule rate (engine: driveModel, driveMaster for
+// the probabilities, driveMonteCarlo for single atoms with quantum jumps). Both are computed up front for FR snapshots
+// and then played back. Canvas colours are the light theme's (data-retro-ink remaps them).
+const DL = { g: [1, 0], e: [3, 1], start: [1, 0], om: 1, laser: true, view: 'mc', N: 200, speed: 1, preset: 'leaky',
+  M: null, T: 0, ts: [], me: null, mc: null, f: 0, raf: 0, t0: 0, flashes: [], played: false };
+const FR = 240, DL_SECONDS = 9;
+const DL_PRESETS = [
+  { k: 'closed', t: 'Closed cycle', s: '1s ↔ 2p', g: [1, 0], e: [2, 1], start: [1, 0], laser: true,
+    note: () => `2p has only one exit, back to 1s, so every photon returns the atom to where the laser can grab it again: a <b>closed cycle</b>. The atoms flop up and down, then settle with ${pct(ssExc())} excited. However hard you drive, that never passes 50%, because the laser pushes atoms down (stimulated emission) as readily as it lifts them up. Laser cooling relies on cycles like this to scatter millions of photons.` },
+  { k: 'leaky', t: 'Leaky cycle', s: '1s ↔ 3p', g: [1, 0], e: [3, 1], start: [1, 0], laser: true,
+    note: () => `3p has two exits: back to 1s (${pct(br(3, 1, 1))}, a Lyman-β photon) and down to 2s (${pct(br(3, 1, 2))}, an Hα photon). The laser only connects 1s and 3p, and 2s lives 0.12 s, so an atom that falls into 2s is out of the game: a <b>dark state</b>. On average an atom scatters ${(DLb(3, 1)).toFixed(2)} Lyman-β photons before it goes dark (= A(3p→1s)/A(3p→2s)). Moving atoms into a state by driving a different transition is called <b>optical pumping</b>.` },
+  { k: 'leakier', t: 'Shuffle', s: '1s ↔ 4p', g: [1, 0], e: [4, 1], start: [1, 0], laser: true,
+    note: () => `4p has four exits (1s, 2s, 3s, 3d). Atoms that land in 3s or 3d cascade back through 2p to 1s and are driven again; only 2s is a trap. Watch the atoms wander: up the laser, out through a side door, down a cascade, back to the laser, until each one ends in 2s.` },
+  { k: 'empty', t: 'Empty 2s', s: '2s ↔ 3p (Hα)', g: [2, 0], e: [3, 1], start: [2, 0], laser: true,
+    note: () => `Now every atom starts in the metastable 2s, and a red Hα laser (656 nm) lifts it to 3p. From 3p, ${pct(br(3, 1, 1))} decay to 1s, which this laser cannot reach, so 2s empties into the ground state; the few that fall back to 2s get another try. It is the reverse shuffle, and a way to read out which atoms were in 2s.` },
+  { k: 'forbidden', t: 'Forbidden', s: '1s ↔ 2s', g: [1, 0], e: [2, 0], start: [1, 0], laser: true,
+    note: () => `1s and 2s are both <i>l</i> = 0 states. The dipole matrix element ⟨2s|<i>z</i>|1s⟩ is zero (<i>z</i> is odd under inversion, both states are even), so a one-photon laser does nothing at any intensity: the selection rule Δ<i>l</i> = ±1. Two photons of 243 nm together can do it; that two-photon line is one of the most precisely measured frequencies in physics.` },
+  { k: 'cascade', t: 'No laser', s: 'start in 4f', g: [1, 0], e: [2, 1], start: [4, 3], laser: false,
+    note: () => `No laser: every atom starts in 4f and is on its own. The only allowed exit is 3d (Δ<i>l</i> = −1), then 2p, then 1s, so all atoms take the same route, each at its own random times. Decay gives you no control at all.` },
+];
+const pct = x => (100 * x).toFixed(x < 0.1 ? 1 : 0) + '%';
+const br = (n, l, n2) => H.decays(n, l).filter(d => d.n === n2).reduce((a, d) => a + d.branch, 0);
+const DLb = (n, l) => { const ds = H.decays(n, l), A1 = ds.filter(d => d.n === 1).reduce((a, d) => a + d.A, 0); return A1 / (ds.reduce((a, d) => a + d.A, 0) - A1); };
+const ssExc = () => { const s2 = 2 * DL.om * DL.om; return s2 / (2 * (1 + s2)); };
+const dlCv = $('driveBoard');
+const lab2 = (n, l) => H.label(n, l);
+function dlBuild() {
+  cancelAnimationFrame(DL.raf); DL.raf = 0;
+  DL.M = H.driveModel({ g: DL.g, e: DL.e, start: DL.start, OmOverGamma: DL.laser ? DL.om : 0 });
+  const M = DL.M, tauE = 1 / M.G[M.ei];
+  if (DL.laser && M.allowed) DL.T = (DL.g[0] === 2 ? 25 : 40) * tauE;
+  else if (DL.start[0] === 1 || (DL.start[0] === 2 && DL.start[1] === 0)) DL.T = 200e-9;   // nothing can happen: a short window
+  else { // no drive: long enough for the slowest likely step of the cascade
+    const vis = H.routes(...DL.start).filter(r => r.p > 0.02).flatMap(r => r.path).filter(s => s[0] > 1 && !(s[0] === 2 && s[1] === 0));
+    DL.T = 6 * Math.max(1e-9, ...vis.map(s => H.lifetime(...s)));
+  }
+  DL.ts = Array.from({ length: FR }, (_, i) => DL.T * (i + 1) / FR);
+  DL.me = H.driveMaster(M, DL.ts); DL.mc = null; DL.f = -1; DL.flashes = []; DL.played = false;
+  dlUI(); dlPlot(); dlDraw();
+}
+function dlRun() {
+  cancelAnimationFrame(DL.raf);
+  let seed = (Math.random() * 2 ** 31) >>> 0;
+  const R = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
+  DL.mc = H.driveMonteCarlo(DL.M, DL.ts, DL.N, R);
+  DL.f = 0; DL.flashes = []; DL.t0 = performance.now(); DL.played = true;
+  ev('drive', { level: DL.preset, view: DL.view, value: DL.N });
+  if (DL.preset === 'leaky' || DL.preset === 'leakier') checks.pump = true;
+  if (DL.preset === 'empty') checks.empty = true;
+  updateChecks();
+  const step = now => {
+    // (a frame's timestamp can precede the click, so clamp at 0)
+    const f = Math.max(0, Math.min(FR - 1, Math.floor((now - DL.t0) / 1000 * DL.speed * FR / DL_SECONDS)));
+    for (let k = DL.f + 1; k <= f; k++) for (const j of DL.mc[k].jumps.slice(0, 40)) DL.flashes.push({ j, born: k });
+    DL.f = f; DL.flashes = DL.flashes.filter(x => f - x.born < 10);
+    dlDraw(); if (f % 6 === 0 || f === FR - 1) { dlUI(); dlPlot(); }
+    if (f < FR - 1) DL.raf = requestAnimationFrame(step); else { DL.raf = 0; dlUI(); dlPlot(); }
+  };
+  DL.raf = requestAnimationFrame(step);
+}
+// populations at frame f: from the master equation, and (if run) the Monte Carlo fractions
+function dlPops(f) {
+  const M = DL.M, nS = M.S.length, k = Math.max(0, f);
+  const P = DL.f < 0 && !DL.played ? M.S.map((_, i) => (i === M.si ? 1 : 0)) : DL.me[k].P.slice();
+  P[M.ei] += P[M.ui]; P[M.ui] = 0;
+  let C = null;
+  if (DL.mc && DL.f >= 0) { const s = DL.mc[k]; C = new Array(nS).fill(0);
+    s.lvl.forEach((v, i) => { if (v < 0) { C[M.ei] += s.pe[i]; C[M.gi] += 1 - s.pe[i]; } else C[v === M.ui ? M.ei : v] += 1; });
+    C = C.map(x => x / s.lvl.length); }
+  return { P, C };
+}
+function dlGeom() {
+  const W = dlCv.clientWidth || 800, Hh = dlCv.clientHeight || 430, narrow = W < 600, M = DL.M;
+  const nMax = Math.max(...M.S.map(q => q[0])), lMax = Math.min(nMax - 1, 6);
+  const top = narrow ? 76 : 70, bot = Hh - 26, left = narrow ? 26 : 40, right = W - (narrow ? 8 : 20), cw = (right - left) / (lMax + 1), hw = Math.min(cw * 0.38, 90);
+  const X = l => left + cw * (l + 0.5), Y = n => top + (bot - top) * (nMax - n) / Math.max(1, nMax - 1);
+  return { W, Hh, narrow, X, Y, hw, nMax, lMax };
+}
+function dlDraw() {
+  const M = DL.M; if (!M) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), Wp = Math.round(dlCv.clientWidth * dpr), Hp = Math.round(dlCv.clientHeight * dpr);
+  if (!Wp) return; if (dlCv.width !== Wp || dlCv.height !== Hp) { dlCv.width = Wp; dlCv.height = Hp; }
+  const g = dlCv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const G = dlGeom(), sm = G.narrow ? 10.5 : 11.5, f = DL.f, { P, C } = dlPops(f), prob = DL.view === 'p' || !DL.mc || f < 0;
+  g.fillStyle = '#f5f9f6'; g.fillRect(0, 0, G.W, G.Hh);
+  g.font = `600 ${sm + 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillStyle = '#1b2a24';
+  g.fillText(`t = ${f >= 0 ? fmtTime(DL.ts[f]) : '0'}`, 10, 18);
+  g.font = `${sm}px Helvetica,Arial`; g.fillStyle = '#5a6b63';
+  g.fillText(prob ? '📊 probabilities: bar length = share of atoms' : `🎲 ${DL.N} atoms, each with its own random jumps`, 10, 34);
+  g.textAlign = 'right'; if (!G.narrow) { g.fillText('rows: n (not to energy scale) · columns: l', G.W - 10, 18); g.fillText('solid double arrow = laser · dashed = spontaneous decay', G.W - 10, 34); }
+  // probability currents (probabilities view): decay flow A·P drawn as lines, thicker for more flow
+  const shelves = M.S.slice(0, M.ui).map((q, i) => ({ q, i })).filter(o => o.q[1] <= G.lMax);
+  if (prob) {
+    let mx = 1e-30; const flows = [];
+    shelves.forEach(({ q, i }) => { const p = P[i]; for (const c of M.ch[i]) { const v = c.A * p; flows.push([i, c.to, v, c]); mx = Math.max(mx, v); } });
+    for (const [i, to, v, c] of flows) { if (v / mx < 0.01 || c.twoPhoton) continue; const a = M.S[i], b = M.S[to];
+      g.strokeStyle = H.photonColor(H.wavelength(a[0], b[0])).css; g.globalAlpha = 0.25 + 0.6 * v / mx; g.lineWidth = 1 + 6 * v / mx;
+      g.setLineDash([7, 5]); g.beginPath(); g.moveTo(G.X(a[1]) + G.hw * 0.4, G.Y(a[0]) + 4); g.lineTo(G.X(b[1]) + G.hw * 0.4, G.Y(b[0]) - 4); g.stroke(); g.setLineDash([]); }
+    g.globalAlpha = 1;
+  }
+  // the laser: one double arrow between g and e
+  const xg = G.X(DL.g[1]), yg = G.Y(DL.g[0]), xe = G.X(DL.e[1]), ye = G.Y(DL.e[0]);
+  if (DL.laser) {
+    const lam = H.wavelength(DL.g[0], DL.e[0]), col = M.allowed ? H.photonColor(lam).css : '#9aa3a0', ax = (xg + xe) / 2 - G.hw * 0.55, bx = ax;
+    g.save(); g.strokeStyle = col; g.lineWidth = M.allowed ? 7 : 3; g.globalAlpha = M.allowed ? 0.55 : 0.9; if (!M.allowed) g.setLineDash([6, 5]);
+    const x0 = xg === xe ? ax : xg - G.hw * 0.55, x1 = xg === xe ? bx : xe - G.hw * 0.55;
+    g.beginPath(); g.moveTo(x0, yg - 6); g.lineTo(x1, ye + 6); g.stroke(); g.setLineDash([]);
+    const head = (x, y, dir) => { g.beginPath(); g.moveTo(x, y); g.lineTo(x - 7, y + dir * 11); g.lineTo(x + 7, y + dir * 11); g.closePath(); g.fillStyle = col; g.fill(); };
+    if (M.allowed) { head(x1, ye + 4, 1); head(x0, yg - 4, -1); }
+    g.globalAlpha = 1; g.font = `600 ${sm}px Helvetica,Arial`; g.textAlign = 'left'; g.fillStyle = M.allowed ? '#1b2a24' : '#c4307e';
+    const ly = (yg + ye) / 2;
+    g.fillText(M.allowed ? `laser ${lab2(...DL.g)} ↔ ${lab2(...DL.e)} · ${(lam * 1e9).toFixed(1)} nm · Ω = ${DL.om.toPrecision(2)} Γ` : G.narrow ? `laser ${lab2(...DL.g)} ↔ ${lab2(...DL.e)}: forbidden (Δl = ${DL.e[1] - DL.g[1]})` : `laser ${lab2(...DL.g)} ↔ ${lab2(...DL.e)}: forbidden (Δl = ${DL.e[1] - DL.g[1]}, no matrix element)`, 10, 52);
+    if (!M.allowed) { g.fillStyle = '#c4307e'; g.font = `700 ${sm + 8}px Helvetica,Arial`; g.textAlign = 'center'; g.fillText('✗', (x0 + x1) / 2, ly + 6); }
+    g.restore();
+  }
+  // shelves
+  for (const { q, i } of shelves) {
+    const x = G.X(q[1]), y = G.Y(q[0]);
+    g.strokeStyle = '#1b2a24'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - G.hw, y); g.lineTo(x + G.hw, y); g.stroke();
+    g.fillStyle = '#1b2a24'; g.font = `700 ${sm + 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillText(lab2(q[0], q[1]), x + G.hw + 4, y + 4);
+    const p = P[i] || 0;
+    if (prob && p > 5e-4) {
+      g.fillStyle = 'rgba(217,165,33,.55)'; g.fillRect(x - G.hw, y - 11, 2 * G.hw * Math.min(1, p), 9);
+      g.fillStyle = '#1b2a24'; g.font = `${sm}px Helvetica,Arial`; g.textAlign = 'left'; g.fillText(pct(p), x - G.hw, y - 15);
+    }
+    if (q[0] === 2 && q[1] === 0 && !(DL.g[0] === 2)) { g.fillStyle = '#5a6b63'; g.font = `${sm - 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillText('dark: lives 0.12 s', x - G.hw, y + 13); }
+  }
+  // Monte Carlo atoms
+  if (!prob) {
+    const s = DL.mc[f], slots = new Map();
+    const spot = (k, i) => { const n = slots.get(k) || 0; slots.set(k, n + 1); const q = M.S[k], per = Math.max(4, Math.floor((2 * G.hw - 6) / 8)), row = Math.floor(n / per);
+      return [G.X(q[1]) - G.hw + 4 + (n % per) * 8, G.Y(q[0]) - 6 - Math.min(row, 4) * 8]; };
+    s.lvl.forEach((v, i) => {
+      let x, y, hollow = false;
+      if (v < 0) { // in the driven pair: ride the laser arrow, height = chance of being excited
+        const pe = s.pe[i], jit = ((i * 7919) % 97) / 97 - 0.5;
+        x = xg + (xe - xg) * pe + jit * G.hw * 0.9; y = yg - 6 + (ye - yg + 12) * pe;
+      } else { [x, y] = spot(v === M.ui ? M.ei : v, i); hollow = v === M.ui; }
+      g.beginPath(); g.arc(x, y, 3.4, 0, 7);
+      if (hollow) { g.strokeStyle = '#b8860b'; g.lineWidth = 1.6; g.stroke(); } else { g.fillStyle = '#d9a521'; g.fill(); g.strokeStyle = '#1b2a24'; g.lineWidth = 0.8; g.stroke(); }
+    });
+    // recent quantum jumps: a flash from the old level to the new one in the photon's colour
+    for (const { j, born } of DL.flashes) {
+      const [, a, b] = j, A = M.S[a], B = M.S[b], age = (f - born) / 10;
+      if (A[1] > G.lMax || B[1] > G.lMax) continue;
+      const two = A[0] === 2 && A[1] === 0 && B[0] === 1;
+      g.globalAlpha = 0.85 * (1 - age); g.strokeStyle = two ? '#9aa3a0' : H.photonColor(H.wavelength(A[0], B[0])).css; g.lineWidth = 2.5;
+      g.setLineDash([7, 5]); g.beginPath(); g.moveTo(G.X(A[1]) + G.hw * 0.4, G.Y(A[0])); g.lineTo(G.X(B[1]) + G.hw * 0.4, G.Y(B[0])); g.stroke(); g.setLineDash([]);
+    }
+    g.globalAlpha = 1;
+  }
+}
+function dlUI() {
+  const M = DL.M, f = DL.f, { P, C } = dlPops(f), use = DL.view === 'mc' && C ? C : P;
+  const ph = DL.f >= 0 ? (DL.view === 'mc' && DL.mc ? Object.fromEntries(Object.entries(DL.mc[f].photons).map(([k, v]) => [k, v / DL.N])) : DL.me[f].photons) : {};
+  const key = M.ei + '>' + M.gi, s2 = M.S.findIndex(q => q[0] === 2 && q[1] === 0);
+  const items = [];
+  items.push(['Laser', !DL.laser ? 'off' : M.allowed ? `${lab2(...DL.g)} ↔ ${lab2(...DL.e)}, ${fmtNm(H.wavelength(DL.g[0], DL.e[0]))}` : `${lab2(...DL.g)} ↔ ${lab2(...DL.e)}: forbidden`]);
+  const excited = 1 - use[0] - (s2 >= 0 ? use[s2] : 0);
+  if (DL.laser && M.allowed) items.push([`In ${lab2(...DL.e)} (driven) / ${lab2(...DL.g)}`, `${pct(use[M.ei])} / ${pct(use[M.gi])}`]);
+  else items.push(['Still excited', pct(Math.max(0, excited))]);
+  if (s2 === M.gi) items.push(['Moved to 1s', pct(use[0])]);
+  else { if (!(DL.laser && M.allowed)) items.push(['In 1s', pct(use[0])]); if (s2 >= 0 && DL.me.some(o => o.P[s2] > 1e-3)) items.push(['In the dark 2s', pct(use[s2])]); }
+  if (DL.laser && M.allowed) items.push([`Photons on ${lab2(...DL.e)} → ${lab2(...DL.g)} per atom`, (ph[key] || 0).toFixed(2) + (DL.preset === 'leaky' ? ` (→ ${DLb(3, 1).toFixed(2)})` : '')]);
+  // the spectrum: photons emitted so far (Monte Carlo counts, or the expected numbers for the same atoms)
+  const scale = DL.view === 'mc' && DL.mc ? DL.N : DL.N, lines = new Map(); let two = 0;
+  for (const [k, v] of Object.entries(ph)) { const [a, b] = k.split('>').map(Number), A = M.S[a], B = M.S[b];
+    if (A[0] === 2 && A[1] === 0 && B[0] === 1) { two += v * scale; continue; }
+    const kk = A[0] + '-' + B[0]; lines.set(kk, (lines.get(kk) || 0) + v * scale); }
+  drawSpectrum($('dlStrip'), [...lines].map(([k, c]) => { const [a, b] = k.split('-').map(Number); return { lambda: H.wavelength(a, b), count: Math.round(c), name: lineName(a, b) }; }), Math.round(two), H.wavelength(1, 2));
+  $('dlReadout').innerHTML = items.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  const P0 = DL_PRESETS.find(p => p.k === DL.preset);
+  $('dlNote').innerHTML = P0 ? P0.note() : 'Your own experiment. Press Run, and compare the Monte Carlo atoms with the probabilities.';
+  for (const b of $('dlPreset').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.k === DL.preset));
+  for (const b of $('dlView').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.v === DL.view));
+  $('dlRun').textContent = DL.played ? 'Run again ▶' : 'Run ▶';
+  $('dlOmTxt').textContent = DL.laser ? `${DL.om.toPrecision(2)} Γ` : 'off';
+  for (const [id, v] of [['dlSN', DL.start[0]], ['dlSL', DL.start[1]], ['dlG', DL.g[0]], ['dlEN', DL.e[0]], ['dlEL', DL.e[1]], ['dlN', DL.N], ['dlSpeed', DL.speed]])
+    for (const b of $(id).querySelectorAll('button')) b.setAttribute('aria-pressed', String(+b.dataset.v === v));
+  for (const b of $('dlSL').querySelectorAll('button')) b.disabled = +b.dataset.v >= DL.start[0];
+  for (const b of $('dlEL').querySelectorAll('button')) b.disabled = +b.dataset.v >= DL.e[0];
+  for (const b of $('dlEN').querySelectorAll('button')) b.disabled = +b.dataset.v <= DL.g[0];
+}
+function dlPlot() {
+  const M = DL.M, ns = DL.ts.map(t => t * 1e9), last = Math.max(0, DL.f);
+  // which levels to plot: g, e, and any other level that holds at least 3% at some point
+  const P = DL.me.map(o => { const p = o.P.slice(); p[M.ei] += p[M.ui]; return p; });
+  const show = [M.gi, M.ei].concat(M.S.slice(0, M.ui).map((_, i) => i).filter(i => i !== M.gi && i !== M.ei && Math.max(...P.map(p => p[i])) > 0.03));
+  const COLS = DK ? ['#2fe0d0', '#f5b73c', '#ff4d9d', '#5fb4ff', '#a98bff', '#c3cec8'] : ['#00693e', '#b8860b', '#c4307e', '#2d6fb3', '#7b4fd6', '#5a6b63'];
+  const DASH = ['solid', 'dash', 'dot', 'dashdot', 'longdash', 'solid'];
+  const traces = show.map((i, k) => ({ x: ns, y: P.map(p => p[i]), mode: 'lines', name: lab2(...M.S[i]) + (i === M.ei ? ' (driven)' : i === M.gi ? '' : ''), line: { color: COLS[k % 6], width: 2.2, dash: DASH[k % 6] }, legendgroup: 'L' + i, hovertemplate: '%{y:.3f}<extra>' + lab2(...M.S[i]) + '</extra>' }));
+  if (DL.mc && DL.f >= 0) show.forEach((i, k) => {
+    const xs = [], ys = [];
+    for (let f = 0; f <= last; f += 3) { const s = DL.mc[f]; let c = 0; s.lvl.forEach((v, a) => { if (v < 0) { if (i === M.ei) c += s.pe[a]; if (i === M.gi) c += 1 - s.pe[a]; } else if ((v === M.ui ? M.ei : v) === i) c++; }); xs.push(ns[f]); ys.push(c / DL.N); }
+    traces.push({ x: xs, y: ys, mode: 'markers', name: `${lab2(...M.S[i])}: ${DL.N} atoms`, showlegend: k === 0, legendgroup: 'L' + i, marker: { color: COLS[k % 6], size: 5, symbol: ['circle', 'square', 'diamond', 'triangle-up', 'x', 'cross'][k % 6] }, hovertemplate: '%{y:.3f}<extra>Monte Carlo</extra>' });
+  });
+  if (traces.length > show.length) traces[show.length].name = `Monte Carlo (${DL.N} atoms)`;
+  Plotly.react('dlPlot', traces, { margin: { t: 10, r: 10, b: 46, l: 54 }, legend: { orientation: 'h', y: -0.22 },
+    xaxis: { title: { text: 'Time (ns)' }, range: [0, ns[ns.length - 1]] }, yaxis: { title: { text: 'Share of atoms' }, range: [0, 1.02], tickformat: '.0%' },
+    shapes: DL.f >= 0 ? [{ type: 'line', x0: ns[last], x1: ns[last], y0: 0, y1: 1, line: { color: MUTED, width: 1, dash: 'dot' } }] : [] }, CONFIG);
+}
+function dlSet(o) { Object.assign(DL, o); dlBuild(); }
+$('dlPreset').innerHTML = DL_PRESETS.map(p => `<button data-k="${p.k}">${p.t}<small>${p.s}</small></button>`).join('');
+$('dlPreset').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; const p = DL_PRESETS.find(q => q.k === b.dataset.k);
+  dlSet({ preset: p.k, g: p.g.slice(), e: p.e.slice(), start: p.start.slice(), laser: p.laser }); ev('drive', { level: 'preset_' + p.k }); });
+$('dlView').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; DL.view = b.dataset.v; dlUI(); dlDraw(); dlPlot(); });
+$('dlRun').addEventListener('click', dlRun);
+$('dlSpeed').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { DL.speed = +b.dataset.v; dlUI(); } });
+const segN = (id, vals, lab) => { $(id).innerHTML = vals.map(v => `<button data-v="${v}">${lab ? lab(v) : v}</button>`).join(''); };
+segN('dlSN', [1, 2, 3, 4, 5, 6, 7]); segN('dlSL', [0, 1, 2, 3, 4, 5, 6], v => H.L[v]); segN('dlEN', [2, 3, 4, 5]); segN('dlEL', [0, 1, 2, 3], v => H.L[v]);
+$('dlSN').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; const n = +b.dataset.v; dlSet({ preset: 'own', start: [n, Math.min(DL.start[1], n - 1)] }); });
+$('dlSL').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b || b.disabled) return; dlSet({ preset: 'own', start: [DL.start[0], +b.dataset.v] }); });
+$('dlG').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; const n = +b.dataset.v; dlSet({ preset: 'own', laser: true, g: [n, 0], e: [Math.max(DL.e[0], n + 1), DL.e[1]] }); });
+$('dlEN').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b || b.disabled) return; const n = +b.dataset.v; dlSet({ preset: 'own', laser: true, e: [n, Math.min(DL.e[1], n - 1)] }); });
+$('dlEL').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b || b.disabled) return; dlSet({ preset: 'own', laser: true, e: [DL.e[0], +b.dataset.v] }); });
+$('dlOff').addEventListener('click', () => dlSet({ preset: 'own', laser: false }));
+$('dlOm').addEventListener('input', () => { DL.om = Math.pow(10, +$('dlOm').value); $('dlOmTxt').textContent = `${DL.om.toPrecision(2)} Γ`; });
+$('dlOm').addEventListener('change', () => dlSet({ preset: DL.preset === 'own' || !DL.laser ? DL.preset : DL.preset }));
+$('dlN').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { DL.N = +b.dataset.v; dlUI(); } });
+
 // ───────── shareable link ─────────
 function shareQuery() {
   return `atom=${st.mystery ? 'H' : st.atom}&n=${st.n}&l=${st.l}&m=${st.m}&start=${st.start.join('')}&lam=${(st.lam * 1e9).toFixed(5)}&det=${st.det}&I=${st.logI}&T=${st.logT.toFixed(3)}&lw=${st.lw}`;
@@ -1268,8 +1628,8 @@ $('copyLink').addEventListener('click', e => PageKit.copyLink(e.target, 'courses
   const at = P.str('atom', Object.keys(H.ATOMS)); if (at) { st.atom = at; H.setAtom(at); $('atomSel').value = at; }
 })();
 
-addEventListener('resize', () => { if (view === 'slice') drawOrbital(); drawLevels(); if (!DB.raf) dbDraw(performance.now()); });
-refreshState(); laserUI(); survey(); updateChecks(); dbReset();
+addEventListener('resize', () => { if (view === 'slice') drawOrbital(); drawLevels(); if (!DB.raf) { dbDraw(performance.now()); dbStrip(); } if (!DL.raf) { dlDraw(); dlUI(); } });
+refreshState(); laserUI(); survey(); updateChecks(); dbReset(); dlBuild();
 })();
 </script>
 </body>
