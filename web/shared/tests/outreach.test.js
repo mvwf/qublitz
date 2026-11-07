@@ -254,5 +254,34 @@ check('the published site is not a test host', !kit.isTestHost('mvwf.github.io',
   check('debrief skips questions already answered', kit.pickQuiz(items, 6, new Set(['a', 'b']), R).every(q => q.id !== 'a' && q.id !== 'b') && kit.pickQuiz(items, 10, new Set(), R).length === 6);
 }
 
+// ---- code designs for the frontier board ----
+{
+  const dctx = { day: '2026-11-07', dev: 'desktop', gv: '2026-11-07+abc1234' };
+  const good = { mission: 'grid-5x5', family: 'lattice', n: 25, k: 1, d: 5, dExact: true, score: 1.000049, spec: '1.1;1.2|Z0,1,2,3', name: 'Jo', note: 'hello world' };
+  const cd = kit.cleanDesign(good, dctx);
+  check('cleanDesign keeps a good record, rounds the score and drops other fields', cd && cd.n === 25 && cd.d === 5 && cd.dExact === true && cd.score === 1 && cd.gv === dctx.gv && !('name' in cd) && !('note' in cd));
+  const bad = [{ mission: 'Grid 5' }, { mission: 'x'.repeat(33) }, { family: 'color' }, { n: 0 }, { n: 2.5 }, { n: 2001 }, { k: 26 }, { k: -1 }, { d: 0 }, { d: 201 }, { d: undefined },
+    { score: -1 }, { score: Infinity }, { score: 2e6 }, { spec: 'has space' }, { spec: '<script>' }, { spec: '' }, { spec: 'x'.repeat(2001) }, { spec: 'a@b.co' }];
+  const rejected = bad.filter(b => kit.cleanDesign(Object.assign({}, good, b), dctx) === null).length;
+  check(`cleanDesign rejects bad mission, family, ranges and spec characters (${rejected}/${bad.length})`, rejected === bad.length);
+  check('cleanDesign allows no d when k = 0', kit.cleanDesign(Object.assign({}, good, { k: 0, d: undefined }), dctx) !== null && !('d' in kit.cleanDesign(Object.assign({}, good, { k: 0 }), dctx)));
+  const now3 = new Date('2026-11-07T12:00:00Z');
+  check('collector design rows reject what the page rejects', bad.every(b => gs.cleanDesignRow_(Object.assign({}, good, b), now3) === null) && gs.cleanDesignRow_(good, now3) !== null);
+  check('collector design row stores no free text', !JSON.stringify(gs.cleanDesignRow_(good, now3)).includes('hello') && gs.TABS.designs.length === gs.cleanDesignRow_(good, now3).length);
+  // dedup, ordering, top 25, unversioned exclusion
+  const row = (o, day) => gs.cleanDesignRow_(Object.assign({}, good, { day: day || '2026-11-07', gv: dctx.gv }, o), now3);
+  const rows = [row({ spec: 'A', score: 1 }, '2026-11-06'), row({ spec: 'A', score: 1 }, '2026-11-05'), row({ spec: 'A', score: 1 }),
+    row({ spec: 'B', score: 1.29, d: 3 }), row({ spec: 'C', score: 1.29, d: 5 }), row({ spec: 'D', score: 1.29, d: 5 }, '2026-11-04'),
+    row({ spec: 'E', score: 9, gv: '' }), row({ spec: 'F', score: 9, mission: 'other' })];
+  for (let i = 0; i < 40; i++) rows.push(row({ spec: 'Z' + i, score: 0.1 + i / 1000 }));
+  const B = gs.frontier_(rows, 'grid-5x5', {});
+  check('board: best score first, then larger d, then the earliest day', B[0].spec === 'D' && B[1].spec === 'C' && B[2].spec === 'B' && B[3].spec === 'A', B.slice(0, 4).map(x => x.spec).join(','));
+  check('board: duplicates merged with a count and the earliest day', B[3].count === 3 && B[3].day === '2026-11-05');
+  check('board: top 25 only, one mission only', B.length === 25 && B.every(x => x.spec !== 'F'));
+  check('board: rows with no page version are left out (dev includes them)', B.every(x => x.spec !== 'E') && gs.frontier_(rows, 'grid-5x5', { dev: true })[0].spec === 'E');
+  const SD = gs.summarize([], [], [], 30, now3, {}, rows);
+  check('summary counts design submissions per mission (versioned only)', SD.designs['grid-5x5'] === 46 && SD.designs.other === 1, JSON.stringify(SD.designs));
+}
+
 console.log(fails ? `\n${fails} check(s) failed` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

@@ -16,9 +16,12 @@ var TABS = {
   // gv = page version ('<files last changed>+<site commit>'); extra = the game's own fields as JSON.
   events:   ['received', 'day', 'game', 'event', 'level', 'value', 'stars', 'dur_s', 'code', 'device', 'gv', 'extra'],
   quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source', 'gv'],
+  // code designs for ErrorSweeper's frontier board: a mission id, numbers and a compact layout string, never free text
+  designs:  ['received', 'day', 'mission', 'family', 'n', 'k', 'd', 'd_exact', 'score', 'spec', 'gv'],
   feedback: ['received', 'day', 'game', 'code', 'learned_text', 'confusing_text'],
 };
-var MAX_BODY = 20000, MAX_EVENTS = 60, CACHE_S = 300;
+var MAX_BODY = 20000, MAX_EVENTS = 60, CACHE_S = 300, MAX_DESIGNS = 3, DESIGN_CACHE_S = 120, BOARD_TOP = 25;
+var RE_MISSION = /^[a-z0-9-]{1,32}$/, RE_SPEC = /^[0-9A-Za-z.,;:|+=-]{1,2000}$/;
 
 function doPost(e) {
   try {
@@ -38,6 +41,11 @@ function doPost(e) {
         var q = cleanQuizRows(msg.quiz, now);
         if (q) append_('quiz', [q.quiz]);
       }
+      if (msg.design) {
+        var drows = [];
+        (Array.isArray(msg.design) ? msg.design : [msg.design]).slice(0, MAX_DESIGNS).forEach(function (d) { var r = cleanDesignRow_(d, now); if (r) drows.push(r); });
+        if (drows.length) append_('designs', drows);
+      }
     } finally { lock.releaseLock(); }
     // Every cached summary key carries this version, so bumping it makes all of them stale at once
     // (removing 'summary' never matched, because the keys include the period).
@@ -49,12 +57,21 @@ function doPost(e) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
+  if (p.designs) {
+    var mission = RE_MISSION.test(p.mission || '') ? p.mission : '', dev = p.dev === '1';
+    if (!mission) return json_(JSON.stringify({ mission: '', generated: new Date().toISOString(), designs: [] }));
+    var dc = CacheService.getScriptCache(), dkey = ['designs', mission, dev ? '1' : ''].join('|') + ':' + (dc.get('ver') || '0'), dhit = dc.get(dkey);
+    if (dhit) return json_(dhit);
+    var dout = JSON.stringify({ mission: mission, generated: new Date().toISOString(), designs: frontier_(read_('designs'), mission, { dev: dev }) });
+    if (dout.length < 90000) dc.put(dkey, dout, DESIGN_CACHE_S);
+    return json_(dout);
+  }
   if (!p.summary) return text_('outreach collector: ok');
   var opts = { from: RE_DAY.test(p.from || '') ? p.from : '', to: RE_DAY.test(p.to || '') ? p.to : '', code: RE_CODE.test(p.code || '') ? p.code : '', dev: p.dev === '1' ? '1' : '' };
   var cache = CacheService.getScriptCache();
   var key = ['summary' + days, opts.from, opts.to, opts.code, opts.dev].join('|') + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
-  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts));
+  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts, read_('designs')));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
   return json_(out);
 }
@@ -122,6 +139,34 @@ function cleanQuizRows(q, now) {
               n_(q.fun, 1, 5), n_(q.learned, 1, 5), JSON.stringify(answers), q.src === 'ingame' ? 'ingame' : 'debrief', RE_GV.test(q.gv || '') ? q.gv : ''];
   return { quiz: quiz, feedback: null };   // free text is never stored
 }
+function cleanDesignRow_(d, now) {
+  // the server-side twin of cleanDesign in web/shared/outreach.js
+  if (!d || !RE_MISSION.test(d.mission || '') || (d.family !== 'lattice' && d.family !== 'bb')) return null;
+  var isInt = function (v, lo, hi) { return typeof v === 'number' && Math.floor(v) === v && v >= lo && v <= hi; };
+  if (!isInt(d.n, 1, 2000) || !isInt(d.k, 0, d.n)) return null;
+  if (d.k > 0 && !isInt(d.d, 1, 200)) return null;
+  if (typeof d.score !== 'number' || !isFinite(d.score) || d.score < 0 || d.score > 1e6) return null;
+  if (typeof d.spec !== 'string' || !RE_SPEC.test(d.spec)) return null;
+  return [Utilities_formatDay_(now), day_(d.day, now), d.mission, d.family, d.n, d.k, d.k > 0 ? d.d : '', !!d.dExact,
+          Math.round(d.score * 1e4) / 1e4, d.spec, RE_GV.test(d.gv || '') ? d.gv : ''];
+}
+/* The frontier board for one mission: designs deduplicated by spec (count = times submitted, day = the earliest),
+ * best score first, then larger d, then the earliest day; the top BOARD_TOP. Rows with no page version are left out
+ * unless opts.dev, as in the summary. */
+function frontier_(rows, mission, opts) {
+  var dev = !!(opts && opts.dev), by = {};
+  rows.forEach(function (r) {
+    if (r[2] !== mission || (!r[10] && !dev) || !RE_SPEC.test(String(r[9]))) return;
+    var spec = String(r[9]), day = dayKey_(r[1]), e = by[spec];
+    if (!e) by[spec] = e = { spec: spec, family: r[3], n: Number(r[4]), k: Number(r[5]), d: r[6] === '' ? null : Number(r[6]),
+                              dExact: r[7] === true || r[7] === 'TRUE' || r[7] === 'true', score: Number(r[8]), day: day, count: 0 };
+    e.count++;
+    if (day < e.day) e.day = day;
+  });
+  return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) {
+    return (b.score - a.score) || ((b.d || 0) - (a.d || 0)) || (a.day < b.day ? -1 : a.day > b.day ? 1 : 0);
+  }).slice(0, BOARD_TOP);
+}
 
 /* Aggregate the three tabs for the dashboard. Rows are arrays in TABS order. Returns only counts and averages:
  *   games{id: {opens, starts, completes, wins, losses, quizOpens, leaves, avgMinutes, levels{name: {starts, completes,
@@ -134,7 +179,7 @@ function cleanQuizRows(q, now) {
  *   byMonth{YYYY-MM: {game: {opens, minutes, completes, debriefs, ingame}}}, codeTotals{code: {minutes, completes}}.
  *   Free text never leaves the sheet.
  * opts (optional): { from, to: 'YYYY-MM-DD' (inclusive; from replaces days), code: keep only that outreach session }. */
-function summarize(events, quiz, feedback, days, now, opts) {
+function summarize(events, quiz, feedback, days, now, opts, designs) {
   var o = opts || {};
   var since = RE_DAY.test(o.from || '') ? o.from : Utilities_formatDay_(new Date(now.getTime() - days * 86400000));
   var until = RE_DAY.test(o.to || '') ? o.to : '';
@@ -243,6 +288,12 @@ function summarize(events, quiz, feedback, days, now, opts) {
   });
   Object.keys(out.quiz).forEach(function (id) { finish(out.quiz[id]); });
   Object.keys(out.codeQuiz).forEach(function (c) { finish(out.codeQuiz[c]); });
+  // design submissions per mission (rows with no page version only with opts.dev)
+  out.designs = {};
+  (designs || []).forEach(function (r) {
+    if (!inRange(dayKey_(r[1])) || (!r[10] && !devOK)) return;
+    out.designs[r[2]] = (out.designs[r[2]] || 0) + 1;
+  });
   feedback.forEach(function (r) { if (inRange(dayKey_(r[1])) && (!only || r[3] === only)) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
   return out;
 }
@@ -289,6 +340,9 @@ var DICTIONARY = [
   'quiz: day, game, code, device, score and n (right / answered), fun and learned (1-5 ratings, may be empty),',
   '  answers (list of {q: question id, obj: learning objective id, pick: choice index, ok: right?}),',
   '  source (ingame: answered inside the game; debrief: end card), gv.',
+  'designs: day, mission (ErrorSweeper design mission id), family (lattice|bb), n, k, d (distance; empty if k = 0),',
+  '  d_exact (true if d was proven by exhaustive search), score (the mission\'s figure of merit), spec (compact',
+  '  layout string the game can reload), gv.',
   'Question and objective text: web/learning/<game>.js in https://github.com/mvwf/qublitz (the quiz list,',
   '  choices in index order). There are no identifiers: rows cannot be linked to a person or to each other.',
 ].join('\n');
@@ -309,7 +363,7 @@ function rowsToRecords_(table, header, rows) {
 }
 function exportForAI() {
   var lines = [];
-  ['events', 'quiz'].forEach(function (name) {
+  ['events', 'quiz', 'designs'].forEach(function (name) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (!sh || sh.getLastRow() < 2) return;
     var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -324,4 +378,4 @@ function exportForAI() {
   return msg;
 }
 
-if (typeof module !== 'undefined') module.exports = { TABS: TABS, cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };
+if (typeof module !== 'undefined') module.exports = { TABS: TABS, cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, cleanDesignRow_: cleanDesignRow_, frontier_: frontier_, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };

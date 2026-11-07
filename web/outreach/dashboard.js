@@ -436,6 +436,16 @@
         h('td', { class: 'n', text: v.answered ? `${pct(v.correct / v.answered)} of ${fmt(v.answered)}` : '–' }))))));
   }
 
+  function renderDesigns() {
+    const D = summary.designs, box = $('designs');
+    if (!D) { box.replaceChildren(h('div', { class: 'empty', text: 'Not reported yet (it needs the updated collector, Code.gs).' })); return; }
+    const ids = Object.keys(D).sort((a, b) => D[b] - D[a]);
+    if (!ids.length) { box.replaceChildren(h('div', { class: 'empty', text: 'No designs submitted in this period.' })); return; }
+    box.replaceChildren(h('table', {},
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Mission' }), h('th', { scope: 'col', class: 'n', text: 'Designs' }))),
+      h('tbody', {}, ids.map(m => h('tr', {}, h('th', { scope: 'row', text: m }), h('td', { class: 'n', text: fmt(D[m]) }))))));
+  }
+
   function renderStops() {
     const S = summary, box = $('stops');
     const ids = Object.keys(S.games).filter(g => g !== 'hub' && S.games[g].quits && Object.keys(S.games[g].quits).length).sort(byOpens);
@@ -490,7 +500,7 @@
     if (!summary) return;
     hideTip();
     renderKpis(); renderInsights(); renderLog(); renderVisits(); renderFunnel(); renderLevels(); renderRatings(); renderQuiz();
-    renderStops(); renderLab(); renderVersions(); renderCodes(); renderDevices(); renderCodeGames();
+    renderStops(); renderLab(); renderVersions(); renderDesigns(); renderCodes(); renderDevices(); renderCodeGames();
   }
 
   // ── fetching a summary (dashboard period, report range, before/after windows) ─────────────────────────────

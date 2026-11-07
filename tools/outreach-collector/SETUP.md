@@ -36,7 +36,8 @@ request (or send it to Claude to do). Once it's merged and the site has deployed
 - the [dashboard](https://mvwf.github.io/qublitz/outreach/dashboard.html) starts filling in (refresh after
   playing a level).
 
-The Sheet fills in by itself: tabs `events` and `quiz` appear with the first data.
+The Sheet fills in by itself: tabs `events`, `quiz` and (once someone submits an ErrorSweeper design) `designs`
+appear with the first data.
 
 ## Day to day
 - **Outreach sessions:** hand out links with `?event=SOMECODE` on the end (for example
