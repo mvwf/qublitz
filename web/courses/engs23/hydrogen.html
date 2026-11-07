@@ -84,6 +84,11 @@
   .pulseBtns button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.2;padding:7px 14px;font-weight:600}
   .pulseBtns button small{font-weight:400;font-size:11px;opacity:.8}
   .tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-left:6px;color:var(--muted)}
+  #decayBoard{height:540px;background:var(--panel);touch-action:pan-y}
+  @media(max-width:600px){#decayBoard{height:470px}}
+  .dbSteps .seg button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.15;padding:5px 10px;font-weight:600}
+  .dbSteps .seg button small{font-weight:400;font-size:10.5px;opacity:.85}
+  #dbTable td:nth-child(2){white-space:normal;text-align:left}
 </style>
 </head>
 <body>
@@ -228,6 +233,50 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
   <details><summary>How the lab link works</summary><p class="hint" id="labMapNote"></p></details>
 </div>
 
+<div class="card" id="decayCard">
+  <h2>Decay board · a quantum Galton board</h2>
+  <p class="hint">A π pulse lifts atoms from 1s to the state you pick. Then let go. Each atom waits a random time on its level
+  (the lifetime is the average wait), then drops to a lower level and emits one photon. Which level it drops to is random too,
+  weighted by the branching ratios <i>A</i>/Σ<i>A</i> from the dipole matrix elements. Every atom ends in 1s; the slots at the
+  bottom sort the atoms by the route they took, and the dashed outlines show the predicted share of each route.</p>
+  <div class="row dbSteps"><span class="lbl">1 · Excite 1s →</span><span class="seg" id="dbStart"></span></div>
+  <div class="row"><span class="lbl">2 · Release</span><button class="primary" id="dbDrop1">Drop 1 atom</button><button class="primary" id="dbDrop100">Drop 100 atoms</button>
+    <button id="dbSkip">Skip to the end ⏭</button><span class="lbl">Speed</span><span class="seg" id="dbSpeed"><button data-v="0" aria-pressed="false">Slow</button><button data-v="1" aria-pressed="true">Normal</button><button data-v="2" aria-pressed="false">Fast</button></span>
+    <button id="dbClear">Clear</button></div>
+  <canvas id="decayBoard" data-retro-ink aria-label="Decay board: levels as shelves, atoms as balls falling from the excited state to 1s, and slots that count each decay route. The table below lists the same counts."></canvas>
+  <div class="readout" id="dbReadout"></div>
+  <table id="dbTable" aria-label="Decay routes: predicted and observed"></table>
+  <details id="dbSpecBox"><summary>The photons they emitted</summary><div id="dbSpec" class="plot"></div><p class="hint" id="dbSpecNote"></p></details>
+  <details id="dbTimeBox"><summary>How long the cascade takes</summary><div id="dbTime" class="plot"></div><p class="hint" id="dbTimeNote"></p></details>
+  <details id="dbBellBox"><summary>Where is the bell curve?</summary>
+    <p class="note">In Galton's board every ball meets many pegs and goes left or right with probability ½ at each one; its slot counts
+    how often it went right, so the slots fill as a binomial distribution, which for many rows is a bell curve (the central limit
+    theorem). Here each level is a “peg” with several exits of unequal weight, and an atom passes only a few of them, so the slots fill
+    to the branching-ratio products instead: from 3p, 88% of atoms go straight home to 1s. That is not a bell curve, and the page
+    does not pretend it is.</p>
+    <p class="note">Bell curves do appear in two honest places. (1) Repeat the experiment: the number of atoms that land in one slot
+    out of <i>N</i> is binomial, with mean <i>Np</i> and spread √(<i>Np</i>(1 − <i>p</i>)), so over many runs it scatters in a bell
+    curve; that spread is why the bars only approach the outlines as 1/√<i>N</i>. (2) Add up random waits: the time a long cascade takes
+    is a sum of independent exponential waits, which already looks peaked for 7i → 6h → … → 1s (six steps; pick it under “Start in
+    any state”, then open “How long the cascade takes”).</p>
+    <div class="row"><button id="dbBell">Run 400 experiments of 100 atoms (instant)</button></div>
+    <div id="dbBellPlot" class="plot" hidden></div><p class="hint" id="dbBellNote"></p>
+    <p class="note">The randomness is quantum. Identically prepared atoms take different routes at different times, and nothing in
+    the initial state decides which; quantum mechanics gives only the probabilities (Einstein noticed in 1917 that his <i>A</i>
+    coefficients leave the moment and direction of emission to “chance”).</p></details>
+  <details id="dbAnyBox"><summary>Start in any state</summary>
+    <p class="hint">One photon from 1s reaches only <i>n</i>p states (Δ<i>l</i> = ±1). Other states can be made with several photons,
+    electron collisions or recombination in a plasma. High-<i>l</i> “circular” states such as 5g or 7i can only step down one level
+    at a time (Δ<i>l</i> = −1 each step), so their route is fixed.</p>
+    <div class="row"><span class="lbl">n</span><span class="seg" id="dbAnyN"></span><span class="lbl">l</span><span class="seg" id="dbAnyL"></span></div></details>
+  <details><summary>What the board leaves out</summary>
+    <p class="note">The levels are shown evenly spaced by <i>n</i>, not to energy scale. The jumps themselves are instantaneous; they are
+    drawn slowed so you can follow them. Lifetimes and branching ratios are the page's own gross-structure values (no fine
+    structure), which agree with the tabulated ones (Wiese &amp; Fuhr 2009) to better than 0.1%. The 2s atoms are free, in zero field:
+    a weak electric field mixes 2s with 2p and empties it in nanoseconds (quenching), and collisions do the same in a dense gas.
+    The 2s two-photon decay shares its energy between the two photons in a continuous spectrum, so it adds no line.</p></details>
+</div>
+
 <div class="grid2">
   <div class="card">
     <h2>Lab checklist · <span id="ckCount">0 of 8</span> done</h2>
@@ -282,11 +331,13 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
     <li>C. J. Foot, <i>Atomic Physics</i> (Oxford University Press, 2005), ch. 7–8: optical Bloch equations, saturation, power and Doppler broadening.</li>
     <li>P. Thompson, D. E. Cox &amp; J. B. Hastings, “Rietveld refinement of Debye–Scherrer synchrotron X-ray data from Al₂O₃,” <i>J. Appl. Cryst.</i> <b>20</b>, 79 (1987): the pseudo-Voigt approximation.</li>
     <li>K. S. E. Eikema, J. Walz &amp; T. W. Hänsch, “Continuous coherent Lyman-α excitation of atomic hydrogen,” <i>Phys. Rev. Lett.</i> <b>86</b>, 5679 (2001).</li>
+    <li>A. Einstein, “Zur Quantentheorie der Strahlung,” <i>Phys. Z.</i> <b>18</b>, 121 (1917): the <i>A</i> and <i>B</i> coefficients, and the remark that the theory leaves the time and direction of emission to “chance.”</li>
+    <li>F. Galton, <i>Natural Inheritance</i> (Macmillan, 1889): the quincunx (Galton board).</li>
     <li>C. G. Parthey <i>et al.</i>, “Improved measurement of the hydrogen 1S–2S transition frequency,” <i>Phys. Rev. Lett.</i> <b>107</b>, 203001 (2011).</li>
   </ol>
   <p class="note">The physics engine (<code>hydrogen-engine.js</code>) is checked against these sources by an automated test:
   normalization and nodes of <i>R<sub>nl</sub></i>, ⟨<i>r</i>⟩, the wavelengths against NIST, <i>A</i>(2p→1s) = 6.2649 × 10⁸ s⁻¹,
-  and nine lifetimes against the tabulated values. Built for ENGS 23. <a id="dlLink" href="hydrogen-offline.html" download>Download this page</a>
+  nine lifetimes against the tabulated values, and the decay board's branching ratios (3p, 4p) against Wiese &amp; Fuhr. Built for ENGS 23. <a id="dlLink" href="hydrogen-offline.html" download>Download this page</a>
   as a single file that runs offline.</p>
 </div>
 </div>
@@ -715,7 +766,7 @@ function setAtomChoice(v) {
   H.setAtom(st.atom);
   st.lam = inLab(() => H.wavelength(st.start[0], st.start[0] + 1)) * (st.mystery ? 1.004 : 1); st.det = 0;
   $('atomSel').value = st.mystery ? 'mystery' : st.atom;
-  refreshState(); laserUI(); survey();
+  refreshState(); laserUI(); survey(); dbReset();
   ev('atom', { level: st.mystery ? 'mystery' : st.atom });
 }
 function drawMystery() {
@@ -917,6 +968,286 @@ $('zoom').addEventListener('click', zoom);
 $('logScale').addEventListener('change', drawOrbital);
 $('reset').addEventListener('click', () => { location.href = location.pathname; });
 
+// ───────── decay board: a quantum Galton board ─────────
+// Atoms put in one state by a π pulse cascade to 1s. Each wait is exponential with the state's lifetime 1/ΣA, each exit
+// is chosen with probability A/ΣA (the engine's E1 rates; 2s leaves only by the two-photon decay). The clock runs in
+// real physical time, scaled for the screen; when only 2s atoms are left it fast-forwards and says by how much.
+// Colours are the light theme's; the canvas has data-retro-ink, so retro themes remap them.
+const DB = { start: [3, 1], atoms: [], t: 0, speed: 1, ff: false, raf: 0, last: 0, bins: [], routes: [], lines: new Map(), two: 0,
+  times: [], flying: [], N: 0, dec: new Map(), states: [], tref: 1e-9, lastUI: 0, lastPlot: 0, via2s: 0 };
+const PUMP = 650, TRANS = 320, FALL = 420;     // ms on screen: the pulse, one jump, the drop into a slot
+const dbCv = $('decayBoard');
+const is2s = s => s[0] === 2 && s[1] === 0;
+const rkey = path => path.map(s => H.label(...s)).join('→').replace('2s→1s', '2s⇒1s');
+function dbDec(n, l) {
+  const k = n + ',' + l;
+  if (!DB.dec.has(k)) { const ds = H.decays(n, l); DB.dec.set(k, { ds, G: ds.reduce((a, d) => a + d.A, 0) }); }
+  return DB.dec.get(k);
+}
+function dbReset() {
+  cancelAnimationFrame(DB.raf); DB.raf = 0;
+  Object.assign(DB, { atoms: [], t: 0, ff: false, lines: new Map(), two: 0, times: [], flying: [], N: 0, dec: new Map(), via2s: 0 });
+  const [n, l] = DB.start;
+  DB.routes = H.routes(n, l);
+  const K = (dbCv.clientWidth || 800) < 600 ? 4 : 6, top = DB.routes.slice(0, K), rest = DB.routes.slice(K);
+  DB.bins = top.map((r, i) => ({ key: rkey(r.path), path: r.path, p: r.p, count: 0, tag: String.fromCharCode(65 + i) }));
+  if (rest.length) DB.bins.push({ key: 'other', path: null, p: rest.reduce((a, r) => a + r.p, 0), count: 0, tag: String.fromCharCode(65 + top.length), nOther: rest.length });
+  // the shelves: every state some route visits, with the chance of visiting it (a route visits a state at most once)
+  const visit = new Map();
+  for (const r of DB.routes) for (const s of r.path) { const k = s.join(','); visit.set(k, (visit.get(k) || 0) + r.p); }
+  DB.states = [...visit].map(([k, p]) => ({ s: k.split(',').map(Number), p }));
+  // the screen clock: the slowest state that at least 2% of atoms visit (2s aside) lasts ~1.5 s at Normal speed
+  DB.tref = Math.max(...DB.states.filter(o => o.s[0] > 1 && !is2s(o.s) && o.p >= 0.02).map(o => H.lifetime(...o.s)), H.lifetime(...DB.start));
+  dbButtons(); dbDraw(performance.now()); dbUI(true);
+}
+const dbRate = () => DB.tref / [6, 1.5, 0.4][DB.speed];          // physical seconds per second on screen
+const tau2s = () => 1 / H.atom().twoPhoton;
+function dbAtom(now) {
+  let [n, l] = DB.start, t = 0; const hops = [];
+  while (n > 1) {
+    const { ds, G } = dbDec(n, l);
+    t += -Math.log(1 - Math.random()) / G;                     // exponential wait, mean 1/ΣA
+    let u = Math.random() * G, d = ds[ds.length - 1];
+    for (const x of ds) { u -= x.A; if (u < 0) { d = x; break; } }
+    hops.push({ t, from: [n, l], to: [d.n, d.l], lambda: d.lambda, two: !!d.twoPhoton });
+    n = d.n; l = d.l;
+  }
+  const key = rkey([DB.start].concat(hops.map(h => h.to)));
+  const bin = DB.bins.find(b => b.key === key) || DB.bins[DB.bins.length - 1];
+  const end = hops.find(h => h.to[0] === 1 || is2s(h.to));
+  return { hops, k: 0, state: DB.start.slice(), prev: null, pumpReal: now, t0: null, lastReal: -1e9, landReal: is2s(DB.start) && !hops.length ? now : null, binned: false, bin, cascT: end ? end.t : 0 };
+}
+function dbHop(a, h, now, quiet) {
+  a.prev = a.state; a.state = h.to; a.lastReal = now; a.k++;
+  if (h.two) DB.two++; else { const k = h.from[0] + '-' + h.to[0]; DB.lines.set(k, (DB.lines.get(k) || 0) + 1); }
+  if (!h.two && (h.to[0] === 1 || is2s(h.to))) { DB.times.push(a.cascT); if (is2s(h.to)) DB.via2s++; }
+  if (h.to[0] === 1) a.landReal = now;
+  if (!quiet && DB.flying.length < 160) DB.flying.push({ from: h.from, to: h.to, lambda: h.lambda, two: h.two, born: now });
+}
+function dbDrop(count) {
+  const now = performance.now();
+  if (DB.ff) dbSkip();                                         // a new batch never waits for the slow 2s tail
+  if (!DB.atoms.some(a => !a.binned)) { DB.t = 0; DB.atoms = DB.atoms.filter(a => !a.binned).concat([]); }
+  for (let i = 0; i < count; i++) DB.atoms.push(dbAtom(now));
+  DB.N += count;
+  ev('decay_drop', { level: H.label(...DB.start), value: count });
+  if (!DB.raf) { DB.last = now; DB.raf = requestAnimationFrame(dbFrame); }
+}
+function dbSkip() {
+  const now = performance.now();
+  for (const a of DB.atoms) {
+    if (a.binned) continue;
+    if (a.t0 == null) a.t0 = DB.t;
+    while (a.k < a.hops.length) dbHop(a, a.hops[a.k], now, true);
+    a.binned = true; a.bin.count++;
+  }
+  DB.atoms = []; DB.flying = []; DB.ff = false;
+  cancelAnimationFrame(DB.raf); DB.raf = 0;
+  dbDraw(now); dbUI(true);
+}
+function dbFrame(now) {
+  const dt = Math.min(100, now - DB.last) / 1000; DB.last = now;
+  const live = DB.atoms.filter(a => !a.binned);
+  DB.ff = live.length > 0 && live.every(a => a.t0 != null && is2s(a.state) && now - a.lastReal > TRANS);
+  if (live.some(a => a.t0 != null)) DB.t += dt * (DB.ff ? tau2s() / 1.5 : dbRate());
+  for (const a of live) {
+    if (a.t0 == null && now - a.pumpReal >= PUMP) a.t0 = DB.t;
+    if (a.t0 != null) while (a.k < a.hops.length && a.t0 + a.hops[a.k].t <= DB.t) dbHop(a, a.hops[a.k], now, false);
+    if (a.landReal != null && now - a.landReal > TRANS + FALL) { a.binned = true; a.bin.count++; }
+  }
+  DB.flying = DB.flying.filter(f => now - f.born < 900);
+  dbDraw(now);
+  if (now - DB.lastUI > 200) dbUI(false);
+  if (DB.atoms.some(a => !a.binned) || DB.flying.length) DB.raf = requestAnimationFrame(dbFrame);
+  else { DB.raf = 0; DB.atoms = []; DB.ff = false; dbDraw(now); dbUI(true); }
+}
+
+// geometry: rows evenly spaced by n (not to energy scale), columns by l, slots below
+function dbGeom() {
+  const W = dbCv.clientWidth || 800, Hh = dbCv.clientHeight || 540, narrow = W < 600;
+  const nMax = Math.max(...DB.states.map(o => o.s[0])), lMax = Math.max(...DB.states.map(o => o.s[1]));
+  const slotH = Math.round(Hh * (narrow ? 0.3 : 0.28)), top = 44, boardB = Hh - slotH - 46, left = narrow ? 30 : 44, right = W - (narrow ? 8 : 16);
+  const cw = (right - left) / (lMax + 1), hw = Math.min(cw * 0.36, 78);
+  const X = l => left + cw * (l + 0.5), Y = n => nMax === 1 ? boardB : top + (boardB - top) * (nMax - n) / (nMax - 1);
+  const sl = { x0: 8, x1: W - 8, top: Hh - slotH - 6, bot: Hh - 22 }, bw = (sl.x1 - sl.x0) / Math.max(1, DB.bins.length);
+  return { W, Hh, narrow, X, Y, hw, sl, bw, nMax };
+}
+function shelfSpot(G, s, i) {          // the i-th ball resting on shelf s
+  const per = Math.max(3, Math.floor((2 * G.hw - 8) / 10)), row = Math.floor(i / per);
+  return row > 2 ? null : [G.X(s[1]) - G.hw + 6 + (i % per) * 10, G.Y(s[0]) - 7 - row * 10];
+}
+function ball(g, x, y, r, col) { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.strokeStyle = '#1b2a24'; g.lineWidth = 1; g.stroke(); }
+function squiggle(g, x, y, len, col, ang) {
+  g.save(); g.translate(x, y); g.rotate(ang || 0);
+  g.lineWidth = 4.5; g.strokeStyle = 'rgba(0,0,0,0.22)'; const path = () => { g.beginPath(); for (let k = 0; k <= 24; k++) { const u = k / 24 * len; k ? g.lineTo(u, 3.5 * Math.sin(u / 2.2)) : g.moveTo(u, 0); } };
+  path(); g.stroke(); g.lineWidth = 2.2; g.strokeStyle = col; path(); g.stroke();
+  g.beginPath(); g.moveTo(len + 5, 0); g.lineTo(len - 1, -3.5); g.lineTo(len - 1, 3.5); g.closePath(); g.fillStyle = col; g.fill(); g.restore();
+}
+function dbDraw(now) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1), Wp = Math.round(dbCv.clientWidth * dpr), Hp = Math.round(dbCv.clientHeight * dpr);
+  if (!Wp || !DB.states.length) return;
+  if (dbCv.width !== Wp || dbCv.height !== Hp) { dbCv.width = Wp; dbCv.height = Hp; }
+  const g = dbCv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const G = dbGeom(), BALL = '#d9a521', sm = G.narrow ? 10.5 : 11.5;
+  g.fillStyle = '#f5f9f6'; g.fillRect(0, 0, G.W, G.Hh);
+  // header: clock and fast-forward notice
+  g.font = `600 ${sm + 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillStyle = '#1b2a24';
+  g.fillText(`t = ${DB.t > 0 ? fmtTime(DB.t) : '0'}`, 10, 18);
+  g.font = `${sm}px Helvetica,Arial`; g.fillStyle = '#5a6b63';
+  g.fillText(DB.ff ? `⏩ fast-forward ×${Number((tau2s() / 1.5 / dbRate()).toPrecision(2)).toLocaleString()}: only 2s atoms left (two-photon decay, τ = ${fmtTime(tau2s())})`
+    : `1 s on screen = ${fmtTime(dbRate())}`, 10, 34);
+  g.textAlign = 'right'; if (!G.narrow) g.fillText('rows: n (not to energy scale) · columns: l', G.W - 10, 18);
+  // shelves
+  const resting = new Map();
+  for (const a of DB.atoms) if (!a.binned && a.t0 != null && now - a.lastReal > TRANS && a.landReal == null) { const k = a.state.join(','); resting.set(k, (resting.get(k) || 0) + 1); }
+  for (const o of DB.states) {
+    const [n, l] = o.s, x = G.X(l), y = G.Y(n), trap = is2s(o.s), start = n === DB.start[0] && l === DB.start[1];
+    g.strokeStyle = start ? '#b8860b' : '#1b2a24'; g.lineWidth = start ? 4 : 3; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x - G.hw, y); g.lineTo(x + G.hw, y); g.stroke(); g.lineCap = 'butt';
+    if (trap) { g.strokeStyle = '#c84b31'; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.strokeRect(x - G.hw - 4, y - 36, 2 * G.hw + 8, 42); g.setLineDash([]); }
+    g.textAlign = 'right'; g.fillStyle = '#1b2a24'; g.font = `700 ${sm + 1}px Helvetica,Arial`; g.fillText(H.label(n, l), x - G.hw - (trap ? 8 : 5), y + 4);
+    g.font = `${sm - 1}px Helvetica,Arial`; g.fillStyle = trap ? '#c84b31' : '#5a6b63'; g.textAlign = 'center';
+    const tl = n === 1 ? 'ground state' : trap ? `trapped: metastable, τ = ${fmtTime(tau2s())}` : `τ = ${fmtTime(H.lifetime(n, l))}`;
+    g.fillText(tl, x, y + 15);
+    const c = resting.get(o.s.join(',')) || 0;
+    if (c > 0) { g.textAlign = 'left'; g.fillStyle = '#1b2a24'; g.font = `600 ${sm}px Helvetica,Arial`; g.fillText(`×${c}`, Math.min(x + G.hw + 5, G.W - 28), y + 4); }
+  }
+  // the pump: the laser lifts atoms from 1s to the start state
+  const pumping = DB.atoms.filter(a => !a.binned && a.t0 == null);
+  if (pumping.length) {
+    const lam = DB.start[1] === 1 ? H.wavelength(1, DB.start[0]) : null, col = lam ? H.photonColor(lam).css : '#5a6b63';
+    const x0 = G.X(0) - G.hw * 0.4, y0 = G.Y(1), x1 = G.X(DB.start[1]), y1 = G.Y(DB.start[0]);
+    g.strokeStyle = col; g.lineWidth = 3; if (!lam) g.setLineDash([6, 4]); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#1b2a24'; g.font = `600 ${sm}px Helvetica,Arial`; g.textAlign = 'left';
+    g.fillText(lam ? `π pulse, ${fmtNm(lam)}` : `prepared in ${H.label(...DB.start)}`, (x0 + x1) / 2 + 8, (y0 + y1) / 2);
+  }
+  // balls: pumping, resting, jumping, dropping into a slot
+  const slotCount = new Map(), shelfIdx = new Map();
+  for (const a of DB.atoms) {
+    if (a.binned) continue;
+    let x, y;
+    if (a.t0 == null) { const u = Math.min(1, (now - a.pumpReal) / PUMP); x = G.X(0) + (G.X(DB.start[1]) - G.X(0)) * u; y = G.Y(1) - 7 + (G.Y(DB.start[0]) - G.Y(1)) * u; }
+    else if (a.landReal != null && now - a.landReal > TRANS) {
+      const u = Math.min(1, (now - a.landReal - TRANS) / FALL), bi = DB.bins.indexOf(a.bin), bx = G.sl.x0 + G.bw * (bi + 0.5);
+      x = G.X(0) + (bx - G.X(0)) * u; y = G.Y(1) + (G.sl.top + 6 - G.Y(1)) * u * u;
+    } else if (now - a.lastReal < TRANS && a.prev) {
+      const u = (now - a.lastReal) / TRANS, e = u * u * (3 - 2 * u), k = a.state.join(','), i = shelfIdx.get(k) || 0;
+      const to = shelfSpot(G, a.state, i) || [G.X(a.state[1]), G.Y(a.state[0]) - 7], fr = [G.X(a.prev[1]), G.Y(a.prev[0]) - 7];
+      x = fr[0] + (to[0] - fr[0]) * e; y = fr[1] + (to[1] - fr[1]) * e;
+    } else {
+      const k = a.state.join(','), i = shelfIdx.get(k) || 0; shelfIdx.set(k, i + 1);
+      const p = shelfSpot(G, a.state, i); if (!p) continue; [x, y] = p;
+    }
+    ball(g, x, y, 4.5, BALL);
+  }
+  // photons: a wave packet flying off each jump, in its spectral colour (UV and IR labelled)
+  const label = DB.flying.length <= 12;
+  for (const f of DB.flying) {
+    const u = (now - f.born) / 900, mx = (G.X(f.from[1]) + G.X(f.to[1])) / 2, my = (G.Y(f.from[0]) + G.Y(f.to[0])) / 2;
+    g.globalAlpha = Math.max(0, 1 - u * u);
+    if (f.two) { squiggle(g, mx + 20 + 90 * u, my - 6 - 30 * u, 16, '#8a7fb0', -0.3); squiggle(g, mx + 20 + 90 * u, my + 6 + 30 * u, 16, '#8a7fb0', 0.3);
+      if (label) { g.fillStyle = '#1b2a24'; g.font = `${sm - 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillText('2 photons (continuum)', mx + 44 + 90 * u, my + 4); } }
+    else { const pc = H.photonColor(f.lambda); squiggle(g, mx + 14 + 110 * u, my, 18, pc.css, 0);
+      if (label) { g.fillStyle = '#1b2a24'; g.font = `${sm - 1}px Helvetica,Arial`; g.textAlign = 'left'; g.fillText(`${(f.lambda * 1e9).toFixed(0)} nm${pc.band === 'visible' ? '' : ' ' + pc.band}`, mx + 38 + 110 * u, my + 4); } }
+    g.globalAlpha = 1;
+  }
+  // slots: observed bar (balls) and the predicted share (dashed outline)
+  const tot = DB.bins.reduce((a, b) => a + b.count, 0), N = Math.max(DB.N, tot, 1);
+  const scale = Math.max(1, ...DB.bins.map(b => Math.max(b.count, b.p * N))), hh = G.sl.bot - G.sl.top - 18;
+  g.strokeStyle = '#d8e2dc'; g.lineWidth = 1; g.beginPath(); g.moveTo(G.sl.x0, G.sl.bot); g.lineTo(G.sl.x1, G.sl.bot); g.stroke();
+  DB.bins.forEach((b, i) => {
+    const x0 = G.sl.x0 + G.bw * i + 4, w = G.bw - 8, hObs = hh * b.count / scale, hPre = hh * b.p * N / scale;
+    g.strokeStyle = '#d8e2dc'; g.beginPath(); g.moveTo(x0 - 4, G.sl.top); g.lineTo(x0 - 4, G.sl.bot); g.stroke();
+    if (b.count) { g.fillStyle = BALL; g.fillRect(x0 + w * 0.15, G.sl.bot - hObs, w * 0.7, hObs); }
+    if (DB.N) { g.strokeStyle = '#00693e'; g.lineWidth = 2; g.setLineDash([5, 3]); g.strokeRect(x0 + w * 0.1, G.sl.bot - hPre, w * 0.8, hPre); g.setLineDash([]); g.lineWidth = 1; }
+    g.fillStyle = '#1b2a24'; g.textAlign = 'center'; g.font = `600 ${sm}px Helvetica,Arial`;
+    if (b.count) g.fillText(String(b.count), x0 + w / 2, G.sl.bot - Math.max(hObs, hPre) - 4);
+    const name = b.path ? b.key : `${b.nOther} other routes`;
+    g.font = `${sm - 1}px Helvetica,Arial`;
+    g.fillText(g.measureText(`${b.tag}: ${name}`).width < w ? `${b.tag}: ${name}` : b.tag, x0 + w / 2, G.sl.bot + 14);
+  });
+}
+
+function dbButtons() {
+  $('dbStart').innerHTML = [2, 3, 4, 5, 6, 7].map(n => `<button data-n="${n}" aria-pressed="${DB.start[0] === n && DB.start[1] === 1}">${n}p<small>${fmtNm(H.wavelength(1, n))}</small></button>`).join('');
+  $('dbAnyN').innerHTML = [2, 3, 4, 5, 6, 7].map(n => `<button data-v="${n}" aria-pressed="${DB.start[0] === n}">${n}</button>`).join('');
+  $('dbAnyL').innerHTML = Array.from({ length: DB.start[0] }, (_, l) => `<button data-v="${l}" aria-pressed="${DB.start[1] === l}">${H.L[l]}</button>`).join('');
+  for (const b of $('dbSpeed').querySelectorAll('button')) b.setAttribute('aria-pressed', String(+b.dataset.v === DB.speed));
+}
+function dbUI(full) {
+  DB.lastUI = performance.now();
+  const tot = DB.bins.reduce((a, b) => a + b.count, 0), [n, l] = DB.start;
+  $('dbReadout').innerHTML = [
+    ['Atoms dropped', `${DB.N}${DB.N > tot ? ` (${DB.N - tot} not yet in 1s)` : ''}`],
+    [`Lifetime of ${H.label(n, l)}`, fmtTime(H.lifetime(n, l))],
+    ['Through the metastable 2s', `${DB.times.length ? (100 * DB.via2s / DB.times.length).toFixed(1) + '% seen · ' : ''}${(100 * DB.routes.filter(r => r.path.some(is2s)).reduce((a, r) => a + r.p, 0)).toFixed(1)}% predicted`],
+  ].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('dbTable').innerHTML = `<tr><th>Slot</th><th>Route</th><th>Predicted</th><th>Seen</th></tr>` + DB.bins.map(b =>
+    `<tr><td>${b.tag}</td><td>${b.path ? b.key : `${b.nOther} rarer routes`}</td><td>${(100 * b.p).toFixed(b.p < 0.01 ? 2 : 1)}%</td><td>${b.count}${tot ? ` (${(100 * b.count / tot).toFixed(1)}%)` : ''}</td></tr>`).join('');
+  if (full || DB.lastUI - DB.lastPlot > 1000) { DB.lastPlot = DB.lastUI; if ($('dbSpecBox').open) dbSpec(); if ($('dbTimeBox').open) dbTime(); }
+}
+function dbSpec() {
+  const ks = [...new Set([...DB.lines.keys()].concat(H.cascade(...DB.start).filter(c => c.lambda).map(c => c.from[0] + '-' + c.to[0])))]
+    .map(k => k.split('-').map(Number)).sort((a, b) => H.wavelength(...a) - H.wavelength(...b));
+  // expected photons per line: the engine's cascade (photons per excitation, summed over l) × atoms that finished
+  const exp = new Map(); for (const c of H.cascade(...DB.start)) if (c.lambda) { const k = c.from[0] + '-' + c.to[0]; exp.set(k, (exp.get(k) || 0) + c.num); }
+  const done = DB.times.length;   // atoms that reached 1s or 2s have emitted every line photon they will
+  const names = ks.map(([a, b]) => `${H.seriesName(b, a)}<br>${fmtNm(H.wavelength(a, b))}`);
+  Plotly.react('dbSpec', [
+    { type: 'bar', x: names, y: ks.map(k => DB.lines.get(k.join('-')) || 0), name: 'photons counted', marker: { color: ks.map(k => H.photonColor(H.wavelength(...k)).css), line: { color: DK ? '#eaf0ff' : '#1b2a24', width: 1 } },
+      hovertemplate: '%{x}: %{y} photons<extra></extra>' },
+    { type: 'scatter', mode: 'markers', x: names, y: ks.map(k => (exp.get(k.join('-')) || 0) * done), name: 'expected', marker: { symbol: 'line-ew-open', size: 26, color: ACC, line: { width: 3, color: ACC } }, hovertemplate: 'expected %{y:.1f}<extra></extra>' },
+  ], { margin: { t: 10, r: 10, b: 70, l: 50 }, yaxis: { title: { text: 'Photons' }, rangemode: 'tozero' }, legend: { orientation: 'h', y: 1.12 }, bargap: 0.35 }, CONFIG);
+  $('dbSpecNote').innerHTML = `${DB.two ? `Plus ${DB.two} two-photon decays of 2s, whose photon pairs share 10.2${H.atom().Z > 1 ? ' × Z²' : ''} eV in a continuous spectrum (no line). ` : ''}Lyman lines (to n = 1) are ultraviolet, Balmer (to n = 2) visible, Paschen and beyond infrared. The bars count the photons emitted so far; the dashes are the numbers expected from the atoms that have reached 1s or 2s, from the same branching ratios.`;
+}
+function dbTime() {
+  const [n, l] = DB.start, tm = DB.times;
+  if (n === 1 || is2s(DB.start)) { Plotly.purge('dbTime'); $('dbTimeNote').textContent = 'This state has no one-photon cascade.'; return; }
+  // the time axis: up to where 99.5% of atoms have finished, from the rate equations
+  let tmax = 10 * H.lifetime(n, l), c = H.cascadeCDF(n, l, [tmax]);
+  while (c[0] < 0.995 && tmax < 1e-3) { tmax *= 2; c = H.cascadeCDF(n, l, [tmax]); }
+  const nb = 30, w = tmax / nb, edges = Array.from({ length: nb + 1 }, (_, i) => i * w), cdf = H.cascadeCDF(n, l, edges);
+  const counts = new Array(nb).fill(0); for (const t of tm) { const i = Math.floor(t / w); if (i < nb) counts[i]++; }
+  const xs = edges.slice(0, nb).map(e => (e + w / 2) * 1e9), N = tm.length;
+  Plotly.react('dbTime', [
+    { type: 'bar', x: xs, y: counts, name: `atoms (${N})`, marker: { color: DK ? '#f5b73c' : '#d9a521', line: { color: DK ? '#0b1220' : '#fff', width: 1 } }, hovertemplate: '%{x:.3g} ns: %{y}<extra></extra>' },
+    { type: 'scatter', mode: 'lines', x: xs, y: cdf.slice(1).map((v, i) => Math.max(0, N * (v - cdf[i]))), name: 'theory (rate equations)', line: { color: ACC, width: 2.5 } },
+  ], { margin: { t: 10, r: 10, b: 50, l: 50 }, xaxis: { title: { text: 'Time to reach 1s or 2s (ns)' } }, yaxis: { title: { text: 'Atoms per bin' }, rangemode: 'tozero' }, legend: { orientation: 'h', y: 1.12 }, bargap: 0.05 }, CONFIG);
+  const steps = DB.routes[0].path.length - 1;
+  $('dbTimeNote').innerHTML = DB.routes.length === 1 && steps === 1 ? `One jump: the waiting time is exponential, most likely right after the pulse, with mean τ = ${fmtTime(H.lifetime(n, l))}. The atom does not age: having survived a while, it is no more likely to decay next.`
+    : DB.routes.length === 1 ? `A fixed route of ${steps} jumps: the total time is a sum of ${steps} independent exponential waits (a hypoexponential distribution), so it starts at zero and peaks later. The more steps, the more bell-shaped it gets (the central limit theorem).`
+    : `A mix of routes: most atoms take the fastest route, which sets the steep start; the long tail is the rarer routes through long-lived states (3s lives 158 ns in hydrogen). The theory curve solves the rate equations with every route at once. It stops at 1s or 2s, since leaving 2s takes ${fmtTime(tau2s())}.`;
+}
+function dbBell() {
+  // 400 runs of 100 atoms; count the atoms in the slot whose probability is closest to ½ (sampled route by route, the same
+  // distribution as the step-by-step board)
+  const b = DB.bins.reduce((best, x) => (Math.abs(x.p - 0.5) < Math.abs(best.p - 0.5) ? x : best), DB.bins[0]), p = b.p, runs = 400, n = 100;
+  const hist = new Array(n + 1).fill(0);
+  for (let r = 0; r < runs; r++) { let k = 0; for (let i = 0; i < n; i++) if (Math.random() < p) k++; hist[k]++; }
+  const lgam = x => { let s = 0; for (let i = 2; i <= x; i++) s += Math.log(i); return s; };
+  const pmf = k => Math.exp(lgam(n) - lgam(k) - lgam(n - k) + k * Math.log(Math.max(p, 1e-300)) + (n - k) * Math.log(Math.max(1 - p, 1e-300)));
+  const mu = n * p, sd = Math.sqrt(n * p * (1 - p)), lo = Math.max(0, Math.floor(mu - 4.5 * sd - 1)), hi = Math.min(n, Math.ceil(mu + 4.5 * sd + 1)), ks = [];
+  for (let k = lo; k <= hi; k++) ks.push(k);
+  $('dbBellPlot').hidden = false;
+  Plotly.react('dbBellPlot', [
+    { type: 'bar', x: ks, y: ks.map(k => hist[k]), name: 'runs', marker: { color: DK ? '#f5b73c' : '#d9a521' } },
+    { type: 'scatter', mode: 'lines+markers', x: ks, y: ks.map(k => runs * pmf(k)), name: 'binomial', line: { color: ACC, width: 2 }, marker: { size: 5 } },
+  ], { margin: { t: 10, r: 10, b: 50, l: 50 }, xaxis: { title: { text: `Atoms in slot ${b.tag} out of 100` } }, yaxis: { title: { text: 'Runs' } }, legend: { orientation: 'h', y: 1.12 }, bargap: 0.08 }, CONFIG);
+  $('dbBellNote').innerHTML = `Slot ${b.tag} (${b.path ? b.key : 'other routes'}) catches each atom with probability p = ${(100 * p).toFixed(1)}%. Over 400 runs of 100 atoms the count scatters around ${mu.toFixed(1)} with spread ${sd.toFixed(1)}: a binomial distribution, close to a bell curve. This is Galton's curve, hiding in the repeat of the experiment.`;
+  ev('decay_bell', { level: H.label(...DB.start) });
+}
+$('dbStart').addEventListener('click', e => { const b = e.target.closest('[data-n]'); if (b) { DB.start = [+b.dataset.n, 1]; dbReset(); } });
+$('dbAnyN').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { const n = +b.dataset.v; DB.start = [n, Math.min(DB.start[1], n - 1)]; dbReset(); } });
+$('dbAnyL').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { DB.start = [DB.start[0], +b.dataset.v]; dbReset(); } });
+$('dbSpeed').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { DB.speed = +b.dataset.v; dbButtons(); if (!DB.raf) dbDraw(performance.now()); } });
+$('dbDrop1').addEventListener('click', () => dbDrop(1));
+$('dbDrop100').addEventListener('click', () => dbDrop(100));
+$('dbSkip').addEventListener('click', dbSkip);
+$('dbClear').addEventListener('click', dbReset);
+$('dbBell').addEventListener('click', dbBell);
+$('dbSpecBox').addEventListener('toggle', () => { if ($('dbSpecBox').open) dbSpec(); });
+$('dbTimeBox').addEventListener('toggle', () => { if ($('dbTimeBox').open) dbTime(); });
+
 // ───────── shareable link ─────────
 function shareQuery() {
   return `atom=${st.mystery ? 'H' : st.atom}&n=${st.n}&l=${st.l}&m=${st.m}&start=${st.start.join('')}&lam=${(st.lam * 1e9).toFixed(5)}&det=${st.det}&I=${st.logI}&T=${st.logT.toFixed(3)}&lw=${st.lw}`;
@@ -937,8 +1268,8 @@ $('copyLink').addEventListener('click', e => PageKit.copyLink(e.target, 'courses
   const at = P.str('atom', Object.keys(H.ATOMS)); if (at) { st.atom = at; H.setAtom(at); $('atomSel').value = at; }
 })();
 
-addEventListener('resize', () => { if (view === 'slice') drawOrbital(); drawLevels(); });
-refreshState(); laserUI(); survey(); updateChecks();
+addEventListener('resize', () => { if (view === 'slice') drawOrbital(); drawLevels(); if (!DB.raf) dbDraw(performance.now()); });
+refreshState(); laserUI(); survey(); updateChecks(); dbReset();
 })();
 </script>
 </body>
