@@ -147,5 +147,46 @@ const rel = (a, b) => Math.abs(a - b) / Math.abs(b);
   check('4f cascade: mean time = τ(4f) + τ(3d) + τ(2p)', rel(mean, want) < 2e-3, `${(mean * 1e9).toFixed(2)} vs ${(want * 1e9).toFixed(2)} ns`);
 }
 
+// ---- drive and decay: master equation and Monte Carlo wavefunctions ----
+{
+  H.setAtom('H');
+  // closed cycle 1s ↔ 2p: steady state ρ_ee = s/(2(1+s)), s = 2Ω²/Γ² (two-level atom on resonance)
+  const M2 = H.driveModel({ g: [1, 0], e: [2, 1], OmOverGamma: 1 }), G2 = M2.G[M2.ei], tau2 = 1 / G2;
+  const ss = H.driveMaster(M2, [40 * tau2])[0], sat = 2 * 1 * 1, want = sat / (2 * (1 + sat));
+  check('closed 1s ↔ 2p cycle: steady state ρ_ee = s/(2(1+s)) = 1/3 at Ω = Γ', Math.abs(ss.P[M2.ei] - want) < 1e-4, ss.P[M2.ei].toFixed(5));
+  check('closed cycle keeps every atom in 1s or 2p', Math.abs(ss.P[M2.gi] + ss.P[M2.ei] - 1) < 1e-9);
+  // Lyman-α photons per atom in time T = Γ ρ_ee T in steady state
+  const sc = ss.photons[M2.ei + '>' + M2.gi];
+  check('scattered photons ≈ Γ ρ_ee t (after the turn-on)', Math.abs(sc - 40 * want) / (40 * want) < 0.05, sc.toFixed(2));
+  // weak drive, short times: a coherent drive is not a rate; ρ_ee grows as (Ωt/2)² before decay matters
+  const Mw = H.driveModel({ g: [1, 0], e: [2, 1], OmOverGamma: 50 }), tq = 0.01 / Mw.G[Mw.ei];
+  const pq = H.driveMaster(Mw, [tq])[0].P[Mw.ei], Om = Mw.Om;
+  check('strong drive at early times: ρ_ee = sin²(Ωt/2) (Rabi flopping, not a rate)', Math.abs(pq - Math.sin(Om * tq / 2) ** 2) < 2e-3, `${pq.toFixed(4)} vs ${(Math.sin(Om * tq / 2) ** 2).toFixed(4)}`);
+  // leaky cycle 1s ↔ 3p: everyone ends in 2s; Lyman-β photons per atom = A(3p→1s)/A(3p→2s) on average
+  const M3 = H.driveModel({ g: [1, 0], e: [3, 1], OmOverGamma: 1 }), tau3 = 1 / M3.G[M3.ei], s2 = M3.S.findIndex(q => q[0] === 2 && q[1] === 0);
+  const end = H.driveMaster(M3, [400 * tau3])[0], d3 = H.decays(3, 1), A1 = d3.find(d => d.n === 1).A, A2 = d3.find(d => d.n === 2).A;
+  check('leaky 1s ↔ 3p cycle pumps every atom into the dark 2s state', end.P[s2] > 0.999, end.P[s2].toFixed(5));
+  const lyb = end.photons[M3.ei + '>' + M3.gi];
+  check('Lyman-β photons per atom before going dark = A(→1s)/A(→2s) ≈ 7.45', Math.abs(lyb - A1 / A2) / (A1 / A2) < 1e-3, `${lyb.toFixed(3)} vs ${(A1 / A2).toFixed(3)}`);
+  // emptying 2s with Hα: drive 2s ↔ 3p, atoms end in 1s
+  const Me = H.driveModel({ g: [2, 0], e: [3, 1], start: [2, 0], OmOverGamma: 1 }), r = H.driveMaster(Me, [400 / Me.G[Me.ei]])[0];
+  check('driving Hα (2s ↔ 3p) empties the metastable 2s into 1s', r.P[0] > 0.999, r.P[0].toFixed(5));
+  // forbidden drives do nothing
+  const Mf = H.driveModel({ g: [1, 0], e: [2, 0], OmOverGamma: 10 }), Md = H.driveModel({ g: [1, 0], e: [3, 2], OmOverGamma: 10 });
+  check('1s ↔ 2s and 1s ↔ 3d are forbidden: no coupling, atoms stay in 1s', !Mf.allowed && !Md.allowed && Mf.Om === 0 && H.driveMaster(Md, [1e-7])[0].P[0] === 1);
+  // no laser: the master equation reproduces the routes (4p start: final 2s fraction = route probability through 2s)
+  const M4 = H.driveModel({ g: [1, 0], e: [2, 1], start: [4, 1], OmOverGamma: 0 }), f4 = H.driveMaster(M4, [3e-6])[0];
+  const via2s = H.routes(4, 1).filter(q => q.path.some(([n, l]) => n === 2 && l === 0)).reduce((a, q) => a + q.p, 0);
+  check('no laser: populations follow the branching ratios (4p → fraction parked in 2s)', Math.abs(f4.P[M4.S.findIndex(q => q[0] === 2 && q[1] === 0)] - via2s) < 1e-4);
+  // Monte Carlo wavefunctions average to the master equation
+  const R = (() => { let x = 12345; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; })();
+  const tsMC = [3 * tau3, 15 * tau3], mc = H.driveMonteCarlo(M3, tsMC, 4000, R), me = H.driveMaster(M3, tsMC);
+  const frac = (snap, k) => { let c = 0; for (const v of snap.lvl) if (v === k) c++; return c / snap.lvl.length; };
+  const peMC = s => { let c = 0; s.lvl.forEach((v, i) => { if (v < 0) c += s.pe[i]; }); return c / s.lvl.length; };
+  const ok1 = Math.abs(frac(mc[1], s2) - me[1].P[s2]) < 0.025, ok2 = Math.abs(peMC(mc[0]) - me[0].P[M3.ei]) < 0.02;
+  check('Monte Carlo (4000 atoms) matches the master equation: 2s fraction and excited probability', ok1 && ok2,
+    `2s ${frac(mc[1], s2).toFixed(3)} vs ${me[1].P[s2].toFixed(3)}, e ${peMC(mc[0]).toFixed(3)} vs ${me[0].P[M3.ei].toFixed(3)}`);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

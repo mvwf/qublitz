@@ -218,6 +218,113 @@
     return out;
   }
 
+  // ---- drive one transition while everything decays (the drive-and-decay lab) ----
+  // A laser couples a lower s state g (1s or 2s, a single m = 0 sublevel) to an upper state e with π light, so only
+  // e's m = 0 sublevel is driven: H = (Ω/2)(|e⟩⟨g| + |g⟩⟨e|) on resonance. Every level decays at its golden-rule rate
+  // A to the levels the selection rules allow (decays(); 2s by two photons). Two descriptions of the same physics:
+  //  • master equation (probabilities): ρ_gg, ρ_ee and the coherence ρ_eg obey the optical Bloch equations with
+  //    γ = (Γ_e + Γ_g)/2; all other levels are populations fed by the decays (Lindblad form, populations exact);
+  //  • Monte Carlo wavefunctions (Dalibard, Castin & Mølmer 1992): each atom evolves coherently under the non-Hermitian
+  //    H − iħΓ/2 until a random quantum jump; the average over many atoms reproduces the master equation.
+  // Atoms that cascade into e from above arrive unpolarized, so 1/3 land in the driven m = 0 sublevel and 2/3 in m = ±1
+  // (state 'u', undriven, same decays). A forbidden pair (no dipole matrix element) gets Ω = 0.
+  function driveModel(cfg) {
+    const g = cfg.g, e = cfg.e, start = cfg.start || g;
+    const nTop = Math.max(start[0], e[0], g[0]);
+    const S = []; for (let n = 1; n <= nTop; n++) for (let l = 0; l < n; l++) S.push([n, l]);
+    const ix = (n, l) => S.findIndex(q => q[0] === n && q[1] === l);
+    const gi = ix(g[0], g[1]), ei = ix(e[0], e[1]), ui = S.length;
+    S.push([e[0], e[1]]);
+    const ch = S.map(([n, l]) => (n === 1 ? [] : decays(n, l).map(d => ({ to: ix(d.n, d.l), A: d.A, branch: d.branch, twoPhoton: !!d.twoPhoton }))));
+    const G = ch.map(c => c.reduce((a, d) => a + d.A, 0));
+    const z = e[0] > g[0] && g[1] === 0 ? zElement(g[0], g[1], e[0], e[1]) : 0;
+    const allowed = z > 0;
+    const Om = allowed ? (cfg.OmOverGamma || 0) * G[ei] : 0;
+    // atoms above e: arrivals into e split 1/3 driven, 2/3 undriven
+    const above = S.map(([n], k) => k !== ui && n > e[0]);
+    return { S, gi, ei, ui, ch, G, Om, allowed, z, si: start[0] === e[0] && start[1] === e[1] ? ei : ix(start[0], start[1]), above, g, e };
+  }
+  // where an atom decaying from level k along channel c ends up: [[level, weight], ...]
+  const arrive = (M, k, to) => (to === M.ei && M.above[k] ? [[M.ei, 1 / 3], [M.ui, 2 / 3]] : [[to, 1]]);
+
+  // master equation: populations (and cumulative expected photons per channel) at the times ts (s, ascending)
+  function driveMaster(M, ts) {
+    const nS = M.S.length, chans = []; M.ch.forEach((c, k) => c.forEach((d, j) => chans.push([k, j])));
+    const N = nS + 2 + chans.length, Om = M.Om, gam = (M.G[M.ei] + M.G[M.gi]) / 2;
+    const f = y => {
+      const d = new Float64Array(N);
+      for (let k = 0; k < nS; k++) { const P = y[k]; if (!P) continue; d[k] -= M.G[k] * P;
+        for (const c of M.ch[k]) for (const [to, w] of arrive(M, k, c.to)) d[to] += w * c.A * P; }
+      const cr = y[nS], ci = y[nS + 1];
+      d[M.ei] += -Om * ci; d[M.gi] += Om * ci;
+      d[nS] = -gam * cr; d[nS + 1] = -(Om / 2) * (y[M.gi] - y[M.ei]) - gam * ci;
+      chans.forEach(([k, j], i) => { d[nS + 2 + i] = M.ch[k][j].A * y[k]; });
+      return d;
+    };
+    let y = new Float64Array(N); y[M.si] = 1;
+    const rates = M.G.filter(x => x > 1e3), h0 = 0.03 / Math.max(Om, ...rates, 1), out = []; let t = 0;
+    for (const T of ts) {
+      while (t < T - 1e-18) {
+        const h = Math.min(h0, T - t), k1 = f(y), ad = (k, c) => y.map((v, i) => v + c * k[i]);
+        const k2 = f(ad(k1, h / 2)), k3 = f(ad(k2, h / 2)), k4 = f(ad(k3, h));
+        y = y.map((v, i) => v + h / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])); t += h;
+      }
+      const P = Array.from(y.slice(0, nS)), photons = {};
+      chans.forEach(([k, j], i) => { const kk = k === M.ui ? M.ei : k, key = kk + '>' + M.ch[k][j].to; photons[key] = (photons[key] || 0) + y[nS + 2 + i]; });
+      out.push({ t: T, P, coh: [y[nS], y[nS + 1]], photons });
+    }
+    return out;
+  }
+
+  // Monte Carlo wavefunctions: `atoms` atoms, snapshots at the times ts. Each snapshot: lvl (Int16, −1 = in the
+  // coherent g/e superposition), pe (probability of e for coherent atoms), photons (cumulative counts per channel),
+  // and the jumps since the previous snapshot [atom, from, to].
+  function driveMonteCarlo(M, ts, atoms, rng) {
+    const R = rng || Math.random, Om = M.Om, Ge = M.G[M.ei], Gg = M.G[M.gi], h0 = 0.03 / Math.max(Om, Ge, Gg, 1);
+    const A = [], snaps = [], photons = {};
+    const pickChan = k => { let u = R(), c = M.ch[k]; for (const d of c) { if ((u -= d.branch) <= 0) return d; } return c[c.length - 1]; };
+    const enter = (a, k, t) => {
+      if (k === M.gi || (k === M.ei)) { a.k = -1; a.g = k === M.gi ? [1, 0] : [0, 0]; a.e = k === M.ei ? [1, 0] : [0, 0]; a.r = R(); return; }
+      a.k = k; a.tn = M.G[k] > 0 ? t - Math.log(1 - R()) / M.G[k] : Infinity;
+    };
+    for (let i = 0; i < atoms; i++) { const a = {}; enter(a, M.si, 0); A.push(a); }
+    let t = 0, jumps = [];
+    const jump = (i, a, from, tt) => {
+      const d = pickChan(from), kk = from === M.ui ? M.ei : from, key = kk + '>' + d.to;
+      photons[key] = (photons[key] || 0) + 1;
+      let to = d.to; if (to === M.ei && M.above[from] && R() >= 1 / 3) to = M.ui;
+      jumps.push([i, kk, to === M.ui ? M.ei : to]); enter(a, to, tt);
+    };
+    const deriv = (y) => [ (Om / 2) * y[3] - Gg / 2 * y[0], -(Om / 2) * y[2] - Gg / 2 * y[1], (Om / 2) * y[1] - Ge / 2 * y[2], -(Om / 2) * y[0] - Ge / 2 * y[3] ];
+    for (const T of ts) {
+      A.forEach((a, i) => {
+        let tt = t, guard = 0;
+        while (tt < T && guard++ < 1e6) {
+          if (a.k >= 0) { if (a.tn <= T) { tt = a.tn; jump(i, a, a.k, tt); } else tt = T; continue; }
+          // coherent: evolve the unnormalized amplitudes until the norm drops below the random threshold r
+          let y = [a.g[0], a.g[1], a.e[0], a.e[1]];
+          while (tt < T) {
+            const h = Math.min(h0, T - tt), k1 = deriv(y), ad = (k, c) => y.map((v, j) => v + c * k[j]);
+            const k2 = deriv(ad(k1, h / 2)), k3 = deriv(ad(k2, h / 2)), k4 = deriv(ad(k3, h));
+            y = y.map((v, j) => v + h / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j])); tt += h;
+            const n2 = y[0] * y[0] + y[1] * y[1] + y[2] * y[2] + y[3] * y[3];
+            if (n2 <= a.r) {   // a quantum jump: from e or g, weighted by Γ|c|²
+              const we = Ge * (y[2] * y[2] + y[3] * y[3]), wg = Gg * (y[0] * y[0] + y[1] * y[1]);
+              jump(i, a, R() * (we + wg) < we ? M.ei : M.gi, tt); y = null; break;
+            }
+          }
+          if (y) { a.g = [y[0], y[1]]; a.e = [y[2], y[3]]; }
+        }
+      });
+      t = T;
+      const lvl = new Int16Array(atoms), pe = new Float32Array(atoms);
+      A.forEach((a, i) => { lvl[i] = a.k; if (a.k < 0) { const ng = a.g[0] ** 2 + a.g[1] ** 2, ne = a.e[0] ** 2 + a.e[1] ** 2; pe[i] = ne / (ng + ne); } });
+      snaps.push({ t: T, lvl, pe, photons: Object.assign({}, photons), jumps });
+      jumps = [];
+    }
+    return snaps;
+  }
+
   // ---- driving ----
   // dipole matrix element |⟨n'l'0|z|n l 0⟩| in units of e·a_μ (π light, m = 0 → m = 0)
   function zElement(n, l, n2, l2) {
@@ -353,7 +460,7 @@
   // far off resonance (|Δ| ≫ Ω, Γ), the Bloch solution is a tiny fast wiggle around ρ_ee ≈ Ω²/(4Δ²); no need to integrate
   const farOff = (Om, Delta, Gamma, tEnd) => tEnd * Math.max(Math.abs(Om), Math.abs(Delta), Gamma) / 0.05 > 2e6;
   const api = { K, NMAX, farOff, L, TWO_PHOTON_2S, ATOMS, setAtom, atom: () => AT, blochPulses, label, energyEV, waveNumber, wavelength, omega, laguerre, radialR, meanR,
-    radialNodes, assocLegendre, Ylm2, radialIntegral, einsteinA, decays, totalRate, lifetime, cascade, routes, cascadeCDF, zElement,
+    radialNodes, assocLegendre, Ylm2, radialIntegral, einsteinA, decays, totalRate, lifetime, cascade, routes, cascadeCDF, driveModel, driveMaster, driveMonteCarlo, zElement,
     fieldFromIntensity, rabi, dopplerFWHM, voigtDensity, voigtFWHM, lines, lineResponse, Isat, bloch, photonColor, seriesName };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.HydrogenEngine = api;
