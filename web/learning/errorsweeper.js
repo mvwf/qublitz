@@ -15,6 +15,7 @@ if (window.QL) QL.learning({
     { id: 'design', text: 'Build a code from checks: keep X and Z checks commuting (even overlap) and read off n, k and d.' },
     { id: 'discover', text: 'Search for new codes like a researcher: trade off n, k and d under a hardware rule, use k·d²/n to compare, and tell a proven distance from an upper bound.' },
     { id: 'matching', text: 'Explain how a matching decoder pairs up lit lamps, and why it needs every qubit to touch at most two checks of a kind.' },
+    { id: 'scaling', text: 'Predict how a code’s failure rate scales at low error rates, p<sup>⌈d/2⌉</sup>, and read the distance off a log–log forecast.' },
   ],
   howTo: [
     'Start with <b>Learn</b>: eleven short lessons, from a 3-qubit repetition code to the surface code, the torus and Steane’s code.',
@@ -22,7 +23,7 @@ if (window.QL) QL.learning({
     'Tap a qubit tile to apply the selected correction (<b>X</b>, <b>Z</b> or <b>Y</b>); tap again to undo it. With a mouse, hovering shows which lamps a flip would switch.',
     'When every lamp is off, press <b>Commit</b>: the real errors appear, and green rings (closed loops) or red rings (a logical error) show the result.',
     'In <b>Sweep</b>, pick a code, a noise type and an error rate, and play rounds until all three logical qubits ◆◆◆ are lost. Your failure rate is compared with the decoder and with a bare qubit.',
-    'In the <b>Code lab</b>, tap squares and edges to add checks (tap again to change their kind). The lab finds n, k and the distance and scores your design. In <b>Test the decoder</b>, put errors on qubits and watch the matching decoder pair up the lamps; <b>Measure</b> finds where your code breaks even.',
+    'In the <b>Code lab</b>, pick a lattice (square, honeycomb or triangles) and tap faces and edges to add ancillas (tap again to change their kind); ✂ <b>Carve</b> cuts qubits out, and the symmetry buttons place mirrored or rotated copies. Hover to preview the new [[n, k, d]]; the 🔮 <b>forecast</b> decodes thousands of noisy rounds after every tap and lights up the weak spots. The lab finds n, k and the distance and scores your design. In <b>Test the decoder</b>, put errors on qubits and watch the matching decoder pair up the lamps; <b>Measure</b> finds where your code breaks even.',
     'In <b>Code Hunt</b>, take on missions: build lattice codes in the Code lab, then edit stencils on a torus to hunt qLDPC codes like IBM’s [[144,12,12]]. Every design is scored exactly; submit your best to the shared frontier board, earn XP and badges, and try the daily torus.',
     '<b>Threshold</b> runs thousands of rounds to show where bigger codes stop helping, and can race your lab code against the surface codes.',
   ],
@@ -30,6 +31,7 @@ if (window.QL) QL.learning({
     'Finish the eleven lessons.',
     'In Sweep, keep your logical failure rate below the bare-qubit rate p on a distance-5 surface code.',
     'Design a code in the lab that corrects any single error (d ≥ 3), then try to beat the surface code’s k·d²/n = 1.',
+    'Carve Steane’s [[7,1,3]] out of three hexagons on the honeycomb, and get the 🔮 forecast to 7× safer than a bare qubit.',
   ],
   quiz: [
     { id: 'zcheck', objective: 'syndrome',
@@ -77,5 +79,10 @@ if (window.QL) QL.learning({
       choices: ['One error lights three lamps, but matching can only join lamps in pairs (or to an edge)', 'The Steane code has no errors to correct', 'Matching only works for phase flips', 'The checks do not commute'],
       answer: 0,
       explain: 'Matching treats every error as an edge between two lamps. When a qubit touches three checks of a kind, its error is a hyperedge with three ends, so other decoders are needed, for example lookup tables for small codes, or belief propagation and ordered-statistics decoding for large ones.' },
+    { id: 'slope', objective: 'scaling',
+      q: 'Your code has distance d = 5. At low error rates p, its logical failure rate (with a minimum-weight decoder) grows roughly like…',
+      choices: ['p<sup>3</sup>', 'p<sup>5</sup>', 'p', 'p<sup>2</sup>'],
+      answer: 0,
+      explain: 'A minimum-weight decoder fixes any ⌊(d − 1)/2⌋ = 2 errors, so failing takes at least ⌈d/2⌉ = 3, and the chance of 3 errors scales as p<sup>3</sup>. On the forecast’s log–log plot that is a slope of 3: two more units of distance make the curve one power steeper.' },
   ],
 });

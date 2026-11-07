@@ -110,7 +110,7 @@ html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-family:
 @media (max-width:640px){html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:${p.plain ? 12 : 10.5}px}}
 html.retro button,html.retro .btn{font-family:${BODY};background:rgba(255,255,255,.035);color:${p.ink};border:1px solid ${p.lineHi};border-radius:8px}
 /* hover glow, except on buttons that are already a bright fill (gold Start/Fire, held pads, pressed chips) */
-html.retro button:not(.go):not(.fire):not(.on):not([aria-pressed="true"]):not(.primary):hover,html.retro .btn:not(.primary):hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
+html.retro button:not(.go):not(.fire):not(.on):not([aria-pressed="true"]):not([aria-selected="true"]):not(.primary):hover,html.retro .btn:not(.primary):hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
 html.retro button.primary,html.retro .btn.primary{background:${p.accent};border-color:${p.accent};color:${p.onAccent};font-weight:700;
   box-shadow:0 0 16px ${p.accent}55}
 html.retro button.primary:hover{background:${p.accent2};color:${p.onAccent}}
