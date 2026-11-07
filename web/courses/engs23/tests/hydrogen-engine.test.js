@@ -120,5 +120,32 @@ const rel = (a, b) => Math.abs(a - b) / Math.abs(b);
   check('a single long pulse reproduces the CW Bloch solution', Math.abs(cw.rho.at(-1) - pw.rho.at(-1)) < 1e-6);
 }
 
+// ---- the decay board: routes and cascade times ----
+{
+  H.setAtom('H');
+  const key = r => r.path.map(s => H.label(...s)).join('>');
+  // Wiese & Fuhr (2009): A(3p→1s) = 1.6725e8, A(3p→2s) = 2.2449e7 s⁻¹ → branching 0.8817 / 0.1183
+  const r3 = H.routes(3, 1), p3 = Object.fromEntries(r3.map(r => [key(r), r.p]));
+  check('3p → 1s branching 0.8817 (Wiese & Fuhr 2009)', Math.abs(p3['3p>1s'] - 1.6725e8 / (1.6725e8 + 2.2449e7)) < 2e-4, p3['3p>1s'].toFixed(4));
+  check('3p → 2s ⇒ 1s (two-photon) 0.1183', Math.abs(p3['3p>2s>1s'] - 0.1183) < 2e-4, p3['3p>2s>1s'].toFixed(4));
+  // 4p: A = 6.8186e7 (→1s), 9.6680e6 (→2s), 3.0650e6 (→3s), 3.4751e5 (→3d) s⁻¹ (Wiese & Fuhr 2009)
+  const ref4 = { '1s': 6.8186e7, '2s': 9.6680e6, '3s': 3.0650e6, '3d': 3.4751e5 }, tot4 = Object.values(ref4).reduce((a, b) => a + b);
+  const worst4 = Math.max(...H.decays(4, 1).map(d => Math.abs(d.branch - ref4[H.label(d.n, d.l)] / tot4)));
+  check('4p branching ratios match Wiese & Fuhr', worst4 < 2e-4, `worst ${worst4.toExponential(1)}`);
+  check('3s and 3d both decay only to 2p (the Hα source)', H.decays(3, 0).length === 1 && H.decays(3, 2).length === 1 && H.decays(3, 0)[0].l === 1 && H.decays(3, 2)[0].l === 1);
+  let sumOK = true;
+  for (let n = 2; n <= H.NMAX; n++) for (let l = 0; l < n; l++) { const s = H.routes(n, l).reduce((a, r) => a + r.p, 0); if (Math.abs(s - 1) > 1e-12) sumOK = false; }
+  check('route probabilities add to 1 for every start', sumOK);
+  check('circular 5g cascades one step at a time (5g→4f→3d→2p→1s, p = 1)', H.routes(5, 4).length === 1 && key(H.routes(5, 4)[0]) === '5g>4f>3d>2p>1s');
+  // a single decay step: the cascade time is exponential with the lifetime
+  const t2 = H.lifetime(2, 1), c2 = H.cascadeCDF(2, 1, [t2, 3 * t2]);
+  check('2p cascade time is exponential: P(t ≤ τ) = 1 − 1/e', Math.abs(c2[0] - (1 - Math.exp(-1))) < 1e-6 && Math.abs(c2[1] - (1 - Math.exp(-3))) < 1e-6);
+  // a fixed route: the mean time is the sum of the lifetimes (4f→3d→2p→1s)
+  const ts = [], dt = 0.2e-9; for (let i = 0; i <= 8000; i++) ts.push(i * dt);
+  const c4 = H.cascadeCDF(4, 3, ts); let mean = 0; for (let i = 1; i < ts.length; i++) mean += (1 - (c4[i] + c4[i - 1]) / 2) * dt;
+  const want = H.lifetime(4, 3) + H.lifetime(3, 2) + H.lifetime(2, 1);
+  check('4f cascade: mean time = τ(4f) + τ(3d) + τ(2p)', rel(mean, want) < 2e-3, `${(mean * 1e9).toFixed(2)} vs ${(want * 1e9).toFixed(2)} ns`);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

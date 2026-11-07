@@ -1,7 +1,7 @@
 /* hydrogen.js: learning material for The Hydrogen Atom (courses/engs23/hydrogen.html).
  * Model: Griffiths & Schroeter §4.2 (ψ_nlm = R_nl Y_l^m, E_n = −13.6 eV/n², 1/λ = R(1/n_f² − 1/n_i²)) and §11.3
  * (A = ω³|⟨b|qr|a⟩|²/(3πε₀ħc³), τ = 1/ΣA). Numbers below are the page's own (hydrogen-engine.js, checked against
- * Wiese & Fuhr 2009 and NIST ASD): Lyman-α 121.57 nm, τ(2p) = 1.60 ns, τ(3s) = 158 ns, 3p → 1s 88.2% / → 2s 11.8%,
+ * Wiese & Fuhr 2009 and NIST ASD): Lyman-α 121.57 nm, τ(2p) = 1.60 ns, τ(3s) = 158 ns, 3p → 1s 88.2% / → 2s 11.8% (A = 1.6725e8 / 2.2449e7 s⁻¹),
  * Lyman-α natural width 99.7 MHz, Doppler FWHM 30.5 GHz at 300 K. */
 if (window.QL) QL.learning({
   id: 'hydrogen',
@@ -13,6 +13,7 @@ if (window.QL) QL.learning({
     { id: 'shape', text: 'Read a state ψ<sub>nlm</sub> from its picture: n − l − 1 radial nodes, l angular nodes, size growing like n².' },
     { id: 'rules', text: 'Use the dipole selection rules (Δl = ±1, Δm = 0, ±1) to say which states one photon can reach from 1s, and why 2s is metastable.' },
     { id: 'lifetime', text: 'Explain where a lifetime comes from (spontaneous emission into free-space modes, A ∝ ω³|⟨r⟩|²) and relate it to the natural linewidth Γ/2π = 1/(2πτ).' },
+    { id: 'cascade', text: 'Predict where an excited atom ends up: each decay is random, with branching ratio A/ΣA, and a route\'s probability is the product of its branching ratios.' },
     { id: 'broaden', text: 'Tell natural, power and Doppler broadening apart, and predict how cold the atoms must be to see the natural width.' },
   ],
   howTo: [
@@ -22,6 +23,7 @@ if (window.QL) QL.learning({
     'Lower the <b>temperature</b> and the <b>laser linewidth</b> until the natural width shows; raise the <b>intensity</b> to saturate the line and watch the Bloch plot Rabi-flop.',
     'Switch the atoms to start in <b>2s</b> to drive the visible Balmer lines. The cascade plot shows which photons come back out.',
     'In the <b>pulse lab</b>, fire a π pulse on the line you are tuned to and watch the atom go all the way up the Bloch sphere; then try the same pulse on a qubit in the Virtual Qubit Lab.',
+    'On the <b>decay board</b>, excite atoms with a π pulse and drop them: watch them cascade to 1s and fill the route slots, and see how the counts approach the predicted outlines.',
     'Pick another <b>atom</b> (D, T, He⁺, Li²⁺) or a <b>mystery atom</b>, and identify it from its lines.',
   ],
   goals: [
@@ -70,6 +72,16 @@ if (window.QL) QL.learning({
       choices: ['Doppler broadening from the atoms\' thermal motion; cool the atoms (to a few mK) or use a Doppler-free method', 'Power broadening; turn the laser down', 'The laser linewidth; buy a better laser', 'Collisions; the width cannot be reduced'],
       answer: 0,
       explain: 'Atoms with typical speeds of ~2 km/s (a line-of-sight spread of 1.6 km/s at 300 K) see the laser shifted by ±v/c × ν₀, a Gaussian of FWHM ν₀√(8k<sub>B</sub>T ln2/mc²) ≈ 30 GHz at 300 K. Width scales as √T, so it falls below the 100 MHz natural width only below about 3 mK.' },
+    { id: 'route', objective: 'cascade',
+      q: 'Atoms are excited to 3p. 3p decays to 1s with A = 1.67 × 10⁸ s⁻¹ and to 2s with A = 2.24 × 10⁷ s⁻¹. Out of 1000 atoms, about how many emit a red Hα photon (656 nm)?',
+      choices: ['About 120: 2.24/(16.7 + 2.24) ≈ 12% take the 3p → 2s route', 'About 500: each exit is equally likely', 'About 880', 'None: atoms always take the fastest route'],
+      answer: 0,
+      explain: 'The branching ratio is A/ΣA = 2.24/(16.7 + 2.24) = 0.118, so about 118 of 1000 atoms jump 3p → 2s and emit Hα (3p → 1s emits Lyman-β instead). Those atoms are then stuck in the metastable 2s for ~0.12 s before a two-photon decay. Which atom does which is random; only the fractions are predictable.' },
+    { id: 'bell', objective: 'cascade',
+      q: 'On the decay board, atoms excited to 3p land in two slots, 88% and 12%. Why is this not the bell curve of a classical Galton board?',
+      choices: ['Each atom meets only one or two "pegs" with unequal exits; a bell curve needs many independent random steps added up', 'Quantum atoms never make bell curves', 'The board is rigged by the laser', 'Because the atoms interact with each other'],
+      answer: 0,
+      explain: 'A Galton board makes a binomial (bell-shaped) distribution because each ball passes many 50/50 pegs and its slot counts the sum. Here the slots are set by one or two branching ratios. Bell curves do appear when random pieces add up: the number of atoms in a slot over repeated runs (binomial), or the total time of a long cascade (a sum of exponential waits).' },
     { id: 'invert', objective: 'broaden',
       q: 'You drive Lyman-α harder and harder (s = I/I<sub>sat</sub> → ∞). What fraction of atoms ends up in 2p in the steady state?',
       choices: ['It approaches ½, never more', 'It approaches 1', 'It keeps growing as I grows', 'It drops to 0'],

@@ -182,6 +182,42 @@
       .sort((x, y) => y.num - x.num);
   }
 
+  // ---- the decay board: every route from nl down to 1s, with its probability ----
+  // A route is the list of states the atom visits; its probability is the product of the branching ratios A/ΣA at
+  // each step (each decay is independent of the past: the atom keeps no memory of how it arrived). 2s → 1s is the
+  // two-photon decay, the only way out of 2s. The probabilities of all routes add to 1.
+  function routes(n, l) {
+    const out = [], path = [[n, l]];
+    (function rec(nn, ll, p) {
+      if (nn === 1) { out.push({ path: path.map(s => s.slice()), p }); return; }
+      for (const d of decays(nn, ll)) { path.push([d.n, d.l]); rec(d.n, d.l, p * d.branch); path.pop(); }
+    })(n, l, 1);
+    return out.sort((a, b) => b.p - a.p);
+  }
+  // probability that an atom put in nl at t = 0 has finished its one-photon cascade (reached 1s or the metastable 2s)
+  // by each time in ts (s, ascending): the rate equations dP_i/dt = −Γ_i P_i + Σ_j A_{j→i} P_j, integrated by RK4 with a
+  // step far below the shortest lifetime. Its derivative is the distribution of the cascade time: one exponential for a
+  // single step, a sum of exponentials (a hypoexponential when the route is fixed) for longer cascades.
+  function cascadeCDF(n, l, ts) {
+    if (n === 1 || (n === 2 && l === 0)) return ts.map(() => 1);
+    const S = []; for (let nn = 2; nn <= n; nn++) for (let ll = 0; ll < nn; ll++) if (!(nn === 2 && ll === 0)) S.push([nn, ll]);
+    const ix = new Map(S.map((s, i) => [s.join(','), i]));
+    const G = new Float64Array(S.length), feeds = S.map(() => []);
+    S.forEach(([nn, ll], i) => { for (const d of decays(nn, ll)) { G[i] += d.A; const j = ix.get(d.n + ',' + d.l); if (j != null) feeds[j].push([i, d.A]); } });
+    const f = P => P.map((p, i) => { let s = -G[i] * p; for (const [j, A] of feeds[i]) s += A * P[j]; return s; });
+    let P = new Float64Array(S.length); P[ix.get(n + ',' + l)] = 1;
+    const dt = 0.05 / Math.max(...G), out = []; let t = 0;
+    for (const T of ts) {
+      while (t < T) {
+        const h = Math.min(dt, T - t), k1 = f(P), add = (k, c) => P.map((p, i) => p + c * k[i]);
+        const k2 = f(add(k1, h / 2)), k3 = f(add(k2, h / 2)), k4 = f(add(k3, h));
+        P = P.map((p, i) => p + h / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])); t += h;
+      }
+      out.push(Math.min(1, Math.max(0, 1 - P.reduce((a, b) => a + b, 0))));
+    }
+    return out;
+  }
+
   // ---- driving ----
   // dipole matrix element |⟨n'l'0|z|n l 0⟩| in units of e·a_μ (π light, m = 0 → m = 0)
   function zElement(n, l, n2, l2) {
@@ -317,7 +353,7 @@
   // far off resonance (|Δ| ≫ Ω, Γ), the Bloch solution is a tiny fast wiggle around ρ_ee ≈ Ω²/(4Δ²); no need to integrate
   const farOff = (Om, Delta, Gamma, tEnd) => tEnd * Math.max(Math.abs(Om), Math.abs(Delta), Gamma) / 0.05 > 2e6;
   const api = { K, NMAX, farOff, L, TWO_PHOTON_2S, ATOMS, setAtom, atom: () => AT, blochPulses, label, energyEV, waveNumber, wavelength, omega, laguerre, radialR, meanR,
-    radialNodes, assocLegendre, Ylm2, radialIntegral, einsteinA, decays, totalRate, lifetime, cascade, zElement,
+    radialNodes, assocLegendre, Ylm2, radialIntegral, einsteinA, decays, totalRate, lifetime, cascade, routes, cascadeCDF, zElement,
     fieldFromIntensity, rabi, dopplerFWHM, voigtDensity, voigtFWHM, lines, lineResponse, Isat, bloch, photonColor, seriesName };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.HydrogenEngine = api;
