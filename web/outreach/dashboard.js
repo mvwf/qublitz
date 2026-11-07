@@ -416,7 +416,10 @@
 
   function renderVersions() {
     const S = summary, box = $('versions'), U = S.unversioned;
-    $('unver').textContent = U ? `${fmt(U.opens)} such visit${U.opens === 1 ? '' : 's'} (${fmt(U.events)} events, ${fmt(U.quiz)} quiz records) in this period${U.included ? ', included here' : ''}.` : 'this collector does not report them yet.';
+    const devOn = /[?&]dev=1/.test(location.search), tog = new URL(location.href);
+    if (devOn) tog.searchParams.delete('dev'); else tog.searchParams.set('dev', '1');
+    $('unver').replaceChildren(U ? `${fmt(U.opens)} such visit${U.opens === 1 ? '' : 's'} (${fmt(U.events)} events, ${fmt(U.quiz)} quiz records) in this period${U.included ? ', included in every card here' : ''}. ` : 'this collector does not report them yet. ',
+      U && (U.opens || U.events) ? h('a', { href: tog.toString(), text: devOn ? 'Hide them' : 'Include them' }) : '');
     const rows = [];
     Object.keys(S.games).sort(byOpens).forEach(g => {
       const V = S.games[g].versions || {};
@@ -498,6 +501,7 @@
     if (o.from) u.searchParams.set('from', o.from);
     if (o.to) u.searchParams.set('to', o.to);
     if (o.code) u.searchParams.set('code', o.code);
+    if (/[?&]dev=1/.test(location.search)) u.searchParams.set('dev', '1');   // include rows with no page version
     const r = await fetch(u.toString(), { redirect: 'follow', cache: 'no-store' });
     if (!r.ok) throw new Error('The collector answered ' + r.status + '.');
     const j = await r.json();

@@ -87,6 +87,7 @@
   .seg.tool button[data-t="X"][aria-pressed="true"]{background:#5fb4ff;color:#0b1220}
   .seg.tool button[data-t="Z"][aria-pressed="true"]{background:#f5b73c;color:#0b1220}
   .seg.tool button[data-t="Y"][aria-pressed="true"]{background:#a98bff;color:#0b1220}
+  .take{margin:8px 0 0;padding:7px 10px;border-left:3px solid var(--green);background:rgba(0,105,62,.07);border-radius:0 8px 8px 0;font-size:13px}
   .tip{font-size:13px;margin:6px 0 0;padding:6px 10px;border-left:3px solid var(--gold);background:var(--panel);border-radius:0 8px 8px 0}
   .chal{list-style:none;padding:0;margin:4px 0;font-size:13px}
   .chal li{padding:4px 0;border-bottom:1px solid var(--line);display:flex;gap:8px}
@@ -529,25 +530,39 @@ $('commit').addEventListener('click', () => {
 // ───────── learn: lessons ─────────
 // Each lesson fixes the code and the errors (qubit indices), and says what to look for.
 const LESSONS = [
-  { t: 'One lamp, two suspects', code: () => Q.repetition(3), x: [1], text: 'Three qubits store one bit as 000 or 111. The two checks compare neighbours: a lit lamp means its two qubits disagree. <b>Both</b> lamps are lit. Which single qubit disagrees with both neighbours? Tap it to flip it back (X).' },
-  { t: 'The edge', code: () => Q.repetition(3), x: [0], text: 'Only the first lamp is lit. One flip on the end qubit explains it; so would flipping the other two. Errors are rare, so the <b>fewest flips</b> is the best bet.' },
-  { t: 'Too many errors', code: () => Q.repetition(3), x: [0, 1], text: 'Two errors, and only one lamp lit. The fewest-flips answer is now wrong: commit it and see. A distance-3 code can fix 1 error, not 2. The fix is a bigger code.', expectFail: true },
-  { t: 'Into 2D: the surface code', code: () => Q.rotatedSurface(3), x: [4], text: 'Now the qubits form a grid and every face is a check. The <b>blue discs marked X</b> are bit-flip alarms (Z-type checks): they light when an X error touches their face. Two are lit: find the one qubit they share, and flip it back with the <b>X</b> tool.' },
-  { t: 'Phase flips', code: () => Q.rotatedSurface(3), z: [4], text: 'Quantum errors can also flip the phase (a Z error), which a classical code never sees. The <b>gold diamonds marked Z</b> are phase-flip alarms (X-type checks). Switch the tool to <b>Z</b>, the one marked with a gold diamond, and fix it.' },
-  { t: 'Y is both', code: () => Q.rotatedSurface(3), x: [4], z: [4], text: 'A Y error is a bit flip and a phase flip at once, so it lights both kinds of lamp around the same qubit. Use the <b>Y</b> tool (or X then Z).' },
-  { t: 'Many right answers', code: () => Q.rotatedSurface(3), x: [3, 4], text: 'Two lamps are lit and no single flip turns both off, so it takes two. There is more than one equally short choice: try any. They all work, because any two of them together form a closed loop (a check, or a product of checks), which does nothing to the encoded qubit.' },
-  { t: 'A string across the code', code: () => Q.rotatedSurface(3), x: [1, 7], text: 'Watch what the cheapest-looking fix does here. A chain of flips that runs from the top edge to the bottom edge is a logical operator: commit and see.', expectFail: 'maybe' },
-  { t: 'No edges: the torus', code: () => Q.toric(3), x: [0], text: 'The toric code lives on a donut: the right edge joins the left and the bottom joins the top. Lamps come in pairs, with no edges to hide at, and it holds two logical qubits, whose operators are loops running the two ways around the donut.' },
-  { t: 'Seven qubits, three faces', code: () => Q.steane(), x: [5], text: 'Steane’s code (the smallest color code): every face is both an X and a Z check. Each qubit sits in a different set of faces, so the lit faces spell out which qubit was hit, like a binary address.' },
+  { t: 'One lamp, two suspects', take: 'A lamp compares the qubits it touches. The qubit that disagrees with <i>both</i> lit neighbours is the one that flipped.',  code: () => Q.repetition(3), x: [1], text: 'Three qubits store one bit as 000 or 111. The two checks compare neighbours: a lit lamp means its two qubits disagree. <b>Both</b> lamps are lit. Which single qubit disagrees with both neighbours? Tap it to flip it back (X).' },
+  { t: 'The edge', take: 'Errors are rare, so the explanation with the <b>fewest flips</b> is the best bet. That is what decoders look for.',  code: () => Q.repetition(3), x: [0], text: 'Only the first lamp is lit. One flip on the end qubit explains it; so would flipping the other two. Errors are rare, so the <b>fewest flips</b> is the best bet.' },
+  { t: 'Too many errors', take: 'A distance-3 code fixes 1 error, not 2. Bigger codes fix more, but only while errors are rare: above the <b>threshold</b> (about 10% per qubit here) adding qubits makes things worse, not better. Try it in the Threshold tab.',  code: () => Q.repetition(3), x: [0, 1], text: 'Two errors, and only one lamp lit. The fewest-flips answer is now wrong: commit it and see. A distance-3 code can fix 1 error, not 2. The fix is a bigger code.', expectFail: true },
+  { t: 'Into 2D: the surface code', take: 'Blue lamps (marked X) light around an X error. The error sits where the lit lamps meet.',  code: () => Q.rotatedSurface(3), x: [4], text: 'Now the qubits form a grid and every face is a check. The <b>blue discs marked X</b> are bit-flip alarms (Z-type checks): they light when an X error touches their face. Two are lit: find the one qubit they share, and flip it back with the <b>X</b> tool.' },
+  { t: 'Two flips cancel', take: 'A lamp counts errors <b>modulo 2</b>: two errors on the same face cancel, and that face stays dark. Lamps mark the <b>ends</b> of a chain of errors, not every error in it.', code: () => Q.rotatedSurface(3), x: [4, 5], text: 'Two bit flips hit neighbouring qubits. Look at the face they share: its lamp is <b>dark</b>, because it counts its errors modulo 2, and two flips look like none. Only the lamps at the two ends of the pair light up. Find both errors (it takes two X flips).' },
+  { t: 'Phase flips', take: 'Quantum errors come in two kinds, bit flips (X) and phase flips (Z), and each kind has its own lamps: gold for Z.',  code: () => Q.rotatedSurface(3), z: [4], text: 'Quantum errors can also flip the phase (a Z error), which a classical code never sees. The <b>gold diamonds marked Z</b> are phase-flip alarms (X-type checks). Switch the tool to <b>Z</b>, the one marked with a gold diamond, and fix it.' },
+  { t: 'Y is both', take: 'Y = X and Z at once, so it lights both kinds of lamp.',  code: () => Q.rotatedSurface(3), x: [4], z: [4], text: 'A Y error is a bit flip and a phase flip at once, so it lights both kinds of lamp around the same qubit. Use the <b>Y</b> tool (or X then Z).' },
+  { t: 'Many right answers', take: 'Your fix plus the errors made a <b>closed loop</b>. A loop is a product of checks, so it leaves the stored qubit unchanged: many different fixes are equally right.',  code: () => Q.rotatedSurface(3), x: [3, 4], text: 'Two lamps are lit and no single flip turns both off, so it takes two. There is more than one equally short choice: try any. They all work, because any two of them together form a closed loop (a check, or a product of checks), which does nothing to the encoded qubit.' },
+  { t: 'A string across the code', take: 'A chain from one edge to the opposite edge is a <b>logical operator</b>: no lamp can see it, and it flips the stored qubit. Decoders must avoid completing one.',  code: () => Q.rotatedSurface(3), x: [1, 7], text: 'Watch what the cheapest-looking fix does here. A chain of flips that runs from the top edge to the bottom edge is a logical operator: commit and see.', expectFail: 'maybe' },
+  { t: 'No edges: the torus', take: 'On a torus there are no edges: lamps always come in pairs, and logical errors are loops that wrap all the way around.',  code: () => Q.toric(3), x: [0], text: 'The toric code lives on a donut: the right edge joins the left and the bottom joins the top. Lamps come in pairs, with no edges to hide at, and it holds two logical qubits, whose operators are loops running the two ways around the donut.' },
+  { t: 'Seven qubits, three faces', take: 'In Steane’s code the set of lit faces is a binary address of the qubit that was hit.',  code: () => Q.steane(), x: [5], text: 'Steane’s code (the smallest color code): every face is both an X and a Z check. Each qubit sits in a different set of faces, so the lit faces spell out which qubit was hit, like a binary address.' },
 ];
+// Stuck in a lesson? After 25 s without a tap, offer to show the answer (free in Learn mode).
+let stuckT = 0;
+function armStuck() {
+  clearTimeout(stuckT);
+  stuckT = setTimeout(() => {
+    if (G.mode !== 'learn' || G.revealed || G.history.length || G.hint) return;
+    $('msg').insertAdjacentHTML('beforeend', `<p style="margin:8px 0 0"><button id="stuckBtn">💡 Stuck? Show me where to look</button></p>`);
+    $('stuckBtn').onclick = () => { $('stuckBtn').parentNode.remove(); G.hint = { x: G.e.x.slice(), z: G.e.z.slice() }; draw();
+      $('msg').insertAdjacentHTML('beforeend', `<p class="lbl" style="margin:6px 0 0">The dashed tiles are where the errors are. Notice which lamps sit around them, then tap them with the tool those lamps ask for.</p>`); ev('hint', { level: 'stuck' }); };
+  }, 25000);
+}
+// a stable name per lesson for the statistics, so adding a lesson does not renumber the others
+const lessonKey = L => 'lesson-' + L.t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
 function lessonErr(L, code) { const e = Q.pauli(code.n); (L.x || []).forEach(i => { e.x[i] = 1; }); (L.z || []).forEach(i => { e.z[i] = 1; }); return e; }
 function startLesson(k) {
   G.lesson = k; const L = LESSONS[k]; setCode(L.code()); G.sweep = null;
   setTool(L.z && !L.x ? 'Z' : L.x && L.z ? 'Y' : 'X');
   newRound(lessonErr(L, G.code));
   setMsg('', `<h3>${k + 1}. ${L.t}</h3>${L.text}`);
-  drawLessons();
-  try { window.QL && QL.context({ level: 'lesson-' + (k + 1) }); } catch (e) { /* optional */ }
+  drawLessons(); armStuck();
+  try { window.QL && QL.context({ level: lessonKey(L) }); } catch (e) { /* optional */ }
 }
 function drawLessons() {
   $('lessons').innerHTML = LESSONS.map((L, k) => `<button data-k="${k}" class="${G.done.has(k) ? 'done' : ''} ${k === G.lesson ? 'cur' : ''}">${k + 1}. ${L.t}</button>`).join('');
@@ -557,8 +572,9 @@ function lessonDone(cls) {
   const L = LESSONS[G.lesson];
   if (L.expectFail && !cls.trivial) $('msg').insertAdjacentHTML('beforeend', `<br><b>That was the point of this lesson.</b> The fewest flips was the best guess, and the best guess lost: with ${plural(Q.weight(G.e.x) + Q.weight(G.e.z), 'error')} on a distance-${G.code.d} code, the errors themselves were closer to a logical operator than to the lamps' simplest explanation. Bigger codes (and lower error rates) make this rare.`);
   if (L.expectFail && cls.trivial) $('msg').insertAdjacentHTML('beforeend', `<br>You picked the less likely explanation, and it was the right one this time. A decoder that always does that would lose far more often, because one error is much more likely than two.`);
+  if (L.take) $('msg').insertAdjacentHTML('beforeend', `<div class="take"><b>Takeaway:</b> ${L.take}</div>`);
   G.done.add(G.lesson); drawLessons();
-  ev('level_complete', { level: 'lesson-' + (G.lesson + 1), value: cls.trivial ? 1 : 0 });
+  ev('level_complete', { level: lessonKey(L), value: cls.trivial ? 1 : 0 });
   const next = G.lesson + 1 < LESSONS.length ? `<br><button class="primary" id="nextLesson">Next lesson ▶</button>` : `<br><b>All lessons done.</b> Try the <b>Sweep</b> tab, then design a code in the <b>Code lab</b>. <button class="primary" id="toSweep">Play Sweep ▶</button>`;
   $('msg').insertAdjacentHTML('beforeend', next);
   const nb = $('nextLesson'); if (nb) nb.onclick = () => startLesson(G.lesson + 1);

@@ -16,7 +16,7 @@ if (window.QL) QL.learning({
     { id: 'matching', text: 'Explain how a matching decoder pairs up lit lamps, and why it needs every qubit to touch at most two checks of a kind.' },
   ],
   howTo: [
-    'Start with <b>Learn</b>: ten short lessons, from a 3-qubit repetition code to the surface code, the torus and Steane’s code.',
+    'Start with <b>Learn</b>: eleven short lessons, from a 3-qubit repetition code to the surface code, the torus and Steane’s code.',
     'Read the lamps: a <b>blue disc marked X</b> lights for X (bit-flip) errors, a <b>gold diamond marked Z</b> for Z (phase-flip) errors. Each tool is marked with the lamp it fixes.',
     'Tap a qubit tile to apply the selected correction (<b>X</b>, <b>Z</b> or <b>Y</b>); tap again to undo it. With a mouse, hovering shows which lamps a flip would switch.',
     'When every lamp is off, press <b>Commit</b>: the real errors appear, and green rings (closed loops) or red rings (a logical error) show the result.',
@@ -25,7 +25,7 @@ if (window.QL) QL.learning({
     '<b>Threshold</b> runs thousands of rounds to show where bigger codes stop helping, and can race your lab code against the surface codes.',
   ],
   goals: [
-    'Finish the ten lessons.',
+    'Finish the eleven lessons.',
     'In Sweep, keep your logical failure rate below the bare-qubit rate p on a distance-5 surface code.',
     'Design a code in the lab that corrects any single error (d ≥ 3), then try to beat the surface code’s k·d²/n = 1.',
   ],
