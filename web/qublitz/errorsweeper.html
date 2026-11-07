@@ -70,6 +70,33 @@
   .refs{font-size:12.5px;color:var(--muted);padding-left:20px} .refs li{margin:3px 0}
   details summary{cursor:pointer;font-weight:600;font-size:13.5px}
   .note{font-size:13px;color:var(--muted);max-width:980px}
+  /* lamp key: the shape and colour of a lamp say which error it catches, and the matching tool fixes it */
+  i.lz,i.lx{display:inline-block;width:13px;height:13px;vertical-align:-2px;margin:0 3px}
+  i.lz{background:#5fb4ff;border-radius:50%}
+  i.lx{background:#f5b73c;transform:rotate(45deg) scale(.82)}
+  i.lz.big,i.lx.big{width:20px;height:20px;position:relative;margin:0 8px 0 2px;vertical-align:-5px}
+  i.big::after{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:800 12px Helvetica,Arial;color:#0b1220;font-style:normal}
+  i.lz.big::after{content:"X"} i.lx.big::after{content:"Z";transform:rotate(-45deg) scale(1.2)}
+  .key{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px;line-height:1.45;margin:10px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .key > span{display:flex;align-items:flex-start}
+  .key .wide{grid-column:1 / -1;color:var(--muted);font-size:12.5px;display:block}
+  @media(max-width:600px){.key{grid-template-columns:1fr}}
+  .seg.tool button{display:inline-flex;flex-direction:column;align-items:center;line-height:1.1;padding:5px 12px;min-width:64px}
+  .seg.tool button b{font-size:16px}
+  .seg.tool button small{font-size:10.5px;font-weight:600;white-space:nowrap}
+  .seg.tool button[data-t="X"][aria-pressed="true"]{background:#5fb4ff;color:#0b1220}
+  .seg.tool button[data-t="Z"][aria-pressed="true"]{background:#f5b73c;color:#0b1220}
+  .seg.tool button[data-t="Y"][aria-pressed="true"]{background:#a98bff;color:#0b1220}
+  .tip{font-size:13px;margin:6px 0 0;padding:6px 10px;border-left:3px solid var(--gold);background:var(--panel);border-radius:0 8px 8px 0}
+  .chal{list-style:none;padding:0;margin:4px 0;font-size:13px}
+  .chal li{padding:4px 0;border-bottom:1px solid var(--line);display:flex;gap:8px}
+  .chal li::before{content:"○";color:var(--muted);font-weight:700;flex:none}
+  .chal li.got::before{content:"✓";color:var(--green)}
+  .chal li small{color:var(--muted)}
+  .score{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+  .score div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel);text-align:center}
+  .score span{display:block;font-size:11px;color:var(--muted)} .score b{font-size:17px;font-variant-numeric:tabular-nums}
+  #labPlot{width:100%;height:260px}
 </style>
 </head>
 <body>
@@ -106,13 +133,14 @@ Steane and Shor codes, under code-capacity noise.</p>
     </div>
     <div class="tools">
       <span class="lbl">Tap a qubit to apply</span>
-      <span class="seg" id="toolSeg"><button data-t="X" aria-pressed="true" title="Bit flip: fixes X errors (Z-type lamps)">X</button><button data-t="Z" aria-pressed="false" title="Phase flip: fixes Z errors (X-type lamps)">Z</button><button data-t="Y" aria-pressed="false" title="Both">Y</button></span>
+      <span class="seg tool" id="toolSeg"><button data-t="X" aria-pressed="true" title="X (bit flip) undoes an X error: it toggles the blue disc lamps around the qubit"><b>X</b><small>fixes <i class="lz"></i></small></button><button data-t="Z" aria-pressed="false" title="Z (phase flip) undoes a Z error: it toggles the gold diamond lamps around the qubit"><b>Z</b><small>fixes <i class="lx"></i></small></button><button data-t="Y" aria-pressed="false" title="Y = X and Z together: toggles both kinds of lamp"><b>Y</b><small>fixes both</small></button></span>
       <button id="undo">Undo</button><button id="clearC">Clear</button>
       <span style="flex:1"></span>
       <button id="hint" title="Show what a minimum-weight decoder would do (costs points)">💡 Decoder hint</button>
       <button class="primary" id="commit" disabled>Commit correction ✓</button>
     </div>
-    <div class="legend" id="legend"></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="key" id="key"></div>
   </div>
   <div class="side">
     <div class="msg" id="msg"></div>
@@ -139,23 +167,49 @@ Steane and Shor codes, under code-capacity noise.</p>
 <section id="labSec" hidden>
 <div class="lab">
   <div>
-    <canvas id="labBoard" aria-label="Code lab grid: tap to place qubits, or to select them for a new check"></canvas>
-    <div class="tools">
-      <span class="seg" id="labTool"><button data-v="place" aria-pressed="true">Place qubits</button><button data-v="pick" aria-pressed="false">Pick qubits for a check</button></span>
-      <button id="addX">+ X check</button><button id="addZ">+ Z check</button><button id="addXZ">+ X and Z</button><button id="labClearSel">Clear selection</button>
+    <div class="tools" style="margin-top:0">
+      <span class="seg" id="labMode"><button data-v="build" aria-pressed="true">✏️ Build</button><button data-v="test" aria-pressed="false">⚡ Test the decoder</button></span>
+      <select id="preset" aria-label="Start from a known code">
+        <option value="">Start from…</option><option value="rep5">Repetition code, 5 qubits</option><option value="four">[[4,2,2]]: detects, cannot correct</option>
+        <option value="surf3">Surface code d = 3</option><option value="surf5">Surface code d = 5</option><option value="twin">Two surface codes side by side</option>
+        <option value="steane">Steane [[7,1,3]] (color code)</option><option value="shor">Shor [[9,1,3]]</option></select>
+      <button id="labUndo">Undo</button><button id="labReset">Clear all</button>
     </div>
-    <p class="note">A <b>check</b> measures X⊗X⊗… (detects Z errors) or Z⊗Z⊗… (detects X errors) on the qubits you pick. Two checks
-    can be measured together only if they <b>commute</b>: an X check and a Z check must share an even number of qubits.</p>
+    <p class="note" id="labHelp" style="margin:0 0 8px"></p>
+    <canvas id="labBoard" aria-label="Code lab grid. In Build, tap a square or an edge to add a check; in Test, tap a qubit to put an error on it."></canvas>
+    <div class="tools" id="testTools" hidden>
+      <span class="seg tool" id="labErrSeg"><button data-t="X" aria-pressed="true" title="An X (bit-flip) error lights the blue lamps it touches"><b>X</b><small>error</small></button><button data-t="Z" aria-pressed="false" title="A Z (phase-flip) error lights the gold lamps it touches"><b>Z</b><small>error</small></button></span>
+      <button id="labRandom" title="Random X and Z errors, 8% per qubit">🎲 Random errors</button><button id="labClearErr">Clear</button>
+      <label class="lbl"><input type="checkbox" id="showGraph"> Show the matching graph</label>
+      <span style="flex:1"></span>
+      <button class="primary" id="runDec">Run the decoder ▶</button>
+    </div>
+    <div class="msg" id="labMsg" hidden></div>
+    <details id="freeForm" style="margin-top:8px"><summary>Draw a check on any qubits (advanced)</summary>
+      <p class="note">Tap grid points to select qubits (a point with no qubit gets one), then add a check on them. Use this for
+      checks that are not squares, such as the weight-6 faces of color codes. Two checks can be measured together only if
+      they <b>commute</b>: an X check and a Z check must share an even number of qubits.</p>
+      <div class="tools"><button id="addZ"><i class="lz"></i> Bit-flip check (Z…Z)</button><button id="addX"><i class="lx"></i> Phase-flip check (X…X)</button><button id="addXZ">Both</button><button id="labClearSel">Clear selection</button></div>
+      <ul class="checkList" id="checkList"></ul>
+    </details>
   </div>
   <div>
     <div class="card"><h2>Your code</h2>
-      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><span class="lbl">Start from</span><select id="preset">
-        <option value="">(blank)</option><option value="rep3">Repetition, 3 qubits</option><option value="four">[[4,2,2]]: detects, cannot correct</option>
-        <option value="steane">Steane [[7,1,3]]</option><option value="surf3">Rotated surface, d = 3</option><option value="shor">Shor [[9,1,3]]</option></select>
-        <button id="labReset">Clear all</button></div>
       <div class="verdict" id="verdict"></div>
-      <ul class="checkList" id="checkList"></ul>
-      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link to this code</button></div>
+      <div class="score" id="score"></div>
+      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link</button></div>
+    </div>
+    <div class="card"><h2>How good is it?</h2>
+      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="labNoise" aria-label="Noise"><option value="dep" selected>Depolarizing (X, Y, Z)</option><option value="X">Bit flips (X)</option><option value="Z">Phase flips (Z)</option></select>
+        <button class="primary" id="labMeasure">Measure ▶</button><span class="lbl" id="labProg"></span></div>
+      <div id="labPlot" hidden></div>
+      <p class="note" id="labPerf">Plays thousands of noisy rounds with the decoder and plots how often the encoded information is lost, next to the d = 3 surface code and unprotected qubits.</p>
+    </div>
+    <div class="card"><h2>Design challenges</h2>
+      <ul class="chal" id="chal"></ul>
+      <p class="note">Real codes were found this way: someone drew a new arrangement of checks and measured it. The rule to
+      beat is the surface code’s <b>k·d²/n = 1</b>. Flat codes with local checks can only do a constant factor better
+      (Bravyi, Poulin &amp; Terhal 2010); color codes get closer to the limit with bigger faces. Share your best design with the link button.</p>
     </div>
   </div>
 </div>
@@ -168,11 +222,12 @@ Steane and Shor codes, under code-capacity noise.</p>
   <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <span class="lbl">Noise</span><select id="thrNoise"><option value="X" selected>Bit flips (X)</option><option value="dep">Depolarizing</option></select>
     <span class="lbl">Rounds per point</span><select id="thrShots"><option>500</option><option selected>1500</option><option>4000</option></select>
+    <label class="lbl" id="thrMineWrap" hidden><input type="checkbox" id="thrMine" checked> include your code from the lab</label>
     <button class="primary" id="thrRun">Run the simulation</button><span class="lbl" id="thrProg"></span>
   </div>
   <div id="thrPlot"></div>
   <p class="note" id="thrNote">The computer plays thousands of rounds with a minimum-weight matching decoder on rotated surface codes of distance 3, 5 and 7.
-  The dash-dot line is an unprotected qubit (it fails with probability p). Below the <b>threshold</b>, where the curves cross, bigger codes fail
+  The dash-dot line is an unprotected qubit (it fails with probability p). If you built a code in the lab, tick the box to race it against them. Below the <b>threshold</b>, where the curves cross, bigger codes fail
   less often, so adding qubits helps; above it, bigger codes only collect more errors. <span id="thrNumbers"></span> Real devices also make errors
   in the check circuits and the measurements themselves, which lowers the threshold to about 1%.</p>
 </div>
@@ -194,9 +249,21 @@ Steane and Shor codes, under code-capacity noise.</p>
   <details><summary>What this game leaves out</summary>
   <p class="note">Code-capacity noise: each round the checks are measured once and perfectly. Real hardware repeats the
   measurements many times, because the ancillas and the measurements make errors too, and decodes in space and time;
-  that lowers the surface-code threshold to about 1%. The decoder here is exact minimum-weight matching for the surface,
-  toric and repetition codes (greedy pairing when more than 16 lamps of one type are lit, which is rare here) and a minimum-weight search for the small codes; it decodes X and Z separately, so for Y
-  errors it ignores their correlation.</p></details>
+  that lowers the surface-code threshold to about 1%. The decoder looks for the lightest set of errors that explains the lamps.
+  For the surface, toric and repetition codes it does this by exact minimum-weight matching (greedy pairing when more than
+  16 lamps of one type are lit, which is rare here); for codes without a matching graph, such as the Steane code and many
+  lab designs, it uses an exact lookup table or search. It decodes X and Z separately, so for Y errors it ignores their
+  correlation.</p></details>
+  <details><summary>How matching works, and when it cannot</summary>
+  <p class="note">An error on a qubit in the middle of a surface code lights the two lamps of its kind on either side; an
+  error at the edge lights one. So the lit lamps are the <b>ends of error chains</b>, and decoding means pairing them up
+  (or pairing one with the edge) so that the chains joining them are as short as possible: a minimum-weight perfect
+  matching on the graph whose nodes are lamps and whose edges are qubits (Dennis <i>et al.</i> 2002; Edmonds’ blossom
+  algorithm solves it in polynomial time, and sparse-blossom implementations decode real experiments in real time). This
+  only works when every qubit touches at most two lamps of each kind. In a color code a qubit touches three, one error
+  lights three lamps, and the problem becomes a hypergraph; decoders then use other ideas, such as projecting onto
+  matchable sub-lattices or belief propagation with ordered-statistics decoding (Roffe <i>et al.</i> 2020). Turn on
+  <b>Show the matching graph</b> in the lab’s Test mode to see the graph for your own code.</p></details>
 </div>
 
 <div class="card">
@@ -211,6 +278,8 @@ Steane and Shor codes, under code-capacity noise.</p>
     <li>H. Bombin &amp; M. A. Martin-Delgado, “Topological quantum distillation,” <i>Phys. Rev. Lett.</i> <b>97</b>, 180501 (2006) (color codes).</li>
     <li>A. G. Fowler, M. Mariantoni, J. M. Martinis &amp; A. N. Cleland, “Surface codes: Towards practical large-scale quantum computation,” <i>Phys. Rev. A</i> <b>86</b>, 032324 (2012).</li>
     <li>Y. Tomita &amp; K. M. Svore, “Low-distance surface codes under realistic quantum noise,” <i>Phys. Rev. A</i> <b>90</b>, 062320 (2014) (the 17-qubit rotated layout); H. Bombin &amp; M. A. Martin-Delgado, “Optimal resources for topological two-dimensional stabilizer codes: Comparative study,” <i>Phys. Rev. A</i> <b>76</b>, 012305 (2007) (the rotated code).</li>
+    <li>S. Bravyi, D. Poulin &amp; B. Terhal, “Tradeoffs for reliable quantum information storage in 2D systems,” <i>Phys. Rev. Lett.</i> <b>104</b>, 050503 (2010) (k·d² = O(n) for local 2D codes); A. J. Landahl, J. T. Anderson &amp; P. R. Rice, “Fault-tolerant quantum computing with color codes,” arXiv:1108.5738 (2011).</li>
+    <li>J. Edmonds, “Paths, trees, and flowers,” <i>Can. J. Math.</i> <b>17</b>, 449 (1965); O. Higgott &amp; C. Gidney, “Sparse Blossom: correcting a million errors per core second with minimum-weight matching,” arXiv:2303.15933 (2023); J. Roffe, D. R. White, S. Burton &amp; E. Campbell, “Decoding across the quantum low-density parity-check code landscape,” <i>Phys. Rev. Research</i> <b>2</b>, 043423 (2020).</li>
     <li>Google Quantum AI and collaborators, “Quantum error correction below the surface code threshold,” <i>Nature</i> <b>638</b>, 920 (2025).</li>
     <li>Inspiration for games that let players do real science: J. S. Kim <i>et al.</i> (EyeWire), <i>Nature</i> <b>509</b>, 331 (2014); S. Cooper <i>et al.</i> (Foldit), <i>Nature</i> <b>466</b>, 756 (2010).</li>
   </ol>
@@ -246,10 +315,10 @@ const CODE_NAMES = { rep3: 'Repetition, 3 qubits', rep5: 'Repetition, 5 qubits',
 
 // ───────── game state ─────────
 const G = { mode: 'learn', code: null, e: null, c: null, history: [], tool: 'X', revealed: null, hint: null, lesson: 0,
-  done: new Set(), sweep: null, customSpec: null };
+  done: new Set(), sweep: null, customSpec: null, lampPos: {}, hover: -1 };
 function setCode(code) { G.code = code; G.layout = layoutFor(code); }
 function newRound(e) {
-  G.e = e; G.c = Q.pauli(G.code.n); G.history = []; G.revealed = null; G.hint = null; draw(); updateUI();
+  $('tip').hidden = true; G.e = e; G.c = Q.pauli(G.code.n); G.history = []; G.revealed = null; G.hint = null; draw(); updateUI();
 }
 const shown = () => Q.syndrome(G.code, Q.combine(G.e, G.c));
 const lit = () => shown().some(Boolean);
@@ -280,15 +349,27 @@ function tf() {
   return { s, P: p => [ox + s * p.x, oy + s * p.y] };
 }
 function roundedRect(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
-function lamp(x, y, r, type, on) {
-  g.save();
-  if (on) { g.shadowColor = type === 'X' ? COL.litX : COL.litZ; g.shadowBlur = 16; }
-  g.fillStyle = on ? (type === 'X' ? COL.litX : COL.litZ) : COL.dim;
-  g.beginPath();
-  if (type === 'X') { g.moveTo(x, y - r * 1.2); g.lineTo(x + r * 1.2, y); g.lineTo(x, y + r * 1.2); g.lineTo(x - r * 1.2, y); g.closePath(); }   // X checks: diamonds
-  else g.arc(x, y, r, 0, 2 * Math.PI);                                                                                                   // Z checks: discs
-  g.fill(); g.restore();
+// A lamp is a check qubit. Its shape, colour and letter say which error it catches:
+//   Z-type check (measures Z⊗Z⊗…): blue disc marked X, lights for X (bit-flip) errors, fixed by the X tool;
+//   X-type check (measures X⊗X⊗…): gold diamond marked Z, lights for Z (phase-flip) errors, fixed by the Z tool.
+// Off lamps keep a faint version of their colour and letter, so the pairing is visible before anything lights.
+function lampOn(ctx, x, y, r, type, on, ring) {
+  const col = type === 'X' ? COL.litX : COL.litZ, det = type === 'Z' ? 'X' : 'Z';
+  ctx.save();
+  const shape = rr => { ctx.beginPath();
+    if (type === 'X') { ctx.moveTo(x, y - rr * 1.25); ctx.lineTo(x + rr * 1.25, y); ctx.lineTo(x, y + rr * 1.25); ctx.lineTo(x - rr * 1.25, y); ctx.closePath(); }
+    else ctx.arc(x, y, rr, 0, 2 * Math.PI); };
+  if (on) { ctx.shadowColor = col; ctx.shadowBlur = 18; }
+  ctx.fillStyle = on ? col : (type === 'X' ? 'rgba(245,183,60,.22)' : 'rgba(95,180,255,.22)');
+  shape(r); ctx.fill(); ctx.shadowBlur = 0;
+  if (!on) { ctx.strokeStyle = type === 'X' ? 'rgba(245,183,60,.55)' : 'rgba(95,180,255,.55)'; ctx.lineWidth = 1.2; ctx.stroke(); }
+  if (r >= 6) { ctx.fillStyle = on ? '#0b1220' : 'rgba(234,240,255,.62)'; ctx.font = `800 ${Math.round(r * 1.1)}px Helvetica,Arial`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(det, x, y + r * 0.07); }
+  if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2.5; ctx.setLineDash([4, 3]); shape(r + 6); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.restore();
 }
+const lampR = s => Math.max(6.5, s * 0.12);
+const lamp = (x, y, r, type, on, id) => { G.lampPos[id] = [x, y, r, type]; lampOn(g, x, y, r, type, on); };
 function draw() {
   if (!G.code) return;
   resize();
@@ -318,7 +399,7 @@ function draw() {
       const sorted = pts.map(p => ({ p, a: Math.atan2(p.y - c.y, p.x - c.x) })).sort((u, v) => u.a - v.a).map(u => P(u.p));
       g.beginPath(); sorted.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fill(); g.stroke();
     }
-    f.checks.forEach((ch, k) => lamp(lampAt[0] + (f.checks.length > 1 ? (k ? 1 : -1) * s * 0.17 : 0), lampAt[1], Math.max(5, s * 0.1), ch.type, !!synd[ch.id]));
+    f.checks.forEach((ch, k) => lamp(lampAt[0] + (f.checks.length > 1 ? (k ? 1 : -1) * s * 0.17 : 0), lampAt[1], lampR(s) * (f.checks.length > 1 ? 0.85 : 1), ch.type, !!synd[ch.id], ch.id));
   }
   // the reveal: errors, corrections, and the residual chains
   if (R) for (let i = 0; i < code.n; i++) {
@@ -336,6 +417,16 @@ function draw() {
     if (R) { const ex = G.e.x[i], ez = G.e.z[i], el = ex && ez ? 'Y' : ex ? 'X' : ez ? 'Z' : '';
       if (el) { g.fillStyle = COL.err; g.font = `700 ${Math.round(t * 0.34)}px Helvetica,Arial`; g.textAlign = 'center'; g.fillText('⚡' + el, x, y - t * 0.72); } }
     if (G.hint && (G.hint.x[i] || G.hint.z[i])) { g.strokeStyle = COL.hint; g.lineWidth = 2.5; g.setLineDash([4, 3]); roundedRect(x - t / 2 - 4, y - t / 2 - 4, t + 8, t + 8, t * 0.3); g.stroke(); g.setLineDash([]); }
+  }
+  // hover preview (mouse only): ring the lamps that the current tool would switch on this qubit
+  const q = G.hover;
+  if (q >= 0 && !R) {
+    const hit = code.checks.filter(ch => ch.vec[q] && (G.tool === 'Y' || (G.tool === 'X') === (ch.type === 'Z')));
+    for (const ch of hit) { const L = G.lampPos[ch.id]; if (L) lampOn(g, L[0], L[1], L[2], L[3], !!synd[ch.id], G.tool === 'Z' ? COL.litX : G.tool === 'X' ? COL.litZ : '#a98bff'); }
+    const nb = hit.filter(ch => ch.type === 'Z').length, ng = hit.length - nb;
+    const txt = `${G.tool} on qubit ${q} would switch ` + [nb ? `${nb} blue` : '', ng ? `${ng} gold` : ''].filter(Boolean).join(' and ') + ` lamp${hit.length === 1 ? '' : 's'}`;
+    g.fillStyle = 'rgba(11,18,32,.8)'; g.fillRect(0, H - 24, W, 24); g.fillStyle = COL.ink; g.font = '12.5px Helvetica,Arial'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText(hit.length ? txt : `${G.tool} on qubit ${q} would not switch any lamp`, 10, H - 12);
   }
 }
 function drawTorus(code, s, P, synd) {
@@ -355,7 +446,7 @@ function drawTorus(code, s, P, synd) {
   for (const ch of code.checks) {
     const [x, y] = P(ch);
     if (ch.type === 'Z') { g.fillStyle = COL.faceZ; const h = s * 0.42; g.fillRect(x - h, y - h, 2 * h, 2 * h); }
-    lamp(x, y, Math.max(5, s * 0.1), ch.type, !!synd[ch.id]);
+    lamp(x, y, lampR(s), ch.type, !!synd[ch.id], ch.id);
   }
 }
 function hit(ev) {
@@ -364,10 +455,20 @@ function hit(ev) {
   G.code.qubits.forEach((q, i) => { const [qx, qy] = P(q), d = Math.hypot(qx - x, qy - y); if (d < bd) { bd = d; best = i; } });
   return bd < Math.max(24, s * 0.4) ? best : -1;
 }
+board.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse' || !G.code) return; const i = G.revealed ? -1 : hit(e); if (i !== G.hover) { G.hover = i; draw(); } });
+board.addEventListener('pointerleave', () => { if (G.hover >= 0) { G.hover = -1; draw(); } });
+// a gentle nudge when the tool cannot touch the lamps that are lit
+function toolTip(t) {
+  const synd = shown(), blue = G.code.Z.some(c => synd[c.id]), gold = G.code.X.some(c => synd[c.id]);
+  let tip = '';
+  if (t === 'X' && !blue && gold) tip = 'Only <b>gold diamonds</b> are lit. They catch <b>Z</b> (phase-flip) errors, and an X flip cannot switch them off. Pick the <b>Z</b> tool.';
+  if (t === 'Z' && !gold && blue) tip = 'Only <b>blue discs</b> are lit. They catch <b>X</b> (bit-flip) errors, and a Z flip cannot switch them off. Pick the <b>X</b> tool.';
+  $('tip').hidden = !tip; $('tip').innerHTML = tip;
+}
 board.addEventListener('click', e => {
   if (G.revealed) return;
   const i = hit(e); if (i < 0) return;
-  const t = G.tool; G.history.push([i, t]);
+  const t = G.tool; toolTip(t); G.history.push([i, t]);
   if (t !== 'Z') G.c.x[i] ^= 1; if (t !== 'X') G.c.z[i] ^= 1;
   draw(); updateUI();
 });
@@ -386,14 +487,21 @@ function updateUI() {
   const onlyX = code.errors === 'X' || (G.mode === 'sweep' && sw && sw.noise === 'X'), onlyZ = G.mode === 'sweep' && sw && sw.noise === 'Z';
   for (const b of $('toolSeg').querySelectorAll('button')) b.disabled = (onlyX && b.dataset.t !== 'X') || (onlyZ && b.dataset.t !== 'Z');
   if ((onlyX && G.tool !== 'X') || (onlyZ && G.tool !== 'Z')) setTool(onlyX ? 'X' : 'Z');
-  $('legend').innerHTML = `<span><i style="background:${COL.litZ};border-radius:50%"></i>Z-type check: lights for <b>X</b> errors</span>` +
-    (code.X.length ? `<span><i style="background:${COL.litX};transform:rotate(45deg) scale(.8)"></i>X-type check: lights for <b>Z</b> errors</span>` : '') +
-    `<span><i style="background:${COL.corr}"></i>your correction</span>` + (G.revealed ? `<span><i style="background:${COL.err}"></i>⚡ actual error</span>` : '');
+  $('key').innerHTML = keyHTML(code) + `<span class="wide">Cyan letters on tiles are your corrections${G.revealed ? '; red ⚡ marks the actual errors; green rings are harmless loops, red rings a logical error' : ''}.</span>`;
+}
+// the lamp key: which lamp catches which error, and which tool fixes it
+const ico = t => `<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" style="flex:none;margin:0 9px 0 1px">` +
+  (t === 'Z' ? '<circle cx="11" cy="11" r="10" fill="#5fb4ff"/>' : '<polygon points="11,0 22,11 11,22 0,11" fill="#f5b73c"/>') +
+  `<text x="11" y="15.3" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0b1220" font-family="Helvetica,Arial,sans-serif">${t === 'Z' ? 'X' : 'Z'}</text></svg>`;
+function keyHTML(code) {
+  return `<span>${ico('Z')}<span><b>Blue disc = bit-flip alarm.</b> A Z-type check: it measures ZZZZ on its corners and lights when an <b>X error</b> touches it. Fix with <b>X</b>.</span></span>` +
+    (code.X.length ? `<span>${ico('X')}<span><b>Gold diamond = phase-flip alarm.</b> An X-type check: it measures XXXX and lights when a <b>Z error</b> touches it. Fix with <b>Z</b>.</span></span>` +
+      `<span class="wide">A <b>Y</b> error is an X and a Z at once, so it lights both kinds of lamp around the same qubit; fix it with Y. A lamp only counts errors modulo 2: two errors on one face cancel.</span>` : '');
 }
 function setTool(t) { G.tool = t; for (const b of $('toolSeg').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.t === t)); }
 $('toolSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) setTool(b.dataset.t); });
 $('undo').addEventListener('click', () => { const h = G.history.pop(); if (!h) return; const [i, t] = h; if (t !== 'Z') G.c.x[i] ^= 1; if (t !== 'X') G.c.z[i] ^= 1; draw(); updateUI(); });
-$('clearC').addEventListener('click', () => { G.c = Q.pauli(G.code.n); G.history = []; draw(); updateUI(); });
+$('clearC').addEventListener('click', () => { G.c = Q.pauli(G.code.n); G.history = []; $('tip').hidden = true; draw(); updateUI(); });
 $('hint').addEventListener('click', () => {
   G.hint = Q.decode(G.code, Q.syndrome(G.code, G.e)); if (G.sweep) G.sweep.hints++;
   setMsg('', `<b>Decoder hint.</b> The dashed tiles are a minimum-weight correction for these lamps: the fewest flips that explain them. It is usually, not always, the right answer.`);
@@ -424,8 +532,8 @@ const LESSONS = [
   { t: 'One lamp, two suspects', code: () => Q.repetition(3), x: [1], text: 'Three qubits store one bit as 000 or 111. The two checks compare neighbours: a lit lamp means its two qubits disagree. <b>Both</b> lamps are lit. Which single qubit disagrees with both neighbours? Tap it to flip it back (X).' },
   { t: 'The edge', code: () => Q.repetition(3), x: [0], text: 'Only the first lamp is lit. One flip on the end qubit explains it; so would flipping the other two. Errors are rare, so the <b>fewest flips</b> is the best bet.' },
   { t: 'Too many errors', code: () => Q.repetition(3), x: [0, 1], text: 'Two errors, and only one lamp lit. The fewest-flips answer is now wrong: commit it and see. A distance-3 code can fix 1 error, not 2. The fix is a bigger code.', expectFail: true },
-  { t: 'Into 2D: the surface code', code: () => Q.rotatedSurface(3), x: [4], text: 'Now the qubits form a grid and every face is a check. Blue discs (Z-type checks) light for bit flips. Two lamps are lit: find the one qubit they share, and flip it with X.' },
-  { t: 'Phase flips', code: () => Q.rotatedSurface(3), z: [4], text: 'Quantum errors can also flip the phase (Z error), which a classical code never sees. Gold diamonds (X-type checks) catch those. Switch the tool to <b>Z</b> and fix it.' },
+  { t: 'Into 2D: the surface code', code: () => Q.rotatedSurface(3), x: [4], text: 'Now the qubits form a grid and every face is a check. The <b>blue discs marked X</b> are bit-flip alarms (Z-type checks): they light when an X error touches their face. Two are lit: find the one qubit they share, and flip it back with the <b>X</b> tool.' },
+  { t: 'Phase flips', code: () => Q.rotatedSurface(3), z: [4], text: 'Quantum errors can also flip the phase (a Z error), which a classical code never sees. The <b>gold diamonds marked Z</b> are phase-flip alarms (X-type checks). Switch the tool to <b>Z</b>, the one marked with a gold diamond, and fix it.' },
   { t: 'Y is both', code: () => Q.rotatedSurface(3), x: [4], z: [4], text: 'A Y error is a bit flip and a phase flip at once, so it lights both kinds of lamp around the same qubit. Use the <b>Y</b> tool (or X then Z).' },
   { t: 'Many right answers', code: () => Q.rotatedSurface(3), x: [3, 4], text: 'Two lamps are lit and no single flip turns both off, so it takes two. There is more than one equally short choice: try any. They all work, because any two of them together form a closed loop (a check, or a product of checks), which does nothing to the encoded qubit.' },
   { t: 'A string across the code', code: () => Q.rotatedSurface(3), x: [1, 7], text: 'Watch what the cheapest-looking fix does here. A chain of flips that runs from the top edge to the bottom edge is a logical operator: commit and see.', expectFail: 'maybe' },
@@ -517,78 +625,268 @@ $('share').addEventListener('click', e => {
 });
 
 // ───────── code lab ─────────
-const LG = 6;   // grid of candidate positions, LG × LG
-const lab = { qubits: [], checks: [], sel: new Set(), tool: 'place' };
+// The lab code is a list of qubit positions on an LG × LG grid and a list of checks { type, q: [qubit indices] }.
+// Build mode: tapping a unit square (or an edge) cycles its check: none → bit-flip (Z-type) → phase-flip (X-type) →
+// both → none, adding corner qubits as needed and removing qubits left in no check. Test mode: tap qubits to place
+// errors, then run the decoder and watch what it pairs up.
+const LG = 7;
+const lab = { qubits: [], checks: [], sel: new Set(), mode: 'build', pick: false, undo: [], err: null, errTool: 'X', dec: null, perf: null, best: 0 };
 const labCv = $('labBoard'), lg = labCv.getContext('2d');
 let LW = 500, LH = 500;
 function labResize() { const d = Math.min(2, window.devicePixelRatio || 1); LW = labCv.clientWidth || 500; LH = Math.min(LW, 560); labCv.width = LW * d; labCv.height = LH * d; labCv.style.height = LH + 'px'; lg.setTransform(d, 0, 0, d, 0, 0); }
-const lp = p => { const s = Math.min(LW, LH) / (LG + 0.6); return [(LW - s * (LG - 1)) / 2 + s * p.x, (LH - s * (LG - 1)) / 2 + s * p.y, s]; };
-function labCode() { return lab.qubits.length ? Q.custom({ qubits: lab.qubits, checks: lab.checks }, 'Your code') : null; }
+const lp = p => { const s = Math.min(LW, LH) / (LG + 0.2); return [(LW - s * (LG - 1)) / 2 + s * p.x, (LH - s * (LG - 1)) / 2 + s * p.y, s]; };
+let labCache = null;
+function labCode() {
+  if (!lab.qubits.length) return null;
+  const key = JSON.stringify([lab.qubits, lab.checks]);
+  if (!labCache || labCache.key !== key) labCache = { key, code: Q.custom({ qubits: lab.qubits, checks: lab.checks }, 'Your code'), info: null };
+  return labCache.code;
+}
+const snapshot = () => JSON.stringify({ q: lab.qubits, c: lab.checks });
+function pushUndo() { lab.undo.push(snapshot()); if (lab.undo.length > 60) lab.undo.shift(); }
+const PERF0 = 'Plays thousands of noisy rounds with the decoder and plots how often the encoded information is lost, next to the d = 3 surface code and unprotected qubits.';
+function edited() { lab.err = null; lab.dec = null; $('labMsg').hidden = true;
+  if (lab.perf || !$('labPlot').hidden) { lab.perf = null; $('labPlot').hidden = true; $('labPerf').innerHTML = PERF0; } }
+const qAt = (x, y) => lab.qubits.findIndex(q => q.x === x && q.y === y);
+function removeQubit(at) { lab.qubits.splice(at, 1); lab.checks = lab.checks.filter(c => !c.q.includes(at)).map(c => ({ type: c.type, q: c.q.map(k => (k > at ? k - 1 : k)) })); lab.sel.clear(); }
+const keyOf = q => q.slice().sort((a, b) => a - b).join(',');
+// cycle the check(s) on a set of grid points
+function cycleAt(points) {
+  pushUndo();
+  const idx = points.map(([x, y]) => { let i = qAt(x, y); if (i < 0) { lab.qubits.push({ x, y }); i = lab.qubits.length - 1; } return i; });
+  const k = keyOf(idx), have = lab.checks.filter(c => keyOf(c.q) === k).map(c => c.type);
+  const state = have.includes('X') && have.includes('Z') ? 3 : have.includes('X') ? 2 : have.includes('Z') ? 1 : 0, next = (state + 1) % 4;
+  lab.checks = lab.checks.filter(c => keyOf(c.q) !== k);
+  const q = idx.slice();
+  if (next === 1 || next === 3) lab.checks.push({ type: 'Z', q });
+  if (next === 2 || next === 3) lab.checks.push({ type: 'X', q });
+  // drop qubits that no check uses any more (highest index first, so the others keep their numbers)
+  if (next === 0) for (const i of idx.slice().sort((a, b) => b - a)) if (!lab.checks.some(c => c.q.includes(i))) removeQubit(i);
+  edited(); drawLab();
+  ev('lab', { level: 'cycle', value: points.length });
+}
+function labHelp() {
+  $('labHelp').innerHTML = lab.mode === 'build'
+    ? 'Tap a <b>square</b> or an <b>edge</b> to put a check on its corners. Tap again to change it: 1st tap <i class="lz"></i> bit-flip alarm, 2nd <i class="lx"></i> phase-flip alarm, 3rd both, 4th removes it. Neighbouring alarms of opposite kinds must share 0, 2 or 4 qubits.'
+    : 'Tap qubits to put errors on them (the lamps light as they would on hardware), or roll random ones. Then <b>run the decoder</b> and see which lamps it pairs up.';
+}
+
+// the drawing
+function labLampPos(code, s) {
+  // one lamp per check at the centre of its qubits; a face that is both kinds gets two lamps side by side;
+  // a two-qubit check gets its lamp on the edge, nudged off the line
+  const pos = {}, groups = new Map();
+  for (const c of code.checks) { const k = keyOf(c.q); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); }
+  for (const cs of groups.values()) {
+    const pts = cs[0].q.map(i => code.qubits[i]), cen = pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
+    let [x, y] = lp(cen);
+    if (pts.length === 2) { const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y, L = Math.hypot(dx, dy) || 1; x += -dy / L * s * 0.2; y += dx / L * s * 0.2; }
+    cs.forEach((c, k) => { pos[c.id] = [x + (cs.length > 1 ? (k ? 1 : -1) * s * 0.15 : 0), y]; });
+  }
+  return pos;
+}
 function drawLab() {
   labResize(); lg.fillStyle = COL.bg; lg.fillRect(0, 0, LW, LH);
-  const code = labCode(), conflicts = new Set();
+  const code = labCode(), conflicts = new Set(), s = lp({ x: 0, y: 0 })[2];
   if (code) for (const a of code.X) for (const b of code.Z) if (Q.dot(a.vec, b.vec)) { conflicts.add(a.id); conflicts.add(b.id); }
-  lab.checks.forEach((c, i) => {
-    const pts = c.q.map(k => lab.qubits[k]), cen = pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
+  // grid: dots at every position, faint squares
+  lg.strokeStyle = 'rgba(160,190,230,.10)'; lg.lineWidth = 1;
+  for (let j = 0; j < LG; j++) { const [x0, y0] = lp({ x: 0, y: j }), [x1] = lp({ x: LG - 1, y: j }); lg.beginPath(); lg.moveTo(x0, y0); lg.lineTo(x1, y0); lg.stroke(); }
+  for (let i = 0; i < LG; i++) { const [x0, y0] = lp({ x: i, y: 0 }), [, y1] = lp({ x: i, y: LG - 1 }); lg.beginPath(); lg.moveTo(x0, y0); lg.lineTo(x0, y1); lg.stroke(); }
+  for (let y = 0; y < LG; y++) for (let x = 0; x < LG; x++) { const [px, py] = lp({ x, y }); lg.fillStyle = 'rgba(200,210,235,.35)'; lg.beginPath(); lg.arc(px, py, 2.5, 0, 7); lg.fill(); }
+  if (!code) { analyse(null, conflicts); return; }
+  const synd = lab.err ? Q.syndrome(code, lab.err) : code.checks.map(() => 0), pos = labLampPos(code, s);
+  // faces
+  const seen = new Set();
+  for (const c of code.checks) {
+    const k = keyOf(c.q); if (seen.has(k)) continue; seen.add(k);
+    const types = code.checks.filter(d => keyOf(d.q) === k).map(d => d.type), both = types.length > 1;
+    const pts = c.q.map(i => code.qubits[i]), cen = pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
     const sorted = pts.map(p => ({ p, a: Math.atan2(p.y - cen.y, p.x - cen.x) })).sort((u, v) => u.a - v.a).map(u => lp(u.p));
-    lg.fillStyle = c.type === 'X' ? COL.faceX : COL.faceZ; lg.strokeStyle = conflicts.has(i) ? '#ff5a72' : c.type === 'X' ? COL.edgeX : COL.edgeZ; lg.lineWidth = conflicts.has(i) ? 3 : 1.5;
-    lg.beginPath(); sorted.forEach(([x, y], k) => (k ? lg.lineTo(x, y) : lg.moveTo(x, y))); lg.closePath(); if (pts.length > 2) lg.fill(); lg.stroke();
-    const [cx, cy, s] = lp(cen); lg.fillStyle = c.type === 'X' ? COL.litX : COL.litZ; lg.font = `700 ${Math.round(s * 0.22)}px Helvetica,Arial`; lg.textAlign = 'center'; lg.textBaseline = 'middle'; lg.fillText(c.type, cx + (c.type === 'X' ? -1 : 1) * s * 0.12, cy);
-  });
-  for (let y = 0; y < LG; y++) for (let x = 0; x < LG; x++) { const [px, py, s] = lp({ x, y }); lg.fillStyle = COL.dim; lg.beginPath(); lg.arc(px, py, 2.5, 0, 7); lg.fill(); }
-  lab.qubits.forEach((q, i) => { const [x, y, s] = lp(q), t = s * 0.38;
+    const bad = code.checks.some(d => keyOf(d.q) === k && conflicts.has(d.id));
+    const fill = both ? COL.faceXZ : types[0] === 'X' ? COL.faceX : COL.faceZ, edge = both ? 'rgba(169,139,255,.6)' : types[0] === 'X' ? COL.edgeX : COL.edgeZ;
+    if (pts.length === 2) {
+      lg.strokeStyle = bad ? '#ff5a72' : fill.replace('.16', '.45'); lg.lineWidth = s * 0.16; lg.lineCap = 'round';
+      lg.beginPath(); lg.moveTo(sorted[0][0], sorted[0][1]); lg.lineTo(sorted[1][0], sorted[1][1]); lg.stroke(); lg.lineCap = 'butt';
+    } else {
+      lg.fillStyle = fill; lg.strokeStyle = bad ? '#ff5a72' : edge; lg.lineWidth = bad ? 3 : 1.5;
+      lg.beginPath(); sorted.forEach(([x, y], i) => (i ? lg.lineTo(x, y) : lg.moveTo(x, y))); lg.closePath(); lg.fill(); lg.stroke();
+    }
+  }
+  // the matching graph for the selected error type: nodes are the lamps that see it, edges are qubits
+  if (lab.mode === 'test' && $('showGraph').checked) drawGraph(code, pos, s);
+  // decoder result: matched pairs as paths through the corrected qubits
+  if (lab.dec) for (const T of ['X', 'Z']) {
+    const tr = lab.dec[T]; if (!tr.pairs) continue;
+    lg.strokeStyle = T === 'X' ? COL.litZ : COL.litX; lg.lineWidth = 3.5; lg.lineCap = 'round'; lg.lineJoin = 'round';
+    for (const pr of tr.pairs) {
+      const pts = [pos[pr.a]].concat(pr.path.slice().reverse().map(q => lp(code.qubits[q])));
+      if (pr.b !== null) pts.push(pos[pr.b]);
+      else { const last = pts[pts.length - 1], prev = pts[pts.length - 2], dx = last[0] - prev[0], dy = last[1] - prev[1], L = Math.hypot(dx, dy) || 1; pts.push([last[0] + dx / L * s * 0.45, last[1] + dy / L * s * 0.45]); }
+      lg.beginPath(); pts.forEach(([x, y], i) => (i ? lg.lineTo(x, y) : lg.moveTo(x, y))); lg.stroke();
+      if (pr.b === null) { const [x, y] = pts[pts.length - 1]; lg.fillStyle = lg.strokeStyle; lg.font = '700 11px Helvetica,Arial'; lg.textAlign = 'center'; lg.textBaseline = 'middle'; lg.fillText('edge', x, y - 9); }
+    }
+    lg.lineCap = 'butt';
+  }
+  // residual rings after decoding
+  if (lab.dec) { const r = lab.dec.r; for (let i = 0; i < code.n; i++) if (r.x[i] || r.z[i]) { const [x, y] = lp(code.qubits[i]); lg.strokeStyle = lab.dec.cls.trivial ? COL.loop : COL.logical; lg.lineWidth = 3.5; lg.beginPath(); lg.arc(x, y, s * 0.3, 0, 7); lg.stroke(); } }
+  // lamps
+  for (const c of code.checks) { const [x, y] = pos[c.id]; lampOn(lg, x, y, Math.max(6.5, s * 0.1) * (code.checks.filter(d => keyOf(d.q) === keyOf(c.q)).length > 1 ? 0.85 : 1), c.type, !!synd[c.id]); }
+  // qubits
+  lab.qubits.forEach((q, i) => { const [x, y] = lp(q), t = s * 0.34;
     lg.fillStyle = lab.sel.has(i) ? '#3a4d8f' : COL.tile; lg.strokeStyle = lab.sel.has(i) ? COL.corr : COL.tileLine; lg.lineWidth = lab.sel.has(i) ? 3 : 1.5;
     lg.beginPath(); lg.roundRect ? lg.roundRect(x - t / 2, y - t / 2, t, t, t * 0.22) : lg.rect(x - t / 2, y - t / 2, t, t); lg.fill(); lg.stroke();
-    lg.fillStyle = COL.ink; lg.font = `600 ${Math.round(t * 0.4)}px Helvetica,Arial`; lg.textAlign = 'center'; lg.textBaseline = 'middle'; lg.fillText(i, x, y + 1); });
+    let lab1 = String(i), col = 'rgba(234,240,255,.6)', fs = 0.36;
+    if (lab.err && (lab.err.x[i] || lab.err.z[i])) { lab1 = lab.err.x[i] && lab.err.z[i] ? 'Y' : lab.err.x[i] ? 'X' : 'Z'; col = COL.err; fs = 0.55; }
+    lg.fillStyle = col; lg.font = `700 ${Math.round(t * fs)}px Helvetica,Arial`; lg.textAlign = 'center'; lg.textBaseline = 'middle'; lg.fillText(lab1, x, y + 1);
+    if (lab.dec && (lab.dec.c.x[i] || lab.dec.c.z[i])) { const cl = lab.dec.c.x[i] && lab.dec.c.z[i] ? 'Y' : lab.dec.c.x[i] ? 'X' : 'Z';
+      lg.strokeStyle = COL.corr; lg.lineWidth = 2.5; lg.beginPath(); lg.roundRect ? lg.roundRect(x - t / 2 - 3, y - t / 2 - 3, t + 6, t + 6, t * 0.3) : lg.rect(x - t / 2 - 3, y - t / 2 - 3, t + 6, t + 6); lg.stroke();
+      lg.fillStyle = COL.corr; lg.font = `800 ${Math.max(11, Math.round(t * 0.45))}px Helvetica,Arial`; lg.textAlign = 'left'; lg.fillText('+' + cl, x + t * 0.55, y - t * 0.6); }
+  });
   analyse(code, conflicts);
 }
+function drawGraph(code, pos, s) {
+  const T = lab.errTool, ct = T === 'X' ? 'Z' : 'X', cs = code.checks.filter(c => c.type === ct);
+  lg.save(); lg.setLineDash([5, 4]); lg.lineWidth = 1.6;
+  for (let q = 0; q < code.n; q++) {
+    const on = cs.filter(c => c.vec[q]), [qx, qy] = lp(code.qubits[q]);
+    lg.strokeStyle = on.length > 2 ? '#ff5a72' : 'rgba(234,240,255,.75)'; lg.lineWidth = on.length > 2 ? 2.4 : 1.6;
+    for (const c of on) { const [x, y] = pos[c.id]; lg.beginPath(); lg.moveTo(x, y); lg.lineTo(qx, qy); lg.stroke(); }
+    if (on.length === 1) {   // an edge to the boundary node
+      const [x, y] = pos[on[0].id], dx = qx - x, dy = qy - y, L = Math.hypot(dx, dy) || 1, bx = qx + dx / L * s * 0.38, by = qy + dy / L * s * 0.38;
+      lg.beginPath(); lg.moveTo(qx, qy); lg.lineTo(bx, by); lg.stroke(); lg.setLineDash([]); lg.fillStyle = 'rgba(234,240,255,.8)'; lg.fillRect(bx - 3.5, by - 3.5, 7, 7); lg.setLineDash([5, 4]);
+    }
+    if (on.length > 2) { lg.setLineDash([]); lg.fillStyle = '#ff5a72'; lg.font = '700 11px Helvetica,Arial'; lg.textAlign = 'center'; lg.fillText(`${on.length} lamps`, qx, qy - s * 0.28); lg.setLineDash([5, 4]); }
+  }
+  lg.restore();
+}
+// the verdict, the score and the challenges
+function codeInfo(code) {
+  if (labCache && labCache.code === code && labCache.info) return labCache.info;
+  const dx = Q.distanceOf(code, 'X', 12, 3e5), dz = Q.distanceOf(code, 'Z', 12, 3e5);
+  const d = dx.d && dz.d ? Math.min(dx.d, dz.d) : null;
+  const ngX = Q.nonGraphQubit(code, 'Z'), ngZ = Q.nonGraphQubit(code, 'X');
+  const info = { dx, dz, d, ngX, ngZ, matchable: !ngX && !ngZ, score: Q.kd2n(code.n, code.k, d), maxW: Math.max(...code.checks.map(c => c.q.length), 0) };
+  if (labCache && labCache.code === code) labCache.info = info;
+  return info;
+}
 function analyse(code, conflicts) {
-  $('checkList').innerHTML = lab.checks.map((c, i) => `<li class="${conflicts.has(i) ? 'bad' : ''}"><span><b>${c.type}</b> on ${c.q.join(', ')}${conflicts.has(i) ? ' · does not commute' : ''}</span><button data-del="${i}">✕</button></li>`).join('') || '<li><span class="lbl">No checks yet</span></li>';
-  let v = '';
-  if (!code) v = 'Place some qubits, then pick qubits and add checks.';
-  else if (!code.commuteOK) v = '<b style="color:#d9475a">Checks do not commute</b>: an X check and a Z check (red outlines) share an odd number of qubits, so they cannot both be measured.';
+  $('checkList').innerHTML = lab.checks.map((c, i) => `<li class="${conflicts.has(i) ? 'bad' : ''}"><span>${c.type === 'Z' ? '<i class="lz"></i>bit-flip (Z…Z)' : '<i class="lx"></i>phase-flip (X…X)'} on ${c.q.join(', ')}${conflicts.has(i) ? ' · does not commute' : ''}</span><button data-del="${i}" aria-label="Delete this check">✕</button></li>`).join('') || '<li><span class="lbl">No checks yet</span></li>';
+  let v = '', info = null;
+  if (!code) v = 'Tap a square on the grid to start, or pick a known code from <b>Start from…</b>.';
+  else if (!code.commuteOK) v = '<b style="color:#d9475a">Two alarms clash.</b> A bit-flip and a phase-flip alarm (red outlines) share an odd number of qubits, so measuring one would disturb the other. Make them share 0, 2 or 4 qubits.';
+  else if (code.k <= 0) v = `<b>[[${code.n}, 0]]</b>: no room left for information. The checks pin down every state; remove a check or add qubits.`;
   else {
-    const k = code.k, dx = code.n <= 25 ? Q.distanceOf(code, 'X', 6) : { d: null }, dz = code.n <= 25 ? Q.distanceOf(code, 'Z', 6) : { d: null };
-    const d = dx.d && dz.d ? Math.min(dx.d, dz.d) : null;
-    v = k <= 0 ? `<b>[[${code.n}, 0]]</b>: no room for information. Every state is pinned by the checks; remove a check or add a qubit.` :
-      `<b>[[${code.n}, ${k}${d ? ', ' + d : ''}]]</b> · ${k} logical qubit${k > 1 ? 's' : ''} · distance for bit flips d<sub>X</sub> = ${dx.d || '> 6'}, for phase flips d<sub>Z</sub> = ${dz.d || '> 6'}.<br>` +
-      (d >= 3 ? `It corrects any ${Math.floor((d - 1) / 2) === 1 ? 'single error' : Math.floor((d - 1) / 2) + ' errors'}. 🎉` : d === 2 ? 'It detects any single error but cannot tell where it is (d = 2).' : (dx.d === 1 || dz.d === 1) ? 'Some single error is invisible and logical (distance 1 for that type): add checks that see it.' : '') +
-      `<br><span class="lbl">Rate k/n = ${(k / code.n).toFixed(2)}${dx.support && dx.d <= 6 ? ` · lightest X logical on qubits ${dx.support.join(', ')}` : ''}</span>`;
+    info = codeInfo(code);
+    const { dx, dz, d } = info, t = d ? Math.floor((d - 1) / 2) : 0, ds = r => (r.d ? r.d + (r.exact ? '' : '?') : `≥ ${r.atLeast}`);
+    v = `<b>[[${code.n}, ${code.k}${d ? ', ' + d : ''}]]</b>: ${code.n} qubits store ${code.k} logical qubit${code.k > 1 ? 's' : ''}. ` +
+      `Shortest undetectable error: ${ds(dx)} bit flip${dx.d === 1 ? '' : 's'}, ${ds(dz)} phase flip${dz.d === 1 ? '' : 's'}.<br>` +
+      (t >= 1 ? `It <b>corrects any ${t === 1 ? 'single error' : t + ' errors'}</b>. 🎉` : d === 2 ? 'It <b>detects</b> any single error but cannot tell where it is (d = 2).' : `Some single ${dx.d === 1 ? 'bit flip' : 'phase flip'} lights no lamp and changes the data${dx.d === 1 && dx.support ? ` (qubit ${dx.support[0]})` : dz.d === 1 && dz.support ? ` (qubit ${dz.support[0]})` : ''}: add ${dx.d === 1 ? 'bit-flip' : 'phase-flip'} alarms that touch it.`) +
+      `<br><span class="lbl">${info.matchable ? 'Matching graph: yes. Every qubit touches at most two alarms of each kind, so the decoder can pair lamps up.' : `Matching graph: no. Qubit ${(info.ngX || info.ngZ).q} touches ${(info.ngX || info.ngZ).checks.length} ${info.ngX ? 'bit-flip' : 'phase-flip'} alarms, so one error lights three or more lamps and pairing does not apply. The decoder uses an exact lightest-error search instead.`}</span>`;
   }
   $('verdict').innerHTML = v;
-  $('playLab').disabled = !(code && code.commuteOK && code.k > 0 && code.n <= 30);
+  const pth = lab.perf && lab.perf.pth;
+  $('score').innerHTML = info ? [['k·d²/n', info.score ? info.score.toFixed(2) : '–'], ['Biggest check', info.maxW + ' qubits'], ['Break-even p', pth ? (100 * pth).toFixed(1) + '%' : lab.perf ? 'none' : 'measure']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('') : '';
+  $('playLab').disabled = !(code && code.commuteOK && code.k > 0 && code.n <= 49);
+  challenges(code, info);
 }
-$('checkList').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; lab.checks.splice(+b.dataset.del, 1); drawLab(); });
-labCv.addEventListener('click', e => {
-  const r = labCv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-  let gx = -1, gy = -1, bd = Infinity;
-  for (let j = 0; j < LG; j++) for (let i = 0; i < LG; i++) { const [px, py] = lp({ x: i, y: j }), d = Math.hypot(px - x, py - y); if (d < bd) { bd = d; gx = i; gy = j; } }
-  const s = lp({ x: 0, y: 0 })[2]; if (bd > s * 0.45) return;
-  const at = lab.qubits.findIndex(q => q.x === gx && q.y === gy);
-  if (lab.tool === 'place') {
-    if (at >= 0) { // remove the qubit and every check on it, renumbering the rest
-      lab.qubits.splice(at, 1); lab.checks = lab.checks.filter(c => !c.q.includes(at)).map(c => ({ type: c.type, q: c.q.map(k => (k > at ? k - 1 : k)) })); lab.sel.clear();
-    } else lab.qubits.push({ x: gx, y: gy });
-  } else if (at >= 0) { if (lab.sel.has(at)) lab.sel.delete(at); else lab.sel.add(at); }
-  drawLab();
-});
-function addCheck(types) { if (lab.sel.size < 1) return; const q = [...lab.sel].sort((a, b) => a - b); for (const t of types) lab.checks.push({ type: t, q }); lab.sel.clear(); drawLab(); ev('lab', { level: 'add_check', value: q.length }); }
-$('addX').addEventListener('click', () => addCheck(['X'])); $('addZ').addEventListener('click', () => addCheck(['Z'])); $('addXZ').addEventListener('click', () => addCheck(['X', 'Z']));
-$('labClearSel').addEventListener('click', () => { lab.sel.clear(); drawLab(); });
-$('labTool').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lab.tool = b.dataset.v; for (const x of $('labTool').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); });
-$('labReset').addEventListener('click', () => { lab.qubits = []; lab.checks = []; lab.sel.clear(); $('preset').value = ''; drawLab(); });
-$('preset').addEventListener('change', e => loadPreset(e.target.value));
-function loadPreset(k) {
-  const off = (code, dx, dy, sc) => code.qubits.map(q => ({ x: Math.round(q.x * sc) + dx, y: Math.round(q.y * sc) + dy }));
-  let code = null;
-  if (k === 'rep3') code = Q.repetition(3); if (k === 'steane') code = Q.steane(); if (k === 'surf3') code = Q.rotatedSurface(3); if (k === 'shor') code = Q.shor();
-  if (k === 'four') { lab.qubits = [{ x: 2, y: 2 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 2, y: 3 }]; lab.checks = [{ type: 'X', q: [0, 1, 2, 3] }, { type: 'Z', q: [0, 1, 2, 3] }]; }
-  else if (code) {
-    const pos = k === 'steane' ? [{ x: 0, y: 4 }, { x: 2, y: 4 }, { x: 4, y: 4 }, { x: 1, y: 2 }, { x: 3, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 0 }] :
-      k === 'rep3' ? off(code, 1, 2, 1) : off(code, 1, 1, 1);
-    lab.qubits = pos; lab.checks = code.checks.map(c => ({ type: c.type, q: c.q.slice() }));
+const CHAL = [
+  { t: 'Detect any single error', s: 'd ≥ 2. Try 4 qubits.', ok: (c, i) => i.d >= 2 },
+  { t: 'Correct any single error', s: 'd ≥ 3', ok: (c, i) => i.d >= 3 },
+  { t: 'Correct one error with 7 qubits', s: 'The fewest any CSS code can use (Steane 1996). Use the advanced panel.', ok: (c, i) => i.d >= 3 && c.n <= 7 },
+  { t: 'Two protected logical qubits', s: 'k ≥ 2 with d ≥ 3', ok: (c, i) => c.k >= 2 && i.d >= 3 },
+  { t: 'Correct two errors, decodable by matching', s: 'd ≥ 5 and a matching graph', ok: (c, i) => i.d >= 5 && i.matchable },
+  { t: 'Beat the surface code', s: 'k·d²/n > 1 with d ≥ 3', ok: (c, i) => i.d >= 3 && i.score > 1.0001 },
+  { t: 'Survive noisy hardware', s: 'break-even above 10% for depolarizing noise (press Measure)', ok: () => lab.perf && lab.perf.mode === 'dep' && lab.perf.pth > 0.10 },
+];
+const won = new Set();
+function challenges(code, info) {
+  if (code && info) CHAL.forEach((ch, k) => { if (!won.has(k) && ch.ok(code, info)) { won.add(k); ev('lab', { level: 'challenge_' + (k + 1), n: code.n, k: code.k, d: info.d || 0 }); } });
+  if (code && info && info.d >= 3 && info.score > lab.best) { lab.best = info.score; ev('design', { n: code.n, k: code.k, d: info.d, score: +info.score.toFixed(3), matchable: info.matchable, wmax: info.maxW }); }
+  $('chal').innerHTML = CHAL.map((ch, k) => `<li class="${won.has(k) ? 'got' : ''}"><span>${ch.t}<br><small>${ch.s}</small></span></li>`).join('') +
+    (lab.best ? `<li class="got"><span>Your best k·d²/n with d ≥ 3: <b>${lab.best.toFixed(2)}</b></span></li>` : '');
+}
+
+// test mode: errors, decoding
+function labDecode() {
+  const code = labCode(); if (!code || !lab.err || !code.commuteOK || code.k <= 0) return;
+  const synd = Q.syndrome(code, lab.err), tr = Q.trace(code, synd), c = { x: tr.X.corr, z: tr.Z.corr }, r = Q.combine(lab.err, c), cls = Q.classify(code, r);
+  lab.dec = { X: tr.X, Z: tr.Z, c, r, cls };
+  const how = T => { const t = tr[T]; if (!t.defects.length) return '';
+    const col = T === 'X' ? 'blue' : 'gold', what = T === 'X' ? 'bit-flip' : 'phase-flip';
+    if (t.pairs) return `<b>${t.defects.length} ${col} lamp${t.defects.length > 1 ? 's' : ''}</b>: matching joined them into ${t.pairs.length} pair${t.pairs.length > 1 ? 's' : ''} (${t.pairs.filter(p => p.b === null).length} to the code's edge), choosing the pairing with the fewest ${what}s in total along the paths. `;
+    return `<b>${t.defects.length} ${col} lamp${t.defects.length > 1 ? 's' : ''}</b>: no matching graph here, so the decoder looked up the lightest set of ${what}s that lights exactly these lamps. `; };
+  const nE = Q.weight(lab.err.x.map((v, i) => v | lab.err.z[i])), nC = Q.weight(c.x.map((v, i) => v | c.z[i]));
+  $('labMsg').hidden = false; $('labMsg').className = 'msg ' + (cls.trivial ? 'ok' : 'bad');
+  const marks = [Q.weight(c.x) ? '+X' : '', Q.weight(c.z) ? '+Z' : ''].filter(Boolean).join(', ');
+  $('labMsg').innerHTML = how('X') + how('Z') + `It flipped ${nC} qubit${nC === 1 ? '' : 's'}${marks ? ` (cyan ${marks})` : ''} for ${nE} error${nE === 1 ? '' : 's'}.<br>` +
+    (cls.trivial ? `<b>✓ Fixed.</b> Errors and corrections together ${Q.weight(r.x) + Q.weight(r.z) ? 'form closed loops (green rings): a product of checks, harmless' : 'cancel exactly'}.`
+      : `<b>✗ Logical error.</b> Errors plus corrections (red rings) form a chain no lamp can see that changes the stored data. The decoder picked the lighter explanation, and the truth was the heavier one.`);
+  drawLab(); ev('lab', { level: 'decode', value: cls.trivial ? 1 : 0 });
+}
+function labTap(e) {
+  const r = labCv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, s = lp({ x: 0, y: 0 })[2];
+  const gx = (x - lp({ x: 0, y: 0 })[0]) / s, gy = (y - lp({ x: 0, y: 0 })[1]) / s;
+  if (lab.mode === 'test' || lab.pick) {   // tap a grid point
+    const ix = Math.round(gx), iy = Math.round(gy);
+    if (Math.hypot(gx - ix, gy - iy) > 0.4 || ix < 0 || iy < 0 || ix >= LG || iy >= LG) return;
+    let at = qAt(ix, iy);
+    if (lab.mode === 'test') {
+      const code = labCode(); if (at < 0 || !code) return;
+      if (!lab.err) lab.err = Q.pauli(code.n);
+      (lab.errTool === 'X' ? lab.err.x : lab.err.z)[at] ^= 1; lab.dec = null; $('labMsg').hidden = true; drawLab(); return;
+    }
+    if (at < 0) { pushUndo(); lab.qubits.push({ x: ix, y: iy }); at = lab.qubits.length - 1; edited(); }
+    if (lab.sel.has(at)) lab.sel.delete(at); else lab.sel.add(at);
+    drawLab(); return;
   }
-  lab.sel.clear(); drawLab(); ev('lab', { level: 'preset_' + (k || 'blank') });
+  // build: the nearest square centre or edge midpoint
+  let best = null, bd = Infinity;
+  const cand = (cx, cy, pts) => { const d = Math.hypot(gx - cx, gy - cy); if (d < bd) { bd = d; best = pts; } };
+  for (let j = 0; j < LG; j++) for (let i = 0; i < LG; i++) {
+    if (i < LG - 1 && j < LG - 1) cand(i + 0.5, j + 0.5, [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]]);
+    if (i < LG - 1) cand(i + 0.5, j, [[i, j], [i + 1, j]]);
+    if (j < LG - 1) cand(i, j + 0.5, [[i, j], [i, j + 1]]);
+  }
+  if (best && bd < 0.36) cycleAt(best);
+}
+labCv.addEventListener('click', labTap);
+$('checkList').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; pushUndo(); lab.checks.splice(+b.dataset.del, 1); edited(); drawLab(); });
+function addCheck(types) { if (lab.sel.size < 1) return; pushUndo(); const q = [...lab.sel].sort((a, b) => a - b); for (const t of types) lab.checks.push({ type: t, q }); lab.sel.clear(); edited(); drawLab(); ev('lab', { level: 'add_check', value: q.length }); }
+$('addX').addEventListener('click', () => addCheck(['X'])); $('addZ').addEventListener('click', () => addCheck(['Z'])); $('addXZ').addEventListener('click', () => addCheck(['Z', 'X']));
+$('labClearSel').addEventListener('click', () => { lab.sel.clear(); drawLab(); });
+$('freeForm').addEventListener('toggle', () => { lab.pick = $('freeForm').open && lab.mode === 'build'; lab.sel.clear(); drawLab(); });
+function setLabMode(m) {
+  lab.mode = m; lab.pick = m === 'build' && $('freeForm').open;
+  for (const x of $('labMode').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x.dataset.v === m));
+  $('testTools').hidden = m !== 'test'; $('freeForm').hidden = m !== 'build'; labCv.style.cursor = m === 'test' ? 'pointer' : 'crosshair';
+  if (m === 'build') { lab.err = null; lab.dec = null; $('labMsg').hidden = true; }
+  labHelp(); drawLab();
+}
+$('labMode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setLabMode(b.dataset.v); });
+$('labErrSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lab.errTool = b.dataset.t; for (const x of $('labErrSeg').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); drawLab(); });
+$('showGraph').addEventListener('change', drawLab);
+$('labRandom').addEventListener('click', () => { const code = labCode(); if (!code) return; const R = Math.random;
+  for (let t = 0; t < 200; t++) { const e = Q.sample(code, 0.08, 'XZ', R); if (Q.syndrome(code, e).some(Boolean)) { lab.err = e; break; } }
+  lab.dec = null; $('labMsg').hidden = true; drawLab(); });
+$('labClearErr').addEventListener('click', () => { lab.err = null; lab.dec = null; $('labMsg').hidden = true; drawLab(); });
+$('runDec').addEventListener('click', () => { if (!lab.err) { $('labMsg').hidden = false; $('labMsg').className = 'msg'; $('labMsg').innerHTML = 'Put some errors on the qubits first: tap a qubit, or roll 🎲 random errors.'; return; } labDecode(); });
+$('labUndo').addEventListener('click', () => { const sn = lab.undo.pop(); if (!sn) return; const o = JSON.parse(sn); lab.qubits = o.q; lab.checks = o.c; lab.sel.clear(); edited(); drawLab(); });
+$('labReset').addEventListener('click', () => { pushUndo(); lab.qubits = []; lab.checks = []; lab.sel.clear(); $('preset').value = ''; edited(); drawLab(); });
+$('preset').addEventListener('change', e => { loadPreset(e.target.value); e.target.value = ''; });
+function loadPreset(k) {
+  if (!k) return;
+  pushUndo();
+  const put = (code, dx, dy) => { lab.qubits = code.qubits.map(q => ({ x: q.x + dx, y: q.y + dy })); lab.checks = code.checks.map(c => ({ type: c.type, q: c.q.slice() })); };
+  if (k === 'rep5') put(Q.repetition(5), 1, 3);
+  if (k === 'surf3') put(Q.rotatedSurface(3), 2, 2);
+  if (k === 'surf5') put(Q.rotatedSurface(5), 1, 1);
+  if (k === 'shor') put(Q.shor(), 2, 2);
+  if (k === 'twin') { const a = Q.rotatedSurface(3); lab.qubits = a.qubits.map(q => ({ x: q.x, y: q.y + 2 })).concat(a.qubits.map(q => ({ x: q.x + 4, y: q.y + 2 })));
+    lab.checks = a.checks.map(c => ({ type: c.type, q: c.q.slice() })).concat(a.checks.map(c => ({ type: c.type, q: c.q.map(i => i + 9) }))); }
+  if (k === 'four') { lab.qubits = [{ x: 3, y: 3 }, { x: 4, y: 3 }, { x: 4, y: 4 }, { x: 3, y: 4 }]; lab.checks = [{ type: 'Z', q: [0, 1, 2, 3] }, { type: 'X', q: [0, 1, 2, 3] }]; }
+  if (k === 'steane') { const st = Q.steane(); lab.qubits = [{ x: 1, y: 5 }, { x: 3, y: 5 }, { x: 5, y: 5 }, { x: 2, y: 3 }, { x: 4, y: 3 }, { x: 3, y: 4 }, { x: 3, y: 1 }]; lab.checks = st.checks.map(c => ({ type: c.type, q: c.q.slice() })); }
+  lab.sel.clear(); edited(); drawLab(); ev('lab', { level: 'preset_' + k });
 }
 $('playLab').addEventListener('click', () => {
   G.customSpec = { qubits: lab.qubits.map(q => ({ x: q.x, y: q.y })), checks: lab.checks.map(c => ({ type: c.type, q: c.q.slice() })) };
@@ -600,13 +898,54 @@ function encodeSpec(sp) { return encodeURIComponent(sp.qubits.map(q => q.x + '.'
 function decodeSpec(str) {
   try { const [qs, cs] = decodeURIComponent(str).split('|');
     const qubits = qs.split(';').filter(Boolean).map(t => { const [x, y] = t.split('.').map(Number); return { x, y }; });
-    const checks = (cs || '').split(';').filter(Boolean).map(t => ({ type: t[0] === 'X' ? 'X' : 'Z', q: t.slice(1).split(',').map(Number).filter(n => n >= 0 && n < qubits.length) }));
-    if (qubits.length > 36 || qubits.some(q => !(q.x >= 0 && q.x < LG && q.y >= 0 && q.y < LG))) return null;
+    const checks = (cs || '').split(';').filter(Boolean).map(t => ({ type: t[0] === 'X' ? 'X' : 'Z', q: t.slice(1).split(',').map(Number).filter(n => n >= 0 && n < qubits.length) })).filter(c => c.q.length);
+    if (qubits.length > LG * LG || qubits.some(q => !(q.x >= 0 && q.x < LG && q.y >= 0 && q.y < LG))) return null;
     return { qubits, checks };
   } catch (e) { return null; }
 }
 $('shareLab').addEventListener('click', e => { const q = 'mode=lab&lab=' + encodeSpec({ qubits: lab.qubits, checks: lab.checks });
   window.PageKit ? PageKit.copyLink(e.target, 'qublitz/errorsweeper.html', q) : navigator.clipboard && navigator.clipboard.writeText(location.pathname + '?' + q); });
+
+// how good is it: logical failure vs p for this code, the d = 3 surface code and bare qubits; break-even = crossing
+const LAB_PS = [0.005, 0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.14, 0.2];
+let labBusy = false;
+$('labMeasure').addEventListener('click', () => {
+  const code = labCode(); if (labBusy || !code || !code.commuteOK || code.k <= 0) return;
+  labBusy = true; $('labMeasure').disabled = true; $('labPlot').hidden = false;
+  // the same random errors for both codes (common random numbers), so identical codes give identical curves
+  const mode = $('labNoise').value, ref = Q.rotatedSurface(3), shots = 10000;
+  const runs = [{ code, pts: [] }, { code: ref, pts: [] }];
+  let R = Q.rng(7);
+  let ri = 0, pi = 0, n = 0, fail = 0;
+  const step = () => {
+    const t0 = performance.now();
+    while (ri < runs.length && performance.now() - t0 < 40) {
+      const m = Math.min(100, shots - n); fail += Math.round(Q.logicalRate(runs[ri].code, LAB_PS[pi], mode, m, R) * m); n += m;
+      if (n >= shots) { runs[ri].pts.push({ p: LAB_PS[pi], v: fail / n }); n = 0; fail = 0; pi++; if (pi >= LAB_PS.length) { pi = 0; ri++; R = Q.rng(7); } }
+    }
+    $('labProg').textContent = ri < runs.length ? `${Math.round(100 * (ri * LAB_PS.length + pi) / (2 * LAB_PS.length))}%` : '';
+    plotLab(runs, mode, code.k);
+    if (ri < runs.length) { setTimeout(step, 0); return; }
+    labBusy = false; $('labMeasure').disabled = false;
+    const pth = Q.crossing(runs[0].pts, mode, code.k), pref = Q.crossing(runs[1].pts, mode, 1);
+    lab.perf = { mode, pth, pref }; drawLab();
+    const noise = { dep: 'depolarizing noise', X: 'bit flips', Z: 'phase flips' }[mode];
+    $('labPerf').innerHTML = (pth ? `<b>Break-even at p ≈ ${(100 * pth).toFixed(1)}%</b> for ${noise}: below that error rate your code loses its data less often than ${code.k > 1 ? code.k + ' bare qubits do' : 'a bare qubit does'}, so encoding pays off.`
+      : `<b>No break-even</b> in this range for ${noise}: your code never beats ${code.k > 1 ? code.k + ' bare qubits' : 'a bare qubit'}. A code with distance 1 for some error type cannot.`) +
+      ` The d = 3 surface code breaks even at ${pref ? '≈ ' + (100 * pref).toFixed(1) + '%' : '—'}. A single code has a break-even point (a pseudo-threshold); a true <b>threshold</b> needs a family of ever-bigger codes, as in the Threshold tab. Missing points mean no failures in ${shots} rounds.`;
+    ev('lab', { level: 'measure_' + mode, n: code.n, k: code.k, pth: pth ? +pth.toFixed(4) : 0 });
+  };
+  step();
+});
+function plotLab(runs, mode, k) {
+  const tr = (r, name, color, dash, sym) => ({ x: r.pts.map(q => 100 * q.p), y: r.pts.map(q => (q.v > 0 ? q.v : null)), name, mode: 'lines+markers', line: { color, width: 2.5, dash }, marker: { size: 7, symbol: sym } });
+  const gold = DK ? '#f5b73c' : '#b8860b', blue = DK ? '#5fb4ff' : '#2d6fb3';
+  const data = [tr(runs[0], 'your code', gold, 'solid', 'circle'), tr(runs[1], 'surface d = 3', blue, 'dash', 'square'),
+    { x: LAB_PS.map(p => 100 * p), y: LAB_PS.map(p => Q.bareRate(p, mode, k)), name: k > 1 ? `${k} bare qubits` : 'bare qubit', mode: 'lines', line: { color: DK ? '#9aa3cf' : '#5a6b63', dash: 'dashdot', width: 1.5 } }];
+  Plotly.react('labPlot', data, { margin: { t: 6, r: 8, b: 44, l: 52 }, legend: { orientation: 'h', y: -0.28, font: { size: 11 } },
+    xaxis: { title: { text: 'Error rate p (%)' }, type: 'log', tickvals: [0.5, 1, 2, 5, 10, 20], ticktext: ['0.5', '1', '2', '5', '10', '20'] },
+    yaxis: { title: { text: 'Data lost per round' }, type: 'log', range: [-4, 0], exponentformat: 'power' } }, { responsive: true, displaylogo: false });
+}
 
 // ───────── threshold explorer ─────────
 let thrBusy = false;
@@ -614,19 +953,21 @@ $('thrRun').addEventListener('click', () => {
   if (thrBusy) return; thrBusy = true; $('thrRun').disabled = true;
   const mode = $('thrNoise').value, ps = mode === 'dep' ? [0.04, 0.08, 0.11, 0.13, 0.15, 0.17, 0.20] : [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.14];
   const ds = [3, 5, 7], shots = +$('thrShots').value, R = Q.rng(2024);
-  const codes = ds.map(d => Q.rotatedSurface(d)), res = ds.map(() => []);
+  const codes = ds.map(d => Q.rotatedSurface(d)), mine = mineForThr();
+  if (mine) codes.push(mine);
+  const res = codes.map(() => []), labels = ds.map(d => `d = ${d} (${d * d} data qubits)`).concat(mine ? [`your code [[${mine.n},${mine.k}]]`] : []);
   // run in chunks of 50 rounds so the page stays responsive; one point per (d, p)
   let di = 0, pi = 0, n = 0, fail = 0;
   const step = () => {
     const t0 = performance.now();
-    while (di < ds.length && performance.now() - t0 < 40) {
+    while (di < codes.length && performance.now() - t0 < 40) {
       const m = Math.min(50, shots - n); fail += Math.round(Q.logicalRate(codes[di], ps[pi], mode, m, R) * m); n += m;
       if (n >= shots) { res[di].push({ p: ps[pi], v: fail / n }); n = 0; fail = 0; pi++; if (pi >= ps.length) { pi = 0; di++; } }
     }
     const done = res.reduce((a, r) => a + r.length, 0);
-    $('thrProg').textContent = di < ds.length ? `running… ${Math.round(100 * done / (ps.length * ds.length))}%` : `done${res.some(r => r.some(q => q.v === 0)) ? ` · gaps: no failures at all in ${shots} rounds (rate below ${(1 / shots).toExponential(0)})` : ''}`;
-    plotThr(ds, res, ps);
-    if (di < ds.length) setTimeout(step, 0); else { thrBusy = false; $('thrRun').disabled = false; ev('threshold', { level: mode, value: shots }); }
+    $('thrProg').textContent = di < codes.length ? `running… ${Math.round(100 * done / (ps.length * codes.length))}%` : `done${res.some(r => r.some(q => q.v === 0)) ? ` · gaps: no failures at all in ${shots} rounds (rate below ${(1 / shots).toExponential(0)})` : ''}`;
+    plotThr(labels, res, ps);
+    if (di < codes.length) setTimeout(step, 0); else { thrBusy = false; $('thrRun').disabled = false; ev('threshold', { level: mode, value: shots }); }
   };
   step();
 });
@@ -636,12 +977,15 @@ function thrNumbers() {
     ? 'For depolarizing noise, with X and Z decoded separately, the crossing is near 15% (each of X and Z then occurs with probability 2p/3, and 2/3 × 15% ≈ 10%); the best possible decoder, which uses the X–Z correlation of Y errors, reaches 18.9%.'
     : 'For bit flips and this decoder the crossing is about 9–10% at these small sizes, tending to 10.3% for very large codes; the best possible decoder reaches 10.9%.';
 }
-$('thrNoise').addEventListener('change', () => { thrNumbers(); plotThr([3, 5, 7], [[], [], []], $('thrNoise').value === 'dep' ? [0.04, 0.2] : [0.02, 0.14]); });
-function plotThr(ds, res, ps) {
-  const colors = DK ? ['#5fb4ff', '#f5b73c', '#ff4d9d'] : ['#2d6fb3', '#b8860b', '#c4307e'], dash = ['solid', 'dash', 'dot'];
-  const traces = ds.map((d, i) => { const pts = res[i];
+const EMPTY = [`d = 3 (9 data qubits)`, `d = 5 (25 data qubits)`, `d = 7 (49 data qubits)`];
+$('thrNoise').addEventListener('change', () => { thrNumbers(); plotThr(EMPTY, [[], [], []], $('thrNoise').value === 'dep' ? [0.04, 0.2] : [0.02, 0.14]); });
+// the lab code joins the threshold plot if it is a valid code
+function mineForThr() { const c = labCode(); return c && c.commuteOK && c.k > 0 && $('thrMine').checked ? c : null; }
+function plotThr(labels, res, ps) {
+  const colors = DK ? ['#5fb4ff', '#f5b73c', '#ff4d9d', '#40e6b4'] : ['#2d6fb3', '#b8860b', '#c4307e', '#1f8a5b'], dash = ['solid', 'dash', 'dot', 'longdash'];
+  const traces = labels.map((name, i) => { const pts = res[i];
     // a point with no failures has no place on a log axis: leave a gap (the note says so)
-    return { x: pts.map(q => 100 * q.p), y: pts.map(q => (q.v > 0 ? q.v : null)), connectgaps: false, mode: 'lines+markers', name: `d = ${d} (${d * d} data qubits)`, line: { color: colors[i], width: 2.5, dash: dash[i] }, marker: { size: 8, symbol: ['circle', 'square', 'diamond'][i] } }; });
+    return { x: pts.map(q => 100 * q.p), y: pts.map(q => (q.v > 0 ? q.v : null)), connectgaps: false, mode: 'lines+markers', name, line: { color: colors[i], width: i === 3 ? 3.5 : 2.5, dash: dash[i] }, marker: { size: 8, symbol: ['circle', 'square', 'diamond', 'star'][i] } }; });
   traces.push({ x: ps.map(p => 100 * p), y: ps, mode: 'lines', name: 'unprotected qubit (p)', line: { color: DK ? '#9aa3cf' : '#5a6b63', dash: 'dashdot', width: 1.5 } });
   Plotly.react('thrPlot', traces, { margin: { t: 10, r: 10, b: 50, l: 60 }, legend: { orientation: 'h', y: -0.2 },
     xaxis: { title: { text: 'Physical error rate p (%)' } }, yaxis: { title: { text: 'Logical failure per round' }, type: 'log', range: [-3.5, 0] } }, { responsive: true, displaylogo: false });
@@ -656,9 +1000,9 @@ function setMode(m) {
   if (m === 'learn') startLesson(G.lesson);
   if (m === 'sweep' && !G.sweep) newGame();
   if (m === 'sweep') { drawStats(); draw(); updateUI(); }
-  if (m === 'lab') drawLab();
-  if (m === 'thr') thrNumbers();
-  if (m === 'thr' && !document.querySelector('#thrPlot .main-svg')) plotThr([3, 5, 7], [[], [], []], [0.02, 0.14]);
+  if (m === 'lab') { labHelp(); drawLab(); }
+  if (m === 'thr') { thrNumbers(); const c = labCode(); $('thrMineWrap').hidden = !(c && c.commuteOK && c.k > 0); }
+  if (m === 'thr' && !document.querySelector('#thrPlot .main-svg')) plotThr(EMPTY, [[], [], []], [0.02, 0.14]);
   ev('mode', { level: m });
 }
 $('modeTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); });

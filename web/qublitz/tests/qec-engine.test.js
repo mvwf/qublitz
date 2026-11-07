@@ -70,5 +70,40 @@ for (const c of [Q.rotatedSurface(3), Q.rotatedSurface(5), Q.toric(3), Q.steane(
   check('a hand-drawn Steane code has k = 1 and d = 3', copy.k === 1 && Q.distanceOf(copy, 'X', 5).d === 3 && Q.distanceOf(copy, 'Z', 5).d === 3);
 }
 
+// ---- the new search tools: distance by branch-and-bound, exact table decoding, matching traces ----
+{
+  for (const [c, d] of [[Q.rotatedSurface(7), 7], [Q.toric(5), 5], [Q.repetition(7), 7]]) {
+    const r = Q.distanceOf(c, 'X'); check(`${c.name}: branch-and-bound distance d_X = ${d} (exact)`, r.d === d && r.exact, `got ${r.d}`);
+  }
+  // brute force agrees with the table decoder on Steane: every syndrome's correction has the minimum weight
+  const st = Q.steane(); let ok = true;
+  for (let mask = 0; mask < 8; mask++) {
+    const s = [0, 1, 2].map(i => (mask >> i) & 1), H = st.Z.map(c => c.vec);
+    const brute = Q.lightest(H, 7, s, 7), synd = st.checks.map(c => (c.type === 'Z' ? s[st.Z.indexOf(c)] : 0));
+    const tr = Q.traceType(st, synd, 'X');
+    if (tr.method !== (mask ? 'table' : 'none') && mask) ok = false;
+    if (Q.weight(tr.corr) !== Q.weight(brute) || H.some((h, i) => Q.dot(h, tr.corr) !== s[i])) ok = false;
+  }
+  check('Steane: the lookup-table decoder returns a lightest correction for all 8 syndromes', ok);
+  check('Steane is not a matching graph: some qubit sits in three Z checks', !!Q.nonGraphQubit(st, 'Z') && !st.graphX);
+  check('the surface code is a matching graph', !Q.nonGraphQubit(Q.rotatedSurface(5), 'Z') && !!Q.rotatedSurface(5).graphX);
+  // a matching trace: one X error in the bulk of d = 5 lights two Z checks, matched to each other through that qubit
+  const c = Q.rotatedSurface(5), e = Q.pauli(25); e.x[12] = 1;
+  const tr = Q.traceType(c, Q.syndrome(c, e), 'X');
+  check('matching pairs the two lamps around one error, through that qubit', tr.method === 'matching' && tr.pairs.length === 1 && tr.pairs[0].b !== null && tr.pairs[0].path.join() === '12');
+  const e2 = Q.pauli(25); e2.x[0] = 1; const tr2 = Q.traceType(c, Q.syndrome(c, e2), 'X');
+  check('an error at the code edge lights one lamp, matched to the boundary', tr2.pairs.length === 1 && tr2.pairs[0].b === null && tr2.pairs[0].path.join() === '0');
+  // a hand-drawn non-graph code with many checks still decodes every single error (Steane drawn twice side by side)
+  const two = Q.custom({ qubits: st.qubits.concat(st.qubits.map(q => ({ x: q.x + 5, y: q.y }))),
+    checks: st.checks.map(ch => ({ type: ch.type, q: ch.q })).concat(st.checks.map(ch => ({ type: ch.type, q: ch.q.map(i => i + 7) }))) });
+  let bad = 0; for (let q = 0; q < 14; q++) for (const ty of ['x', 'z']) { const er = Q.pauli(14); er[ty][q] = 1; if (!Q.classify(two, Q.combine(er, Q.decode(two, Q.syndrome(two, er)))).trivial) bad++; }
+  check('two Steane blocks: k = 2, d = 3, every single error corrected', two.k === 2 && Q.distanceOf(two, 'Z').d === 3 && bad === 0, `${bad} failed`);
+  // figure of merit and pseudo-threshold helpers
+  check('k·d²/n = 1 for every rotated surface code', [3, 5, 7].every(d => Q.kd2n(d * d, 1, d) === 1));
+  const pts = [0.01, 0.03, 0.1, 0.3].map(p => ({ p, v: 3 * p * p * 30 }));   // v = 90 p², crosses v = p at p = 1/90
+  const pth = Q.crossing(pts, 'X', 1);
+  check('pseudo-threshold of P_L = 90 p² is p = 1/90', pth && Math.abs(pth - 1 / 90) / (1 / 90) < 0.25, pth && pth.toFixed(4));
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
