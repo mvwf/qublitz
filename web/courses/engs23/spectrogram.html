@@ -818,6 +818,33 @@ function qlGuided(steps, key, obj) { return {
 }; }
 QLK.context({ level: 'explore' });
 
+/* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ---------- */
+// Each check reads the page's own state. Window sizes match the guided steps: 1000 + 1050 Hz split at N = 4096
+// (bins 10.8 Hz), the 20 ms clicks separate only at N = 512 (window 11.6 ms).
+const chRec = k => { const e = entries[+$("fileSel").value]; return !!e && !live.on && (e.key === k || (k === 'gong' && /^gong/i.test(e.name))); };
+const chN = () => +$("fftSel").value;
+let chHeard = 0, chMicMs = 0;
+audio.addEventListener("timeupdate", () => { chHeard = Math.max(chHeard, audio.currentTime); });
+audio.addEventListener("loadstart", () => { chHeard = 0; });
+setInterval(() => { if (live.on && document.visibilityState === 'visible') chMicMs += 500; }, 500);
+if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
+  { id: 'gong', text: 'Press <b>▶ Play</b> on the gong and watch the playhead cross its partials.',
+    hint: 'The gong loads first. Press ▶ Play and let it ring for a couple of seconds.',
+    check: () => chRec('gong') && chHeard > 1.5 },
+  { id: 'two-tones', text: 'Load <b>Test: two tones</b> (1000 + 1050 Hz) and pick a <b>Window</b> that shows <i>two</i> lines.',
+    hint: 'Bins are f<sub>s</sub>/N apart. With f<sub>s</sub> = 44 100 Hz you need bins much finer than 50 Hz: try a bigger window.',
+    check: () => chRec('tones') && chN() >= 4096 && !!spec },
+  { id: 'two-clicks', text: 'Now load <b>Test: two clicks</b> (20 ms apart) and find a window that shows <i>two</i> events.',
+    hint: 'A window must be shorter than the 20 ms gap. N samples last N/f<sub>s</sub>: 512 samples is 11.6 ms.',
+    check: () => chRec('clicks') && chN() <= 512 && !!spec },
+  { id: 'alias', text: 'Play <b>Test: 5 kHz then 7 kHz</b>, sampled at 8 kHz. Where do the tones land? (Nyquist is 4 kHz.)',
+    hint: 'Play it through: the 5 kHz tone folds to 8 − 5 = 3 kHz, then the 7 kHz tone folds to 1 kHz. It goes <i>down</i>!',
+    check: () => chRec('alias') && chHeard > 1.6 },
+  { id: 'mic', text: 'Press <b>🎙 Live mic</b> and whistle or sing for a few seconds. Can you see evenly spaced harmonics?',
+    hint: 'Allow microphone access when the browser asks. A sung "aah" shows a ladder of lines; a whistle shows one.',
+    check: () => chMicMs >= 4000 },
+]);
+
 /* ---------- guided predictions (?guided=1) ---------- */
 const GUIDED=[
   { title:"A gong is not a string",

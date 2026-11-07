@@ -938,6 +938,36 @@ if (window.QUBLITZ_STANDALONE) {
 
   layout(); layoutFret(); buildBasis(); updateChord(); drawFretboard(); setPreset('mode1');
   { const st=readQuery(); if(Object.keys(st).length) applyState(st); }
+  /* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ----------
+     Each check reads the page's own state. Triangular pluck at p: a_n ∝ sin(nπp)/n², so p = ½ kills every even n and
+     p ≈ ⅓ (slider 0.33/0.34) leaves |a3/a1| < 1 %. Clipping: tanh is odd, so a clipped pure tone gains 3f, 5f, … */
+  let chPlayed=false;
+  document.getElementById('play').addEventListener('click',()=>{ if(playing) chPlayed=true; });
+  document.getElementById('sound').addEventListener('click',()=>{ chPlayed=true; });
+  const chPluck=()=> ['triangle','gauss','square'].includes(shapeTag);
+  const chA=n=> Math.abs(coeffs[n-1]||0);
+  function chThirdRatio(){   // amplitude of 3 f1 over f1 in the amp's output (the page's own DFT of Vout)
+    const pl=playedList(); if(!pl.length) return 0; const f=f1of(pl[0]);
+    const S=spectrumAmps(Vout, f, 4*f), K=S.freqs.length-1, at=x=>{ let m=0; for(let k=0;k<=K;k++) if(Math.abs(S.freqs[k]-x)<=0.08*f) m=Math.max(m,S.amps[k]); return m; };
+    const a1=at(f); return a1? at(3*f)/a1 : 0; }
+  if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
+    { id:'play', text:'Press <b>▶ Play</b> (or <b>♪ Listen</b>) to set the low E string vibrating in its first mode.',
+      hint:'The ▶ Play button is just under the string picture. Mode 1 swings as one arch between the two fixed ends.',
+      check:()=> chPlayed },
+    { id:'octave', text:'Fret the low E at the <b>12th fret</b> (click the fretboard). What happens to the pitch?',
+      hint:'Each fret shortens the string by 2<sup>−1/12</sup>, so 12 frets halve it and f<sub>1</sub> = v/2L doubles: 82.4 Hz → 164.8 Hz (E3), one octave.',
+      check:()=> played[0]===12 },
+    { id:'middle', text:'Choose <b>Triangular pluck</b> at position <b>0.50</b>. Which bars drop to zero?',
+      hint:'a<sub>n</sub> ∝ sin(nπp)/n². At p = ½ every even mode (2, 4, 6, …) has a node in the middle, and you cannot excite a mode by pushing on its node.',
+      check:()=> shapeTag==='triangle' && Math.abs(pluckPos-0.5)<0.005 && chA(1)>0 && chA(2)<1e-3*chA(1) && chA(4)<1e-3*chA(1) },
+    { id:'no-third', text:'Make a pluck with <b>no 3rd harmonic</b>: slide the pluck position until bar 3 vanishes.',
+      hint:'Mode 3 has nodes at ⅓ and ⅔ of the string. Pluck there: sin(3π·⅓) = 0. Try 0.33.',
+      check:()=> chPluck() && chA(1)>0 && chA(3)<0.01*chA(1) && chA(2)>0.05*chA(1) },
+    { id:'clip', text:'Set a pure <b>mode 1</b>, then turn the <b>amp gain</b> up until the FFT shows a <b>3rd harmonic</b>.',
+      hint:'Pick “mode 1” and press Set, then drag the gain far right. The amp clips the top and bottom of the sine equally (tanh), so it adds odd harmonics 3f, 5f, … that the string never had.',
+      check:()=> shapeTag==='mode1' && gainDb>10 && chThirdRatio()>0.05 },
+  ]);
+
   if(PageKit.wantsGuided()) startGuided(); else PageKit.guidedEntry(document.getElementById('intro'), startGuided);
   console.log('[vibrating-string] ready. modes='+modes.length+' played='+JSON.stringify(played));
 })();

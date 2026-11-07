@@ -487,6 +487,35 @@ function qlGuided(steps, key, obj) { return {
 QLK.context({ level: 'explore' });
 QLK.toLab(document.getElementById('qlLab'));
 
+/* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ---------- */
+// Checks read the page's own model: heat T_n = e^{-n²t}, wave T_n = cos(2πnt), Schrödinger phase 2πn²·(r t).
+// "Back where it started" is measured as the overlap |<Ψ(0)|Ψ(t)>|² = |Σ|c_n|² e^{-i2πn² r t}|², not by eye.
+let chPlayed = false;
+$("play").addEventListener("click", () => { if (playing) chPlayed = true; });
+const chP = () => $("preset").value;
+function chOverlap() {
+  let S = 0, re = 0, im = 0; const ts = t * schRate;
+  for (let n = 1; n <= Nmax; n++) { const p = cRe[n] * cRe[n] + cIm[n] * cIm[n], th = 2 * PI * n * n * ts; S += p; re += p * Math.cos(th); im -= p * Math.sin(th); }
+  return S > 0 ? (re * re + im * im) / (S * S) : 0;
+}
+if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
+  { id: 'play', text: 'Press <b>▶ Play</b>: one bump, three equations. Watch the heat bump melt while the wave and Schrödinger bumps move.',
+    hint: 'Press ▶ Play in Controls and let it run for a second or two.',
+    check: () => chPlayed && t >= 0.08 },
+  { id: 'wave-half', text: 'With the <b>Localized bump</b>, pause and set <b>Time</b> to t = 0.5. Where is the wave now?',
+    hint: 'At t = ½ every wave mode picks up cos(πn) = (−1)<sup>n</sup>, and (−1)<sup>n</sup> sin(nπx) = −sin(nπ(1−x)): the string is flipped upside down and mirrored to x = 0.65.',
+    check: () => chP() === 'gauss' && !playing && Math.abs(t - 0.5) < 0.01 },
+  { id: 'heat-n3', text: 'Pick <b>Single mode n = 3</b> and find the time when its heat amplitude has dropped to 1/e (37 %).',
+    hint: 'Heat mode n decays as e<sup>−n²t</sup>, so n = 3 decays 9× faster than n = 1: amplitude 1/e at t = 1/9 ≈ 0.111 (n = 1 would need t = 1).',
+    check: () => chP() === 'mode3' && !playing && Math.abs(t - 1 / 9) < 0.006 },
+  { id: 'revival', text: 'Back to the <b>Localized bump</b>: find a time when the Schrödinger packet is back <i>exactly</i> where it started (not its mirror image), and pause there.',
+    hint: 'Mode n turns by 2πn²·r t. When r t is a whole number every phase is a multiple of 2π, so Ψ revives: t = 1/r (3.33 at the default rate 0.3, or set the rate to 1 and use t = 1). At t = 1/(2r) you get the mirror image instead.',
+    check: () => (chP() === 'gauss' || chP() === 'moving' || chP() === 'pluck') && !playing && t * schRate > 0.05 && chOverlap() > 0.97 },
+  { id: 'beat', text: 'Pick <b>Two modes, φ₁+φ₂</b>. Find the first time |Ψ|² sloshes back to its starting shape: the beat period.',
+    hint: '|Ψ|² holds only the cross term cos(2π(2² − 1²) r t): the beat is set by the energy <i>difference</i>, so the period is 1/(3r) = 1.11 at rate 0.3, not the full revival 1/r.',
+    check: () => chP() === 'two' && !playing && t * schRate > 0.05 && t * schRate < 0.5 && chOverlap() > 0.98 },
+]);
+
 /* ---------- guided predictions (?guided=1) ---------- */
 const GUIDED=[
   { title:"Same start, three fates",

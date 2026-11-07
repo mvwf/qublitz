@@ -21,8 +21,8 @@ if (window.QL) QL.learning({
     'Press <b>Flip horizontally</b> and listen: the same sound, played in reverse order.',
   ],
   goals: [
+    'Complete the five challenges (bottom left): hear a row, compare two rows, go up an octave, flip time, and find a clean peak and strong side peaks.',
     'Predict, before pressing play, whether a row will get louder or quieter over time, then check.',
-    'Find a row whose spectrum is one narrow peak, and one whose spectrum has wide side peaks.',
     'Finish with the 1-minute debrief.',
   ],
   quiz: [

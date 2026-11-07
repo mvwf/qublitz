@@ -1,3 +1,62 @@
-/* resonator.js: learning material for the Resonator Lab (qublitz/resonator.html). A stub that sets the page's id
- * and title, so the dashboard can load it; objectives, how-to-play and questions can be added here later. */
-if (window.QL) QL.learning({ id: 'resonator', title: 'Resonator Lab' });
+/* resonator.js: learning material for the Resonator Lab (qublitz/resonator.html).
+ * The page's model (resonator-engine.js), with φ = 0: 1/Ql = 1/Qi + 1/Qc;
+ * hanger S21 = 1 − (Ql/Qc)/(1 + 2i Ql x), reflection S11 = 1 − (2Ql/Qc)/(1 + 2i Ql x), x = f/fr − 1.
+ * So on resonance a hanger dips to 1 − Ql/Qc, a reflection resonator to (Qc − Qi)/(Qi + Qc); the full width at
+ * half power is fr/Ql. Every number below was computed from these formulas. */
+if (window.QL) QL.learning({
+  id: 'resonator',
+  title: 'Resonator Lab',
+  tagline: 'A superconducting resonator leaks energy two ways: inside itself (Q<sub>i</sub>) and out to the line you measure it with (Q<sub>c</sub>). Learn to read both from one sweep.',
+  fun: 'you can drag Q<sub>i</sub> and Q<sub>c</sub> and watch the dip, the phase and the IQ circle change together, then fit mystery resonators like a lab does.',
+  objectives: [
+    { id: 'loadedq', text: 'Combine losses: 1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub>, so the larger loss sets the loaded Q.' },
+    { id: 'linewidth', text: 'Read the loaded Q from the linewidth: full width at half power = f<sub>r</sub>/Q<sub>l</sub>.' },
+    { id: 'coupling', text: 'Tell under-, critically and over-coupled resonators apart by the depth of the dip and the IQ circle.' },
+    { id: 'reflection', text: 'Explain why a critically coupled resonator in reflection absorbs every photon on resonance.' },
+    { id: 'extract', text: 'Judge when Q<sub>i</sub> can be measured well, and why it gets hard when Q<sub>i</sub> ≫ Q<sub>c</sub>.' },
+  ],
+  howTo: [
+    'Start in <b>Explore</b>: move the <b>Q<sub>i</sub></b> and <b>Q<sub>c</sub></b> sliders or click a preset, and watch the magnitude, phase and IQ plots.',
+    'Switch the <b>geometry</b> between hanger and reflection: the same resonator looks very different.',
+    '<b>Pin</b> a curve to compare two settings on the same axes.',
+    'Open <b>Practice</b> and fit a mystery resonator, then reveal the answer.',
+    'The 🎯 <b>Challenges</b> card (bottom left) walks you through it and ticks off as you go.',
+  ],
+  goals: [
+    'Finish the five challenges: under-couple, critical and over-coupled in reflection, a readout resonator, and a fit.',
+    'Predict a dip depth from Q<sub>i</sub> and Q<sub>c</sub> before you move a slider, then check.',
+    'Do the 1-minute debrief.',
+  ],
+  quiz: [
+    { id: 'ql-sum', objective: 'loadedq',
+      q: 'A resonator has Q<sub>i</sub> = 10<sup>6</sup> and Q<sub>c</sub> = 10<sup>5</sup>. What is its loaded Q?',
+      choices: ['About 9.1 × 10<sup>4</sup>', 'About 1.1 × 10<sup>6</sup>', 'About 5.5 × 10<sup>5</sup>', 'Exactly 10<sup>6</sup>'],
+      answer: 0,
+      explain: 'Loss rates add: 1/Q<sub>l</sub> = 10<sup>−6</sup> + 10<sup>−5</sup> = 1.1 × 10<sup>−5</sup>, so Q<sub>l</sub> ≈ 9.1 × 10<sup>4</sup>. The loaded Q is always below the smaller of the two, here set mostly by the coupling.' },
+    { id: 'fwhm', objective: 'linewidth',
+      q: 'A 6 GHz resonator has a loaded Q of 10<sup>5</sup>. How wide is its resonance (full width at half power)?',
+      choices: ['60 kHz', '6 kHz', '600 kHz', '60 Hz'],
+      answer: 0,
+      explain: 'The width is f<sub>r</sub>/Q<sub>l</sub> = 6 × 10<sup>9</sup> / 10<sup>5</sup> = 6 × 10<sup>4</sup> Hz. A narrower line means a higher Q: energy survives more cycles before it is lost.' },
+    { id: 'hanger-crit', objective: 'coupling',
+      q: 'A hanger (notch) resonator is critically coupled, Q<sub>i</sub> = Q<sub>c</sub>. On resonance, the transmitted amplitude |S<sub>21</sub>| is…',
+      choices: ['Half the off-resonance level (−6 dB)', 'Zero: nothing gets through', 'Unchanged', 'Twice the off-resonance level'],
+      answer: 0,
+      explain: 'On resonance S<sub>21</sub> = 1 − Q<sub>l</sub>/Q<sub>c</sub>, and at critical coupling Q<sub>l</sub> = Q<sub>c</sub>/2, so |S<sub>21</sub>| = ½. A hanger only reaches zero in the limit Q<sub>i</sub> ≫ Q<sub>c</sub> (over-coupled).' },
+    { id: 'refl-crit', objective: 'reflection',
+      q: 'The same resonator measured in reflection, still with Q<sub>i</sub> = Q<sub>c</sub>. What happens on resonance?',
+      choices: ['Nothing is reflected: every incoming photon is absorbed inside', 'Everything is reflected', 'Half the amplitude is reflected', 'The reflection doubles'],
+      answer: 0,
+      explain: 'S<sub>11</sub> = 1 − 2Q<sub>l</sub>/Q<sub>c</sub> = (Q<sub>c</sub> − Q<sub>i</sub>)/(Q<sub>i</sub> + Q<sub>c</sub>) on resonance, which is 0 when Q<sub>i</sub> = Q<sub>c</sub>: the wave leaking back out cancels the directly reflected one, an impedance match.' },
+    { id: 'over-circle', objective: 'coupling',
+      q: 'In reflection, the IQ circle encloses the origin and the phase winds a full 360° through resonance. The resonator is…',
+      choices: ['Over-coupled: Q<sub>i</sub> > Q<sub>c</sub>', 'Under-coupled: Q<sub>i</sub> < Q<sub>c</sub>', 'Critically coupled', 'Not resonant'],
+      answer: 0,
+      explain: 'The circle has diameter 2Q<sub>l</sub>/Q<sub>c</sub> = 2Q<sub>i</sub>/(Q<sub>i</sub> + Q<sub>c</sub>), which is above 1 only when Q<sub>i</sub> > Q<sub>c</sub>; then S<sub>11</sub> goes negative on resonance and the circle wraps around 0. Under-coupled, it stays to one side and the phase swings back.' },
+    { id: 'hard-qi', objective: 'extract',
+      q: 'A readout resonator has Q<sub>c</sub> = 10<sup>4</sup>. Raising Q<sub>i</sub> from 10<sup>6</sup> to 10<sup>7</sup> changes the loaded Q by about…',
+      choices: ['1 %', '10 ×', '50 %', 'Nothing at all, exactly'],
+      answer: 0,
+      explain: 'Q<sub>l</sub> goes from 9.90 × 10<sup>3</sup> to 9.99 × 10<sup>3</sup>: the coupling loss dominates, so a tenfold change in internal loss barely moves the curve. That is why Q<sub>i</sub> ≫ Q<sub>c</sub> gives large error bars on Q<sub>i</sub>; to measure losses, design near critical coupling.' },
+  ],
+});
