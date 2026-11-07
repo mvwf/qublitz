@@ -13,6 +13,7 @@ if (window.QL) QL.learning({
     { id: 'loops', text: 'Tell a harmless closed loop (a stabilizer) from a logical operator (a chain from edge to edge, or around the torus).' },
     { id: 'distance', text: 'Relate code distance d to how many errors a code can fix, ⌊(d − 1)/2⌋, and to why bigger codes help only below a threshold.' },
     { id: 'design', text: 'Build a code from checks: keep X and Z checks commuting (even overlap) and read off n, k and d.' },
+    { id: 'discover', text: 'Search for new codes like a researcher: trade off n, k and d under a hardware rule, use k·d²/n to compare, and tell a proven distance from an upper bound.' },
     { id: 'matching', text: 'Explain how a matching decoder pairs up lit lamps, and why it needs every qubit to touch at most two checks of a kind.' },
   ],
   howTo: [
@@ -22,6 +23,7 @@ if (window.QL) QL.learning({
     'When every lamp is off, press <b>Commit</b>: the real errors appear, and green rings (closed loops) or red rings (a logical error) show the result.',
     'In <b>Sweep</b>, pick a code, a noise type and an error rate, and play rounds until all three logical qubits ◆◆◆ are lost. Your failure rate is compared with the decoder and with a bare qubit.',
     'In the <b>Code lab</b>, tap squares and edges to add checks (tap again to change their kind). The lab finds n, k and the distance and scores your design. In <b>Test the decoder</b>, put errors on qubits and watch the matching decoder pair up the lamps; <b>Measure</b> finds where your code breaks even.',
+    'In <b>Code Hunt</b>, take on missions: build lattice codes in the Code lab, then edit stencils on a torus to hunt qLDPC codes like IBM’s [[144,12,12]]. Every design is scored exactly; submit your best to the shared frontier board, earn XP and badges, and try the daily torus.',
     '<b>Threshold</b> runs thousands of rounds to show where bigger codes stop helping, and can race your lab code against the surface codes.',
   ],
   goals: [

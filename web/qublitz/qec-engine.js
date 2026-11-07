@@ -252,14 +252,14 @@
   function rowsOf(H, n) { return H.map(h => { const a = []; for (let q = 0; q < n; q++) if (h[q]) a.push(q); return a; }); }
   function incidence(H, n) { const inc = Array.from({ length: n }, () => []); H.forEach((h, r) => { for (let q = 0; q < n; q++) if (h[q]) inc[q].push(r); }); return inc; }
   function branchSearch(H, n, target, opts) {
-    const o = opts || {}, wmax = Math.min(o.wmax || n, n), budget = o.budget || 2e5, accept = o.accept || null, logical = !!o.logical;
+    const o = opts || {}, wmax = Math.min(o.wmax || n, n), budget = o.budget || 2e5, accept = o.accept || null, logical = !!o.logical, deadline = o.deadline || 0;
     const m = H.length, rows = rowsOf(H, n), inc = incidence(H, n), maxInc = Math.max(1, ...inc.map(a => a.length));
     const cur = Uint8Array.from(target), chosen = new Uint8Array(n), pick = [];
     let mis = 0; for (let r = 0; r < m; r++) mis += cur[r];
     let nodes = 0, exhausted = false;
     const flip = q => { chosen[q] ^= 1; for (const r of inc[q]) { cur[r] ^= 1; mis += cur[r] ? 1 : -1; } };
     function rec(w, minQ) {
-      if (++nodes > budget) { exhausted = true; return null; }
+      if (++nodes > budget || ((nodes & 4095) === 0 && deadline && Date.now() > deadline)) { exhausted = true; return null; }
       if (mis === 0 && pick.length) return !accept || accept(pick) ? pick.slice() : null;
       if (mis === 0) return null;
       if (w === 0 || mis > w * maxInc) return null;
@@ -345,10 +345,10 @@
 
   // ---- distances ----
   // lightest nontrivial X logical: v with Hz v = 0, v ∉ rowspace(Hx); exact up to the node budget
-  function distanceOf(code, type, wmax, budget) {
+  function distanceOf(code, type, wmax, budget, ms) {
     const n = code.n, H = type === 'X' ? code.Hz : code.Hx, other = type === 'X' ? code.bx : code.bz;
     if (code.k <= 0) return { d: null, support: null, exact: true };
-    const r = branchSearch(H, n, zeros(H.length), { logical: true, wmax: wmax || n, budget: budget || 4e5, accept: pick => !inSpan(other, fromSet(n, pick)) });
+    const r = branchSearch(H, n, zeros(H.length), { logical: true, wmax: wmax || n, budget: budget || 4e5, deadline: ms ? Date.now() + ms : 0, accept: pick => !inSpan(other, fromSet(n, pick)) });
     return { d: r.w, support: r.support, exact: r.exact, atLeast: r.atLeast };
   }
   // the 2D figure of merit k·d²/n: codes with local checks in a plane obey k·d² ≤ c·n (Bravyi, Poulin & Terhal 2010)
@@ -371,6 +371,108 @@
     return null;
   }
 
+  // ---- bivariate bicycle (BB) codes: the qLDPC family of Bravyi et al., Nature 627, 778 (2024) ----
+  // Qubits sit on an ℓ × m torus, two per cell (left block L and right block R), n = 2ℓm. x and y shift the torus
+  // by one step in each direction; A and B are sums of three monomials (powers of x or y), and
+  //   H_X = [A | B],   H_Z = [Bᵀ | Aᵀ].
+  // A and B commute (all shifts commute), so every X check commutes with every Z check. Each check has weight 6 and
+  // each qubit sits in 3 checks of each type. Monomials: [['x', a], ['y', b], ...]; ['1', 0] is the identity; the
+  // game also allows mixed monomials ['xy', a, b] = x^a y^b (still commuting: these are the abelian two-block codes
+  // of Lin & Pryadko, Phys. Rev. A 109, 022407 (2024), of which BB codes are the case with pure powers).
+  const monoXY = mono => (mono[0] === 'x' ? [mono[1], 0] : mono[0] === 'y' ? [0, mono[1]] : mono[0] === 'xy' ? [mono[1], mono[2]] : [0, 0]);
+  function bbShift(l, m, mono) {             // the permutation c → r of one monomial, as an array r[c]
+    const [a, b] = monoXY(mono), out = new Int32Array(l * m);
+    for (let i = 0; i < l; i++) for (let j = 0; j < m; j++) out[i * m + j] = ((i + a) % l) * m + ((j + b) % m);
+    return out;
+  }
+  function bivariateBicycle(l, m, A, B, name) {
+    const N = l * m, n = 2 * N, sa = A.map(t => bbShift(l, m, t)), sb = B.map(t => bbShift(l, m, t));
+    // matrix entries M[r][c] = Σ_t [r = s_t(c)] (mod 2); as sets of columns per row
+    const rowsOf = shifts => { const R = Array.from({ length: N }, () => new Set());
+      for (const s of shifts) for (let c = 0; c < N; c++) { const r = s[c], S = R[r]; if (S.has(c)) S.delete(c); else S.add(c); }
+      return R; };
+    const colsOfT = shifts => { const R = Array.from({ length: N }, () => new Set());   // rows of the transpose
+      for (const s of shifts) for (let c = 0; c < N; c++) { const r = s[c], S = R[c]; if (S.has(r)) S.delete(r); else S.add(r); }
+      return R; };
+    const Ar = rowsOf(sa), Br = rowsOf(sb), At = colsOfT(sa), Bt = colsOfT(sb);
+    const qubits = [], checks = [];
+    for (let i = 0; i < l; i++) for (let j = 0; j < m; j++) qubits[i * m + j] = { x: j + 0.25, y: i + 0.25 };
+    for (let i = 0; i < l; i++) for (let j = 0; j < m; j++) qubits[N + i * m + j] = { x: j + 0.75, y: i + 0.75 };
+    for (let r = 0; r < N; r++) {
+      checks.push({ type: 'X', q: [...Ar[r]].concat([...Br[r]].map(c => N + c)), x: (r % m) + 0.75, y: Math.floor(r / m) + 0.25 });
+      checks.push({ type: 'Z', q: [...Bt[r]].concat([...At[r]].map(c => N + c)), x: (r % m) + 0.25, y: Math.floor(r / m) + 0.75 });
+    }
+    return finalize({ name: name || `Bivariate bicycle ℓ = ${l}, m = ${m}`, key: 'bb', family: 'bb', l, m, A, B, n, qubits, checks, errors: 'XZ', layout: 'torus-bb' });
+  }
+  // spec strings for sharing: "l,m|A:x3,y1,y2|B:y3,x1,x2" (terms: 1, xA, yB or xAyB)
+  const monoTok = mono => { const [a, b] = monoXY(mono); return a && b ? `x${a}y${b}` : a ? `x${a}` : b ? `y${b}` : '1'; };
+  const bbSpec = (l, m, A, B) => `${l},${m}|A:${A.map(monoTok).join(',')}|B:${B.map(monoTok).join(',')}`;
+  function parseBB(spec) {
+    const T = '(?:1|x\\d{1,2}(?:y\\d{1,2})?|y\\d{1,2})';
+    const mt = new RegExp(`^(\\d{1,2}),(\\d{1,2})\\|A:(${T}(?:,${T}){0,5})\\|B:(${T}(?:,${T}){0,5})$`).exec(spec || '');
+    if (!mt) return null;
+    const l = +mt[1], m = +mt[2]; if (l < 1 || m < 1 || l * m > 400 || l * m < 2) return null;
+    const mono = t => { const x = /x(\d+)/.exec(t), y = /y(\d+)/.exec(t); return ['xy', x ? +x[1] % l : 0, y ? +y[1] % m : 0]; };
+    return { l, m, A: mt[3].split(',').map(mono), B: mt[4].split(',').map(mono) };
+  }
+
+  // ---- bitsets over GF(2), for the bigger codes ----
+  const nw = n => (n + 31) >>> 5;
+  function toBits(v) { const b = new Uint32Array(nw(v.length)); for (let i = 0; i < v.length; i++) if (v[i]) b[i >>> 5] |= (1 << (i & 31)); return b; }
+  const bit = (b, i) => (b[i >>> 5] >>> (i & 31)) & 1;
+  function pop(b) { let c = 0; for (let w of b) { w -= (w >>> 1) & 0x55555555; w = (w & 0x33333333) + ((w >>> 2) & 0x33333333); c += (((w + (w >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24; } return c; }
+  function xorInto(a, b) { for (let i = 0; i < a.length; i++) a[i] ^= b[i]; }
+  // a reduced basis as bitsets, for fast membership tests
+  function bitBasis(rows, n) { const R = reduce(rows, n); return { rows: R.rows.map(toBits), pivots: R.pivots }; }
+  function inSpanBits(B, v) { const w = Uint32Array.from(v); B.rows.forEach((r, i) => { if (bit(w, B.pivots[i])) xorInto(w, r); }); return pop(w) === 0; }
+
+  // Distance by random information sets (the method of QDistRnd: Pryadko, Shabashov & Kozin, JOSS 7, 4120 (2022)).
+  // Take a basis of ker(H) (H = Hz for X logicals), eliminate with pivots chosen in a random column order, and look at
+  // the resulting basis rows: each is a low-weight codeword; the lightest one that is not a stabilizer is a logical
+  // operator, so its weight is an upper bound on the distance. Many random orders make the bound tight with high
+  // probability; a codeword of weight d is found in a trial with a probability that does not shrink with n for these
+  // codes, and the count of trials that hit the best value is a confidence measure.
+  function distanceBound(code, type, trials, rng) {
+    const n = code.n, H = type === 'X' ? code.Hz : code.Hx, other = bitBasis(type === 'X' ? code.Hx : code.Hz, n);
+    const G = nullspace(H, n).map(toBits), R = rng || Math.random, k = G.length;
+    let best = Infinity, support = null, hits = 0;
+    const order = Array.from({ length: n }, (_, i) => i);
+    for (let t = 0; t < (trials || 200); t++) {
+      for (let i = n - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); const tmp = order[i]; order[i] = order[j]; order[j] = tmp; }
+      const M = G.map(r => Uint32Array.from(r));
+      let row = 0;
+      for (let ci = 0; ci < n && row < k; ci++) {
+        const c = order[ci]; let p = -1;
+        for (let r = row; r < k; r++) if (bit(M[r], c)) { p = r; break; }
+        if (p < 0) continue;
+        const tmp = M[row]; M[row] = M[p]; M[p] = tmp;
+        for (let r = 0; r < k; r++) if (r !== row && bit(M[r], c)) xorInto(M[r], M[row]);
+        row++;
+      }
+      for (const v of M) {
+        const w = pop(v); if (w === 0 || w > best) continue;
+        if (inSpanBits(other, v)) continue;
+        if (w < best) { best = w; hits = 0; support = []; for (let i = 0; i < n; i++) if (bit(v, i)) support.push(i); }
+        hits++;
+      }
+    }
+    return { d: isFinite(best) ? best : null, support, hits, trials: trials || 200 };
+  }
+  // the code's distance: exact by branch-and-bound when that is cheap, otherwise the random-search upper bound
+  function distanceAuto(code, opts) {
+    const o = opts || {};
+    if (code.k <= 0) return { d: null, exact: true };
+    const res = {};
+    for (const T of ['X', 'Z']) {
+      let r = null;
+      if (code.n <= (o.exactN || 160)) { const e = distanceOf(code, T, o.wmax || 20, o.budget || 3e6); if (e.exact && e.d) r = { d: e.d, exact: true, support: e.support }; }
+      if (!r) { const b = distanceBound(code, T, o.trials || 300, o.rng); r = { d: b.d, exact: false, support: b.support, hits: b.hits, trials: b.trials }; }
+      res[T] = r;
+    }
+    const d = Math.min(res.X.d || Infinity, res.Z.d || Infinity);
+    return { d: isFinite(d) ? d : null, exact: res.X.exact && res.Z.exact, X: res.X, Z: res.Z };
+  }
+
   // ---- Monte Carlo: logical failure rate of the decoder ----
   function logicalRate(code, p, mode, shots, rng) {
     let fail = 0;
@@ -387,7 +489,7 @@
   const BUILD = { rep: repetition, surface: rotatedSurface, toric, steane, shor };
   const api = { zeros, fromSet, weight, add, dot, reduce, rank, inSpan, nullspace, finalize, repetition, rotatedSurface, toric,
     steane, shor, custom, pauli, syndrome, combine, classify, sample, graphFor, matchDefects, lightest, decode, decodeType,
-    distanceOf, logicalRate, rng, BUILD, branchSearch, tableFor, nonGraphQubit, trace, traceType, kd2n, bareRate, crossing };
+    distanceOf, logicalRate, rng, BUILD, branchSearch, tableFor, nonGraphQubit, trace, traceType, kd2n, bareRate, crossing, bivariateBicycle, bbSpec, parseBB, distanceBound, distanceAuto };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.QECEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
