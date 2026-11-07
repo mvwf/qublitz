@@ -55,6 +55,9 @@
   .levels button span i{color:#4a5577;font-style:normal}
   .levels button.next{border-color:#ffd166;background:rgba(255,209,102,.12)}
   .overlay .go{font-size:15px;padding:9px 22px;background:#ffd166;border-color:#ffd166;color:#1b1300;font-weight:700}
+  /* one obvious action: the next unsolved level (most first visits used to end on this menu) */
+  .overlay .go.startbig{display:block;margin:4px auto 10px;font-size:18px;padding:12px 30px;box-shadow:0 0 0 3px rgba(255,209,102,.25)}
+  @media(max-width:640px){#menu p.intro{display:none}.overlay .go.startbig{width:100%;font-size:17px}}
   .overlay .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;align-items:center}
   .overlay .row button:not(.go),.overlay .row a.btn{background:transparent;color:#e8eef7;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:6px 11px;font-size:13px;text-decoration:none}
   .overlay .stars{font-size:38px;letter-spacing:.15em;color:#ffd166;line-height:1.1}
@@ -139,7 +142,8 @@
 
     <div class="overlay" id="menu">
       <h2>Beamline<small>ROUTE THE PULSE · SET THE PHASE · CHOOSE THE AREA</small></h2>
-      <p>Each level teaches one idea about driving qubits. Earn <b>★★</b> by using no more than par pieces and <b>★★★</b> by also firing no more than par times. <b>Sandbox</b> has no targets and as many pieces as you like.</p>
+      <button class="go startbig" id="startNext">▶ Start: Flip the bit</button>
+      <p class="intro">Each level teaches one idea about driving qubits. Earn <b>★★</b> by using no more than par pieces and <b>★★★</b> by also firing no more than par times. <b>Sandbox</b> has no targets and as many pieces as you like.</p>
       <div class="levels" id="levelGrid"></div>
       <div class="row"><button class="go" id="sandbox">Sandbox ▶</button><button id="menuQuiz" title="A few questions on what the levels teach, and two ratings">Debrief</button></div>
       <p class="best" id="menuStars"></p>
@@ -322,6 +326,9 @@ function showMenu() {
   const nx = nextLevelIndex();
   $('#levelGrid').innerHTML = E.LEVELS.map((L, i) => `<button data-i="${i}" class="${i === nx ? 'next' : ''}"><b>${i + 1}. ${L.title}</b><span>${starSpan(S.stars[L.id] || 0)}</span></button>`).join('');
   $('#levelGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => showBrief(+b.dataset.i)));
+  const sn = $('#startNext'), L = nx >= 0 && nx < E.LEVELS.length ? E.LEVELS[nx] : null;
+  sn.textContent = !L ? 'Sandbox ▶' : nx === 0 && !Object.keys(S.stars).length ? `▶ Start: ${L.title}` : `▶ Continue: ${nx + 1}. ${L.title}`;
+  sn.onclick = () => { if (L) showBrief(nx); else $('#sandbox').click(); };
   const got = Object.values(S.stars).reduce((a, b) => a + b, 0);
   $('#menuStars').textContent = `${got} of ${3 * E.LEVELS.length} stars` + (nx < 0 ? ' · every level solved' : ` · next: level ${nx + 1}`);
 }

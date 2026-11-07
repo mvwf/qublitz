@@ -56,6 +56,9 @@
   .missions button b{display:block;font-size:13.5px}
   .missions button span{font-size:12px;color:#ffd166;letter-spacing:.1em}
   .missions button.next{border-color:#ffd166}
+  /* one obvious action: the next unfinished mission (most first visits used to end on this menu) */
+  .overlay .go.startbig{display:block;margin:4px auto 10px;font-size:18px;padding:12px 30px;box-shadow:0 0 0 3px rgba(255,209,102,.25)}
+  @media(max-width:640px){#menu p.intro{display:none}.overlay .go.startbig{width:100%;font-size:17px}}
   .missions button{padding:6px 9px}
   .missions button i{font-style:normal;font-size:11.5px;color:#9fb2cc}
   .missions button i+span{float:right;margin-left:6px}
@@ -134,7 +137,8 @@
 
     <div class="overlay" id="menu">
       <h2>Rabi Rider<small>ONE DRIVE · MANY RUNS · T₁ PULLS THEM DOWN · GRAB T₁+ TO FIGHT BACK</small></h2>
-      <p>Missions teach one idea each, in order. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. Each mission pays up to three stars. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
+      <button class="go startbig" id="startNext">▶ Start: Flight school</button>
+      <p class="intro">Missions teach one idea each, in order. Start with <b>Flight school</b>, then meet <b>quantum jumps</b> with a single qubit before you fly a whole ensemble. Each mission pays up to three stars. <b>Free play</b> has no rings and no clock: just you, the drive and decoherence, in single-shot or ensemble mode.</p>
       <p class="path">Learning path: drive → decay → many runs → probability → measurement → gates</p>
       <div class="missions" id="missionGrid"></div>
       <div class="row">
@@ -393,6 +397,9 @@ function syncMenu() {
   const next = E.MISSIONS.find(m => !S.stars[m.id]);
   $('#missionGrid').innerHTML = E.MISSIONS.map((m, i) => `<button data-m="${m.id}" class="${m === next ? 'next' : ''}" title="${TOPIC[m.id] || ''}"><b>${i + 1}. ${m.title}</b>${TOPIC[m.id] ? `<i>${TOPIC[m.id]}</i>` : ''}<span>${starStr(S.stars[m.id] || 0)}</span></button>`).join('');
   $('#missionGrid').querySelectorAll('button').forEach(b => b.addEventListener('click', () => brief(b.dataset.m)));
+  const sn = $('#startNext'), ni = E.MISSIONS.indexOf(next);
+  sn.textContent = !next ? 'Free play ▶' : ni === 0 && !S.stars[next.id] && !Object.keys(S.stars).length ? `▶ Start: ${next.title}` : `▶ Continue: ${ni + 1}. ${next.title}`;
+  sn.onclick = () => { if (next) brief(next.id); else $('#free').click(); };
   const best = store.get('rider2:best', 0), got = Object.values(S.stars).reduce((a, b) => a + b, 0);
   $('#menuBest').innerHTML = `${got} of ${3 * E.MISSIONS.length} stars` + (best ? ` · best endless score ${best}` : '')
     + (challengeSeed ? ` · <span style="color:#ffd166">challenge course: ${challengeSeed.replace(/[<>&"]/g, '')}</span>` : '');
