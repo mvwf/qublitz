@@ -87,6 +87,7 @@
   .seg.tool button[data-t="X"][aria-pressed="true"]{background:#5fb4ff;color:#0b1220}
   .seg.tool button[data-t="Z"][aria-pressed="true"]{background:#f5b73c;color:#0b1220}
   .seg.tool button[data-t="Y"][aria-pressed="true"]{background:#a98bff;color:#0b1220}
+  .seg.tool button.dim:not([aria-pressed="true"]){opacity:.55}
   .take{margin:8px 0 0;padding:7px 10px;border-left:3px solid var(--green);background:rgba(0,105,62,.07);border-radius:0 8px 8px 0;font-size:13px}
   .tip{font-size:13px;margin:6px 0 0;padding:6px 10px;border-left:3px solid var(--gold);background:var(--panel);border-radius:0 8px 8px 0}
   .chal{list-style:none;padding:0;margin:4px 0;font-size:13px}
@@ -139,6 +140,21 @@
   #fcPlot{display:block;width:100%;height:160px;background:var(--night);border-radius:10px;margin:6px 0}
   .fcHead{font-size:13.5px;line-height:1.45}
   .fcHead .big{font-size:18px;font-weight:700}
+  /* the "Why?" explainer: an animated replay of the player's own board */
+  .whyVeil{position:fixed;inset:0;background:rgba(5,9,20,.72);z-index:60;display:flex;align-items:center;justify-content:center;padding:12px}
+  .whyDlg{background:#0f1830;color:#eaf0ff;border:1px solid #2fe0d0;border-radius:14px;max-width:760px;width:100%;max-height:96vh;overflow:auto;padding:14px 16px;box-shadow:0 18px 60px rgba(0,0,0,.6);font:14px/1.5 Helvetica,Arial,sans-serif}
+  .whyDlg h2{margin:0 0 2px;font-size:17px;color:#f5b73c}
+  .whyDlg .whySub{font-size:12.5px;color:#9aa3cf;margin:0 0 8px}
+  .whyDlg canvas{display:block;width:100%;height:min(46vh,360px);background:#0b1220;border-radius:10px}
+  .whyDlg .whyCap{min-height:5.2em;margin:10px 0 6px;font-size:14px}
+  .whyDlg .whyCap b{color:#f5b73c} .whyDlg .whyCap .ok{color:#3fe08a} .whyDlg .whyCap .bad{color:#ff5a72}
+  .whyDlg .whyRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .whyDlg .whyDots{flex:1;display:flex;gap:5px}.whyDlg .whyDots i{width:9px;height:9px;border-radius:50%;background:#2a3866}.whyDlg .whyDots i.on{background:#2fe0d0}
+  .whyDlg button{background:transparent;color:#eaf0ff;border:1px solid #3a4d8f;border-radius:8px;padding:6px 12px;cursor:pointer;font:600 13px Helvetica,Arial,sans-serif}
+  .whyDlg button.go{background:#2fe0d0;color:#0b1220;border-color:#2fe0d0}
+  .whyDlg button.go.pulse{animation:whyPulse 1.2s infinite}@keyframes whyPulse{50%{box-shadow:0 0 0 5px rgba(47,224,208,.25)}}
+  @media (prefers-reduced-motion: reduce){.whyDlg button.go.pulse{animation:none}}
+  .kbd{display:inline-block;font:700 10px Helvetica,Arial;border:1px solid currentColor;border-radius:3px;padding:0 3px;opacity:.6;margin-left:3px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0b1220;color:#eaf0ff;border:1px solid #f5b73c;border-radius:12px;padding:10px 16px;font-size:14px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:92vw}
 </style>
 </head>
@@ -177,8 +193,8 @@ The physics is real: these are the rotated surface code, the toric code, and the
       <canvas id="board" aria-label="The code: data qubits are tiles, check qubits are faces with lamps. Tap a tile to apply a correction."></canvas>
     </div>
     <div class="tools">
-      <span class="lbl">Tap a qubit to apply</span>
-      <span class="seg tool" id="toolSeg"><button data-t="X" aria-pressed="true" title="X (bit flip) undoes an X error: it toggles the blue disc lamps around the qubit"><b>X</b><small>fixes <i class="lz"></i></small></button><button data-t="Z" aria-pressed="false" title="Z (phase flip) undoes a Z error: it toggles the gold diamond lamps around the qubit"><b>Z</b><small>fixes <i class="lx"></i></small></button><button data-t="Y" aria-pressed="false" title="Y = X and Z together: toggles both kinds of lamp"><b>Y</b><small>fixes both</small></button></span>
+      <span class="lbl">Pick a fix, tap a qubit <span class="kbd">X</span><span class="kbd">Y</span><span class="kbd">Z</span></span>
+      <span class="seg tool" id="toolSeg"><button data-t="X" aria-pressed="true" title="X (bit flip) undoes an X error: it toggles the blue disc lamps around the qubit. Key: X"><b>X</b><small>fixes <i class="lz"></i></small></button><button data-t="Z" aria-pressed="false" title="Z (phase flip) undoes a Z error: it toggles the gold diamond lamps around the qubit. Key: Z"><b>Z</b><small>fixes <i class="lx"></i></small></button><button data-t="Y" aria-pressed="false" title="Y = X and Z together: toggles both kinds of lamp. Key: Y"><b>Y</b><small>fixes both</small></button></span>
       <button id="undo">Undo</button><button id="clearC">Clear</button>
       <span style="flex:1"></span>
       <button id="hint" title="Show what a minimum-weight decoder would do (costs points)">💡 Decoder hint</button>
@@ -575,9 +591,24 @@ function toolTip(t) {
 board.addEventListener('click', e => {
   if (G.revealed) return;
   const i = hit(e); if (i < 0) return;
-  const t = G.tool; toolTip(t); G.history.push([i, t]);
+  const t = G.tool;
+  if (t !== 'X' && !G.code.X.length) {   // no phase-flip alarms: a Z would be invisible, an error you add yourself
+    $('tip').hidden = false; $('tip').innerHTML = `This code has only <b>bit-flip alarms</b> (blue). No lamp can see a phase flip here, so a ${t} would not fix anything: it would add a phase error the code cannot detect. That is why this code protects bits, not qubits. Use <b>X</b>.`;
+    return;
+  }
+  const before = pl(G.c, i);
+  toolTip(t); G.history.push([i, t]);
   if (t !== 'Z') G.c.x[i] ^= 1; if (t !== 'X') G.c.z[i] ^= 1;
+  // say what two flips on one qubit add up to
+  const after = pl(G.c, i);
+  if (before && $('tip').hidden) { $('tip').hidden = false; $('tip').innerHTML = !after ? `<b>${before}·${t} = 1</b>: the same flip twice undoes itself. Qubit ${i} has no correction now.` : `<b>${before} then ${t} = ${after}</b> on qubit ${i}${after === 'Y' ? ' (one flip of each kind)' : ''}. Tap with ${after} to remove it.`; }
   draw(); updateUI();
+});
+// keys X, Y, Z pick the tool (not while typing, and not under a dialog)
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('.whyVeil, .ql-veil') || /INPUT|SELECT|TEXTAREA/.test((e.target && e.target.tagName) || '')) return;
+  if (!(G.mode === 'learn' || G.mode === 'sweep')) return;
+  const k = e.key.toUpperCase(); if (k === 'X' || k === 'Y' || k === 'Z') { setTool(k); toolTip(k); e.preventDefault(); }
 });
 addEventListener('resize', () => { draw(); if (G.mode === 'lab') drawLab(); });
 
@@ -591,9 +622,8 @@ function updateUI() {
   $('commit').textContent = G.revealed ? 'Committed' : nOn ? `Turn off ${nOn} lamp${nOn > 1 ? 's' : ''}` : 'Commit correction ✓';
   $('undo').disabled = !G.history.length || !!G.revealed; $('clearC').disabled = !!G.revealed;
   $('hint').disabled = !!G.revealed;
-  const onlyX = code.errors === 'X' || (G.mode === 'sweep' && sw && sw.noise === 'X'), onlyZ = G.mode === 'sweep' && sw && sw.noise === 'Z';
-  for (const b of $('toolSeg').querySelectorAll('button')) b.disabled = (onlyX && b.dataset.t !== 'X') || (onlyZ && b.dataset.t !== 'Z');
-  if ((onlyX && G.tool !== 'X') || (onlyZ && G.tool !== 'Z')) setTool(onlyX ? 'X' : 'Z');
+  // every tool stays selectable; on a code with no phase-flip alarms, a Z or Y tap is explained instead of applied
+  for (const b of $('toolSeg').querySelectorAll('button')) { b.disabled = false; b.classList.toggle('dim', !code.X.length && b.dataset.t !== 'X'); }
   $('key').innerHTML = keyHTML(code) + `<span class="wide">Cyan letters on tiles are your corrections${G.revealed ? '; red ⚡ marks the actual errors; green rings are harmless loops, red rings a logical error' : ''}.</span>`;
 }
 // the lamp key: which lamp catches which error, and which tool fixes it
@@ -638,10 +668,201 @@ $('commit').addEventListener('click', () => {
   if (cls.trivial) html = `<h3>✓ The logical qubit survived</h3>${same ? 'You found exactly the errors.' : `Your correction is not the same as the errors (${plural(nErr, 'error')}, ${plural(nCor, 'flip')}), but together they make only <b>closed loops</b> (green rings), which are products of checks and do nothing to the encoded qubit. That freedom is called degeneracy.`}`;
   else html = `<h3>✗ Logical ${cls.logicalX && cls.logicalZ ? 'X and Z' : cls.logicalX ? 'X' : 'Z'} error</h3>Every lamp is off, but errors plus corrections form a chain (red rings) that ${G.code.family === 'toric' ? 'wraps all the way around the torus' : 'stretches from one edge of the code to the opposite edge'}. That chain is a logical operator: it flipped the encoded qubit and no check can see it.`;
   html += `<br><span class="lbl">The decoder ${dcls.trivial ? 'would have succeeded' : 'would have failed too'}${dcls.trivial === cls.trivial ? '' : dcls.trivial ? ', so this one was solvable' : ', so you beat it'}.</span>`;
+  const wc = whyCase(G.revealed);
+  html += `<p style="margin:8px 0 0"><button id="whyBtn">🎬 ${wc === 'logical' ? 'Why did it fail?' : 'Why did it survive?'} Show me</button></p>`;
   setMsg(cls.trivial ? 'ok' : 'bad', html);
   draw(); updateUI();
+  $('whyBtn').onclick = () => whyOpen(false);
+  if (!whySeen().includes(wc)) setTimeout(() => { if (G.revealed && !document.querySelector('.whyVeil')) whyOpen(true); }, 900);
   if (G.mode === 'learn') lessonDone(cls); else sweepScore(cls, dcls, nErr);
 });
+
+// ───────── "Why?" explainer ─────────
+// An animated replay of the player's own round: errors, corrections, what cancels (X·X = 1), and what is left (the
+// residual r = e + c). If r is a product of checks (a closed loop, or nothing) the stored qubit is untouched: the
+// faces whose product is r are found by solving over GF(2) and lit one by one (degeneracy). If r is a logical
+// operator, every check overlaps it an even number of times (so no lamp sees it), and it runs edge to edge (or around
+// the torus), flipping the encoded qubit. It opens by itself the first time each outcome happens (remembered in this
+// browser only); the 🎬 button replays it.
+const WHY_KEY = 'es_why_seen';
+function whySeen() { try { const a = JSON.parse(localStorage.getItem(WHY_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function markWhy(k) { try { const a = whySeen(); if (!a.includes(k)) { a.push(k); localStorage.setItem(WHY_KEY, JSON.stringify(a)); } } catch (e) { /* storage off */ } }
+function whyCase(Rv) { return !Rv.cls.trivial ? 'logical' : (Q.weight(Rv.r.x) + Q.weight(Rv.r.z)) ? 'loop' : 'exact'; }
+// which of these rows (0/1 arrays) add up to v over GF(2)? indices, or null if v is not in their span
+function solveRows(rows, v) {
+  const n = v.length, basis = [];
+  const sx = (a, b) => { const o = new Set(a); for (const x of b) { if (o.has(x)) o.delete(x); else o.add(x); } return o; };
+  rows.forEach((row, i) => {
+    const a = { r: Uint8Array.from(row), c: new Set([i]) };
+    for (const b of basis) if (a.r[b.piv]) { for (let q = 0; q < n; q++) a.r[q] ^= b.r[q]; a.c = sx(a.c, b.c); }
+    const piv = a.r.indexOf(1); if (piv >= 0) basis.push({ r: a.r, c: a.c, piv });
+  });
+  const w = Uint8Array.from(v); let c = new Set();
+  for (const b of basis) if (w[b.piv]) { for (let q = 0; q < n; q++) w[q] ^= b.r[q]; c = sx(c, b.c); }
+  return w.some(Boolean) ? null : [...c];
+}
+const easeOut = t => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
+const popIn = t => { t = Math.min(1, Math.max(0, t)); const c = 1.7; return Math.max(0, 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2)); };
+const pl = (v, i) => (v.x[i] && v.z[i] ? 'Y' : v.x[i] ? 'X' : v.z[i] ? 'Z' : '');
+let WHY = null;
+function whyOpen(auto) {
+  const Rv = G.revealed; if (!Rv) return;
+  const code = G.code, kind = whyCase(Rv), e = { x: G.e.x.slice(), z: G.e.z.slice() }, c = { x: G.c.x.slice(), z: G.c.z.slice() }, r = Rv.r;
+  markWhy(kind);
+  const checksOf = t => code.checks.filter(ch => ch.type === t);
+  // loop: X part of r = product of X-type checks (gold faces, X⊗X⊗…), Z part = product of Z-type checks (blue faces)
+  const prodX = Q.weight(r.x) ? (solveRows(checksOf('X').map(ch => ch.vec), r.x) || []).map(i => checksOf('X')[i]) : [];
+  const prodZ = Q.weight(r.z) ? (solveRows(checksOf('Z').map(ch => ch.vec), r.z) || []).map(i => checksOf('Z')[i]) : [];
+  // an alternative correction that also works: yours times one check (shows degeneracy even when you were exact)
+  const ct = Q.weight(c.x) ? 'X' : 'Z', cv = ct === 'X' ? c.x : c.z, cand = checksOf(ct);
+  const altCheck = cand.length ? (cand.find(ch => ch.q.some(q => cv[q])) || cand[0]) : null;
+  const alt = altCheck ? { x: c.x.slice(), z: c.z.slice() } : null;
+  if (alt) for (const q of altCheck.q) (ct === 'X' ? alt.x : alt.z)[q] ^= 1;
+  // for the degeneracy step: the decoder's fix if it differs from yours and works, otherwise yours times one check
+  const sameAs = (a, b2) => a.x.every((v, i) => v === b2.x[i]) && a.z.every((v, i) => v === b2.z[i]);
+  const other = Rv.dcls.trivial && !sameAs(Rv.dec, c) ? Rv.dec : alt;
+  // logical: the checks that touch the chain, each with its (even) overlap
+  const touch = code.checks.map(ch => ({ ch, k: ch.q.filter(q => (ch.type === 'Z' ? r.x : r.z)[q]).length })).filter(o => o.k > 0);
+  const lx = Rv.cls.logicalX, lz = Rv.cls.logicalZ, torus = code.layout === 'torus';
+  const across = torus ? 'wraps all the way around the torus' : 'runs from one edge of the code to the opposite edge';
+  const steps = [
+    { t: 'The errors', cap: 'These are the errors that really hit (red ⚡). You never saw them: you only saw the lamps they lit.', draw: (S, t) => { S.base(); S.letters(e, '#ff5a72', t, '⚡'); } },
+    { t: 'Your correction', cap: 'These are the flips you applied (cyan). Every lamp went dark, so your flips <b>explain the lamps</b>. But are they the same as the errors?', draw: (S, t) => { S.base(); S.letters(e, '#ff5a72', 1, '⚡', -0.22, 0.75); S.letters(c, '#2fe0d0', t, '', 0.2, 1, true); } },
+    { t: 'Combine them', cap: 'A flip done twice undoes itself: <b>X·X = 1</b>, <b>Z·Z = 1</b>. Wherever your flip landed on an error of the same kind, both disappear. An X and a Z on one qubit make a Y.', draw: (S, t) => S.combine(e, c, r, t) },
+    { t: kind === 'exact' ? 'Nothing is left' : 'What is left', cap: kind === 'exact'
+        ? '<span class="ok">Nothing is left.</span> Every error met its own correction, so the data qubits are exactly as they were. The logical qubit survived. ✓'
+        : kind === 'loop' ? `What is left is a <span class="ok">closed loop</span> of ${Q.weight(r.x) && Q.weight(r.z) ? 'bit and phase' : Q.weight(r.x) ? 'bit' : 'phase'} flips (green). Your fix was <i>not</i> the same as the errors. So why did the qubit survive?`
+        : `What is left is a <span class="bad">chain</span> that ${across} (red). No lamp is lit, yet something went wrong. Why?`,
+      draw: (S, t) => { S.base(); S.residual(r, kind === 'logical' ? '#ff5a72' : '#3fe08a', t); } },
+  ];
+  if (kind === 'loop') steps.push(
+    { t: 'A loop is a product of checks', cap: `Each lit face is a check the code measures all the time (a ${prodX.length ? 'gold face is X⊗X⊗X⊗X' : 'blue face is Z⊗Z⊗Z⊗Z'} on its corners). Every encoded state is unchanged by a check: that is what makes it a check. ${prodX.length + prodZ.length > 1 ? `Multiply these ${prodX.length + prodZ.length} faces: shared qubits cancel and <b>exactly the loop</b> is left` : 'This one face <b>is exactly the loop</b>'}. So the loop does nothing to the stored qubit.`,
+      draw: (S, t) => S.product(prodX.concat(prodZ), r, t) },
+    { t: 'Degeneracy', cap: '<b>Degeneracy:</b> many different corrections fix the same errors, because they differ only by checks, and checks do nothing to the encoded qubit. You did not have to find the true errors, only a fix that makes a loop with them. ' +
+        (other ? (other === Rv.dec ? 'Flashing in turn: your fix and the decoder’s. Different flips, and both work.' : 'Flashing in turn: your fix, and your fix times one check. Both work.') : ''),
+      draw: (S, t, now) => { S.base(); const show = other && Math.floor(now / 1400) % 2 ? other : c; if (show === alt) S.face(altCheck, 1); S.letters(show, '#2fe0d0', 1, '', 0, 1); S.caption(show === c ? 'your correction' : show === Rv.dec ? 'the decoder’s correction' : 'your correction × one check'); } });
+  if (kind === 'exact' && alt) steps.push(
+    { t: 'Another fix would also work', cap: `Here is a different correction: yours times one check (the highlighted face). It turns off the same lamps and also leaves the stored qubit untouched, because a check does nothing to it. That freedom is called <b>degeneracy</b>: there are many right answers, and they differ by checks.`,
+      draw: (S, t) => { S.base(); S.face(altCheck, t); S.letters(t < 0.5 ? c : alt, '#2fe0d0', t < 0.5 ? 1 - t * 2 : (t - 0.5) * 2, '', 0, 1); } });
+  if (kind === 'logical') steps.push(
+    { t: 'Invisible to every check', cap: `Every check touches the chain an <b>even</b> number of times (the numbers on the faces; checks it misses touch it 0 times). A lamp counts flips modulo 2, so every lamp stays dark. No measurement the code makes can see this chain.`,
+      draw: (S, t) => { S.base(); S.residual(r, '#ff5a72', 1); S.overlaps(touch, t); } },
+    { t: 'A logical error', cap: `But the chain ${across}, so it is not a loop and not a product of checks: it is a <b>logical operator</b> (${lx ? 'X̄, which flips |0⟩<sub>L</sub> ↔ |1⟩<sub>L</sub>' : ''}${lx && lz ? ' and ' : ''}${lz ? 'Z̄, which flips |+⟩<sub>L</sub> ↔ |−⟩<sub>L</sub>' : ''}). Your fix differed from the errors by a logical operator instead of by checks. The lamps cannot tell the two apart; that is why decoders bet on the <b>fewest flips</b>, the most likely explanation.`,
+      draw: (S, t) => { S.base(); S.chain(r, t); S.chip(lx ? '|0⟩ₗ → |1⟩ₗ' : '|+⟩ₗ → |−⟩ₗ', t); } });
+  WHY = { steps, i: 0, t0: performance.now(), raf: 0, kind, code, auto };
+  const veil = document.createElement('div'); veil.className = 'whyVeil';
+  veil.innerHTML = `<div class="whyDlg" role="dialog" aria-modal="true" aria-labelledby="whyTitle"><h2 id="whyTitle"></h2><p class="whySub">${kind === 'logical' ? 'Why the logical qubit was lost' : 'Why the logical qubit survived'} · step <span id="whyN"></span> of ${steps.length}</p>
+    <canvas id="whyCv" aria-label="Animated replay of this round"></canvas><div class="whyCap" id="whyCap" aria-live="polite"></div>
+    <div class="whyRow"><button id="whyBack">◀ Back</button><span class="whyDots" id="whyDots">${steps.map(() => '<i></i>').join('')}</span><button id="whyClose">Close</button><button class="go" id="whyNext">Next ▶</button></div></div>`;
+  document.body.append(veil);
+  const close = () => { cancelAnimationFrame(WHY.raf); veil.remove(); document.removeEventListener('keydown', key); WHY = null; $('whyBtn') && $('whyBtn').focus(); };
+  const go = d => { const n = WHY.i + d; if (n < 0) return; if (n >= steps.length) { ev('why_done', { level: kind }); close(); return; } WHY.i = n; WHY.t0 = performance.now(); whyStep(); };
+  const key = ev2 => { if (ev2.key === 'Escape') close(); else if (ev2.key === 'ArrowRight') go(1); else if (ev2.key === 'ArrowLeft') go(-1); };
+  document.addEventListener('keydown', key);
+  veil.addEventListener('click', ev2 => { if (ev2.target === veil) close(); });
+  $('whyClose').onclick = close; $('whyNext').onclick = () => go(1); $('whyBack').onclick = () => go(-1);
+  whyStep(); $('whyNext').focus();
+  ev('why_open', { level: kind, auto: !!auto });
+}
+function whyStep() {
+  const W0 = WHY, st = W0.steps[W0.i];
+  $('whyTitle').textContent = st.t; $('whyCap').innerHTML = st.cap; $('whyN').textContent = W0.i + 1;
+  [...$('whyDots').children].forEach((d, k) => d.classList.toggle('on', k <= W0.i));
+  $('whyBack').disabled = W0.i === 0; $('whyNext').textContent = W0.i === W0.steps.length - 1 ? 'Done ✓' : 'Next ▶';
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, DUR = 1700;
+  const frame = now => {
+    if (WHY !== W0) return;
+    const t = reduce ? 1 : Math.min(1, (now - W0.t0) / DUR);
+    st.draw(whyScene(), t, now);
+    $('whyNext').classList.toggle('pulse', t >= 1);
+    W0.raf = requestAnimationFrame(frame);
+  };
+  cancelAnimationFrame(W0.raf); W0.raf = requestAnimationFrame(frame);
+}
+// drawing helpers for the explainer canvas, using the board's own geometry
+function whyScene() {
+  const cv = $('whyCv'), d = Math.min(2, window.devicePixelRatio || 1), Wc = cv.clientWidth || 600, Hc = cv.clientHeight || 320;
+  if (cv.width !== Math.round(Wc * d)) { cv.width = Math.round(Wc * d); cv.height = Math.round(Hc * d); }
+  const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
+  const code = WHY.code, b = G.layout.box, pad = 0.8, s = Math.min(Wc / (b.x1 - b.x0 + 2 * pad), Hc / (b.y1 - b.y0 + 2 * pad));
+  const ox = (Wc - s * (b.x1 - b.x0)) / 2 - s * b.x0, oy = (Hc - s * (b.y1 - b.y0)) / 2 - s * b.y0, P = i => [ox + s * code.qubits[i].x, oy + s * code.qubits[i].y];
+  const T = Math.max(14, s * 0.42), torus = code.layout === 'torus';
+  const local = q => { const pts = q.map(P); let m = 0; for (const a of pts) for (const bb of pts) m = Math.max(m, Math.hypot(a[0] - bb[0], a[1] - bb[1])); return m < s * 1.6; };
+  const poly = (q, fill, stroke, lw) => {
+    if (!local(q)) return null;
+    const pts = q.map(P), cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+    if (pts.length === 2) { c.strokeStyle = fill; c.lineWidth = s * 0.3; c.lineCap = 'round'; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); c.lineTo(pts[1][0], pts[1][1]); c.stroke(); c.lineCap = 'butt'; return [cx, cy]; }
+    pts.sort((u, v) => Math.atan2(u[1] - cy, u[0] - cx) - Math.atan2(v[1] - cy, v[0] - cx));
+    c.fillStyle = fill; c.beginPath(); pts.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.fill();
+    if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1.5; c.stroke(); }
+    return [cx, cy];
+  };
+  const txt = (x, y, str, col, size, alpha) => { c.save(); c.globalAlpha = alpha == null ? 1 : alpha; c.fillStyle = col; c.font = `800 ${Math.round(size)}px Helvetica,Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(str, x, y); c.restore(); };
+  const S = {
+    base() {
+      c.fillStyle = '#0b1220'; c.fillRect(0, 0, Wc, Hc);
+      for (const f of G.layout.faces) { const types = f.checks.map(ch => ch.type); poly(f.q, types.length > 1 ? 'rgba(169,139,255,.10)' : types[0] === 'X' ? 'rgba(245,183,60,.10)' : 'rgba(95,180,255,.10)', 'rgba(160,190,230,.18)'); }
+      for (let i = 0; i < code.n; i++) { const [x, y] = P(i); c.fillStyle = '#1a2440'; c.strokeStyle = 'rgba(160,190,230,.35)'; c.lineWidth = 1.5; c.beginPath(); c.roundRect ? c.roundRect(x - T / 2, y - T / 2, T, T, T * 0.22) : c.rect(x - T / 2, y - T / 2, T, T); c.fill(); c.stroke(); }
+    },
+    // Pauli letters on qubits; t animates a pop-in (or a drop from above when drop is set)
+    letters(v, col, t, pre, dy, scale, drop) {
+      for (let i = 0, k = 0; i < code.n; i++) { const L = pl(v, i); if (!L) continue; const tt = Math.min(1, Math.max(0, t * 1.6 - k * 0.12)); k++;
+        const [x, y] = P(i), sc = (scale || 1) * (drop ? 1 : popIn(tt)), yy = y + (dy || 0) * T - (drop ? (1 - easeOut(tt)) * s * 0.8 : 0);
+        txt(x, yy, (pre || '') + L, col, T * 0.5 * Math.max(0.01, sc), drop ? easeOut(tt) : Math.min(1, tt * 2)); }
+    },
+    combine(e, cc, r, t) {
+      S.base();
+      for (let i = 0; i < code.n; i++) {
+        const [x, y] = P(i), E = pl(e, i), C = pl(cc, i), Rr = pl(r, i); if (!E && !C) continue;
+        const m = easeOut(Math.min(1, t * 1.5));
+        if (E) txt(x, y - 0.22 * T * (1 - m), '⚡' + E, '#ff5a72', T * 0.38, Rr ? 1 - m : 1 - m * 0.9);
+        if (C) txt(x, y + 0.2 * T * (1 - m), C, '#2fe0d0', T * 0.5, Rr ? 1 - m : 1 - m * 0.9);
+        if (E && C && !Rr && t > 0.55) { const a = Math.min(1, (t - 0.55) * 3); txt(x, y - T * 0.75, `${E}·${C} = 1`, '#3fe08a', T * 0.3, a); c.save(); c.globalAlpha = (1 - a) * 0.9; c.strokeStyle = '#eaf0ff'; c.lineWidth = 2; for (let k = 0; k < 6; k++) { const an = k * Math.PI / 3, r1 = T * (0.3 + a * 0.5); c.beginPath(); c.moveTo(x + Math.cos(an) * r1 * 0.6, y + Math.sin(an) * r1 * 0.6); c.lineTo(x + Math.cos(an) * r1, y + Math.sin(an) * r1); c.stroke(); } c.restore(); }
+        if (Rr && t > 0.5) txt(x, y, Rr, WHY.kind === 'logical' ? '#ff5a72' : '#3fe08a', T * 0.5, Math.min(1, (t - 0.5) * 3));
+      }
+    },
+    residual(r, col, t) {
+      for (let i = 0, k = 0; i < code.n; i++) { const L = pl(r, i); if (!L) continue; const tt = Math.min(1, Math.max(0, t * 1.5 - k * 0.1)); k++;
+        const [x, y] = P(i); c.save(); c.strokeStyle = col; c.lineWidth = 4; c.globalAlpha = tt; c.beginPath(); c.arc(x, y, T * 0.75 * popIn(tt), 0, 7); c.stroke(); c.restore(); txt(x, y, L, col, T * 0.5, tt); }
+    },
+    face(ch, t) { c.save(); c.globalAlpha = 0.25 + 0.6 * easeOut(t * 2); const f = poly(ch.q, ch.type === 'X' ? 'rgba(245,183,60,.45)' : 'rgba(95,180,255,.45)', ch.type === 'X' ? '#f5b73c' : '#5fb4ff', 3); c.restore();
+      if (!f) for (const q of ch.q) { const [x, y] = P(q); c.save(); c.strokeStyle = ch.type === 'X' ? '#f5b73c' : '#5fb4ff'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, T * 0.7, 0, 7); c.stroke(); c.restore(); } },
+    // light the faces one by one, keeping a running product of their operators on the qubits
+    product(faces, r, t) {
+      S.base(); const k = Math.min(faces.length, Math.floor(easeOut(t) * (faces.length + 0.999)));
+      const run = { x: new Uint8Array(code.n), z: new Uint8Array(code.n) };
+      faces.slice(0, k).forEach(ch => { S.face(ch, 1); for (const q of ch.q) (ch.type === 'X' ? run.x : run.z)[q] ^= 1; });
+      for (let i = 0; i < code.n; i++) { const L = pl(run, i); if (L) txt(P(i)[0], P(i)[1], L, '#3fe08a', T * 0.5, 1); }
+      if (k === faces.length) S.residual(r, '#3fe08a', 1);
+      S.caption(k < faces.length ? `face ${k} of ${faces.length}` : 'product of the faces = your loop ✓');
+    },
+    overlaps(list, t) {
+      const k = Math.min(list.length, Math.floor(easeOut(t) * (list.length + 0.999)));
+      list.slice(0, k).forEach(o => { const f = poly(o.ch.q, o.ch.type === 'X' ? 'rgba(245,183,60,.22)' : 'rgba(95,180,255,.22)', o.ch.type === 'X' ? '#f5b73c' : '#5fb4ff', 2);
+        if (f) txt(f[0], f[1], String(o.k), '#eaf0ff', T * 0.5, 1); });
+      S.caption(k ? `${k} check${k > 1 ? 's' : ''} touched · every overlap even → every lamp dark` : '');
+    },
+    // the chain drawn as a path, nearest neighbour first, starting from the qubit nearest an edge
+    chain(r, t) {
+      const ids = []; for (let i = 0; i < code.n; i++) if (r.x[i] || r.z[i]) ids.push(i);
+      if (!ids.length) return;
+      const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+      const far = i => Math.max(Math.abs(code.qubits[i].x - cx) / (b.x1 - b.x0 + 1e-9), Math.abs(code.qubits[i].y - cy) / (b.y1 - b.y0 + 1e-9));
+      const order = [ids.sort((a, bb) => far(bb) - far(a))[0]], rest = ids.filter(i => i !== order[0]);
+      while (rest.length) { const L = P(order[order.length - 1]); let bi = 0; rest.forEach((q, k) => { if (Math.hypot(P(q)[0] - L[0], P(q)[1] - L[1]) < Math.hypot(P(rest[bi])[0] - L[0], P(rest[bi])[1] - L[1])) bi = k; }); order.push(rest.splice(bi, 1)[0]); }
+      const pts = order.map(P), segs = Math.max(1, pts.length - 1), upto = easeOut(t) * segs;
+      c.save(); c.strokeStyle = '#ff5a72'; c.lineWidth = 6; c.lineCap = 'round'; c.shadowColor = '#ff5a72'; c.shadowBlur = 14; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k < pts.length; k++) { const f = Math.min(1, Math.max(0, upto - (k - 1))); if (f <= 0) break; c.lineTo(pts[k - 1][0] + (pts[k][0] - pts[k - 1][0]) * f, pts[k - 1][1] + (pts[k][1] - pts[k - 1][1]) * f); }
+      c.stroke(); c.restore();
+      S.residual(r, '#ff5a72', 1);
+      if (!torus && t > 0.9) { txt(pts[0][0], pts[0][1] - T * 0.95, 'edge', '#ff5a72', T * 0.3, 1); txt(pts[pts.length - 1][0], pts[pts.length - 1][1] + T * 0.95, 'edge', '#ff5a72', T * 0.3, 1); }
+    },
+    chip(label, t) { if (t < 0.7) return; const a = Math.min(1, (t - 0.7) * 4); c.save(); c.globalAlpha = a; c.fillStyle = 'rgba(255,90,114,.15)'; c.strokeStyle = '#ff5a72'; c.lineWidth = 1.5;
+      c.beginPath(); c.roundRect ? c.roundRect(Wc - 150, 10, 140, 30, 8) : c.rect(Wc - 150, 10, 140, 30); c.fill(); c.stroke(); c.restore(); txt(Wc - 80, 25, label, '#ffb3c0', 14, a); },
+    caption(str) { if (!str) return; c.save(); c.fillStyle = 'rgba(234,240,255,.8)'; c.font = '600 12px Helvetica,Arial'; c.textAlign = 'left'; c.fillText(str, 10, Hc - 10); c.restore(); },
+  };
+  return S;
+}
 
 // ───────── learn: lessons ─────────
 // Each lesson fixes the code and the errors (qubit indices), and says what to look for.
