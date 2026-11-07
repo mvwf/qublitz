@@ -6,7 +6,7 @@ directly and reason about, to find where games lose people, which ideas they get
 
 ## Get the data
 In the Sheet: **Qublitz outreach → Export for AI**. Two files appear in My Drive:
-- `qublitz-outreach-YYYY-MM-DD.jsonl`: one JSON object per line, from the `events` and `quiz` tabs;
+- `qublitz-outreach-YYYY-MM-DD.jsonl`: one JSON object per line, from the `events`, `quiz` and `designs` tabs;
 - `qublitz-outreach-YYYY-MM-DD-README.md`: the field dictionary below, for the AI.
 
 Give the AI those two files plus, from this repository, `web/learning/*.js` (each game's learning objectives, how
@@ -22,7 +22,7 @@ to play, goals and question text) and, for a deeper look at one game, its page (
 
 | Field | Meaning |
 |---|---|
-| `table` | `events` (something happened) or `quiz` (questions answered, in the game or in the end-of-activity debrief) |
+| `table` | `events` (something happened), `quiz` (questions answered, in the game or in the end-of-activity debrief) or `designs` (an ErrorSweeper code design) |
 | `day` | the visitor's local date, `YYYY-MM-DD`; there is never a time |
 | `game` | page id: `qubit-lab`, `copter`, `rider`, `beamline`, `arena`, `fridge`, `resonator`, `ep-tpd`, `trio`, `string`, `drum`, `spectrogram`, `sonify`, `hub` (see `web/learning/manifest.js`) |
 | `event` | what happened, lower_snake. Common ones: `open`, `start`, `mode`, `level_start`, `level_complete`, `win`, `lose`, `hint`, `reset`, `run`, `quiz_open`, `to_lab` (clicked into the Virtual Qubit Lab), `leave` (the visit ended). Games add their own |
@@ -38,6 +38,9 @@ to play, goals and question text) and, for a deeper look at one game, its page (
 | `fun`, `learned` | 1–5 ratings from the debrief (may be missing) |
 | `answers` | `{q: question id, obj: objective id, pick: choice index, ok: right?}`; question and choice text are in `web/learning/<game>.js` |
 | `source` | `ingame` (answered inside the game: a ring, a target, a prediction) or `debrief` |
+| `mission`, `family` | (`designs`) the ErrorSweeper design mission, and `lattice` (drawn on a grid) or `bb` (bivariate bicycle) |
+| `n`, `k`, `d`, `d_exact` | (`designs`) physical qubits, logical qubits, distance (empty if k = 0), and whether d was proven by exhaustive search |
+| `spec` | (`designs`) the design as a compact string the game can reload; no free text |
 
 There are no identifiers: records cannot be linked to a person, and records from one visit are not linked to
 each other except by sharing a day, game and version. Count visits by `open` events and visit length by `leave`.

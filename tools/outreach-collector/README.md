@@ -13,6 +13,11 @@ answers sent by `web/shared/outreach.js` and serves aggregate counts to `web/out
 |---|---|---|
 | `events` | page event (open, level solved, left after N s, ...) | day, game, event, level, value, stars, dur_s, code, device, gv (page version), extra (the game's own fields, JSON) |
 | `quiz` | question answered in a game, or a debrief | day, game, code, device, score, n, fun (1–5), learned (1–5), answers (question id, objective, choice, right/wrong), source (in-game or debrief), gv |
+| `designs` | ErrorSweeper code design sent to the frontier board | day, mission, family (`lattice` or `bb`), n, k, d, d_exact, score, spec (the layout as a compact string of digits, letters and `.,;:\|+=-`), gv |
+
+The frontier board reads `?designs=1&mission=<id>`: the top 25 designs for that mission, merged by spec (with a
+count and the earliest day), best score first, then larger d, then earliest. Rows with no page version are left out,
+as in the summary (`&dev=1` includes them).
 
 No cookies, no identifiers, no IP addresses stored (Apps Script never sees them; Google's servers receive them as
 part of any web request, under Dartmouth's Google agreement), and nothing finer than the day. **No free text**: the

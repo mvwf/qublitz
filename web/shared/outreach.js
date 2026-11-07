@@ -46,6 +46,11 @@
  *   QL.offerQuiz(message)       a small prompt that opens the debrief (once per page load)
  *   QL.labLink(query)           URL of the Virtual Qubit Lab with ?from=<this page> (plus your query)
  *   QL.toLab(anchor, query)     the same, set on a link, counting the click as a to_lab event
+ *   QL.submitDesign(rec)       send an ErrorSweeper code design to the frontier board: rec = { mission, family
+ *                               ('lattice'|'bb'), n, k, d, dExact, score, spec }; numbers and a layout string only.
+ *                               Returns true if sent (never from test hosts, opted-out or offline copies)
+ *   QL.frontier(mission)        Promise of the board for a mission: [{ spec, family, n, k, d, dExact, score, day,
+ *                               count }], best first; [] when there is no collector or on any error
  *   QL.enabled(), QL.optOut(on), QL.code()
  */
 (function (root) {
@@ -111,6 +116,25 @@
     return out;
   }
 
+  // A code design for the frontier board: numbers, a mission id and a compact layout string only (no free text).
+  //   rec = { mission, family: 'lattice'|'bb', n, k, d, dExact, score, spec }
+  const MISSION = /^[a-z0-9-]{1,32}$/, SPEC = /^[0-9A-Za-z.,;:|+=-]{1,2000}$/;
+  const int = (v, lo, hi) => (typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi) ? v : undefined;
+  function cleanDesign(rec, ctx) {
+    const r = rec || {}, c = ctx || {};
+    if (!MISSION.test(r.mission || '') || (r.family !== 'lattice' && r.family !== 'bb')) return null;
+    const n = int(r.n, 1, 2000); if (n === undefined) return null;
+    const k = int(r.k, 0, n); if (k === undefined) return null;
+    const d = int(r.d, 1, 200); if (d === undefined && k > 0) return null;
+    if (typeof r.score !== 'number' || !isFinite(r.score) || r.score < 0 || r.score > 1e6) return null;
+    if (typeof r.spec !== 'string' || !SPEC.test(r.spec)) return null;
+    const out = { mission: r.mission, family: r.family, n, k, dExact: !!r.dExact, score: Math.round(r.score * 1e4) / 1e4, spec: r.spec,
+      day: c.day, dev: c.dev === 'touch' ? 'touch' : 'desktop' };
+    if (d !== undefined && k > 0) out.d = d;
+    if (c.gv && GV.test(c.gv)) out.gv = c.gv;
+    return out;
+  }
+
   // Test traffic never counts: pages served from this machine or driven by an automated browser (tests, crawlers that
   // announce themselves) send nothing, so the statistics are real visitors only.
   function isTestHost(hostname, webdriver) {
@@ -129,7 +153,7 @@
   }
 
   if (typeof root.document === 'undefined') {           // Node: export the pure parts for the tests
-    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, isTestHost, pickQuiz };
+    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, cleanDesign, isTestHost, pickQuiz };
     return;
   }
 
@@ -439,7 +463,21 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
-  root.QL = { explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  // ── The frontier board (ErrorSweeper's code designs) ─────────────────────────────────────────────────────
+  // submitDesign sends a design (blocked on test hosts, opt-out, DNT and offline like everything else);
+  // frontier reads the shared board, which sends nothing, so it works on test hosts too.
+  function submitDesign(rec) {
+    const d = cleanDesign(rec, ctx());
+    return d ? send({ v: V, design: d }, false) : false;
+  }
+  function frontier(mission) {
+    if (!CFG.endpoint || offline || !MISSION.test(mission || '') || typeof fetch !== 'function') return Promise.resolve([]);
+    const u = CFG.endpoint + (CFG.endpoint.includes('?') ? '&' : '?') + 'designs=1&mission=' + encodeURIComponent(mission);
+    return fetch(u, { redirect: 'follow', cache: 'no-store' }).then(r => (r.ok ? r.json() : null))
+      .then(j => (j && Array.isArray(j.designs) ? j.designs : [])).catch(() => []);
+  }
+
+  root.QL = { submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
