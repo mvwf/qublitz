@@ -677,6 +677,8 @@ function renderFreq() {
     ? `<div class="metrics">${metric('Peak drive frequency ω<sub>d</sub>/2π', f.peakFreq.toFixed(6) + ' GHz')}
         ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, 'MHz'))}
         ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ns')}</div>
+       <p class="hint"><b>Units check:</b> ${fit.fMHz.toPrecision(3)} MHz means ${fit.fMHz.toPrecision(3)} full Rabi cycles per microsecond, so one cycle
+         (|0⟩ → |1⟩ → |0⟩) takes 1000 ns ÷ ${fit.fMHz.toPrecision(3)} = ${(1e3 / fit.fMHz).toFixed(2)} ns. A π pulse is half a cycle: ${(1e3 / (2 * fit.fMHz)).toFixed(2)} ns.</p>
        <p class="hint">Off resonance the qubit oscillates <em>faster and less deeply</em>: the generalized Rabi frequency is
          √(Ω<sub>R</sub>² + Δ²) and the peak only reaches Ω<sub>R</sub>²/(Ω<sub>R</sub>² + Δ²). So this fit is only Ω<sub>R</sub> when the peak
          frequency sits right on ω<sub>q</sub>. Zoom in until the peak trace swings all the way to P(|1⟩) ≈ 1 before trusting the π-pulse time.</p>
