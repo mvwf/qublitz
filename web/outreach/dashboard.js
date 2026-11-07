@@ -414,6 +414,25 @@
       h('div', { class: 'legend' }, parts.map(p => h('span', {}, h('i', { class: 'sq', style: { '--c': p[2] } }), `${p[1]} · ${fmt(D[p[0]])}`))));
   }
 
+  function renderVersions() {
+    const S = summary, box = $('versions'), U = S.unversioned;
+    $('unver').textContent = U ? `${fmt(U.opens)} such visit${U.opens === 1 ? '' : 's'} (${fmt(U.events)} events, ${fmt(U.quiz)} quiz records) in this period${U.included ? ', included here' : ''}.` : 'this collector does not report them yet.';
+    const rows = [];
+    Object.keys(S.games).sort(byOpens).forEach(g => {
+      const V = S.games[g].versions || {};
+      Object.keys(V).sort().reverse().forEach((k, i) => rows.push([g, k, V[k], i === 0]));
+    });
+    if (!rows.length) { box.replaceChildren(h('div', { class: 'empty', text: 'No version data yet (it needs the updated collector, Code.gs).' })); return; }
+    const link = k => { const m = /\+([0-9a-f]{7,12})$/.exec(k); return m ? h('a', { href: `https://github.com/mvwf/qublitz/commit/${m[1]}`, target: '_blank', rel: 'noopener', text: k }) : document.createTextNode(k); };
+    box.replaceChildren(h('table', {},
+      h('thead', {}, h('tr', {}, ['Game', 'Version', 'Visits', 'Avg minutes', 'Levels done', 'Debriefs', 'In-game answers', 'Answers right'].map(t => h('th', { scope: 'col', text: t })))),
+      h('tbody', {}, rows.map(([g, k, v, latest]) => h('tr', {},
+        h('th', { scope: 'row', text: TITLES[g] || g }), h('td', {}, link(k), latest ? ' · latest' : ''),
+        h('td', { class: 'n', text: fmt(v.opens) }), h('td', { class: 'n', text: fix1(v.avgMinutes) }), h('td', { class: 'n', text: fmt(v.completes) }),
+        h('td', { class: 'n', text: fmt(v.debriefs) }), h('td', { class: 'n', text: fmt(v.ingame) }),
+        h('td', { class: 'n', text: v.answered ? `${pct(v.correct / v.answered)} of ${fmt(v.answered)}` : '–' }))))));
+  }
+
   function renderStops() {
     const S = summary, box = $('stops');
     const ids = Object.keys(S.games).filter(g => g !== 'hub' && S.games[g].quits && Object.keys(S.games[g].quits).length).sort(byOpens);
@@ -468,7 +487,7 @@
     if (!summary) return;
     hideTip();
     renderKpis(); renderInsights(); renderLog(); renderVisits(); renderFunnel(); renderLevels(); renderRatings(); renderQuiz();
-    renderStops(); renderLab(); renderCodes(); renderDevices(); renderCodeGames();
+    renderStops(); renderLab(); renderVersions(); renderCodes(); renderDevices(); renderCodeGames();
   }
 
   // ── fetching a summary (dashboard period, report range, before/after windows) ─────────────────────────────

@@ -8,6 +8,8 @@ const gs = require(path.join(root, 'tools/outreach-collector/Code.gs'));
 global.window = {}; require(path.join(root, 'web/learning/manifest.js')); const GAMES = global.window.QL_GAMES;
 
 let fails = 0;
+// most checks below use rows without a page version, so they ask the summary to include them (dev: '1')
+const summ = (e, q, f, d, n, o) => gs.summarize(e, q, f, d, n, Object.assign({ dev: '1' }, o || {}));
 const check = (name, ok, detail) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  · ' + detail : ''}`); if (!ok) fails++; };
 
 // redaction: identifying text never survives, ordinary text does
@@ -42,7 +44,7 @@ check('collector rejects a bad event row', rows.length === 5);
 const qz = gs.cleanQuizRows({ game: 'beamline', day: '2026-11-05', answers: [{ q: 'q1', obj: 'o1', pick: 1, ok: true }, { q: 'q2', obj: 'o2', pick: 0, ok: false }],
   fun: 4, learned: 5, txt_learned: 'phase sets the axis', txt_confusing: 'call 603 555 0199' }, now);
 check('collector stores no free text, even if a client sends it', qz.quiz[5] === 1 && qz.feedback === null && !JSON.stringify(qz).includes('phase sets the axis') && !JSON.stringify(qz).includes('555'));
-const S = gs.summarize(rows, [qz.quiz], [], 90, now);
+const S = summ(rows, [qz.quiz], [], 90, now);
 const B = S.games.beamline;
 check('summary counts opens, level funnel and average minutes', B.opens === 1 && B.levels.half.starts === 1 && B.levels.half.completes === 1 && B.avgMinutes === 2);
 check('summary skips rows outside the window', !S.games.rider);
@@ -56,14 +58,14 @@ check('summary records the wrong picks per item', S.quiz.beamline.items.q2.wrong
 const coded = [gs.cleanQuizRows({ game: 'rider', day: '2026-11-04', code: 'SCIFAIR26', answers: [{ q: 'q1', pick: 0, ok: true }, { q: 'q2', pick: 1, ok: true }], fun: 5, learned: 3 }, now).quiz,
   gs.cleanQuizRows({ game: 'copter', day: '2026-11-04', code: 'SCIFAIR26', answers: [{ q: 'q1', pick: 2, ok: false }, { q: 'q2', pick: 1, ok: true }], fun: 3 }, now).quiz,
   qz.quiz];
-const SC = gs.summarize([], coded, [], 90, now);
+const SC = summ([], coded, [], 90, now);
 const CQ = SC.codeQuiz.SCIFAIR26;
 check('summary aggregates quizzes per outreach code', CQ && CQ.n === 2 && CQ.avgScore === 0.75 && CQ.avgFun === 4 && CQ.avgLearned === 3 && Object.keys(SC.codeQuiz).length === 1,
   JSON.stringify(CQ));
 
 // a day cell that Sheets turned into a Date still lands on the right day
 const dated = gs.cleanEventRow({ game: 'drum', ev: 'open', day: '2026-11-03' }, now); dated[1] = new Date(2026, 10, 3);
-const S3 = gs.summarize([dated], [], [], 7, now);
+const S3 = summ([dated], [], [], 7, now);
 check('summary reads day cells that Sheets stored as dates', S3.byDay['2026-11-03'] && S3.byDay['2026-11-03'].drum === 1, JSON.stringify(S3.byDay));
 
 // the private review feed was removed with the free text: the collector exports no review helpers
@@ -80,16 +82,16 @@ const ER = [
 ];
 const EQ = [gs.cleanQuizRows({ game: 'copter', day: '2026-10-30', code: 'FAIR', answers: [{ q: 'q1', pick: 0, ok: true }], fun: 5 }, now).quiz,
   gs.cleanQuizRows({ game: 'copter', day: '2026-11-02', src: 'ingame', answers: [{ q: 'q1', pick: 1, ok: false }] }, now).quiz];
-const E1 = gs.summarize(ER, EQ, [], 90, now);
+const E1 = summ(ER, EQ, [], 90, now);
 check('summary totals active minutes per game and overall', E1.games.copter.totalMinutes === 15 && E1.games.rider.totalMinutes === 2 && E1.totalMinutes === 17, JSON.stringify([E1.games.copter.totalMinutes, E1.totalMinutes]));
 check('summary groups visits, minutes, completions and answers by month', E1.byMonth['2026-10'].copter.opens === 1 && E1.byMonth['2026-10'].copter.minutes === 10 &&
   E1.byMonth['2026-10'].copter.completes === 1 && E1.byMonth['2026-10'].copter.debriefs === 1 && E1.byMonth['2026-11'].copter.ingame === 1 && E1.byMonth['2026-11'].copter.minutes === 5);
 check('summary totals minutes and completions per outreach code', E1.codeTotals.FAIR.minutes === 10 && E1.codeTotals.FAIR.completes === 1);
-const E2 = gs.summarize(ER, EQ, [], 90, now, { from: '2026-11-01', to: '2026-11-02' });
+const E2 = summ(ER, EQ, [], 90, now, { from: '2026-11-01', to: '2026-11-02' });
 check('summary honours from/to (inclusive)', E2.since === '2026-11-01' && E2.until === '2026-11-02' && E2.games.copter.opens === 1 && !E2.games.rider && E2.quiz.copter.ingame === 1 && E2.quiz.copter.n === 0);
-const E3 = gs.summarize(ER, EQ, [], 90, now, { code: 'FAIR' });
+const E3 = summ(ER, EQ, [], 90, now, { code: 'FAIR' });
 check('summary keeps only one outreach code when asked', E3.code === 'FAIR' && E3.games.copter.opens === 1 && E3.totalMinutes === 10 && E3.quiz.copter.n === 1 && !E3.quiz.copter.ingame);
-check('summary ignores a malformed range or code', gs.summarize(ER, EQ, [], 90, now, { from: 'yesterday', code: '<x>' }).games.rider.leaves === 1);
+check('summary ignores a malformed range or code', summ(ER, EQ, [], 90, now, { from: 'yesterday', code: '<x>' }).games.rider.leaves === 1);
 
 // insights: each rule fires below its threshold once enough people were measured, and flags rank by n × gap
 const IN = require(path.join(root, 'web/outreach/insights.js'));
@@ -135,7 +137,7 @@ const rows2 = [
   gs.cleanEventRow({ game: 'qubit-lab', ev: 'open', level: 'from:beamline', day: '2026-11-05' }, now),
 ];
 const ing = gs.cleanQuizRows({ game: 'rider', day: '2026-11-05', src: 'ingame', answers: [{ q: 'q1', obj: 'o1', pick: 2, ok: true }] }, now);
-const S2 = gs.summarize(rows2, [ing.quiz], [], 90, now);
+const S2 = summ(rows2, [ing.quiz], [], 90, now);
 check('summary maps where visits end and how far they got', S2.games.rider.quits.photon === 2 && S2.games.rider.quits.menu === 1 && S2.games.rider.completedPerVisit[1] === 2);
 check('in-game answers count toward items but not debriefs', S2.quiz.rider.items.q1.correct === 1 && S2.quiz.rider.n === 0 && S2.quiz.rider.ingame === 1);
 check('summary counts lab arrivals by source activity', S2.labFrom.beamline === 1);
@@ -225,6 +227,32 @@ check('anonymous: identifier-like fields and values are refused by the collector
 
 // manifest ids are valid collector ids and unique
 check('manifest ids are valid and unique', GAMES.every(g => /^[a-z0-9-]{1,32}$/.test(g.id)) && new Set(GAMES.map(g => g.id)).size === GAMES.length);
+
+// test traffic and page versions
+check('localhost, 127.x, ::1, .local and automated browsers are test hosts', ['localhost', '127.0.0.1', '[::1]', 'mac.local', ''].every(h => kit.isTestHost(h, false)) && kit.isTestHost('mvwf.github.io', true));
+check('the published site is not a test host', !kit.isTestHost('mvwf.github.io', false) && !kit.isTestHost('example.org', undefined));
+{
+  const now2 = new Date('2026-11-07T12:00:00Z');
+  const ev = [gs.cleanEventRow({ game: 'rider', ev: 'open', day: '2026-11-07', gv: '2026-11-05+f175c6a8' }, now2),
+    gs.cleanEventRow({ game: 'rider', ev: 'leave', dur_s: 90, day: '2026-11-07', gv: '2026-11-05+f175c6a8' }, now2),
+    gs.cleanEventRow({ game: 'rider', ev: 'open', day: '2026-11-07', gv: '2026-11-07+abc1234' }, now2),
+    gs.cleanEventRow({ game: 'rider', ev: 'open', day: '2026-11-07' }, now2)];               // no version: a local copy
+  const qv = [gs.cleanQuizRows({ game: 'rider', day: '2026-11-07', gv: '2026-11-07+abc1234', answers: [{ q: 'a', obj: 'o', pick: 0, ok: true }, { q: 'b', obj: 'o', pick: 1, ok: false }] }, now2).quiz];
+  const SV = gs.summarize(ev, qv, [], 30, now2), R = SV.games.rider;
+  check('summary leaves out rows with no page version, and counts them', R.opens === 2 && SV.unversioned.opens === 1 && !SV.unversioned.included);
+  check('summary splits each game by page version', R.versions['2026-11-05+f175c6a8'].opens === 1 && R.versions['2026-11-05+f175c6a8'].avgMinutes === 1.5 &&
+    R.versions['2026-11-07+abc1234'].opens === 1 && R.versions['2026-11-07+abc1234'].answered === 2 && R.versions['2026-11-07+abc1234'].correct === 1 && !R.versions.unversioned);
+  const SD = gs.summarize(ev, qv, [], 30, now2, { dev: '1' });
+  check('dev: 1 includes unversioned rows under their own key', SD.games.rider.opens === 3 && SD.games.rider.versions.unversioned.opens === 1);
+}
+// the debrief picks a few questions, spread over objectives
+{
+  const items = [['a', 'x'], ['b', 'x'], ['c', 'y'], ['d', 'z'], ['e', 'z'], ['f', 'w']].map(([id, objective]) => ({ id, objective }));
+  let seed = 7; const R = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const p3 = kit.pickQuiz(items, 3, new Set(), R);
+  check('debrief asks 3 questions from 3 different objectives', p3.length === 3 && new Set(p3.map(q => q.objective)).size === 3);
+  check('debrief skips questions already answered', kit.pickQuiz(items, 6, new Set(['a', 'b']), R).every(q => q.id !== 'a' && q.id !== 'b') && kit.pickQuiz(items, 10, new Set(), R).length === 6);
+}
 
 console.log(fails ? `\n${fails} check(s) failed` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

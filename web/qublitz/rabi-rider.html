@@ -189,7 +189,7 @@
       <button class="stagebtn" id="freeDrain" title="Something goes wrong: T₁ 35 % shorter (down to half)">T₁−</button>
     </div>
     <div class="note fade" id="note"></div>
-    <div class="askbar" id="askBar" hidden><b>Checkpoint</b> (no hearts at stake): <span id="askQ"></span> <button class="stagebtn" id="askSkip" title="Skip this question (Esc)">Skip</button></div>
+    <div class="askbar" id="askBar" hidden><b>Checkpoint</b> (no hearts at stake): <span id="askQ"></span> <button class="stagebtn" id="askReady" title="Bring the answer rings in now">Ready ▶</button> <button class="stagebtn" id="askSkip" title="Skip this question (Esc)">Skip</button></div>
   </div>
 
   <aside class="side">
@@ -565,7 +565,9 @@ function startAsk(item, mission, done) {
   ask.heights = item.choices.map((_, k) => n === 1 ? Math.PI / 2 : hi - k * (hi - lo) / (n - 1));
   world = new E.World({ free: true, noReset: true, T1: Infinity, ghosts: 1, shown: 1 });
   world.r = E.onCircle(Math.PI / 2);
-  placeGates(4.5);
+  // time to read: about 3 words a second plus 4 s to decide, between 8 and 16 s; "Ready" brings the rings in sooner
+  const words = ((item.ask || item.q) + ' ' + item.choices.join(' ')).replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+  placeGates(Math.max(8, Math.min(16, 4 + words / 3)));
   photons = []; hist = []; pops = []; acc = 0; last = performance.now();
   show(null);
 }
@@ -596,6 +598,8 @@ function endAsk(res) {
   setTimeout(showOver, res ? 500 : 0);
 }
 $('#askSkip').addEventListener('click', e => { e.stopPropagation(); endAsk(null); });
+$('#askReady').addEventListener('click', e => { e.stopPropagation(); if (ask && ask.gates.length && ask.gates[0].t - world.t > 3) placeGates(3); });
+$('#askReady').addEventListener('pointerdown', e => e.stopPropagation());
 $('#askSkip').addEventListener('pointerdown', e => e.stopPropagation());
 
 /* ---------------- the lab: the same idea on a lab qubit (5 GHz, Ω_R/2π = 50 MHz, so a π pulse is 10 ns), as a time-domain schedule ---------------- */
@@ -746,10 +750,10 @@ function draw(t) {
     g.fillStyle = '#e9dcff'; g.fillText(lab, lx + 6, y + 1); g.textBaseline = 'alphabetic';
   }
   if (nq) {
-    g.font = '700 14px Helvetica,Arial'; const tw0 = g.measureText('Fly through: ' + nq.quiz.prompt).width + 18;
+    g.font = '700 14px Helvetica,Arial'; const tw0 = g.measureText('Fly through: ' + nq.quiz.prompt + '   ⏳ slow motion').width + 18;
     const x = Math.max(tw0 / 2 + 6, Math.min(W - tw0 / 2 - 6, X(nq.t)));
     g.fillStyle = 'rgba(30,18,60,.85)'; g.strokeStyle = '#c9a2ff'; g.lineWidth = 1.5; g.font = '700 14px Helvetica,Arial'; g.textAlign = 'center';
-    const txt = 'Fly through: ' + nq.quiz.prompt, tw = g.measureText(txt).width + 18;
+    const txt = 'Fly through: ' + nq.quiz.prompt + '   ⏳ slow motion', tw = g.measureText(txt).width + 18;
     g.beginPath(); g.roundRect(x - tw / 2, 36, tw, 24, 8); g.fill(); g.stroke(); g.fillStyle = '#e9dcff'; g.fillText(txt, x, 48);
   }
   // where ▲ and ▼ would take you in the next second (a fan), and the trail behind
@@ -891,10 +895,14 @@ function drawState() {
 /* ---------------- main loop ---------------- */
 const STEP = 1 / 120;
 let acc = 0, last = performance.now();
+// Thinking time: while a question gate is on screen the whole game runs at THINK × speed (the physics just runs
+// slower, so nothing about the qubit changes), and the checkpoint waits until the question has been read.
+const THINK = 0.6;
+const quizInView = () => !!(world && world.objects.some(o => o.quiz && o.correct && !o.done && o.t - world.t < AHEAD_S && o.t > world.t));
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (phase === 'play' && world && !world.over) {
-    acc += dt; const inp = input();
+    acc += dt * (quizInView() ? THINK : 1); const inp = input();
     while (acc >= STEP) {
       acc -= STEP;
       const ev = world.step(inp, STEP);

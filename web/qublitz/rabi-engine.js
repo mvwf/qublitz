@@ -171,7 +171,8 @@
     { id: 'born', title: 'Measure up', start: 90,
       brief: 'Question gates: two purple rings, one answer. Read the question and fly through the ring it describes. The labels on the right give P(1) at each height.',
       learn: 'The height here is the angle θ, not the sphere\'s z = cos θ. P(1) = (1 − cos θ)/2 = sin²(θ/2) is a straight line in z but not in θ, so P(1) = ¼ sits at θ = 60°, not 45°.',
-      items: [['r', 3, 90], ['q', 6, 0], ['r', 8.5, 90], ['q', 11.5, 2], ['r', 14, 90], ['q', 17, 3], ['r', 19.5, 90], ['q', 22.5, 1], ['r', 25, 90]] },
+      // question gates are spaced ~8 s apart so there is time to read and think (players found 5.5 s too fast)
+      items: [['r', 3, 90], ['q', 8, 0], ['r', 11.5, 90], ['q', 16.5, 2], ['r', 20, 90], ['q', 25, 3], ['r', 28.5, 90], ['q', 33.5, 1], ['r', 37, 90]] },
     { id: 'collapse', title: 'Collapse', start: 90,
       brief: 'A measurement gate (the blue curtain) reads every ghost: each lands in |0⟩ or |1⟩ at random, with P(1) = sin²(θ/2). Each gate names the outcome it pays for, and pays for the share of ghosts that read it: fly close to that end first.',
       learn: 'Measurement is not a rotation. Each run gives one definite answer with the Born-rule odds and stays there, so the fraction of 1s across the runs is P(1). Afterwards the ghosts sit at both poles, and one pulse turns them oppositely; a π/2 pulse takes both groups to the equator.',
@@ -487,7 +488,8 @@
           this.add({ type: 'ring', t: this.nextT, th: this.walk, rad: rr });
         } else if (this.nextT > 8 && roll < 0.22 + 0.06 * lvl) {
           // a quiz gate: reachable whichever ring is right
-          const q = QUIZ[Math.floor(R() * QUIZ.length)](R), t = this.nextT + this.reach(this.walk, q.th, lvl) + 0.8;
+          // extra lead (2 s) so the question can be read before the rings arrive
+          const q = QUIZ[Math.floor(R() * QUIZ.length)](R), t = this.nextT + this.reach(this.walk, q.th, lvl) + 2;
           this.quiz(t, q, rr); this.walk = q.th; this.nextT = t;
         } else if (this.nextT > 8 && roll < 0.3 + 0.05 * lvl) {
           // an X token on the way, and a ring where it sends you, sooner than you could fly there

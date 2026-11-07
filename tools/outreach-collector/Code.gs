@@ -50,9 +50,9 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
   if (!p.summary) return text_('outreach collector: ok');
-  var opts = { from: RE_DAY.test(p.from || '') ? p.from : '', to: RE_DAY.test(p.to || '') ? p.to : '', code: RE_CODE.test(p.code || '') ? p.code : '' };
+  var opts = { from: RE_DAY.test(p.from || '') ? p.from : '', to: RE_DAY.test(p.to || '') ? p.to : '', code: RE_CODE.test(p.code || '') ? p.code : '', dev: p.dev === '1' ? '1' : '' };
   var cache = CacheService.getScriptCache();
-  var key = ['summary' + days, opts.from, opts.to, opts.code].join('|') + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
+  var key = ['summary' + days, opts.from, opts.to, opts.code, opts.dev].join('|') + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
   var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
@@ -142,10 +142,14 @@ function summarize(events, quiz, feedback, days, now, opts) {
   var inRange = function (d) { return String(d) >= since && (!until || String(d) <= until); };
   var out = { generated: now.toISOString ? now.toISOString() : String(now), days: days, since: since, until: until || Utilities_formatDay_(now),
               code: only, games: {}, byDay: {}, byMonth: {}, codes: {}, devices: {}, codeGames: {}, codeQuiz: {}, codeTotals: {}, quiz: {},
-              feedbackCount: {}, labFrom: {}, totalMinutes: 0 };
+              feedbackCount: {}, labFrom: {}, totalMinutes: 0, unversioned: { events: 0, opens: 0, quiz: 0, included: !!o.dev } };
+  // Rows without a page version (gv) came from copies not built by the site's Pages workflow: someone's own
+  // machine, a test run, an old build. They are left out unless opts.dev, and counted in out.unversioned.
+  var devOK = !!o.dev;
+  var ver = function (G, gv) { var k = gv || 'unversioned'; return G.versions[k] || (G.versions[k] = { opens: 0, completes: 0, leaves: 0, minutes: 0, debriefs: 0, ingame: 0, answered: 0, correct: 0 }); };
   var g = function (id) {
     return out.games[id] || (out.games[id] = { opens: 0, starts: 0, completes: 0, wins: 0, losses: 0, quizOpens: 0,
-      leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {} });
+      leaves: 0, durSum: 0, levels: {}, events: {}, quits: {}, completedPerVisit: {}, versions: {} });
   };
   var month = function (day, game) {
     var M = out.byMonth[day.slice(0, 7)] || (out.byMonth[day.slice(0, 7)] = {});
@@ -153,9 +157,13 @@ function summarize(events, quiz, feedback, days, now, opts) {
   };
   var codeT = function (c) { return out.codeTotals[c] || (out.codeTotals[c] = { minutes: 0, completes: 0 }); };
   events.forEach(function (r) {
-    var day = dayKey_(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9];
+    var day = dayKey_(r[1]), game = r[2], ev = r[3], level = r[4], stars = r[6], dur = r[7], code = r[8], dev = r[9], gv = r[10] || '';
     if (!inRange(day) || (only && code !== only)) return;
-    var G = g(game);
+    if (!gv) { out.unversioned.events++; if (ev === 'open') out.unversioned.opens++; if (!devOK) return; }
+    var G = g(game), Vr = ver(G, gv);
+    if (ev === 'open') Vr.opens++;
+    if (ev === 'level_complete') Vr.completes++;
+    if (ev === 'leave' && dur !== '') { Vr.leaves++; Vr.minutes += Number(dur) / 60; }
     G.events[ev] = (G.events[ev] || 0) + 1;
     if (ev === 'open') {
       G.opens++; month(day, game).opens++;
@@ -192,6 +200,7 @@ function summarize(events, quiz, feedback, days, now, opts) {
   });
   Object.keys(out.games).forEach(function (id) {
     var G = out.games[id]; G.avgMinutes = G.leaves ? Math.round(G.durSum / G.leaves / 6) / 10 : null;
+    Object.keys(G.versions).forEach(function (k) { var V = G.versions[k]; V.avgMinutes = V.leaves ? Math.round(V.minutes / V.leaves * 10) / 10 : null; V.minutes = Math.round(V.minutes * 10) / 10; });
     G.totalMinutes = Math.round(G.durSum / 6) / 10; out.totalMinutes += G.durSum / 60; delete G.durSum;
   });
   out.totalMinutes = Math.round(out.totalMinutes * 10) / 10;
@@ -214,14 +223,17 @@ function summarize(events, quiz, feedback, days, now, opts) {
   };
   var blank = function () { return { n: 0, ingame: 0, scoreSum: 0, itemsSum: 0, fun: [0, 0], learned: [0, 0] }; };
   quiz.forEach(function (r) {
-    var day = dayKey_(r[1]), game = r[2], code = r[3];
+    var day = dayKey_(r[1]), game = r[2], code = r[3], gv = r[11] || '';
     if (!inRange(day) || (only && code !== only)) return;
+    if (!gv) { out.unversioned.quiz++; if (!devOK) return; }
     if (r[10] === 'ingame') month(day, game).ingame++; else month(day, game).debriefs++;
     var Q = out.quiz[game] || (out.quiz[game] = blank());
     if (!Q.items) Q.items = {};
     tally(Q, r);
     if (code) tally(out.codeQuiz[code] || (out.codeQuiz[code] = blank()), r);
     var answers = []; try { answers = JSON.parse(r[9] || '[]'); } catch (e) {}
+    var Vq = ver(g(game), gv); if (r[10] === 'ingame') Vq.ingame++; else Vq.debriefs++;
+    answers.forEach(function (a) { Vq.answered++; if (a.ok) Vq.correct++; });
     answers.forEach(function (a) {
       var I = Q.items[a.q] || (Q.items[a.q] = { objective: a.obj, n: 0, correct: 0, picks: {}, wrong: {}, ingame: { n: 0, correct: 0 } });
       I.n++; if (a.ok) I.correct++; I.picks[a.pick] = (I.picks[a.pick] || 0) + 1;

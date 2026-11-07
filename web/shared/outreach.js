@@ -111,8 +111,25 @@
     return out;
   }
 
+  // Test traffic never counts: pages served from this machine or driven by an automated browser (tests, crawlers that
+  // announce themselves) send nothing, so the statistics are real visitors only.
+  function isTestHost(hostname, webdriver) {
+    const h = String(hostname || '').toLowerCase();
+    return !!webdriver || h === 'localhost' || h === '[::1]' || h === '::1' || /^127\./.test(h) || h === '0.0.0.0' || /\.local$/.test(h) || h === '';
+  }
+  // The debrief asks a few questions, not all of them: unanswered items first, one per learning objective before
+  // a second on any objective, in random order. rand() in [0, 1).
+  function pickQuiz(items, n, skip, rand) {
+    const R = rand || Math.random, pool = items.filter(q => !(skip && skip.has(q.id)));
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const out = [], seen = new Set();
+    for (const q of pool) if (out.length < n && !seen.has(q.objective)) { out.push(q); seen.add(q.objective); }
+    for (const q of pool) if (out.length < n && !out.includes(q)) out.push(q);
+    return out;
+  }
+
   if (typeof root.document === 'undefined') {           // Node: export the pure parts for the tests
-    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra };
+    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, isTestHost, pickQuiz };
     return;
   }
 
@@ -130,7 +147,8 @@
   const offline = !!root.QUBLITZ_STANDALONE || location.protocol === 'file:';
   const dnt = () => navigator.doNotTrack === '1' || root.doNotTrack === '1' || navigator.globalPrivacyControl === true;
   const optedOut = () => store.get('ql_optout') === '1';
-  const enabled = () => !!CFG.endpoint && !offline && !optedOut() && !dnt();
+  const testHost = isTestHost(location.hostname, navigator.webdriver);
+  const enabled = () => !!CFG.endpoint && !offline && !testHost && !optedOut() && !dnt();
 
   // Outreach-session label from ?event=, remembered for this tab so it follows the visitor across pages.
   (function () {
@@ -315,12 +333,13 @@
   }
 
   // ── Debrief (the end-of-activity card) ───────────────────────────────────────────────────────────────
-  let quizOpen = false;
+  let quizOpen = false, rounds = 0;      // later rounds ("3 more questions") skip the ratings
   function showQuiz() {
     if (!spec || quizOpen) return;
     quizOpen = true;
     event('quiz_open');
-    const items = (spec.quiz || []).filter(q => !answered.has(q.id));
+    // a short debrief: QUIZ_N questions (CFG.quizN, default 3), with an offer of more at the end
+    const rest = (spec.quiz || []).filter(q => !answered.has(q.id)), items = pickQuiz(rest, CFG.quizN || 3);
     const picks = items.map(() => -1), rate = { fun: 0, learned: 0 };
     const prevFocus = doc.activeElement;
     const veil = el('div', { class: 'ql-veil' });
@@ -351,7 +370,7 @@
         rate[key] = v; row.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); } }, String(v)));
       return row;
     };
-    dlg.append(el('div', { class: 'ql-q' },
+    if (!rounds) dlg.append(el('div', { class: 'ql-q' },
       rateRow('fun', 'How fun was it? (1 = not at all, 5 = very)'),
       rateRow('learned', 'How much did you learn? (1 = nothing new, 5 = a lot)'),
       el('p', { class: 'ql-note' }, 'Nothing you type is collected: only which answers you picked and the two ratings. ' +
@@ -375,8 +394,12 @@
           fun: rate.fun || undefined, learned: rate.learned || undefined }, ctx());
         const sent = rec && send({ v: V, quiz: rec }, false);
         store.set(`ql_quiz_done:${game}`, String(score));
+        items.forEach((q, qi) => { if (picks[qi] >= 0) answered.add(q.id); }); rounds++;
+        const more = (spec.quiz || []).filter(q => !answered.has(q.id)).length;
         msg.textContent = (items.length ? `You got ${score} of ${items.length}. ` : '') + (sent ? 'Thank you, your answers were sent anonymously.' : 'Thank you!');
         btnCheck.textContent = 'Done'; btnClose.remove();
+        if (more) msg.after(el('div', { class: 'ql-row', style: 'justify-content:flex-start' },
+          el('button', { class: 'ql-btn ql-ghost', type: 'button', onclick: () => { close(); showQuiz(); } }, `${Math.min(more, CFG.quizN || 3)} more question${Math.min(more, CFG.quizN || 3) > 1 ? 's' : ''} (optional)`)));
         if (game !== 'qubit-lab') {
           const a = el('a', { class: 'ql-btn ql-ghost', style: 'text-decoration:none' }, 'Now try it on a lab-style qubit: the Virtual Qubit Lab ↗');
           toLab(a); msg.after(el('div', { class: 'ql-row', style: 'justify-content:flex-start' }, a));
