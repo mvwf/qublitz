@@ -105,5 +105,24 @@ for (const c of [Q.rotatedSurface(3), Q.rotatedSurface(5), Q.toric(3), Q.steane(
   check('pseudo-threshold of P_L = 90 p² is p = 1/90', pth && Math.abs(pth - 1 / 90) / (1 / 90) < 0.25, pth && pth.toFixed(4));
 }
 
+// ---- bivariate bicycle codes (Bravyi et al., Nature 627, 778 (2024), Table 3) ----
+{
+  const X = a => ['x', a], Y = b => ['y', b], I = ['1', 0];
+  const table = [[6, 6, [X(3), Y(1), Y(2)], [Y(3), X(1), X(2)], 12, 6], [15, 3, [X(9), Y(1), Y(2)], [I, X(2), X(7)], 8, 10],
+    [9, 6, [X(3), Y(1), Y(2)], [Y(3), X(1), X(2)], 8, 10], [12, 6, [X(3), Y(1), Y(2)], [Y(3), X(1), X(2)], 12, 12]];
+  for (const [l, m, A, B, k, d] of table) {
+    const c = Q.bivariateBicycle(l, m, A, B), D = Q.distanceAuto(c, { budget: 4e7 });
+    check(`BB ℓ=${l}, m=${m}: [[${2 * l * m},${k},${d}]] with commuting weight-6 checks (exact distance)`, c.n === 2 * l * m && c.k === k && c.commuteOK && D.d === d && D.exact && c.checks.every(ch => ch.q.length === 6),
+      `k=${c.k} d=${D.d} exact=${D.exact}`);
+  }
+  const g = Q.bivariateBicycle(12, 6, [X(3), Y(1), Y(2)], [Y(3), X(1), X(2)]);
+  const ub = Q.distanceBound(g, 'X', 200, Q.rng(4));
+  check('random information sets give the gross code its d = 12 as an upper bound', ub.d === 12 && ub.hits > 0);
+  const sp = Q.bbSpec(6, 6, [X(3), Y(1), Y(2)], [Y(3), X(1), X(2)]), P = Q.parseBB(sp);
+  check('BB spec strings round-trip, and junk is rejected', sp === '6,6|A:x3,y1,y2|B:y3,x1,x2' && Q.bbSpec(P.l, P.m, P.A, P.B) === sp && Q.parseBB('6,6|A:<b>|B:1') === null && Q.parseBB('99,99|A:1|B:1') === null);
+  const mixed = Q.parseBB('6,6|A:x2y4,y3,1|B:x1y1,x3,y5'), cm = Q.bivariateBicycle(mixed.l, mixed.m, mixed.A, mixed.B);
+  check('mixed monomials x^a y^b still give commuting checks', cm.commuteOK);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

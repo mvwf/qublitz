@@ -98,6 +98,32 @@
   .score div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel);text-align:center}
   .score span{display:block;font-size:11px;color:var(--muted)} .score b{font-size:17px;font-variant-numeric:tabular-nums}
   #labPlot{width:100%;height:260px}
+  /* Code Hunt */
+  .rank{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+  .rank .lvl{font-size:18px;font-weight:700;color:var(--green)}
+  .xpbar{flex:1;min-width:160px;height:10px;border-radius:6px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+  .xpbar i{display:block;height:100%;background:linear-gradient(90deg,#2fe0d0,#f5b73c)}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .badges span{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--panel)}
+  .badges span.off{opacity:.38}
+  .missions{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+  .mcard{text-align:left;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+  .mcard b{display:block;font-size:13.5px} .mcard small{display:block;color:var(--muted);font-size:12px;line-height:1.35;margin-top:2px}
+  .mcard .st{font-size:11.5px;margin-top:5px;color:var(--muted)} .mcard.done .st{color:var(--green);font-weight:600}
+  .mcard.cur{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,165,33,.3)} .mcard.daily{border-style:dashed;border-color:var(--gold)}
+  .mcard[disabled]{opacity:.45;cursor:not-allowed}
+  .tier{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;font-weight:600}
+  #stencil{display:block;width:100%;height:300px;background:var(--night);border-radius:12px;touch-action:manipulation;cursor:pointer}
+  .params{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}
+  .params small{font-size:13px;font-weight:400;color:var(--muted)}
+  .goalbar{height:8px;border-radius:5px;background:var(--panel);border:1px solid var(--line);overflow:hidden;margin:6px 0}
+  .goalbar i{display:block;height:100%;background:var(--green)}
+  .board{list-style:none;margin:6px 0;padding:0;font-size:13px}
+  .board li{display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+  .board li .r{width:22px;color:var(--muted);text-align:right} .board li .p{flex:1;font-variant-numeric:tabular-nums}
+  .board li.mine{background:rgba(217,165,33,.12)}
+  .missionBar{border:1px solid var(--gold);border-radius:10px;padding:9px 11px;margin:0 0 12px;background:rgba(217,165,33,.08);font-size:13px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0b1220;color:#eaf0ff;border:1px solid #f5b73c;border-radius:12px;padding:10px 16px;font-size:14px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:92vw}
 </style>
 </head>
 <body>
@@ -121,6 +147,7 @@ Steane and Shor codes, under code-capacity noise.</p>
   <button role="tab" data-m="learn" aria-selected="true">📘 Learn</button>
   <button role="tab" data-m="sweep" aria-selected="false">🎯 Sweep</button>
   <button role="tab" data-m="lab" aria-selected="false">🧪 Code lab</button>
+  <button role="tab" data-m="hunt" aria-selected="false">🧭 Code Hunt</button>
   <button role="tab" data-m="thr" aria-selected="false">📈 Threshold</button>
 </div>
 
@@ -196,6 +223,7 @@ Steane and Shor codes, under code-capacity noise.</p>
   </div>
   <div>
     <div class="card"><h2>Your code</h2>
+      <div class="missionBar" id="labMission" hidden></div>
       <div class="verdict" id="verdict"></div>
       <div class="score" id="score"></div>
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link</button></div>
@@ -212,6 +240,50 @@ Steane and Shor codes, under code-capacity noise.</p>
       beat is the surface code’s <b>k·d²/n = 1</b>. Flat codes with local checks can only do a constant factor better
       (Bravyi, Poulin &amp; Terhal 2010); color codes get closer to the limit with bigger faces. Share your best design with the link button.</p>
     </div>
+  </div>
+</div>
+</section>
+
+<!-- ───────── code hunt ───────── -->
+<section id="huntSec" hidden>
+<div class="card">
+  <div class="rank"><span class="lvl" id="hLevel"></span><span class="xpbar" title="Experience"><i id="hXP"></i></span><span class="lbl" id="hXPtxt"></span><span class="lbl" id="hStreak"></span></div>
+  <div class="badges" id="hBadges"></div>
+</div>
+<div class="lab">
+  <div>
+    <div class="card"><h2>Missions</h2>
+      <p class="note" style="margin:0 0 6px">Each mission is a small piece of a real research question: find codes that protect more information
+      (k), against more errors (d), with fewer qubits (n), under a hardware rule. The engine scores every design exactly, and the best
+      designs from all players form a shared map of what is possible.</p>
+      <div id="hMissions"></div>
+    </div>
+    <div class="card" id="hWork" hidden>
+      <h2 id="hTitle"></h2>
+      <p class="note" id="hGoal" style="margin:0 0 6px"></p>
+      <div class="row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center" id="hSize"></div>
+      <canvas id="stencil" aria-label="Stencil editor: two grids, A for the left qubits and B for the right qubits. Tap cells to add or remove a term."></canvas>
+      <div class="row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"><button id="hRandom" title="Random 3 + 3 stencils until one stores information">🎲 Lucky dip</button><button id="hNudge" title="Move one term by one step">↝ Nudge</button><button id="hUndo">Undo</button><span style="flex:1"></span><button class="primary" id="hSubmit" disabled>Submit to the frontier 🚀</button></div>
+      <div class="params" id="hParams"></div>
+      <div class="goalbar"><i id="hGoalBar"></i></div>
+      <p class="note" id="hStatus"></p>
+      <details><summary>How a stencil makes a code</summary>
+        <p class="note">The qubits sit on an ℓ × m torus, two per cell: a left one (grid A) and a right one (grid B). Every cell also
+        holds one X check and one Z check. The X check at cell c touches the left qubits at c + (each gold cell) and the right qubits at
+        c + (each blue cell), with positions wrapping around the torus; the Z check uses the mirror image. Shifting one stencil
+        everywhere keeps every X check commuting with every Z check, so every stencil gives a valid quantum code, and the engine finds
+        how many logical qubits (k) it stores and its distance (d). These are the bivariate bicycle codes of Bravyi <i>et al.</i>
+        (2024), found by exactly this kind of search; with mixed steps x<sup>a</sup>y<sup>b</sup> they are the abelian two-block codes.</p>
+        <p class="note">Distances are exact when the search can prove them (up to about 150 qubits); otherwise the page shows an upper bound
+        “d ≤” from random information sets (the QDistRnd method), which can only overstate d, never understate it.</p></details>
+    </div>
+  </div>
+  <div>
+    <div class="card"><h2 id="hBoardTitle">Frontier board</h2>
+      <ul class="board" id="hBoard"></ul>
+      <p class="note" id="hBoardNote"></p>
+    </div>
+    <div class="card"><h2>Known results</h2><div class="note" id="hKnown"></div></div>
   </div>
 </div>
 </section>
@@ -281,6 +353,8 @@ Steane and Shor codes, under code-capacity noise.</p>
     <li>Y. Tomita &amp; K. M. Svore, “Low-distance surface codes under realistic quantum noise,” <i>Phys. Rev. A</i> <b>90</b>, 062320 (2014) (the 17-qubit rotated layout); H. Bombin &amp; M. A. Martin-Delgado, “Optimal resources for topological two-dimensional stabilizer codes: Comparative study,” <i>Phys. Rev. A</i> <b>76</b>, 012305 (2007) (the rotated code).</li>
     <li>S. Bravyi, D. Poulin &amp; B. Terhal, “Tradeoffs for reliable quantum information storage in 2D systems,” <i>Phys. Rev. Lett.</i> <b>104</b>, 050503 (2010) (k·d² = O(n) for local 2D codes); A. J. Landahl, J. T. Anderson &amp; P. R. Rice, “Fault-tolerant quantum computing with color codes,” arXiv:1108.5738 (2011).</li>
     <li>J. Edmonds, “Paths, trees, and flowers,” <i>Can. J. Math.</i> <b>17</b>, 449 (1965); O. Higgott &amp; C. Gidney, “Sparse Blossom: correcting a million errors per core second with minimum-weight matching,” arXiv:2303.15933 (2023); J. Roffe, D. R. White, S. Burton &amp; E. Campbell, “Decoding across the quantum low-density parity-check code landscape,” <i>Phys. Rev. Research</i> <b>2</b>, 043423 (2020).</li>
+    <li>S. Bravyi, A. W. Cross, J. M. Gambetta, D. Maslov, P. Rall &amp; T. J. Yoder, “High-threshold and low-overhead fault-tolerant quantum memory,” <i>Nature</i> <b>627</b>, 778 (2024) (bivariate bicycle codes, including [[144,12,12]]); H.-K. Lin &amp; L. P. Pryadko, “Quantum two-block group algebra codes,” <i>Phys. Rev. A</i> <b>109</b>, 022407 (2024).</li>
+    <li>L. P. Pryadko, V. A. Shabashov &amp; V. K. Kozin, “QDistRnd: A GAP package for computing the distance of quantum error-correcting codes,” <i>J. Open Source Softw.</i> <b>7</b>, 4120 (2022) (the random information-set distance bound).</li>
     <li>Google Quantum AI and collaborators, “Quantum error correction below the surface code threshold,” <i>Nature</i> <b>638</b>, 920 (2025).</li>
     <li>Inspiration for games that let players do real science: J. S. Kim <i>et al.</i> (EyeWire), <i>Nature</i> <b>509</b>, 331 (2014); S. Cooper <i>et al.</i> (Foldit), <i>Nature</i> <b>466</b>, 756 (2010).</li>
   </ol>
@@ -805,6 +879,7 @@ function analyse(code, conflicts) {
   $('score').innerHTML = info ? [['k·d²/n', info.score ? info.score.toFixed(2) : '–'], ['Biggest check', info.maxW + ' qubits'], ['Break-even p', pth ? (100 * pth).toFixed(1) + '%' : lab.perf ? 'none' : 'measure']].map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('') : '';
   $('playLab').disabled = !(code && code.commuteOK && code.k > 0 && code.n <= 49);
   challenges(code, info);
+  huntLab(code, info);
 }
 const CHAL = [
   { t: 'Detect any single error', s: 'd ≥ 2. Try 4 qubits.', ok: (c, i) => i.d >= 2 },
@@ -1007,11 +1082,259 @@ function plotThr(labels, res, ps) {
     xaxis: { title: { text: 'Physical error rate p (%)' } }, yaxis: { title: { text: 'Logical failure per round' }, type: 'log', range: [-3.5, 0] } }, { responsive: true, displaylogo: false });
 }
 
+// ───────── code hunt: missions, XP, badges, the stencil editor and the frontier board ─────────
+// Progress lives in this browser (localStorage); designs go to the shared board through QL.submitDesign and come back
+// through QL.frontier (both optional: without them the board shows only this browser's bests).
+const HKEY = 'es_hunt_v1';
+const HS = (() => { const d = { xp: 0, done: {}, best: {}, badges: {}, days: [], skip: false };
+  try { return Object.assign(d, JSON.parse(localStorage.getItem(HKEY) || '{}')); } catch (e) { return d; } })();
+const hSave = () => { try { localStorage.setItem(HKEY, JSON.stringify(HS)); } catch (e) { /* private mode */ } };
+const RANKS = ['Novice', 'Syndrome reader', 'Code scout', 'Stabilizer smith', 'Logical architect', 'Distance hunter', 'Frontier explorer', 'Code pioneer'];
+const hLevel = xp => Math.floor(Math.sqrt(xp / 150));
+function toast(html) { const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.innerHTML = html; document.body.append(t); setTimeout(() => t.remove(), 3600); }
+function award(xp, why) {
+  const before = hLevel(HS.xp); HS.xp += xp; hSave();
+  const up = hLevel(HS.xp) > before;
+  toast(`<b>+${xp} XP</b> · ${why}${up ? `<br>⭐ Level ${hLevel(HS.xp)}: <b>${RANKS[Math.min(RANKS.length - 1, hLevel(HS.xp))]}</b>` : ''}`);
+  hRank();
+}
+const dayStr = (d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`)(new Date());
+const DAILY_SIZES = [[5, 6], [7, 5], [6, 7], [8, 4], [9, 4], [7, 7], [10, 5], [6, 8], [4, 9], [8, 6], [9, 5], [7, 6]];
+const DSZ = DAILY_SIZES[parseInt(dayStr, 10) % DAILY_SIZES.length];
+const kd2 = (i, c) => Q.kd2n(c.n, c.k, i.d);
+// a check is "local" on the square grid when its qubits fit in one unit cell
+const localOnly = c => c.checks.every(ch => { const xs = ch.q.map(i => c.qubits[i].x), ys = ch.q.map(i => c.qubits[i].y); return Math.max(...xs) - Math.min(...xs) <= 1 && Math.max(...ys) - Math.min(...ys) <= 1; });
+const MISSIONS = [
+  { id: 'lat-first', tier: 1, kind: 'lattice', title: 'First shield', goal: 'Build a code that corrects any single error (d ≥ 3). Score: k·d²/n.', ok: (i, c) => i.d >= 3, score: kd2, record: 1, known: 'The rotated surface code scores exactly 1 at every size (k = 1, n = d²).' },
+  { id: 'lat-pocket', tier: 1, kind: 'lattice', title: 'Pocket code', goal: 'Correct any single error (d ≥ 3) with as few qubits as you can. Score: 100/n.', ok: (i, c) => i.d >= 3, score: (i, c) => 100 / c.n, record: 100 / 7, known: 'No CSS code corrects every single error with fewer than 7 qubits; Steane’s [[7,1,3]] does it with 7 (Steane 1996). The advanced panel lets you draw its 4-qubit faces.' },
+  { id: 'lat-local', target: 1, tier: 1, kind: 'lattice', title: 'Square-grid rules', goal: 'Only unit squares and edges (the Build taps), d ≥ 3. Maximize k·d²/n.', ok: (i, c) => i.d >= 3 && localOnly(c), score: kd2, record: 1, open: true, known: 'Best we know: 1, by the surface code. Flat codes with local checks obey k·d² ≤ c·n (Bravyi, Poulin & Terhal 2010), but the best constant for this square grid is not settled here. Beat 1 and you have found something.' },
+  { id: 'lat-two', tier: 1, kind: 'lattice', title: 'Two for one', goal: 'Store two logical qubits (k ≥ 2) with d ≥ 3. Maximize k·d²/n.', ok: (i, c) => c.k >= 2 && i.d >= 3, score: kd2, record: 18 / 14, known: 'Two surface codes side by side score 1.0; two Steane codes score 18/14 ≈ 1.29.' },
+  { id: 'lat-color', target: 1.0001, tier: 1, kind: 'lattice', title: 'Bigger faces', goal: 'Checks of up to 8 qubits, d ≥ 3. Beat the surface code: k·d²/n > 1.', ok: (i, c) => i.d >= 3 && i.maxW <= 8, score: kd2, record: 25 / 17, known: 'Color codes: Steane [[7,1,3]] scores 1.29; the 4.8.8 color code with d = 5 uses 17 qubits, 25/17 ≈ 1.47 (Landahl, Anderson & Rice 2011).' },
+  { id: 'bb-72', target: 1.0001, tier: 2, kind: 'bb', size: [6, 6], title: 'The 72', goal: 'On a 6 × 6 torus (n = 72), maximize k·d²/n. Can you find a [[72,12,6]] code?', ok: (i, c) => c.k >= 1 && i.d >= 2, score: kd2, record: 6, known: '[[72,12,6]] (A = x³ + y + y², B = y³ + x + x²) scores 6 (Bravyi et al. 2024). Many stencils give [[72,8,6]] or [[72,4,8]].' },
+  { id: 'bb-90', target: 1.0001, tier: 2, kind: 'bb', size: [15, 3], title: 'Long and thin', goal: 'On a 15 × 3 torus (n = 90), maximize k·d²/n.', ok: (i, c) => c.k >= 1 && i.d >= 2, score: kd2, record: 800 / 90, known: '[[90,8,10]] (A = x⁹ + y + y², B = 1 + x² + x⁷) scores 8.9 (Bravyi et al. 2024).' },
+  { id: 'bb-gross', target: 1.0001, tier: 2, kind: 'bb', size: [12, 6], title: 'The gross code', goal: 'On a 12 × 6 torus (n = 144, a gross), maximize k·d²/n.', ok: (i, c) => c.k >= 1 && i.d >= 2, score: kd2, record: 12, known: '[[144,12,12]], the “gross code” (A = x³ + y + y², B = y³ + x + x²), scores 12; IBM plans its quantum memory around it.' },
+  { id: 'bb-dist', target: 7, tier: 2, kind: 'bb', size: 'le50', title: 'Distance race', goal: 'Any torus with ℓ·m ≤ 50 (n ≤ 100): the highest distance with k ≥ 4. Score: d (+ k/100 to break ties).', ok: (i, c) => c.k >= 4 && i.d >= 2, score: (i, c) => i.d + c.k / 100, record: 10.08, known: 'd = 10 with k = 8 at n = 90 (Bravyi et al. 2024).' },
+  { id: 'bb-open', target: 1.0001, tier: 2, kind: 'bb', size: 'le100', title: 'Open frontier', goal: 'Any torus with ℓ·m ≤ 100 (n ≤ 200), weight-6 checks: maximize k·d²/n.', ok: (i, c) => c.k >= 1 && i.d >= 2, score: kd2, record: 12, open: true, known: 'Best published in range: [[144,12,12]] scores 12. Larger codes do better ([[288,12,18]] scores 13.5) but are outside this mission. Mixed steps x^a y^b are allowed, which the published search did not use.' },
+  { id: 'daily-' + dayStr, target: 1.0001, tier: 2, kind: 'bb', size: DSZ, daily: true, title: `Daily torus ${DSZ[0]} × ${DSZ[1]}`, goal: `Today everyone hunts on the same ${DSZ[0]} × ${DSZ[1]} torus (n = ${2 * DSZ[0] * DSZ[1]}). Maximize k·d²/n.`, ok: (i, c) => c.k >= 1 && i.d >= 2, score: kd2, record: null, known: 'Nobody has published a table for this size: the board is the record.' },
+];
+const BADGES = [
+  { id: 'b422', sig: '4,2,2', name: '[[4,2,2]]' }, { id: 'steane', sig: '7,1,3', name: '[[7,1,3]]' }, { id: 'b913', sig: '9,1,3', name: '[[9,1,3]]' }, { id: 'b2515', sig: '25,1,5', name: '[[25,1,5]]' },
+  { id: 'bb72', sig: '72,12,6', name: '[[72,12,6]]' }, { id: 'bb90', sig: '90,8,10', name: '[[90,8,10]]' }, { id: 'bb108', sig: '108,8,10', name: '[[108,8,10]]' }, { id: 'gross', sig: '144,12,12', name: 'gross [[144,12,12]]' },
+  { id: 'record', name: '🏆 beat a known record' }, { id: 'daily', name: '📅 daily torus' }, { id: 'streak3', name: '🔥 3-day streak' }, { id: 'submit', name: '🚀 first submission' },
+];
+const tier2Open = () => HS.skip || MISSIONS.filter(m => m.tier === 1 && HS.done[m.id]).length >= 2;
+function hRank() {
+  const lv = hLevel(HS.xp), lo = 150 * lv * lv, hi = 150 * (lv + 1) * (lv + 1);
+  $('hLevel').textContent = `Level ${lv} · ${RANKS[Math.min(RANKS.length - 1, lv)]}`;
+  $('hXP').style.width = `${Math.round(100 * (HS.xp - lo) / (hi - lo))}%`;
+  $('hXPtxt').textContent = `${HS.xp} XP · next level at ${hi}`;
+  let streak = 0; const set = new Set(HS.days); for (let d = new Date(); set.has(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`); d.setDate(d.getDate() - 1)) streak++;
+  $('hStreak').textContent = streak ? `🔥 ${streak}-day streak` : '';
+  $('hBadges').innerHTML = BADGES.map(b => `<span class="${HS.badges[b.id] ? '' : 'off'}" title="${HS.badges[b.id] ? 'Earned' : 'Not yet'}">${HS.badges[b.id] ? '✓ ' : ''}${b.name}</span>`).join('');
+}
+function badge(id, why) { if (HS.badges[id]) return; HS.badges[id] = dayStr; hSave(); award(150, `Badge: ${why}`); }
+function hMissions() {
+  const t2 = tier2Open(), card = m => {
+    const best = HS.best[m.id], lock = m.tier === 2 && !t2;
+    return `<button class="mcard ${HS.done[m.id] ? 'done' : ''} ${HU.mission && HU.mission.id === m.id ? 'cur' : ''} ${m.daily ? 'daily' : ''}" data-mid="${m.id}" ${lock ? 'disabled' : ''}>
+      <b>${m.daily ? '📅 ' : m.open ? '🔭 ' : ''}${m.title}</b><small>${m.goal}${m.target > 1 && m.kind === 'bb' && m.id !== 'bb-dist' ? ' Beat the toric code (score 1) to complete it.' : m.id === 'bb-dist' ? ' Reach d ≥ 7 to complete it.' : ''}</small>
+      <span class="st">${lock ? '🔒 finish two lattice missions' : HS.done[m.id] ? `✓ done · best ${best ? best.score.toFixed(2) : '–'}` : best ? `best ${best.score.toFixed(2)}` : m.record ? `record to beat: ${m.record.toFixed(2)}` : 'no record yet'}</span></button>`; };
+  const daily = MISSIONS.find(m => m.daily);
+  $('hMissions').innerHTML = `<div class="tier">Today</div><div class="missions">${card(daily)}</div>` +
+    `<div class="tier">Tier 1 · lattice codes (built in the Code lab)</div><div class="missions">${MISSIONS.filter(m => m.tier === 1).map(card).join('')}</div>` +
+    `<div class="tier">Tier 2 · the qLDPC frontier (stencil codes on a torus)</div><div class="missions">${MISSIONS.filter(m => m.tier === 2 && !m.daily).map(card).join('')}</div>` +
+    (t2 ? '' : `<p class="note" style="margin-top:8px"><button id="hSkip">I know QEC: unlock tier 2 now</button></p>`);
+  const sk = $('hSkip'); if (sk) sk.onclick = () => { HS.skip = true; hSave(); hMissions(); };
+}
+$('hMissions').addEventListener('click', e => { const b = e.target.closest('[data-mid]'); if (!b || b.disabled) return; hStart(MISSIONS.find(m => m.id === b.dataset.mid)); });
+
+// ---- the stencil editor (tier 2) ----
+// everyone starts from Kitaev's toric code: A = 1 + x, B = 1 + y gives [[2ℓm, 2, min(ℓ, m)]], score ≤ 1
+const HU = { mission: null, l: 6, m: 6, A: [[0, 0], [1, 0]], B: [[0, 0], [0, 1]], hist: [], cur: null, token: 0 };
+const isToric = () => HU.A.length === 2 && HU.B.length === 2 && HU.A.some(t => !t[0] && !t[1]) && HU.A.some(t => t[0] === 1 && !t[1]) && HU.B.some(t => !t[0] && !t[1]) && HU.B.some(t => !t[0] && t[1] === 1);
+const stCv = $('stencil'), sg = stCv.getContext('2d');
+function sizeOK(mi, l, m) { const s = mi.size; return Array.isArray(s) ? l === s[0] && m === s[1] : s === 'le50' ? l * m <= 50 : l * m <= 100; }
+function hStart(mi) {
+  HU.mission = mi; ev('hunt', { level: 'start_' + mi.id.replace(/-\d+$/, '') });
+  if (mi.kind === 'lattice') { lab.mission = mi; setMode('lab'); return; }
+  if (Array.isArray(mi.size)) { HU.l = mi.size[0]; HU.m = mi.size[1]; } else if (!sizeOK(mi, HU.l, HU.m)) { HU.l = 6; HU.m = 6; }
+  const best = HS.best[mi.id]; if (best && best.spec) hLoadSpec(best.spec, true);
+  HU.A = HU.A.map(([a, b]) => [a % HU.l, b % HU.m]); HU.B = HU.B.map(([a, b]) => [a % HU.l, b % HU.m]);
+  $('hWork').hidden = false; $('hTitle').textContent = mi.title; $('hGoal').innerHTML = mi.goal;
+  hSizeUI(); hMissions(); hEval(); hBoard(mi); $('hKnown').innerHTML = mi.known;
+  $('hWork').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function hSizeUI() {
+  const mi = HU.mission, fixed = Array.isArray(mi.size);
+  $('hSize').innerHTML = fixed ? `<span class="lbl">Torus ${HU.l} × ${HU.m}: n = ${2 * HU.l * HU.m} qubits</span>` :
+    `<span class="lbl">Torus ℓ</span><button data-d="l-">−</button><b>${HU.l}</b><button data-d="l+">+</button><span class="lbl">m</span><button data-d="m-">−</button><b>${HU.m}</b><button data-d="m+">+</button><span class="lbl">n = ${2 * HU.l * HU.m} (ℓ·m ≤ ${mi.size === 'le50' ? 50 : 100})</span>`;
+}
+$('hSize').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (!b) return; const [k, s] = [b.dataset.d[0], b.dataset.d[1] === '+' ? 1 : -1];
+  const l = k === 'l' ? HU.l + s : HU.l, m = k === 'm' ? HU.m + s : HU.m; if (l < 2 || m < 1 || !sizeOK(HU.mission, l, m)) return;
+  hPush(); HU.l = l; HU.m = m; HU.A = HU.A.map(([a, b]) => [a % l, b % m]); HU.B = HU.B.map(([a, b]) => [a % l, b % m]); dedupe(); hSizeUI(); hEval(); });
+const dedupe = () => { const u = arr => arr.filter((t, i) => arr.findIndex(s => s[0] === t[0] && s[1] === t[1]) === i); HU.A = u(HU.A); HU.B = u(HU.B); if (!HU.A.length) HU.A = [[0, 0]]; if (!HU.B.length) HU.B = [[0, 0]]; };
+const hPush = () => { HU.hist.push(JSON.stringify([HU.l, HU.m, HU.A, HU.B])); if (HU.hist.length > 80) HU.hist.shift(); };
+$('hUndo').addEventListener('click', () => { const s = HU.hist.pop(); if (!s) return; [HU.l, HU.m, HU.A, HU.B] = JSON.parse(s); hSizeUI(); hEval(); });
+const hRand = n => Math.floor(Math.random() * n);
+// a lucky dip: random 3 + 3 stencils until one stores some information (most give k = 0)
+$('hRandom').addEventListener('click', () => { hPush();
+  const pick = () => { const out = []; while (out.length < 3) { const t = [hRand(HU.l), hRand(HU.m)]; if (!out.some(s => s[0] === t[0] && s[1] === t[1])) out.push(t); } return out; };
+  let tries = 0;
+  do { HU.A = pick(); HU.B = pick(); tries++; }
+  while (tries < 400 && Q.bivariateBicycle(HU.l, HU.m, HU.A.map(([a, b]) => ['xy', a, b]), HU.B.map(([a, b]) => ['xy', a, b])).k === 0);
+  hEval(); ev('hunt', { level: 'random', value: tries }); });
+$('hNudge').addEventListener('click', () => { hPush(); const g = Math.random() < 0.5 ? HU.A : HU.B, i = hRand(g.length), dir = [[1, 0], [-1, 0], [0, 1], [0, -1]][hRand(4)];
+  g[i] = [(g[i][0] + dir[0] + HU.l) % HU.l, (g[i][1] + dir[1] + HU.m) % HU.m]; dedupe(); hEval(); });
+// geometry: grid A and grid B side by side (stacked on a narrow screen); cells (i, j) = x^i y^j
+function stGeom() {
+  const W = stCv.clientWidth || 600, narrow = W < 520, gap = 26, lab = 22;
+  const cols = narrow ? 1 : 2, gw = (W - (cols + 1) * 12 - (cols - 1) * gap) / cols;
+  const cell = Math.max(10, Math.min(46, gw / HU.m, (narrow ? 210 : 250) / HU.l));
+  const Hh = narrow ? 2 * (HU.l * cell + lab) + 40 : HU.l * cell + lab + 28;
+  const o = k => narrow ? [(W - HU.m * cell) / 2, 14 + lab + k * (HU.l * cell + lab + 16)] : [12 + k * (gw + gap) + (gw - HU.m * cell) / 2, 14 + lab];
+  return { W, Hh, cell, o };
+}
+function stDraw() {
+  const G = stGeom(), d = Math.min(2, window.devicePixelRatio || 1);
+  stCv.style.height = G.Hh + 'px'; stCv.width = G.W * d; stCv.height = G.Hh * d; sg.setTransform(d, 0, 0, d, 0, 0);
+  sg.fillStyle = COL.bg; sg.fillRect(0, 0, G.W, G.Hh);
+  [['A', HU.A, COL.litX, 'left qubits'], ['B', HU.B, COL.litZ, 'right qubits']].forEach(([name, terms, col, what], k) => {
+    const [x0, y0] = G.o(k), c = G.cell;
+    sg.fillStyle = COL.ink; sg.font = '600 12.5px Helvetica,Arial'; sg.textAlign = 'left'; sg.fillText(`${name} · ${what} (${terms.length} term${terms.length > 1 ? 's' : ''})`, x0, y0 - 8);
+    for (let i = 0; i < HU.l; i++) for (let j = 0; j < HU.m; j++) {
+      const on = terms.some(t => t[0] === i && t[1] === j), x = x0 + j * c, y = y0 + i * c;
+      sg.fillStyle = on ? col : 'rgba(160,190,230,.08)'; sg.fillRect(x + 1, y + 1, c - 2, c - 2);
+      if (i === 0 && j === 0) { sg.strokeStyle = 'rgba(234,240,255,.7)'; sg.lineWidth = 1.5; sg.strokeRect(x + 1.5, y + 1.5, c - 3, c - 3); }
+      if (on && c >= 22) { sg.fillStyle = '#0b1220'; sg.font = `700 ${Math.min(13, c * 0.32)}px Helvetica,Arial`; sg.textAlign = 'center'; sg.textBaseline = 'middle';
+        sg.fillText(i && j ? `x${i}y${j}` : i ? `x${i}` : j ? `y${j}` : '1', x + c / 2, y + c / 2 + 1); sg.textBaseline = 'alphabetic'; }
+    }
+    sg.fillStyle = COL.muted; sg.font = '11px Helvetica,Arial'; sg.textAlign = 'left';
+    sg.fillText('→ y (m)', x0 + HU.m * c - 40, y0 + HU.l * c + 13); sg.save(); sg.translate(x0 - 4, y0 + HU.l * c); sg.rotate(-Math.PI / 2); sg.fillText('→ x (ℓ)', 0, 0); sg.restore();
+  });
+}
+stCv.addEventListener('click', e => {
+  const r = stCv.getBoundingClientRect(), G = stGeom(), px = e.clientX - r.left, py = e.clientY - r.top;
+  for (const [k, terms] of [[0, HU.A], [1, HU.B]]) {
+    const [x0, y0] = G.o(k), j = Math.floor((px - x0) / G.cell), i = Math.floor((py - y0) / G.cell);
+    if (i < 0 || j < 0 || i >= HU.l || j >= HU.m) continue;
+    const at = terms.findIndex(t => t[0] === i && t[1] === j);
+    if (at >= 0) { if (terms.length === 1) { toast('Each grid needs at least one term.'); return; } hPush(); terms.splice(at, 1); }
+    else { if (terms.length >= 3) { toast('Three terms per grid at most (weight-6 checks). Tap a coloured cell to remove one first.'); return; } hPush(); terms.push([i, j]); }
+    hEval(); return;
+  }
+});
+function hLoadSpec(spec, quiet) {
+  const P = Q.parseBB(spec); if (!P) return false;
+  if (HU.mission && !sizeOK(HU.mission, P.l, P.m)) { if (!quiet) toast('That design is for a different torus size.'); return false; }
+  hPush(); HU.l = P.l; HU.m = P.m; HU.A = P.A.map(t => [t[1], t[2]]); HU.B = P.B.map(t => [t[1], t[2]]); if (!quiet) { hSizeUI(); hEval(); } return true;
+}
+const hSpec = () => Q.bbSpec(HU.l, HU.m, HU.A.map(([a, b]) => ['xy', a, b]), HU.B.map(([a, b]) => ['xy', a, b]));
+// evaluate: k at once, a quick upper bound on d, then the exact distance a moment later
+function hEval() {
+  stDraw();
+  const mi = HU.mission, tok = ++HU.token, code = Q.bivariateBicycle(HU.l, HU.m, HU.A.map(([a, b]) => ['xy', a, b]), HU.B.map(([a, b]) => ['xy', a, b]));
+  HU.cur = { code, spec: hSpec(), d: null, exact: false };
+  $('hSubmit').disabled = true;
+  if (code.k === 0) { $('hParams').innerHTML = `[[${code.n}, 0]] <small>no logical qubits: the checks pin down every state</small>`; $('hGoalBar').style.width = '0%';
+    $('hStatus').innerHTML = 'Try another stencil: most stencils give k = 0. Codes with k > 0 need A and B to share a common factor, which is rare; that is what makes the good ones a find.'; return; }
+  const ub = Math.min(Q.distanceBound(code, 'X', 80).d || Infinity, Q.distanceBound(code, 'Z', 80).d || Infinity);
+  show(ub, false, 'checking the distance…');
+  setTimeout(() => {
+    if (tok !== HU.token) return;
+    const ex = code.n <= 220 ? [Q.distanceOf(code, 'X', 24, 6e7, 1500), Q.distanceOf(code, 'Z', 24, 6e7, 1500)] : null;
+    if (tok !== HU.token) return;
+    if (ex && ex[0].exact && ex[1].exact && ex[0].d && ex[1].d) show(Math.min(ex[0].d, ex[1].d), true, '');
+    else { const big = Math.min(Q.distanceBound(code, 'X', 600).d || Infinity, Q.distanceBound(code, 'Z', 600).d || Infinity); show(big, false, 'an upper bound from 600 random searches (exact proof too costly here)'); }
+  }, 40);
+  function show(d, exact, note) {
+    HU.cur.d = isFinite(d) ? d : null; HU.cur.exact = exact;
+    const info = { d: HU.cur.d, score: Q.kd2n(code.n, code.k, HU.cur.d) }, sc = HU.cur.d ? mi.score(info, code) : 0, ok = HU.cur.d && mi.ok(info, code);
+    HU.cur.score = sc; HU.cur.ok = !!ok;
+    $('hParams').innerHTML = `[[${code.n}, ${code.k}, ${exact ? '' : '≤ '}${HU.cur.d || '?'}]] <small>score ${sc.toFixed(2)}${mi.record ? ` · record ${mi.record.toFixed(2)}` : ''}</small>`;
+    $('hGoalBar').style.width = `${Math.min(100, mi.record ? 100 * sc / mi.record : Math.min(100, sc * 8))}%`;
+    $('hStatus').innerHTML = (isToric() ? 'This stencil is <b>Kitaev’s toric code</b>: 2 logical qubits, distance min(ℓ, m). It is the baseline to beat; add a third term to each grid and see what happens. ' : '') +
+      (exact ? '✓ Distance proven by exhaustive search.' : note) + (ok ? '' : ' (Not yet a valid entry for this mission.)');
+    if (exact) hResult(mi, code, info, sc, HU.cur.spec, 'bb');
+  }
+}
+// a scored design: progress, badges, personal best, and the submit button
+function hResult(mi, code, info, sc, spec, family) {
+  const ok = mi.ok(info, code);
+  const btn = mi.kind === 'bb' ? $('hSubmit') : $('labSubmit');
+  if (btn) btn.disabled = !ok;
+  if (!ok) return;
+  const sig = `${code.n},${code.k},${info.d}`;
+  for (const b of BADGES) if (b.sig === sig) badge(b.id, `found a ${b.name} code`);
+  if (!HS.done[mi.id] && sc >= (mi.target || 0) - 1e-9) { HS.done[mi.id] = dayStr; hSave(); award(mi.daily ? 80 : 100, `Mission complete: ${mi.title}`);
+    if (mi.daily) { if (!HS.days.includes(dayStr)) HS.days.push(dayStr); hSave(); badge('daily', 'daily torus'); const st = $('hStreak').textContent.match(/(\d+)-day/); if (st && +st[1] >= 3) badge('streak3', '3-day streak'); } }
+  const best = HS.best[mi.id];
+  if (!best || sc > best.score + 1e-9) {
+    HS.best[mi.id] = { score: sc, spec, n: code.n, k: code.k, d: info.d, family }; hSave();
+    if (best) award(25, `New personal best: ${sc.toFixed(2)}`);
+    if (mi.record && sc > mi.record + 1e-9) badge('record', `beat the known record on “${mi.title}”`);
+    if (G.mode === 'hunt') hMissions();
+  }
+}
+function hSubmit(mi, code, d, exact, score, spec, family) {
+  const rec = { mission: mi.id, family, n: code.n, k: code.k, d, dExact: !!exact, score: Math.round(score * 1e4) / 1e4, spec };
+  const sent = window.QL && QL.submitDesign ? QL.submitDesign(rec) : false;
+  HS.submitted = (HS.submitted || 0) + 1; hSave();
+  badge('submit', 'first submission');
+  award(20, sent ? 'Submitted to the frontier board' : 'Saved (the shared board is not reachable from this copy)');
+  ev('hunt', { level: 'submit_' + mi.id.replace(/-\d+$/, ''), n: code.n, k: code.k, d, value: rec.score });
+  setTimeout(() => (family === 'lattice' ? hBoard(mi, $('labBoardList'), $('labBoardNote')) : hBoard(mi)), 1500);
+}
+$('hSubmit').addEventListener('click', () => { const c = HU.cur; if (!c || !c.ok || !c.exact) return; hSubmit(HU.mission, c.code, c.d, c.exact, c.score, c.spec, 'bb'); $('hSubmit').disabled = true; });
+// the board: the shared frontier for this mission (if reachable) plus this browser's best
+async function hBoard(mi, box, note) {
+  box = box || $('hBoard'); note = note || $('hBoardNote');
+  if (box === $('hBoard')) $('hBoardTitle').textContent = `Frontier board · ${mi.title}`;
+  const mine = HS.best[mi.id];
+  box.innerHTML = '<li><span class="lbl">Loading the shared board…</span></li>';
+  let list = [];
+  try { if (window.QL && QL.frontier) list = await QL.frontier(mi.id) || []; } catch (e) { list = []; }
+  const row = (r, i) => `<li class="${mine && r.spec === mine.spec ? 'mine' : ''}"><span class="r">${i + 1}</span><span class="p">[[${r.n},${r.k},${r.dExact === false ? '≤' : ''}${r.d}]] · <b>${(+r.score).toFixed(2)}</b>${r.count > 1 ? ` · found ${r.count}×` : ''}${r.day ? ` · ${r.day}` : ''}</span><button data-spec="${encodeURIComponent(r.spec)}" data-fam="${r.family}">Load</button></li>`;
+  box.innerHTML = list.slice(0, 12).map(row).join('') || '<li><span class="lbl">No shared designs yet. Be the first on the board.</span></li>';
+  note.innerHTML = (mine ? `Your best here: [[${mine.n},${mine.k},${mine.d}]], score ${mine.score.toFixed(2)}. ` : '') +
+    (window.QL && QL.frontier ? 'Designs are anonymous: the board stores only the code and its numbers. Loading a design re-checks it on your device.' : 'The shared board is not available in this copy; your bests are kept in this browser.');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-spec]'); if (!b || !b.closest('.board')) return;
+  const spec = decodeURIComponent(b.dataset.spec);
+  if (b.dataset.fam === 'bb') { hLoadSpec(spec); ev('hunt', { level: 'load_board' }); }
+  else { const sp = decodeSpec(spec); if (sp) { pushUndo(); lab.qubits = sp.qubits; lab.checks = sp.checks; edited(); drawLab(); ev('hunt', { level: 'load_board' }); } }
+});
+// tier 1 missions live in the Code lab: a mission bar with the goal, the score, submit and the board
+function huntLab(code, info) {
+  const mi = lab.mission, bar = $('labMission'); if (!bar) return;
+  if (!mi) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const ok = !!(code && info && mi.ok(info, code)), sc = code && info && info.d ? mi.score(info, code) : 0;
+  const why = !code ? 'Start building.' : !info ? 'Not a working code yet.' : info.d < 3 ? 'Needs d ≥ 3.' : (mi.id === 'lat-local' && !localOnly(code)) ? 'Some check reaches beyond one grid square.' : (mi.id === 'lat-two' && code.k < 2) ? 'Needs k ≥ 2.' : (mi.id === 'lat-color' && info.maxW > 8) ? 'A check is larger than 8 qubits.' : '';
+  if (bar.dataset.mid !== mi.id) {   // build the bar once per mission; the board loads once (and after a submission)
+    bar.dataset.mid = mi.id;
+    bar.innerHTML = `<b>🧭 Mission: ${mi.title}</b> · <a href="#" id="labMissionExit">back to missions</a><br>${mi.goal}<div id="labMStatus"></div>` +
+      `<div class="row" style="display:flex;gap:6px;margin-top:6px"><button class="primary" id="labSubmit" disabled>Submit to the frontier 🚀</button></div>` +
+      `<ul class="board" id="labBoardList"></ul><p class="note" id="labBoardNote"></p>`;
+    $('labMissionExit').onclick = e => { e.preventDefault(); lab.mission = null; bar.dataset.mid = ''; setMode('hunt'); };
+    $('labSubmit').onclick = () => { const s2 = lab.subm; if (!s2) return; hSubmit(mi, s2.code, s2.info.d, true, s2.sc, s2.spec, 'lattice'); $('labSubmit').disabled = true; };
+    hBoard(mi, $('labBoardList'), $('labBoardNote'));
+  }
+  $('labMStatus').innerHTML = `<span style="font-size:17px;font-weight:700">score ${sc.toFixed(2)}</span>${mi.record ? ` <span class="lbl">record ${mi.record.toFixed(2)}</span>` : ''} ${ok ? '✓' : `<span class="lbl">${why}</span>`}`;
+  const spec = decodeURIComponent(encodeSpec({ qubits: lab.qubits, checks: lab.checks }));
+  lab.subm = ok ? { code, info, sc, spec } : null;
+  $('labSubmit').disabled = !ok;
+  if (ok) hResult(mi, code, info, sc, spec, 'lattice');
+}
+function huntShow() { hRank(); hMissions(); if (HU.mission && HU.mission.kind === 'bb') { hSizeUI(); hEval(); hBoard(HU.mission); } else hBoard(MISSIONS.find(m => m.daily)); if (!HU.mission) $('hKnown').innerHTML = 'Pick a mission. Each one shows here what is already known, so you know what a discovery would look like.'; }
+addEventListener('resize', () => { if (G.mode === 'hunt' && HU.mission && HU.mission.kind === 'bb') stDraw(); });
+
 // ───────── modes ─────────
 function setMode(m) {
   G.mode = m;
   for (const b of $('modeTabs').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.m === m));
-  $('gameSec').hidden = !(m === 'learn' || m === 'sweep'); $('labSec').hidden = m !== 'lab'; $('thrSec').hidden = m !== 'thr';
+  $('gameSec').hidden = !(m === 'learn' || m === 'sweep'); $('labSec').hidden = m !== 'lab'; $('thrSec').hidden = m !== 'thr'; $('huntSec').hidden = m !== 'hunt';
+  if (m === 'hunt') huntShow();
   $('learnSide').hidden = m !== 'learn'; $('sweepSide').hidden = m !== 'sweep';
   if (m === 'learn') startLesson(G.lesson);
   if (m === 'sweep' && !G.sweep) newGame();
@@ -1035,7 +1358,7 @@ try {
   if (sp.get('code') && ($('codeSel').querySelector(`option[value="${sp.get('code')}"]`))) $('codeSel').value = sp.get('code');
   if (['X', 'Z', 'XZ', 'dep'].includes(sp.get('noise'))) $('noiseSel').value = sp.get('noise');
   const p = parseFloat(sp.get('p')); if (p >= 1 && p <= 15) { $('pSlider').value = p; $('pTxt').textContent = p.toFixed(1) + '%'; }
-  const m = sp.get('mode'); if (['learn', 'sweep', 'lab', 'thr'].includes(m)) startMode = m;
+  const m = sp.get('mode'); if (['learn', 'sweep', 'lab', 'thr', 'hunt'].includes(m)) startMode = m;
   if (startMode === 'sweep') { setMode('sweep'); newGame(+sp.get('seed') || undefined); }
 } catch (e) { /* plain start */ }
 if (G.mode !== startMode || !G.code) setMode(startMode);
