@@ -123,6 +123,22 @@
   .board li .r{width:22px;color:var(--muted);text-align:right} .board li .p{flex:1;font-variant-numeric:tabular-nums}
   .board li.mine{background:rgba(217,165,33,.12)}
   .missionBar{border:1px solid var(--gold);border-radius:10px;padding:9px 11px;margin:0 0 12px;background:rgba(217,165,33,.08);font-size:13px}
+  /* compact: the board, the X/Z/Y tools and the next-level button fit on one screen */
+  .sub p{max-width:960px}
+  details.fold>summary{font-size:13px;font-weight:600;color:var(--green);margin:4px 0}
+  .learnFold{margin:0 0 10px} .learnFold .ql-panel{margin-top:6px}
+  h1{margin-bottom:4px}
+  .tabs{margin:6px 0 10px}
+  .tools{margin:8px 0}
+  .side .card{margin-bottom:10px}
+  @media(max-width:920px){.side .msg{margin-top:4px}}
+  @media(max-width:600px){.tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.tabs button{flex:none}.sub p{font-size:13px}
+    #gameSec .tools{gap:6px}#gameSec .tools .lbl{display:none}}
+  .ghostTip{position:absolute;pointer-events:none;background:rgba(11,18,32,.92);color:#eaf0ff;border:1px solid #2fe0d0;border-radius:8px;padding:4px 8px;font-size:12.5px;line-height:1.35;max-width:240px;z-index:3;white-space:normal}
+  .ghostTip b{color:#f5b73c}
+  #fcPlot{display:block;width:100%;height:160px;background:var(--night);border-radius:10px;margin:6px 0}
+  .fcHead{font-size:13.5px;line-height:1.45}
+  .fcHead .big{font-size:18px;font-weight:700}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0b1220;color:#eaf0ff;border:1px solid #f5b73c;border-radius:12px;padding:10px 16px;font-size:14px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4);max-width:92vw}
 </style>
 </head>
@@ -135,13 +151,14 @@
 <script src="../learning/errorsweeper.js"></script>
 <a class="back" href="../index.html#labs">← All demos</a>
 <h1>🧹 ErrorSweeper <span>find the errors you cannot see</span></h1>
-<p class="sub" id="intro">Quantum error correction is a deduction game. You never look at the data qubits, because measuring them would
-destroy the quantum state. Instead, <b>check qubits</b> (ancillas) measure the parity of a few neighbours and light up when an odd
-number of them has an error. Read the lamps, guess where the errors are, and apply corrections until every lamp is off. Then
-the truth is revealed: if your correction and the errors form a closed loop, the logical qubit survived. If they stretch across
-the code, you just flipped the logical qubit. The physics is real: these are the rotated surface code, the toric code, and the
-Steane and Shor codes, under code-capacity noise.</p>
-<div id="learnPanel"></div>
+<div class="sub" id="intro"><p style="margin:0">Quantum error correction as a deduction game: you never look at the data qubits, only at
+<b>check qubits</b> (ancillas) that light up when an odd number of their neighbours has an error. Read the lamps, fix the errors, and
+don't stretch your fix across the code.</p>
+<details class="fold"><summary>More about the game and the physics</summary><p style="margin:4px 0 0">Measuring a data qubit would destroy the quantum state,
+so check qubits measure the parity of a few neighbours instead. When every lamp is off, the truth is revealed: if your correction
+and the errors form a closed loop, the logical qubit survived; if they stretch across the code, you just flipped the logical qubit.
+The physics is real: these are the rotated surface code, the toric code, and the Steane and Shor codes, under code-capacity noise.</p></details></div>
+<details class="fold learnFold" id="learnFold"><summary>📖 What you’ll learn · how to play · debrief</summary><div id="learnPanel"></div></details>
 
 <div class="tabs" role="tablist" id="modeTabs">
   <button role="tab" data-m="learn" aria-selected="true">📘 Learn</button>
@@ -197,6 +214,11 @@ Steane and Shor codes, under code-capacity noise.</p>
   <div>
     <div class="tools" style="margin-top:0">
       <span class="seg" id="labMode"><button data-v="build" aria-pressed="true">✏️ Build</button><button data-v="test" aria-pressed="false">⚡ Test the decoder</button></span>
+      <span class="seg" id="geoSeg" role="group" aria-label="Lattice"><button data-g="square" aria-pressed="true" title="Square grid: squares (4 qubits) and edges (2)">▢ Square</button><button data-g="hex" aria-pressed="false" title="Honeycomb: hexagons (6 qubits) and edges (2)">⬡ Honeycomb</button><button data-g="tri" aria-pressed="false" title="Triangular grid: triangles (3 qubits) and edges (2)">△ Triangles</button></span>
+    </div>
+    <div class="tools" id="buildTools" style="margin-top:0">
+      <span class="seg" id="brushSeg" role="group" aria-label="Brush"><button data-b="anc" aria-pressed="true" title="Tap a face or an edge to put an ancilla (a check) on it">＋ Ancilla</button><button data-b="carve" aria-pressed="false" title="Tap a qubit to cut it out: every check it was in loses that corner">✂ Carve</button></span>
+      <span class="seg" id="symSeg" role="group" aria-label="Symmetry brush"><button data-s="off" aria-pressed="true" title="One tap, one change">1×</button><button data-s="mirror" aria-pressed="false" title="Mirror left–right">⇋</button><button data-s="rot" aria-pressed="false" title="Rotate 180° about the centre">↻</button><button data-s="kal" aria-pressed="false" title="Kaleidoscope: both mirrors and the rotation">✳</button></span>
       <select id="preset" aria-label="Start from a known code">
         <option value="">Start from…</option><option value="rep5">Repetition code, 5 qubits</option><option value="four">[[4,2,2]]: detects, cannot correct</option>
         <option value="surf3">Surface code d = 3</option><option value="surf5">Surface code d = 5</option><option value="twin">Two surface codes side by side</option>
@@ -204,7 +226,7 @@ Steane and Shor codes, under code-capacity noise.</p>
       <button id="labUndo">Undo</button><button id="labReset">Clear all</button>
     </div>
     <p class="note" id="labHelp" style="margin:0 0 8px"></p>
-    <canvas id="labBoard" aria-label="Code lab grid. In Build, tap a square or an edge to add a check; in Test, tap a qubit to put an error on it."></canvas>
+    <div style="position:relative"><canvas id="labBoard" aria-label="Code lab grid. In Build, tap a face or an edge to add a check; in Test, tap a qubit to put an error on it."></canvas><div class="ghostTip" id="ghostTip" hidden></div></div>
     <div class="tools" id="testTools" hidden>
       <span class="seg tool" id="labErrSeg"><button data-t="X" aria-pressed="true" title="An X (bit-flip) error lights the blue lamps it touches"><b>X</b><small>error</small></button><button data-t="Z" aria-pressed="false" title="A Z (phase-flip) error lights the gold lamps it touches"><b>Z</b><small>error</small></button></span>
       <button id="labRandom" title="Random X and Z errors, 8% per qubit">🎲 Random errors</button><button id="labClearErr">Clear</button>
@@ -228,7 +250,13 @@ Steane and Shor codes, under code-capacity noise.</p>
       <div class="score" id="score"></div>
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link</button></div>
     </div>
-    <div class="card"><h2>How good is it?</h2>
+    <div class="card" id="fcCard"><h2>🔮 Decoder forecast</h2><div class="lbl" id="fcState" style="margin:-6px 0 4px"></div>
+      <div class="fcHead" id="fcHead">Add ancillas and the forecast updates by itself: thousands of noisy rounds, decoded live.</div>
+      <canvas id="fcPlot" aria-label="Forecast: logical failure rate against physical error rate, log–log, for your code, a bare qubit and the d = 3 surface code"></canvas>
+      <div class="note" id="fcNote" style="font-size:12.5px"></div>
+      <label class="lbl"><input type="checkbox" id="fcHeat" checked> Show weak spots and the weakest link on the board</label>
+    </div>
+    <div class="card"><h2>How good is it? <span class="lbl" style="text-transform:none;letter-spacing:0">(precise, 10 000 rounds)</span></h2>
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="labNoise" aria-label="Noise"><option value="dep" selected>Depolarizing (X, Y, Z)</option><option value="X">Bit flips (X)</option><option value="Z">Phase flips (Z)</option></select>
         <button class="primary" id="labMeasure">Measure ▶</button><span class="lbl" id="labProg"></span></div>
       <div id="labPlot" hidden></div>
@@ -415,7 +443,11 @@ function layoutFor(code) {
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   const cw = board.clientWidth || 600, b = G.layout.box, ar = (b.y1 - b.y0 + 1.4) / (b.x1 - b.x0 + 1.4);
-  W = cw; H = Math.max(200, Math.min(cw * Math.max(0.35, ar), 720));
+  // Cap the height so the tools under the board stay on screen without scrolling.
+  // the room left on screen below the board's top edge (at page scroll 0), minus the tool row
+  const top = board.getBoundingClientRect().top + window.scrollY, narrow = window.innerWidth <= 920;
+  const cap = narrow ? Math.max(200, window.innerHeight - top - 175) : Math.max(260, window.innerHeight - top - 70);
+  W = cw; H = Math.max(200, Math.min(cw * Math.max(0.35, ar), 720, cap));
   board.width = Math.round(W * dpr); board.height = Math.round(H * dpr); board.style.height = H + 'px';
 }
 function tf() {
@@ -582,7 +614,17 @@ $('hint').addEventListener('click', () => {
   setMsg('', `<b>Decoder hint.</b> The dashed tiles are a minimum-weight correction for these lamps: the fewest flips that explain them. It is usually, not always, the right answer.`);
   draw(); ev('hint', { level: G.mode });
 });
-function setMsg(kind, html) { const m = $('msg'); m.className = 'msg' + (kind ? ' ' + kind : ''); m.innerHTML = html; }
+// On narrow screens the message (with Commit results and the Next button) sits right under the tools, not below the key.
+function placeMsg() {
+  const m = $('msg'), narrow = window.innerWidth <= 920, tools = document.querySelector('#gameSec .tools');
+  if (narrow && m.previousElementSibling !== tools) tools.after(m);
+  else if (!narrow && m.parentElement !== document.querySelector('#gameSec .side')) document.querySelector('#gameSec .side').prepend(m);
+}
+window.addEventListener('resize', placeMsg);
+function setMsg(kind, html) { const m = $('msg'); m.className = 'msg' + (kind ? ' ' + kind : ''); m.innerHTML = html;
+  // a result (with its Next button) must be visible on a phone without hunting for it
+  // (one frame later, because the Next button is appended after this call)
+  if (kind && window.innerWidth <= 920) requestAnimationFrame(() => { const r = m.getBoundingClientRect(); if (r.bottom > window.innerHeight || r.top < 0) m.scrollIntoView({ behavior: 'smooth', block: r.height > window.innerHeight ? 'start' : 'end' }); }); }
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 $('commit').addEventListener('click', () => {
@@ -658,7 +700,9 @@ function lessonDone(cls) {
 
 // ───────── sweep: arcade rounds ─────────
 let rand = Math.random;
-function sweepCode() { const k = $('codeSel').value; return k === 'custom' && G.customSpec ? Q.custom(G.customSpec, 'Your code') : (CODES[k] || CODES.surf3)(); }
+// a lab code in the game: honeycomb and triangle codes are drawn at their true positions in the plane
+const planeSpec = sp => { const g = GEO[sp.geom || 'square']; return { qubits: sp.qubits.map(q => { const [x, y] = g.xy(q.x, q.y); return { x, y }; }), checks: sp.checks }; };
+function sweepCode() { const k = $('codeSel').value; return k === 'custom' && G.customSpec ? Q.custom(planeSpec(G.customSpec), 'Your code') : (CODES[k] || CODES.surf3)(); }
 function newGame(seed) {
   const sd = seed || (Math.random() * 2 ** 31) >>> 0; rand = Q.rng(sd);
   setCode(sweepCode());
@@ -719,12 +763,48 @@ $('share').addEventListener('click', e => {
 // Build mode: tapping a unit square (or an edge) cycles its check: none → bit-flip (Z-type) → phase-flip (X-type) →
 // both → none, adding corner qubits as needed and removing qubits left in no check. Test mode: tap qubits to place
 // errors, then run the decoder and watch what it pairs up.
-const LG = 7;
-const lab = { qubits: [], checks: [], sel: new Set(), mode: 'build', pick: false, undo: [], err: null, errTool: 'X', dec: null, perf: null, best: 0 };
+// Three lattices. Qubits live on integer lattice points (x, y); GEO[g].xy maps them to the plane with unit bond length:
+//   square: the plain grid; honeycomb: a brick wall (vertical bonds where x + y is even) drawn as regular hexagons;
+//   triangles: offset rows. Faces are the ancillas you can tap: squares (4 qubits), hexagons (6), triangles (3), plus edges (2).
+const S3 = Math.sqrt(3) / 2;
+const GEO = {
+  square: { W: 7, H: 7, xy: (x, y) => [x, y], face: 'square' },
+  hex: { W: 11, H: 6, xy: (x, y) => [x * S3, 1.5 * y + (((x + y) & 1) ? -0.25 : 0.25)], face: 'hexagon' },
+  tri: { W: 7, H: 7, xy: (x, y) => [x + ((y & 1) ? 0.5 : 0), y * S3], face: 'triangle' },
+};
+const GEO_CACHE = {};
+function geoInfo(g) {
+  if (GEO_CACHE[g]) return GEO_CACHE[g];
+  const G0 = GEO[g], pts = [];
+  for (let y = 0; y < G0.H; y++) for (let x = 0; x < G0.W; x++) { const [X, Y] = G0.xy(x, y); pts.push({ x, y, X, Y }); }
+  const box = { x0: Math.min(...pts.map(p => p.X)), x1: Math.max(...pts.map(p => p.X)), y0: Math.min(...pts.map(p => p.Y)), y1: Math.max(...pts.map(p => p.Y)) };
+  const near = (a, b) => Math.abs(Math.hypot(a.X - b.X, a.Y - b.Y) - 1) < 1e-6;
+  const at = (x, y) => (x >= 0 && y >= 0 && x < G0.W && y < G0.H ? pts[y * G0.W + x] : null);
+  const cands = [], add = (list, kind) => { const P = list.map(([x, y]) => at(x, y)); if (P.some(v => !v)) return;
+    cands.push({ pts: list, kind, cx: P.reduce((a, v) => a + v.X, 0) / P.length, cy: P.reduce((a, v) => a + v.Y, 0) / P.length }); };
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (near(pts[i], pts[j])) add([[pts[i].x, pts[i].y], [pts[j].x, pts[j].y]], 'edge');
+  for (let y = 0; y < G0.H; y++) for (let x = 0; x < G0.W; x++) {
+    if (g === 'square') add([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]], 'face');
+    if (g === 'hex' && !((x + y) & 1)) add([[x, y], [x + 1, y], [x + 2, y], [x + 2, y + 1], [x + 1, y + 1], [x, y + 1]], 'face');
+  }
+  if (g === 'tri') for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) for (let k = j + 1; k < pts.length; k++)
+    if (near(pts[i], pts[j]) && near(pts[j], pts[k]) && near(pts[i], pts[k])) add([[pts[i].x, pts[i].y], [pts[j].x, pts[j].y], [pts[k].x, pts[k].y]], 'face');
+  return (GEO_CACHE[g] = { pts, box, cands, cx: (box.x0 + box.x1) / 2, cy: (box.y0 + box.y1) / 2 });
+}
+const lab = { qubits: [], checks: [], sel: new Set(), mode: 'build', pick: false, undo: [], err: null, errTool: 'X', dec: null, perf: null, best: 0,
+  geom: 'square', brush: 'anc', sym: 'off', hover: null };
 const labCv = $('labBoard'), lg = labCv.getContext('2d');
 let LW = 500, LH = 500;
-function labResize() { const d = Math.min(2, window.devicePixelRatio || 1); LW = labCv.clientWidth || 500; LH = Math.min(LW, 560); labCv.width = LW * d; labCv.height = LH * d; labCv.style.height = LH + 'px'; lg.setTransform(d, 0, 0, d, 0, 0); }
-const lp = p => { const s = Math.min(LW, LH) / (LG + 0.2); return [(LW - s * (LG - 1)) / 2 + s * p.x, (LH - s * (LG - 1)) / 2 + s * p.y, s]; };
+function labResize() {
+  const d = Math.min(2, window.devicePixelRatio || 1), b = geoInfo(lab.geom).box, ar = (b.y1 - b.y0 + 1.2) / (b.x1 - b.x0 + 1.2);
+  LW = labCv.clientWidth || 500; LH = Math.round(Math.min(LW * ar, 620, window.innerWidth <= 920 ? Math.max(280, window.innerHeight * 0.6) : Math.max(300, window.innerHeight - (labCv.getBoundingClientRect().top + window.scrollY) - 16)));
+  labCv.width = LW * d; labCv.height = LH * d; labCv.style.height = LH + 'px'; lg.setTransform(d, 0, 0, d, 0, 0);
+}
+// lattice point → canvas pixels [x, y, s] (s = pixels per bond); toPlane/fromPx convert between plane units and pixels
+function labTf() { const b = geoInfo(lab.geom).box, s = Math.min(LW / (b.x1 - b.x0 + 1.2), LH / (b.y1 - b.y0 + 1.2));
+  return { s, ox: (LW - s * (b.x1 - b.x0)) / 2 - s * b.x0, oy: (LH - s * (b.y1 - b.y0)) / 2 - s * b.y0 }; }
+const lp = p => { const t = labTf(), [X, Y] = GEO[lab.geom].xy(p.x, p.y); return [t.ox + t.s * X, t.oy + t.s * Y, t.s]; };
+const pxToPlane = (x, y) => { const t = labTf(); return [(x - t.ox) / t.s, (y - t.oy) / t.s]; };
 let labCache = null;
 function labCode() {
   if (!lab.qubits.length) return null;
@@ -732,32 +812,81 @@ function labCode() {
   if (!labCache || labCache.key !== key) labCache = { key, code: Q.custom({ qubits: lab.qubits, checks: lab.checks }, 'Your code'), info: null };
   return labCache.code;
 }
-const snapshot = () => JSON.stringify({ q: lab.qubits, c: lab.checks });
+const snapshot = () => JSON.stringify({ q: lab.qubits, c: lab.checks, g: lab.geom });
 function pushUndo() { lab.undo.push(snapshot()); if (lab.undo.length > 60) lab.undo.shift(); }
 const PERF0 = 'Plays thousands of noisy rounds with the decoder and plots how often the encoded information is lost, next to the d = 3 surface code and unprotected qubits.';
-function edited() { lab.err = null; lab.dec = null; $('labMsg').hidden = true;
+function edited() { lab.err = null; lab.dec = null; $('labMsg').hidden = true; fcSchedule();
   if (lab.perf || !$('labPlot').hidden) { lab.perf = null; $('labPlot').hidden = true; $('labPerf').innerHTML = PERF0; } }
 const qAt = (x, y) => lab.qubits.findIndex(q => q.x === x && q.y === y);
 function removeQubit(at) { lab.qubits.splice(at, 1); lab.checks = lab.checks.filter(c => !c.q.includes(at)).map(c => ({ type: c.type, q: c.q.map(k => (k > at ? k - 1 : k)) })); lab.sel.clear(); }
 const keyOf = q => q.slice().sort((a, b) => a - b).join(',');
-// cycle the check(s) on a set of grid points
-function cycleAt(points) {
-  pushUndo();
-  const idx = points.map(([x, y]) => { let i = qAt(x, y); if (i < 0) { lab.qubits.push({ x, y }); i = lab.qubits.length - 1; } return i; });
-  const k = keyOf(idx), have = lab.checks.filter(c => keyOf(c.q) === k).map(c => c.type);
-  const state = have.includes('X') && have.includes('Z') ? 3 : have.includes('X') ? 2 : have.includes('Z') ? 1 : 0, next = (state + 1) % 4;
-  lab.checks = lab.checks.filter(c => keyOf(c.q) !== k);
-  const q = idx.slice();
-  if (next === 1 || next === 3) lab.checks.push({ type: 'Z', q });
-  if (next === 2 || next === 3) lab.checks.push({ type: 'X', q });
-  // drop qubits that no check uses any more (highest index first, so the others keep their numbers)
-  if (next === 0) for (const i of idx.slice().sort((a, b) => b - a)) if (!lab.checks.some(c => c.q.includes(i))) removeQubit(i);
-  edited(); drawLab();
-  ev('lab', { level: 'cycle', value: points.length });
+// the check state on a set of grid points: 0 none, 1 bit-flip (Z…Z), 2 phase-flip (X…X), 3 both
+function stateAt(points, checks, qubits) {
+  const idx = points.map(([x, y]) => qubits.findIndex(q => q.x === x && q.y === y));
+  if (idx.some(i => i < 0)) return 0;
+  const k = keyOf(idx), have = checks.filter(c => keyOf(c.q) === k).map(c => c.type);
+  return have.includes('X') && have.includes('Z') ? 3 : have.includes('X') ? 2 : have.includes('Z') ? 1 : 0;
 }
+// set the check state on several point sets (a tap and its symmetric copies) in a copy of the code
+function withStates(sets, next, src) {
+  const qubits = src.qubits.map(q => ({ x: q.x, y: q.y }));
+  let checks = src.checks.map(c => ({ type: c.type, q: c.q.slice() }));
+  for (const points of sets) {
+    const idx = points.map(([x, y]) => { let i = qubits.findIndex(q => q.x === x && q.y === y); if (i < 0) { qubits.push({ x, y }); i = qubits.length - 1; } return i; });
+    const k = keyOf(idx); checks = checks.filter(c => keyOf(c.q) !== k);
+    if (next === 1 || next === 3) checks.push({ type: 'Z', q: idx.slice() });
+    if (next === 2 || next === 3) checks.push({ type: 'X', q: idx.slice() });
+  }
+  // drop qubits that no check uses any more, renumbering the rest
+  const used = qubits.map((q, i) => checks.some(c => c.q.includes(i))), map = []; let n = 0;
+  used.forEach((u, i) => { map[i] = u ? n++ : -1; });
+  return { qubits: qubits.filter((q, i) => used[i]), checks: checks.map(c => ({ type: c.type, q: c.q.map(i => map[i]) })) };
+}
+// cut qubits out: every check that contained them loses that corner (checks left empty disappear)
+function withCarved(points, src) {
+  const gone = new Set(points.map(([x, y]) => src.qubits.findIndex(q => q.x === x && q.y === y)).filter(i => i >= 0)), map = []; let n = 0;
+  src.qubits.forEach((q, i) => { map[i] = gone.has(i) ? -1 : n++; });
+  const checks = src.checks.map(c => ({ type: c.type, q: c.q.filter(i => !gone.has(i)).map(i => map[i]) })).filter(c => c.q.length);
+  const qs = src.qubits.filter((q, i) => !gone.has(i)), used = qs.map((q, i) => checks.some(c => c.q.includes(i))), m2 = []; let k = 0;
+  used.forEach((u, i) => { m2[i] = u ? k++ : -1; });
+  return { qubits: qs.filter((q, i) => used[i]), checks: checks.map(c => ({ type: c.type, q: c.q.map(i => m2[i]) })) };
+}
+// the symmetric copies of a candidate (or a point): mirror left–right, rotate 180°, or all four (kaleidoscope); copies
+// that fall off the lattice or onto no face are skipped
+function symImages(cx, cy) {
+  const g = geoInfo(lab.geom), mx = X => 2 * g.cx - X, my = Y => 2 * g.cy - Y;
+  const out = [[cx, cy]];
+  if (lab.sym === 'mirror' || lab.sym === 'kal') out.push([mx(cx), cy]);
+  if (lab.sym === 'rot' || lab.sym === 'kal') out.push([mx(cx), my(cy)]);
+  if (lab.sym === 'kal') out.push([cx, my(cy)]);
+  return out;
+}
+function candSets(c) {
+  const list = geoInfo(lab.geom).cands, seen = new Set(), sets = [];
+  for (const [X, Y] of symImages(c.cx, c.cy)) {
+    const m = list.find(d => d.kind === c.kind && d.pts.length === c.pts.length && Math.hypot(d.cx - X, d.cy - Y) < 0.05);
+    if (m && !seen.has(m)) { seen.add(m); sets.push(m.pts); }
+  }
+  return sets;
+}
+function pointSets(pt) {
+  const g = geoInfo(lab.geom), seen = new Set(), out = [];
+  for (const [X, Y] of symImages(pt.X, pt.Y)) { const m = g.pts.find(v => Math.hypot(v.X - X, v.Y - Y) < 0.05); if (m && !seen.has(m)) { seen.add(m); out.push([m.x, m.y]); } }
+  return out;
+}
+function labCommit(next) { pushUndo(); lab.qubits = next.qubits; lab.checks = next.checks; lab.sel.clear(); edited(); drawLab(); }
+function cycleCand(c) {
+  const sets = candSets(c), next = (stateAt(sets[0], lab.checks, lab.qubits) + 1) % 4;
+  labCommit(withStates(sets, next, lab));
+  ev('lab', { level: 'cycle', value: c.pts.length, geom: lab.geom, sym: lab.sym, copies: sets.length });
+}
+// kept for presets and older callers: cycle the check on one set of points
+function cycleAt(points) { labCommit(withStates([points], (stateAt(points, lab.checks, lab.qubits) + 1) % 4, lab)); }
 function labHelp() {
-  $('labHelp').innerHTML = lab.mode === 'build'
-    ? 'Tap a <b>square</b> or an <b>edge</b> to put a check on its corners. Tap again to change it: 1st tap <i class="lz"></i> bit-flip alarm, 2nd <i class="lx"></i> phase-flip alarm, 3rd both, 4th removes it. Neighbouring alarms of opposite kinds must share 0, 2 or 4 qubits.'
+  const face = GEO[lab.geom].face;
+  $('labHelp').innerHTML = lab.mode === 'build' ? (lab.brush === 'carve'
+    ? '<b>✂ Carve:</b> tap a qubit to cut it out. Every ancilla it belonged to loses that corner, so a 6-qubit hexagon becomes a 5- or 4-qubit face. Three hexagons around one point, carved down to 7 qubits, make Steane’s code.'
+    : `Tap a <b>${face}</b> or an <b>edge</b> to put an ancilla on its corners. Tap again to change it: 1st <i class="lz"></i> bit-flip alarm, 2nd <i class="lx"></i> phase-flip alarm, 3rd both, 4th removes it. Opposite kinds must share an even number of qubits. With a mouse, hover to preview; the 🔮 forecast updates after every tap.`)
     : 'Tap qubits to put errors on them (the lamps light as they would on hardware), or roll random ones. Then <b>run the decoder</b> and see which lamps it pairs up.';
 }
 
@@ -768,9 +897,9 @@ function labLampPos(code, s) {
   const pos = {}, groups = new Map();
   for (const c of code.checks) { const k = keyOf(c.q); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); }
   for (const cs of groups.values()) {
-    const pts = cs[0].q.map(i => code.qubits[i]), cen = pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
-    let [x, y] = lp(cen);
-    if (pts.length === 2) { const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y, L = Math.hypot(dx, dy) || 1; x += -dy / L * s * 0.2; y += dx / L * s * 0.2; }
+    const P = cs[0].q.map(i => lp(code.qubits[i]));
+    let x = P.reduce((a, v) => a + v[0], 0) / P.length, y = P.reduce((a, v) => a + v[1], 0) / P.length;
+    if (P.length === 2) { const dx = P[1][0] - P[0][0], dy = P[1][1] - P[0][1], L = Math.hypot(dx, dy) || 1; x += -dy / L * s * 0.2; y += dx / L * s * 0.2; }
     cs.forEach((c, k) => { pos[c.id] = [x + (cs.length > 1 ? (k ? 1 : -1) * s * 0.15 : 0), y]; });
   }
   return pos;
@@ -779,20 +908,20 @@ function drawLab() {
   labResize(); lg.fillStyle = COL.bg; lg.fillRect(0, 0, LW, LH);
   const code = labCode(), conflicts = new Set(), s = lp({ x: 0, y: 0 })[2];
   if (code) for (const a of code.X) for (const b of code.Z) if (Q.dot(a.vec, b.vec)) { conflicts.add(a.id); conflicts.add(b.id); }
-  // grid: dots at every position, faint squares
-  lg.strokeStyle = 'rgba(160,190,230,.10)'; lg.lineWidth = 1;
-  for (let j = 0; j < LG; j++) { const [x0, y0] = lp({ x: 0, y: j }), [x1] = lp({ x: LG - 1, y: j }); lg.beginPath(); lg.moveTo(x0, y0); lg.lineTo(x1, y0); lg.stroke(); }
-  for (let i = 0; i < LG; i++) { const [x0, y0] = lp({ x: i, y: 0 }), [, y1] = lp({ x: i, y: LG - 1 }); lg.beginPath(); lg.moveTo(x0, y0); lg.lineTo(x0, y1); lg.stroke(); }
-  for (let y = 0; y < LG; y++) for (let x = 0; x < LG; x++) { const [px, py] = lp({ x, y }); lg.fillStyle = 'rgba(200,210,235,.35)'; lg.beginPath(); lg.arc(px, py, 2.5, 0, 7); lg.fill(); }
-  if (!code) { analyse(null, conflicts); return; }
+  // the lattice: faint bonds and a dot at every point
+  const GI = geoInfo(lab.geom);
+  lg.strokeStyle = 'rgba(160,190,230,.13)'; lg.lineWidth = 1;
+  for (const c of GI.cands) if (c.kind === 'edge') { const [a, b] = c.pts.map(([x, y]) => lp({ x, y })); lg.beginPath(); lg.moveTo(a[0], a[1]); lg.lineTo(b[0], b[1]); lg.stroke(); }
+  for (const v of GI.pts) { const [px, py] = lp(v); lg.fillStyle = 'rgba(200,210,235,.35)'; lg.beginPath(); lg.arc(px, py, 2.5, 0, 7); lg.fill(); }
+  if (!code) { drawGhost(); analyse(null, conflicts); return; }
   const synd = lab.err ? Q.syndrome(code, lab.err) : code.checks.map(() => 0), pos = labLampPos(code, s);
   // faces
   const seen = new Set();
   for (const c of code.checks) {
     const k = keyOf(c.q); if (seen.has(k)) continue; seen.add(k);
     const types = code.checks.filter(d => keyOf(d.q) === k).map(d => d.type), both = types.length > 1;
-    const pts = c.q.map(i => code.qubits[i]), cen = pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
-    const sorted = pts.map(p => ({ p, a: Math.atan2(p.y - cen.y, p.x - cen.x) })).sort((u, v) => u.a - v.a).map(u => lp(u.p));
+    const pts = c.q.map(i => lp(code.qubits[i])), cx0 = pts.reduce((a, v) => a + v[0], 0) / pts.length, cy0 = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+    const sorted = pts.slice().sort((u, v) => Math.atan2(u[1] - cy0, u[0] - cx0) - Math.atan2(v[1] - cy0, v[0] - cx0));
     const bad = code.checks.some(d => keyOf(d.q) === k && conflicts.has(d.id));
     const fill = both ? COL.faceXZ : types[0] === 'X' ? COL.faceX : COL.faceZ, edge = both ? 'rgba(169,139,255,.6)' : types[0] === 'X' ? COL.edgeX : COL.edgeZ;
     if (pts.length === 2) {
@@ -822,6 +951,15 @@ function drawLab() {
   if (lab.dec) { const r = lab.dec.r; for (let i = 0; i < code.n; i++) if (r.x[i] || r.z[i]) { const [x, y] = lp(code.qubits[i]); lg.strokeStyle = lab.dec.cls.trivial ? COL.loop : COL.logical; lg.lineWidth = 3.5; lg.beginPath(); lg.arc(x, y, s * 0.3, 0, 7); lg.stroke(); } }
   // lamps
   for (const c of code.checks) { const [x, y] = pos[c.id]; lampOn(lg, x, y, Math.max(6.5, s * 0.1) * (code.checks.filter(d => keyOf(d.q) === keyOf(c.q)).length > 1 ? 0.85 : 1), c.type, !!synd[c.id]); }
+  // weak spots: qubits that took part in the forecast's decoder failures glow red; the weakest link is the lightest
+  // undetectable error (the distance d), drawn as a dashed chain
+  if ($('fcHeat').checked && lab.mode === 'build' && fc.heat && fc.key === fcKey(code)) {
+    const mx = Math.max(...fc.heat);
+    if (mx > 0) fc.heat.forEach((h, i) => { if (!h) return; const [x, y] = lp(code.qubits[i]), a = Math.sqrt(h / mx);
+      const gr = lg.createRadialGradient(x, y, 0, x, y, s * 0.55); gr.addColorStop(0, `rgba(255,90,114,${0.75 * a})`); gr.addColorStop(1, 'rgba(255,90,114,0)');
+      lg.fillStyle = gr; lg.beginPath(); lg.arc(x, y, s * 0.55, 0, 7); lg.fill(); });
+  }
+  if ($('fcHeat').checked && lab.mode === 'build' && code.commuteOK && code.k > 0) drawWeakest(code, s);
   // qubits
   lab.qubits.forEach((q, i) => { const [x, y] = lp(q), t = s * 0.34;
     lg.fillStyle = lab.sel.has(i) ? '#3a4d8f' : COL.tile; lg.strokeStyle = lab.sel.has(i) ? COL.corr : COL.tileLine; lg.lineWidth = lab.sel.has(i) ? 3 : 1.5;
@@ -833,7 +971,35 @@ function drawLab() {
       lg.strokeStyle = COL.corr; lg.lineWidth = 2.5; lg.beginPath(); lg.roundRect ? lg.roundRect(x - t / 2 - 3, y - t / 2 - 3, t + 6, t + 6, t * 0.3) : lg.rect(x - t / 2 - 3, y - t / 2 - 3, t + 6, t + 6); lg.stroke();
       lg.fillStyle = COL.corr; lg.font = `800 ${Math.max(11, Math.round(t * 0.45))}px Helvetica,Arial`; lg.textAlign = 'left'; lg.fillText('+' + cl, x + t * 0.55, y - t * 0.6); }
   });
+  drawGhost();
   analyse(code, conflicts);
+}
+// the weakest link: the support of a lightest logical operator, joined nearest-neighbour first
+function drawWeakest(code, s) {
+  const info = codeInfo(code); if (!info || !info.d) return;
+  const r = info.dx.d && (!info.dz.d || info.dx.d <= info.dz.d) ? info.dx : info.dz, kind = r === info.dx ? 'bit flip' : 'phase flip';
+  if (!r.support || !r.support.length) return;
+  const P = r.support.map(i => lp(code.qubits[i])), order = [P[0]], rest = P.slice(1);
+  while (rest.length) { const last = order[order.length - 1]; let bi = 0; rest.forEach((q, i) => { if (Math.hypot(q[0] - last[0], q[1] - last[1]) < Math.hypot(rest[bi][0] - last[0], rest[bi][1] - last[1])) bi = i; }); order.push(rest.splice(bi, 1)[0]); }
+  lg.save(); lg.strokeStyle = 'rgba(255,90,114,.9)'; lg.lineWidth = 2.5; lg.setLineDash([7, 5]);
+  if (order.length > 1) { lg.beginPath(); order.forEach(([x, y], i) => (i ? lg.lineTo(x, y) : lg.moveTo(x, y))); lg.stroke(); }
+  lg.setLineDash([]); order.forEach(([x, y]) => { lg.beginPath(); lg.arc(x, y, s * 0.24, 0, 7); lg.stroke(); });
+  const [x0, y0] = order[0]; lg.fillStyle = 'rgba(255,90,114,.95)'; lg.font = '700 12px Helvetica,Arial'; lg.textAlign = 'center';
+  lg.fillText(`weakest link: ${r.d} ${kind}${r.d > 1 ? 's' : ''}`, Math.min(Math.max(x0, 70), LW - 70), Math.max(14, y0 - s * 0.36));
+  lg.restore();
+}
+// hover preview: dashed outlines of what a tap would change (with its symmetric copies), and a tip with the new [[n, k, d]]
+function drawGhost() {
+  const h = lab.hover; if (!h || lab.mode !== 'build') { $('ghostTip').hidden = true; return; }
+  lg.save(); lg.setLineDash([5, 4]); lg.lineWidth = 2;
+  if (h.kind === 'carve') { lg.strokeStyle = '#ff5a72'; for (const [x, y] of h.sets) { const [px, py, s] = lp({ x, y }); lg.beginPath(); lg.arc(px, py, s * 0.3, 0, 7); lg.stroke(); } }
+  else { lg.strokeStyle = h.next === 2 ? COL.litX : h.next === 1 ? COL.litZ : h.next === 3 ? '#a98bff' : 'rgba(234,240,255,.7)';
+    for (const pts of h.sets) { const P = pts.map(([x, y]) => lp({ x, y })), cx = P.reduce((a, v) => a + v[0], 0) / P.length, cy = P.reduce((a, v) => a + v[1], 0) / P.length;
+      P.sort((u, v) => Math.atan2(u[1] - cy, u[0] - cx) - Math.atan2(v[1] - cy, v[0] - cx));
+      lg.beginPath(); P.forEach(([x, y], i) => (i ? lg.lineTo(x, y) : lg.moveTo(x, y))); if (P.length > 2) lg.closePath(); lg.stroke(); } }
+  lg.restore();
+  const tip = $('ghostTip'); tip.hidden = !h.text; tip.innerHTML = h.text || '';
+  tip.style.left = Math.min(LW - 250, Math.max(4, h.px + 14)) + 'px'; tip.style.top = Math.max(4, h.py - 46) + 'px';
 }
 function drawGraph(code, pos, s) {
   const T = lab.errTool, ct = T === 'X' ? 'Z' : 'X', cs = code.checks.filter(c => c.type === ct);
@@ -863,7 +1029,7 @@ function codeInfo(code) {
 function analyse(code, conflicts) {
   $('checkList').innerHTML = lab.checks.map((c, i) => `<li class="${conflicts.has(i) ? 'bad' : ''}"><span>${c.type === 'Z' ? '<i class="lz"></i>bit-flip (Z…Z)' : '<i class="lx"></i>phase-flip (X…X)'} on ${c.q.join(', ')}${conflicts.has(i) ? ' · does not commute' : ''}</span><button data-del="${i}" aria-label="Delete this check">✕</button></li>`).join('') || '<li><span class="lbl">No checks yet</span></li>';
   let v = '', info = null;
-  if (!code) v = 'Tap a square on the grid to start, or pick a known code from <b>Start from…</b>.';
+  if (!code) v = `Tap a ${GEO[lab.geom].face} or an edge on the grid to place your first ancilla, or pick a known code from <b>Start from…</b>.`;
   else if (!code.commuteOK) v = '<b style="color:#d9475a">Two alarms clash.</b> A bit-flip and a phase-flip alarm (red outlines) share an odd number of qubits, so measuring one would disturb the other. Make them share 0, 2 or 4 qubits.';
   else if (code.k <= 0) v = `<b>[[${code.n}, 0]]</b>: no room left for information. The checks pin down every state; remove a check or add qubits.`;
   else {
@@ -889,6 +1055,8 @@ const CHAL = [
   { t: 'Correct two errors, decodable by matching', s: 'd ≥ 5 and a matching graph', ok: (c, i) => i.d >= 5 && i.matchable },
   { t: 'Beat the surface code', s: 'k·d²/n > 1 with d ≥ 3', ok: (c, i) => i.d >= 3 && i.score > 1.0001 },
   { t: 'Survive noisy hardware', s: 'break-even above 10% for depolarizing noise (press Measure)', ok: () => lab.perf && lab.perf.mode === 'dep' && lab.perf.pth > 0.10 },
+  { t: 'Leave the square grid', s: 'a honeycomb or triangle code that corrects any single error (d ≥ 3)', ok: (c, i) => i.d >= 3 && lab.geom !== 'square' },
+  { t: 'Forecast: 7× safer than bare qubits', s: 'at p = 2% in the live 🔮 forecast (d = 3 codes reach about 4–5×)', ok: () => fcSafer() >= 7 },
 ];
 const won = new Set();
 function challenges(code, info) {
@@ -915,32 +1083,63 @@ function labDecode() {
       : `<b>✗ Logical error.</b> Errors plus corrections (red rings) form a chain no lamp can see that changes the stored data. The decoder picked the lighter explanation, and the truth was the heavier one.`);
   drawLab(); ev('lab', { level: 'decode', value: cls.trivial ? 1 : 0 });
 }
+// what is under the pointer: the nearest lattice point (test, pick, carve) or the nearest face/edge centre (ancilla)
+function labTarget(e) {
+  const r = labCv.getBoundingClientRect(), [X, Y] = pxToPlane(e.clientX - r.left, e.clientY - r.top), GI = geoInfo(lab.geom);
+  let pt = null, pd = Infinity; for (const v of GI.pts) { const d = Math.hypot(v.X - X, v.Y - Y); if (d < pd) { pd = d; pt = v; } }
+  let cand = null, cd = Infinity; for (const c of GI.cands) { const d = Math.hypot(c.cx - X, c.cy - Y); if (d < cd) { cd = d; cand = c; } }
+  return { pt: pd < 0.4 ? pt : null, cand: cd < 0.42 ? cand : null, px: e.clientX - r.left, py: e.clientY - r.top };
+}
 function labTap(e) {
-  const r = labCv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, s = lp({ x: 0, y: 0 })[2];
-  const gx = (x - lp({ x: 0, y: 0 })[0]) / s, gy = (y - lp({ x: 0, y: 0 })[1]) / s;
-  if (lab.mode === 'test' || lab.pick) {   // tap a grid point
-    const ix = Math.round(gx), iy = Math.round(gy);
-    if (Math.hypot(gx - ix, gy - iy) > 0.4 || ix < 0 || iy < 0 || ix >= LG || iy >= LG) return;
-    let at = qAt(ix, iy);
+  const T = labTarget(e);
+  if (lab.mode === 'test' || lab.pick) {   // tap a lattice point
+    if (!T.pt) return;
+    let at = qAt(T.pt.x, T.pt.y);
     if (lab.mode === 'test') {
       const code = labCode(); if (at < 0 || !code) return;
       if (!lab.err) lab.err = Q.pauli(code.n);
       (lab.errTool === 'X' ? lab.err.x : lab.err.z)[at] ^= 1; lab.dec = null; $('labMsg').hidden = true; drawLab(); return;
     }
-    if (at < 0) { pushUndo(); lab.qubits.push({ x: ix, y: iy }); at = lab.qubits.length - 1; edited(); }
+    if (at < 0) { pushUndo(); lab.qubits.push({ x: T.pt.x, y: T.pt.y }); at = lab.qubits.length - 1; edited(); }
     if (lab.sel.has(at)) lab.sel.delete(at); else lab.sel.add(at);
     drawLab(); return;
   }
-  // build: the nearest square centre or edge midpoint
-  let best = null, bd = Infinity;
-  const cand = (cx, cy, pts) => { const d = Math.hypot(gx - cx, gy - cy); if (d < bd) { bd = d; best = pts; } };
-  for (let j = 0; j < LG; j++) for (let i = 0; i < LG; i++) {
-    if (i < LG - 1 && j < LG - 1) cand(i + 0.5, j + 0.5, [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]]);
-    if (i < LG - 1) cand(i + 0.5, j, [[i, j], [i + 1, j]]);
-    if (j < LG - 1) cand(i, j + 0.5, [[i, j], [i, j + 1]]);
+  if (lab.brush === 'carve') {
+    if (!T.pt || qAt(T.pt.x, T.pt.y) < 0) return;
+    const sets = pointSets(T.pt); labCommit(withCarved(sets, lab)); lab.hover = null; ev('lab', { level: 'carve', value: sets.length, geom: lab.geom }); return;
   }
-  if (best && bd < 0.36) cycleAt(best);
+  if (T.cand) { cycleCand(T.cand); lab.hover = null; hoverAt(e); }
 }
+// hover preview, computed once per target and cached: the [[n, k, d]] the tap would give, or why it would fail
+const ghostCache = new Map();
+function previewText(next) {
+  if (!next.qubits.length) return 'Removes the last ancilla.';
+  const key = lab.geom + JSON.stringify(next);
+  if (ghostCache.has(key)) return ghostCache.get(key);
+  const c = Q.custom(next, 'preview'), cur = labCode(), ci = cur && cur.commuteOK && cur.k > 0 ? codeInfo(cur) : null;
+  let t;
+  if (!c.commuteOK) t = '<b>Clash:</b> a bit-flip and a phase-flip ancilla would share an odd number of qubits.';
+  else if (c.k <= 0) t = `[[${c.n}, 0]]: no room left for information.`;
+  else { const dx = Q.distanceOf(c, 'X', 10, 6e4, 25), dz = Q.distanceOf(c, 'Z', 10, 6e4, 25), d = dx.d && dz.d ? Math.min(dx.d, dz.d) : null;
+    const was = ci ? `[[${cur.n}, ${cur.k}${ci.d ? ', ' + ci.d : ''}]] → ` : '';
+    const gain = ci && d && ci.d ? (d > ci.d ? ' <b>✓ distance up</b>' : d < ci.d ? ' (distance down)' : '') : d >= 3 ? ' <b>✓ corrects 1 error</b>' : '';
+    t = `${was}<b>[[${c.n}, ${c.k}${d ? ', ' + d : ''}]]</b>${gain}` + (Q.nonGraphQubit(c, 'Z') || Q.nonGraphQubit(c, 'X') ? '<br><span style="color:#9aa3cf">matching no longer applies</span>' : ''); }
+  if (ghostCache.size > 300) ghostCache.clear();
+  ghostCache.set(key, t); return t;
+}
+let hoverRaf = 0;
+function hoverAt(e) {
+  if (lab.mode !== 'build' || lab.pick) { if (lab.hover) { lab.hover = null; drawLab(); } return; }
+  const T = labTarget(e); let h = null;
+  if (lab.brush === 'carve') { if (T.pt && qAt(T.pt.x, T.pt.y) >= 0) { const sets = pointSets(T.pt); h = { kind: 'carve', sets, id: 'c' + sets.join('|'), next: withCarved(sets, lab) }; } }
+  else if (T.cand) { const sets = candSets(T.cand), next = (stateAt(sets[0], lab.checks, lab.qubits) + 1) % 4; h = { kind: 'anc', sets, next, id: 'a' + sets.join('|') + next, code: withStates(sets, next, lab) }; }
+  if (h) { h.px = T.px; h.py = T.py; h.text = previewText(h.kind === 'carve' ? h.next : h.code); if (h.kind === 'carve') h.next = -1; }
+  const changed = (h && h.id) !== (lab.hover && lab.hover.id);
+  lab.hover = h; if (h && !changed) { const tip = $('ghostTip'); tip.style.left = Math.min(LW - 250, Math.max(4, h.px + 14)) + 'px'; tip.style.top = Math.max(4, h.py - 46) + 'px'; return; }
+  cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(drawLab);
+}
+labCv.addEventListener('mousemove', hoverAt);
+labCv.addEventListener('mouseleave', () => { lab.hover = null; drawLab(); });
 labCv.addEventListener('click', labTap);
 $('checkList').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; pushUndo(); lab.checks.splice(+b.dataset.del, 1); edited(); drawLab(); });
 function addCheck(types) { if (lab.sel.size < 1) return; pushUndo(); const q = [...lab.sel].sort((a, b) => a - b); for (const t of types) lab.checks.push({ type: t, q }); lab.sel.clear(); edited(); drawLab(); ev('lab', { level: 'add_check', value: q.length }); }
@@ -950,11 +1149,20 @@ $('freeForm').addEventListener('toggle', () => { lab.pick = $('freeForm').open &
 function setLabMode(m) {
   lab.mode = m; lab.pick = m === 'build' && $('freeForm').open;
   for (const x of $('labMode').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x.dataset.v === m));
-  $('testTools').hidden = m !== 'test'; $('freeForm').hidden = m !== 'build'; labCv.style.cursor = m === 'test' ? 'pointer' : 'crosshair';
+  $('testTools').hidden = m !== 'test'; $('freeForm').hidden = m !== 'build'; $('buildTools').hidden = m !== 'build'; lab.hover = null; labCv.style.cursor = m === 'test' ? 'pointer' : 'crosshair';
   if (m === 'build') { lab.err = null; lab.dec = null; $('labMsg').hidden = true; }
   labHelp(); drawLab();
 }
 $('labMode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setLabMode(b.dataset.v); });
+const pressOnly = (seg, b) => { for (const x of $(seg).querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); };
+function setGeom(g, keep) {
+  if (!GEO[g]) return;
+  if (g !== lab.geom && !keep && lab.qubits.length) { pushUndo(); lab.qubits = []; lab.checks = []; lab.sel.clear(); }
+  lab.geom = g; lab.hover = null; pressOnly('geoSeg', $('geoSeg').querySelector(`[data-g="${g}"]`)); edited(); labHelp(); drawLab();
+}
+$('geoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.g !== lab.geom) { setGeom(b.dataset.g); ev('lab', { level: 'geom_' + b.dataset.g }); } });
+$('brushSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lab.brush = b.dataset.b; pressOnly('brushSeg', b); lab.hover = null; labHelp(); drawLab(); });
+$('symSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lab.sym = b.dataset.s; pressOnly('symSeg', b); lab.hover = null; drawLab(); ev('lab', { level: 'sym_' + lab.sym }); });
 $('labErrSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lab.errTool = b.dataset.t; for (const x of $('labErrSeg').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); drawLab(); });
 $('showGraph').addEventListener('change', drawLab);
 $('labRandom').addEventListener('click', () => { const code = labCode(); if (!code) return; const R = Math.random;
@@ -962,12 +1170,13 @@ $('labRandom').addEventListener('click', () => { const code = labCode(); if (!co
   lab.dec = null; $('labMsg').hidden = true; drawLab(); });
 $('labClearErr').addEventListener('click', () => { lab.err = null; lab.dec = null; $('labMsg').hidden = true; drawLab(); });
 $('runDec').addEventListener('click', () => { if (!lab.err) { $('labMsg').hidden = false; $('labMsg').className = 'msg'; $('labMsg').innerHTML = 'Put some errors on the qubits first: tap a qubit, or roll 🎲 random errors.'; return; } labDecode(); });
-$('labUndo').addEventListener('click', () => { const sn = lab.undo.pop(); if (!sn) return; const o = JSON.parse(sn); lab.qubits = o.q; lab.checks = o.c; lab.sel.clear(); edited(); drawLab(); });
+$('labUndo').addEventListener('click', () => { const sn = lab.undo.pop(); if (!sn) return; const o = JSON.parse(sn); lab.qubits = o.q; lab.checks = o.c; lab.sel.clear(); setGeom(o.g || 'square', true); });
 $('labReset').addEventListener('click', () => { pushUndo(); lab.qubits = []; lab.checks = []; lab.sel.clear(); $('preset').value = ''; edited(); drawLab(); });
 $('preset').addEventListener('change', e => { loadPreset(e.target.value); e.target.value = ''; });
 function loadPreset(k) {
   if (!k) return;
   pushUndo();
+  if (lab.geom !== 'square') { lab.geom = 'square'; pressOnly('geoSeg', $('geoSeg').querySelector('[data-g="square"]')); labHelp(); }
   const put = (code, dx, dy) => { lab.qubits = code.qubits.map(q => ({ x: q.x + dx, y: q.y + dy })); lab.checks = code.checks.map(c => ({ type: c.type, q: c.q.slice() })); };
   if (k === 'rep5') put(Q.repetition(5), 1, 3);
   if (k === 'surf3') put(Q.rotatedSurface(3), 2, 2);
@@ -980,22 +1189,114 @@ function loadPreset(k) {
   lab.sel.clear(); edited(); drawLab(); ev('lab', { level: 'preset_' + k });
 }
 $('playLab').addEventListener('click', () => {
-  G.customSpec = { qubits: lab.qubits.map(q => ({ x: q.x, y: q.y })), checks: lab.checks.map(c => ({ type: c.type, q: c.q.slice() })) };
+  G.customSpec = { qubits: lab.qubits.map(q => ({ x: q.x, y: q.y })), checks: lab.checks.map(c => ({ type: c.type, q: c.q.slice() })), geom: lab.geom };
   ensureCustomOption(); $('codeSel').value = 'custom'; setMode('sweep'); newGame(); ev('lab', { level: 'play', value: G.customSpec.qubits.length });
 });
 function ensureCustomOption() { if (![...$('codeSel').options].some(o => o.value === 'custom')) $('codeSel').insertAdjacentHTML('beforeend', `<option value="custom">${CODE_NAMES.custom}</option>`); }
 // share a code as a compact string: qubits "x.y;x.y;…" and checks "Tq,q,q;…"
-function encodeSpec(sp) { return encodeURIComponent(sp.qubits.map(q => q.x + '.' + q.y).join(';') + '|' + sp.checks.map(c => c.type + c.q.join(',')).join(';')); }
+function encodeSpec(sp) { const g = sp.geom || lab.geom; return encodeURIComponent((g && g !== 'square' ? g + ':' : '') + sp.qubits.map(q => q.x + '.' + q.y).join(';') + '|' + sp.checks.map(c => c.type + c.q.join(',')).join(';')); }
 function decodeSpec(str) {
-  try { const [qs, cs] = decodeURIComponent(str).split('|');
+  try { let raw = decodeURIComponent(str), geom = 'square'; const gm = /^(hex|tri):/.exec(raw); if (gm) { geom = gm[1]; raw = raw.slice(gm[0].length); }
+    const [qs, cs] = raw.split('|'), GW = GEO[geom].W, GH = GEO[geom].H;
     const qubits = qs.split(';').filter(Boolean).map(t => { const [x, y] = t.split('.').map(Number); return { x, y }; });
     const checks = (cs || '').split(';').filter(Boolean).map(t => ({ type: t[0] === 'X' ? 'X' : 'Z', q: t.slice(1).split(',').map(Number).filter(n => n >= 0 && n < qubits.length) })).filter(c => c.q.length);
-    if (qubits.length > LG * LG || qubits.some(q => !(q.x >= 0 && q.x < LG && q.y >= 0 && q.y < LG))) return null;
-    return { qubits, checks };
+    if (qubits.length > GW * GH || qubits.some(q => !(q.x >= 0 && q.x < GW && q.y >= 0 && q.y < GH))) return null;
+    return { qubits, checks, geom };
   } catch (e) { return null; }
 }
 $('shareLab').addEventListener('click', e => { const q = 'mode=lab&lab=' + encodeSpec({ qubits: lab.qubits, checks: lab.checks });
   window.PageKit ? PageKit.copyLink(e.target, 'qublitz/errorsweeper.html', q) : navigator.clipboard && navigator.clipboard.writeText(location.pathname + '?' + q); });
+
+// ───────── live decoder forecast ─────────
+// After every edit, decode thousands of noisy rounds with the game's decoder (minimum-weight perfect matching when the
+// code has a matching graph, otherwise the exact lightest-error search), at five error rates, in small slices so the page
+// stays responsive. Failures also mark the qubits in the residual chain (the weak spots). Same noise model as Measure.
+const FC_PS = [0.01, 0.02, 0.04, 0.07, 0.1], FC_SHOTS = 3000, FC_BUDGET = 3000;
+const fc = { key: '', pts: [], heat: null, timer: 0, done: false, ref: {}, lastDraw: 0 };
+const fcKey = code => (code && labCache && labCache.code === code ? labCache.key + '|' + $('labNoise').value : '');
+function fcSchedule() { clearTimeout(fc.timer); fc.timer = setTimeout(fcStart, 150); }
+function fcRef(mode) {   // the d = 3 surface code at the same rates, once per noise type
+  if (fc.ref[mode]) return fc.ref[mode];
+  const ref = Q.rotatedSurface(3), R = Q.rng(5);
+  return (fc.ref[mode] = FC_PS.map(p => ({ p, v: Q.logicalRate(ref, p, mode, 2000, R) })));
+}
+function fcStart() {
+  const code = labCode(), mode = $('labNoise').value;
+  if (!code || !code.commuteOK || code.k <= 0) { fc.key = ''; fc.pts = []; fc.heat = null; fcDraw(); return; }
+  const key = fcKey(code); if (fc.key === key) return;
+  Object.assign(fc, { key, mode, code, pts: FC_PS.map(p => ({ p, n: 0, fail: 0 })), heat: new Float64Array(code.n), done: false, t0: performance.now(), R: Q.rng(11) });
+  fcRef(mode);
+  const run = () => {
+    if (fc.key !== key) return;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 28) {
+      const pt = fc.pts.reduce((a, b) => (b.n < a.n ? b : a));
+      if (pt.n >= FC_SHOTS) { fc.done = true; break; }
+      for (let i = 0; i < 25; i++) {
+        const e = Q.sample(code, pt.p, mode, fc.R), r = Q.combine(e, Q.decode(code, Q.syndrome(code, e)));
+        pt.n++; if (!Q.classify(code, r).trivial) { pt.fail++; for (let q = 0; q < code.n; q++) if (r.x[q] || r.z[q]) fc.heat[q] += 1 / pt.p; }
+      }
+    }
+    if (performance.now() - fc.t0 > FC_BUDGET) fc.done = true;
+    const now = performance.now();
+    if (fc.done || now - fc.lastDraw > 250) { fc.lastDraw = now; fcDraw(); if (G.mode === 'lab') drawLab(); }
+    if (!fc.done) setTimeout(run, 0);
+    else ev('lab', { level: 'forecast', n: code.n, k: code.k, safer2: +fcSafer().toFixed(2), geom: lab.geom });
+  };
+  run();
+}
+// how many times less often the code fails than k bare qubits at p = 2% (0 if not enough rounds yet)
+function fcSafer() {
+  const pt = fc.pts.find(q => q.p === 0.02); if (!pt || pt.n < 2000 || !fc.code) return 0;
+  const bare = Q.bareRate(0.02, fc.mode, fc.code.k);
+  return pt.fail ? bare / (pt.fail / pt.n) : bare * pt.n;   // with no failures, a lower bound
+}
+function fcDraw() {
+  const cv = $('fcPlot'), d = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth || 300, H = cv.clientHeight || 160;
+  cv.width = W * d; cv.height = H * d; const c = cv.getContext('2d'); c.setTransform(d, 0, 0, d, 0, 0);
+  c.fillStyle = COL.bg; c.fillRect(0, 0, W, H);
+  const L = 40, Rt = 10, T = 8, B = 22, lx = p => L + (Math.log(p) - Math.log(0.008)) / (Math.log(0.13) - Math.log(0.008)) * (W - L - Rt),
+    ly = v => T + (Math.log(1) - Math.log(Math.max(v, 1e-4))) / (Math.log(1) - Math.log(1e-4)) * (H - T - B);
+  c.strokeStyle = 'rgba(160,190,230,.15)'; c.fillStyle = '#9aa3cf'; c.font = '10px Helvetica,Arial'; c.lineWidth = 1;
+  for (const v of [1, 0.1, 0.01, 0.001, 0.0001]) { c.beginPath(); c.moveTo(L, ly(v)); c.lineTo(W - Rt, ly(v)); c.stroke(); c.textAlign = 'right'; c.fillText(v >= 0.01 ? (100 * v) + '%' : (100 * v).toPrecision(1) + '%', L - 4, ly(v) + 3); }
+  for (const p of FC_PS) { c.textAlign = 'center'; c.fillText(Math.round(100 * p) + '%', lx(p), H - 7); }
+  const code = fc.code && fc.key && fc.key === fcKey(labCode()) ? fc.code : null, mode = $('labNoise').value, k = code ? code.k : 1;
+  const line = (pts, col, dash, w) => { c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash); c.beginPath(); let on = false;
+    for (const q of pts) { if (!(q.v > 0)) { on = false; continue; } const x = lx(q.p), y = ly(q.v); if (on) c.lineTo(x, y); else c.moveTo(x, y); on = true; } c.stroke(); c.setLineDash([]); };
+  line(FC_PS.map(p => ({ p, v: Q.bareRate(p, mode, k) })), 'rgba(234,240,255,.55)', [5, 4], 1.5);
+  line(fcRef(mode), 'rgba(95,180,255,.6)', [2, 3], 1.5);
+  c.textAlign = 'left'; c.fillStyle = 'rgba(234,240,255,.7)'; c.fillText(k > 1 ? `${k} bare qubits` : 'bare qubit', lx(0.011), ly(Q.bareRate(0.011, mode, k)) - 5);
+  c.fillStyle = 'rgba(95,180,255,.85)'; c.fillText('surface d = 3', lx(0.045), ly(fcRef(mode)[2].v) + 13);
+  if (code) {
+    const pts = fc.pts.filter(q => q.n).map(q => ({ p: q.p, v: q.fail / q.n, n: q.n, fail: q.fail }));
+    line(pts, '#f5b73c', [], 2.5);
+    for (const q of pts) { const x = lx(q.p); c.fillStyle = '#f5b73c';
+      if (q.fail) { c.beginPath(); c.arc(x, ly(q.v), 3.5, 0, 7); c.fill(); }
+      else { const y = ly(1 / q.n); c.beginPath(); c.moveTo(x - 4, y - 3); c.lineTo(x + 4, y - 3); c.lineTo(x, y + 4); c.closePath(); c.fill(); } }   // ▼ = below 1/n
+  }
+  fcText(code);
+}
+function fcText(code) {
+  const head = $('fcHead'), note = $('fcNote'), state = $('fcState');
+  if (!code) { state.textContent = ''; head.innerHTML = 'Build a working code (k ≥ 1, no clashes) and the forecast updates by itself: thousands of noisy rounds, decoded live.'; note.innerHTML = ''; return; }
+  const info = codeInfo(code), mode = fc.mode, total = fc.pts.reduce((a, q) => a + q.n, 0);
+  state.textContent = fc.done ? `${total.toLocaleString()} noisy rounds decoded` : `decoding… ${total.toLocaleString()} rounds`;
+  const pt = fc.pts.find(q => q.p === 0.02), bare = Q.bareRate(0.02, mode, code.k), v = pt.n ? pt.fail / pt.n : 0;
+  const ratio = pt.fail ? bare / v : null;
+  head.innerHTML = pt.n < 200 ? 'Decoding…' : `At <b>p = 2%</b> per qubit, your code loses its data in <span class="big">${pt.fail ? (100 * v).toFixed(v < 0.01 ? 2 : 1) + '%' : '< ' + (100 / pt.n).toFixed(2) + '%'}</span> of rounds; ${code.k > 1 ? code.k + ' bare qubits: ' : 'a bare qubit: '}${(100 * bare).toFixed(1)}%. ` +
+    (ratio == null ? `<b>More than ${Math.floor(bare * pt.n)}× safer.</b>` : ratio >= 1 ? `<b>${ratio.toFixed(ratio < 10 ? 1 : 0)}× safer.</b>` : `<b style="color:#ff5a72">${(1 / ratio).toFixed(1)}× worse than no code.</b>`);
+  const dec = info.matchable ? 'Decoder: <b>minimum-weight perfect matching</b>: lit lamps are paired along the shortest chains of qubits.'
+    : `Decoder: <b>exact lightest-error search</b>. Matching does not apply here: qubit ${(info.ngX || info.ngZ).q} sits in ${(info.ngX || info.ngZ).checks.length} ${info.ngX ? 'bit-flip' : 'phase-flip'} ancillas, so one error lights 3 or more lamps. Color codes need decoders like this.`;
+  // the slope of the curve at low p: failures scale as p^m, with m = ⌈d/2⌉ errors needed to fool a minimum-weight decoder
+  const good = fc.pts.filter(q => q.fail >= 8 && q.p <= 0.04);
+  let slope = '';
+  if (good.length >= 2 && info.d) { const a = good[0], b = good[good.length - 1], m = Math.log((b.fail / b.n) / (a.fail / a.n)) / Math.log(b.p / a.p);
+    slope = ` Slope at low p ≈ <b>${m.toFixed(1)}</b>: failures grow like p<sup>${Math.ceil(info.d / 2)}</sup> for d = ${info.d}, because ⌈d/2⌉ = ${Math.ceil(info.d / 2)} errors are enough to fool the decoder. Every 2 more units of distance make the curve one power steeper.`; }
+  note.innerHTML = dec + slope + (fc.done && total < FC_PS.length * FC_SHOTS ? ' <i>This decoder is slow on this code, so fewer rounds were played.</i>' : '') +
+    ` <span style="color:#9aa3cf">Red glow on the board: qubits in the chains that fooled the decoder; that is where an extra ancilla helps most. X and Z are decoded separately, as in the Measure card.</span>`;
+}
+$('labNoise').addEventListener('change', fcSchedule);
+$('fcHeat').addEventListener('change', drawLab);
 
 // how good is it: logical failure vs p for this code, the d = 3 surface code and bare qubits; break-even = crossing
 const LAB_PS = [0.005, 0.01, 0.02, 0.03, 0.05, 0.07, 0.1, 0.14, 0.2];
@@ -1103,7 +1404,7 @@ const DAILY_SIZES = [[5, 6], [7, 5], [6, 7], [8, 4], [9, 4], [7, 7], [10, 5], [6
 const DSZ = DAILY_SIZES[parseInt(dayStr, 10) % DAILY_SIZES.length];
 const kd2 = (i, c) => Q.kd2n(c.n, c.k, i.d);
 // a check is "local" on the square grid when its qubits fit in one unit cell
-const localOnly = c => c.checks.every(ch => { const xs = ch.q.map(i => c.qubits[i].x), ys = ch.q.map(i => c.qubits[i].y); return Math.max(...xs) - Math.min(...xs) <= 1 && Math.max(...ys) - Math.min(...ys) <= 1; });
+const localOnly = c => lab.geom === 'square' && c.checks.every(ch => { const xs = ch.q.map(i => c.qubits[i].x), ys = ch.q.map(i => c.qubits[i].y); return Math.max(...xs) - Math.min(...xs) <= 1 && Math.max(...ys) - Math.min(...ys) <= 1; });
 const MISSIONS = [
   { id: 'lat-first', tier: 1, kind: 'lattice', title: 'First shield', goal: 'Build a code that corrects any single error (d ≥ 3). Score: k·d²/n.', ok: (i, c) => i.d >= 3, score: kd2, record: 1, known: 'The rotated surface code scores exactly 1 at every size (k = 1, n = d²).' },
   { id: 'lat-pocket', tier: 1, kind: 'lattice', title: 'Pocket code', goal: 'Correct any single error (d ≥ 3) with as few qubits as you can. Score: 100/n.', ok: (i, c) => i.d >= 3, score: (i, c) => 100 / c.n, record: 100 / 7, known: 'No CSS code corrects every single error with fewer than 7 qubits; Steane’s [[7,1,3]] does it with 7 (Steane 1996). The advanced panel lets you draw its 4-qubit faces.' },
@@ -1302,7 +1603,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-spec]'); if (!b || !b.closest('.board')) return;
   const spec = decodeURIComponent(b.dataset.spec);
   if (b.dataset.fam === 'bb') { hLoadSpec(spec); ev('hunt', { level: 'load_board' }); }
-  else { const sp = decodeSpec(spec); if (sp) { pushUndo(); lab.qubits = sp.qubits; lab.checks = sp.checks; edited(); drawLab(); ev('hunt', { level: 'load_board' }); } }
+  else { const sp = decodeSpec(spec); if (sp) { pushUndo(); lab.qubits = sp.qubits; lab.checks = sp.checks; setGeom(sp.geom, true); ev('hunt', { level: 'load_board' }); } }
 });
 // tier 1 missions live in the Code lab: a mission bar with the goal, the score, submit and the board
 function huntLab(code, info) {
@@ -1354,7 +1655,7 @@ let startMode = 'learn';
 try {
   const sp = new URLSearchParams(location.search);
   const spec = sp.get('lab') && decodeSpec(sp.get('lab'));
-  if (spec) { lab.qubits = spec.qubits; lab.checks = spec.checks; G.customSpec = spec; ensureCustomOption(); }
+  if (spec) { lab.qubits = spec.qubits; lab.checks = spec.checks; lab.geom = spec.geom; pressOnly('geoSeg', $('geoSeg').querySelector(`[data-g="${spec.geom}"]`)); G.customSpec = spec; ensureCustomOption(); }
   if (sp.get('code') && ($('codeSel').querySelector(`option[value="${sp.get('code')}"]`))) $('codeSel').value = sp.get('code');
   if (['X', 'Z', 'XZ', 'dep'].includes(sp.get('noise'))) $('noiseSel').value = sp.get('noise');
   const p = parseFloat(sp.get('p')); if (p >= 1 && p <= 15) { $('pSlider').value = p; $('pTxt').textContent = p.toFixed(1) + '%'; }
@@ -1362,6 +1663,7 @@ try {
   if (startMode === 'sweep') { setMode('sweep'); newGame(+sp.get('seed') || undefined); }
 } catch (e) { /* plain start */ }
 if (G.mode !== startMode || !G.code) setMode(startMode);
+placeMsg();
 })();
 </script>
 <script src="../shared/pagekit.js"></script>
