@@ -10,6 +10,7 @@
      scripts/build_standalone.py inlines these two scripts into a single downloadable file. -->
 <script src="../vendor/plotly-2.35.2.min.js"></script>
 <script src="fridge-engine.js"></script>
+<script src="../shared/qvault.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -105,6 +106,7 @@
   .ck li.done{background:#e9f6ef;border-color:#b9dcc8}
   .ck li.done::before{content:'✓';background:var(--green);border-color:var(--green);color:#fff}
   label.chk{font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+  .qvT{font-size:12.5px} .qvT td,.qvT th{vertical-align:top} .qvT tr.better td{background:rgba(0,105,62,.07)} .qvT small{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -155,6 +157,15 @@
   <div class="card">
     <h2>Per-stage summary at the reference frequency</h2>
     <div class="tablewrap"><table id="table"></table></div>
+  </div>
+
+  <div class="card" id="qvCard">
+    <h2>📚 How real labs wire it (from Q-Vault)</h2>
+    <p class="hint" style="margin-top:0">Published papers list the attenuators on their drive lines, stage by stage, and
+      <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a> records them. See how many thermal photons each
+      lab's line lets through, with this page's model, next to yours.</p>
+    <button id="qvLoad">Show published wiring</button>
+    <div id="qvOut"></div>
   </div>
 
   <details class="card math"><summary>Math used in this page</summary>
@@ -357,6 +368,7 @@ function render(){
   const st = readState();
   $('#bandWarn').innerHTML = st.warn ? `<div class="note warn">${st.warn}</div>` : '';
   model = compute(st);
+  try { qvRender(); } catch (e) { /* the Q-Vault panel is set up below */ }
   $('#fRefVal').textContent = `${st.fRef.toFixed(2)} GHz`;
   $('#frefLbl').textContent = `${st.fRef.toFixed(2)} GHz`;
   $('#nPtsVal').textContent = st.nPts;
@@ -486,6 +498,52 @@ function ckCheck(st){
   }
 }
 function touched(){ if (!ck.started) { ck.started = true; ql('start'); } }
+
+/* ---------- published wiring from Q-Vault (web/shared/qvault.js) ---------- */
+// Each paper's chain is computed attenuator by attenuator with this page's model (fridge-engine.js), at this page's stage
+// temperatures, a 100 mK cold plate (a stage the five rows above do not have) and the paper's own base temperature when it
+// states one. Only attenuators count: filters and isolators are left out. Chains whose attenuators all sit on the four
+// cold stages above can be loaded into the rows exactly.
+const QVS = { chains: null, src: {} };
+const STAGE_ROW = { '50K': 1, '4K': 2, still: 3, mxc: 4 }, STAGE_SHORT = { '50K': '50 K', '4K': '4 K', still: 'still', cold_plate: 'CP', mxc: 'MXC', room_temperature: 'RT' };
+async function qvShow(){
+  const QV = window.QVault, out = $('#qvOut');
+  if (!QV) return;
+  $('#qvLoad').disabled = true; $('#qvLoad').textContent = 'Loading from Q-Vault…';
+  try {
+    if (!QVS.chains) { const [parts, srcs] = await Promise.all([QV.load('qvault_setup_parts.csv'), QV.load('qvault_sources.csv')]); QVS.chains = QV.chains(parts); QVS.src = QV.sourceMap(srcs); }
+    $('#qvLoad').hidden = true; qvRender(); ql('qvault', { level: 'wiring', value: QVS.chains.length });
+  } catch (e) {
+    $('#qvLoad').disabled = false; $('#qvLoad').textContent = 'Show published wiring';
+    out.innerHTML = '<p class="hint">Could not reach Q-Vault (are you offline?). Try again later.</p>';
+  }
+}
+function qvRender(){
+  if (!QVS.chains) return;
+  const QV = window.QVault, st = readState(), f = st.fRef, mine = model.at[4].n;
+  const temps = { room_temperature: st.T[0], '50K': st.T[1], '4K': st.T[2], still: st.T[3], cold_plate: 0.1, mxc: st.T[4] };
+  const rows = QVS.chains.map((c, i) => {
+    const t = Object.assign({}, temps); if (c.base_mK) t.mxc = c.base_mK / 1e3;
+    return { c, i, n: QV.chainNoise(c, F, t, f) };
+  }).sort((a, b) => a.n - b.n);
+  $('#qvOut').innerHTML = `<p class="hint">Your line: <b>${sci(mine)}</b> thermal photons at ${f.toFixed(2)} GHz. ${rows.filter(r => r.n < mine).length} of ${rows.length} published lines let fewer through.</p>
+    <div class="tablewrap"><table class="qvT"><thead><tr><th>Paper</th><th>Line</th><th>Attenuators, top to bottom</th><th>Total</th><th>n<sub>eff</sub></th><th></th></tr></thead><tbody>${rows.map(({ c, i, n }) => {
+      const s = QVS.src[c.citekey], url = QV.doiURL(s);
+      return `<tr class="${n < mine ? 'better' : ''}"><td>${url ? `<a href="${url}" target="_blank" rel="noopener">${QV.cite(s, c.citekey)}</a>` : QV.cite(s, c.citekey)}</td><td>${c.role.replace('_', ' ')}${c.base_mK ? `<br><small>base ${c.base_mK} mK</small>` : ''}</td>
+        <td>${c.parts.map(p => `${STAGE_SHORT[p.stage] || p.stage} ${p.dB}${p.count > 1 ? '×' + p.count : ''}`).join(' · ')}</td><td>${c.total} dB</td><td><b>${sci(n)}</b></td>
+        <td>${c.mappable ? `<button data-qv="${i}" title="Load this wiring into the rows above">Load</button>` : '<small title="It has an attenuator on the 100 mK cold plate, which the rows above do not include">CP</small>'}</td></tr>`; }).join('')}</tbody></table></div>
+    <p class="hint">Stage temperatures are this page's (cold plate 100 mK, mixing chamber at the paper's stated base temperature when given). Only
+      attenuators are counted; filters, isolators and cable loss are not. ${QV.NOTE} Data locations are on each paper's Q-Vault page.</p>`;
+}
+$('#qvLoad').addEventListener('click', qvShow);
+$('#qvOut').addEventListener('click', e => {
+  const b = e.target.closest('[data-qv]'); if (!b) return;
+  const c = QVS.chains[+b.dataset.qv], st = readState();
+  st.A = [0, 0, 0, 0, 0]; for (const [stage, dB] of Object.entries(c.perStage)) st.A[STAGE_ROW[stage]] += dB;
+  st.A = st.A.map(v => Math.min(60, v)); if (c.base_mK) st.T[4] = c.base_mK / 1e3;
+  touched(); writeState(st); render(); ql('qvault', { level: 'load-wiring' });
+  $('#fridge').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 ckRender();
 
 /* ---------- events ---------- */

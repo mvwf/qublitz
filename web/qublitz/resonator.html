@@ -11,6 +11,7 @@
      scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
 <script src="../vendor/plotly-2.35.2.min.js"></script>
 <script src="resonator-engine.js"></script>
+<script src="../shared/qvault.js"></script>
 <script src="../shared/pagekit.js"></script>
 <style>
   :root{
@@ -221,6 +222,9 @@
     <p class="hint">Sliders are logarithmic: each step to the right multiplies Q. Type a value like <code>2e5</code> to set it exactly.</p>
     <div class="lbl" style="margin-top:10px">Try</div>
     <div class="presets" id="exPresets"></div>
+    <div class="lbl" style="margin-top:10px">Real resonators</div>
+    <button id="qvRes" title="Measured internal quality factors from Q-Vault">📚 Load a measured Qᵢ from Q-Vault</button>
+    <div id="qvResOut"></div>
   </div>
 </aside>
 
@@ -676,6 +680,31 @@ const EX_PRESETS = [
 $('#exPresets').innerHTML = EX_PRESETS.map((p, i) => `<button data-i="${i}" title="${p.tip}">${p.label}</button>`).join('');
 $('#exPresets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
   const p = EX_PRESETS[+b.dataset.i]; ex.qi = p.qi; ex.qc = p.qc; ex.phi = 0; syncEx(); });
+
+/* ---------- measured resonators from Q-Vault (web/shared/qvault.js) ---------- */
+// Sets Qi to a published value and Qc equal to it, since loss studies measure near critical coupling, where Qi is read most
+// precisely; the frequency too when the paper states one.
+const QVR = { list: null, src: {} };
+$('#qvRes').addEventListener('click', async () => {
+  const QV = window.QVault, out = $('#qvResOut'), b = $('#qvRes'); if (!QV) return;
+  b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+  try {
+    if (!QVR.list) { const [m, s] = await Promise.all([QV.load('qvault_measurements.csv'), QV.load('qvault_sources.csv')]); QVR.list = QV.resonatorQs(m); QVR.src = QV.sourceMap(s); }
+    b.hidden = true;
+    out.innerHTML = `<select id="qvResSel" aria-label="A measured resonator" style="max-width:100%;margin-top:4px"><option value="">Pick a measured resonator…</option>${QVR.list.map((r, i) =>
+      `<option value="${i}">${QV.cite(QVR.src[r.citekey], r.citekey)} · ${r.metal || '?'} on ${(r.substrate || '?').split(/[,(]/)[0].trim()} · ${QV.QI_NAMES[r.kind]} ${r.qualifier}${r.value.toExponential(1)} (${r.statistic})</option>`).join('')}</select>
+      <p class="hint" id="qvResNote">${QV.NOTE}</p>`;
+    $('#qvResSel').addEventListener('change', e => {
+      const r = QVR.list[+e.target.value]; if (!r) return;
+      ex.qi = Math.min(1e8, r.value); ex.qc = ex.qi; ex.phi = 0; if (r.f) { ex.fr = r.f; win = null; } syncEx();
+      const s = QVR.src[r.citekey], url = QV.doiURL(s);
+      $('#qvResNote').innerHTML = `${QV.cite(s, r.citekey)}: ${QV.QI_NAMES[r.kind]} = ${r.qualifier}${r.value.toExponential(2)} (${r.statistic}), ${r.loc}${r.value > 1e8 ? '; the slider stops at 10⁸' : ''}.
+        Q<sub>c</sub> is set equal to Q<sub>i</sub> (critical coupling, where Q<sub>i</sub> is measured best)${r.f ? '' : '; the paper gives no frequency here, so f<sub>r</sub> is unchanged'}.
+        ${url ? `<a href="${url}" target="_blank" rel="noopener">Paper</a> · ` : ''}<a href="${QV.deviceURL(r.citekey, r.device, r.kind)}" target="_blank" rel="noopener">In Q-Vault</a>. ${QV.NOTE}`;
+      try { window.QL && QL.event('qvault', { level: 'resonator' }); } catch (err) { /* optional */ }
+    });
+  } catch (err) { b.disabled = false; b.textContent = '📚 Load a measured Qᵢ from Q-Vault'; out.innerHTML = '<p class="hint">Could not reach Q-Vault (are you offline?).</p>'; }
+});
 
 $('#geoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ex.g = b.dataset.g; win = null; syncEx(); } });
 $('#qiR').addEventListener('input', e => { ex.qi = Math.pow(10, +e.target.value); syncEx('slider'); });

@@ -109,3 +109,7 @@ jobs:
       # Outreach kit: redaction, validation and the collector's aggregation (no personal data reaches the summary).
       - name: Outreach kit test
         run: node web/shared/tests/outreach.test.js
+
+      # Q-Vault bridge: CSV parsing, wiring chains and their thermal noise with the fridge model, resonator Q rows.
+      - name: Q-Vault bridge test
+        run: node web/shared/tests/qvault.test.js
