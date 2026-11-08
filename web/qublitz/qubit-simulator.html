@@ -151,14 +151,14 @@
     <p class="hint">Set the qubit yourself and watch how each parameter shows up in the experiments.</p>
     <div class="row">
       <div class="field"><label for="fWq">ω<sub>q</sub>/2π [GHz]</label><input id="fWq" type="number" min="1" max="10" step="0.001" value="5.0"></div>
-      <div class="field"><label for="fRabi">Rabi rate Ω<sub>R</sub>/2π [MHz]</label><input id="fRabi" type="number" min="1" max="1000" step="1" value="300"></div>
+      <div class="field"><label for="fRabi">Rabi rate Ω<sub>R</sub>/2π [MHz]</label><input id="fRabi" type="number" min="1" max="1000" step="1" value="25"></div>
       <div class="field"><label for="fT1">T₁ [ns]</label><input id="fT1" type="number" min="1" max="10000" step="1" value="150"></div>
       <div class="field"><label for="fT2">T₂ [ns] (≤ 2T₁)</label><input id="fT2" type="number" min="1" max="20000" step="1" value="300"></div>
       <button class="primary" id="fApply">Use this qubit</button>
       <button id="copyFree" title="Copy a link that opens free play with this qubit">Copy link</button>
       <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
     </div>
-    <p class="hint">T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
+    <p class="hint">Ω<sub>R</sub>/2π = 25 MHz gives a 20 ns π pulse (π = 1/(2Ω<sub>R</sub>)), typical of a real transmon. T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
     <div class="qvq">
       <button id="qvQubitBtn" title="Published transmons from Q-Vault, the MARQUIS database">📚 Load a real qubit from Q-Vault</button>
       <div id="qvQubitPick"></div>
@@ -310,6 +310,7 @@
       <span id="quickPulses" hidden>
         <span class="lbl">From your Rabi fit:</span>
         <button id="qPi">+ π pulse</button><button id="qPi2">+ π/2 pulse</button>
+        <span class="hint" id="qpNote" style="display:block;margin-top:4px"></span>
       </span>
     </div>
     <p class="hint" id="resHint"></p>
@@ -609,7 +610,10 @@ function applyFree(fromQV) {
   if (!fromQV) { QVS = null; tsDraw(); $('#qvQubitNote').hidden = true; try { const u = new URL(location.href); ['qv', 'f01', 't1', 't2', 't2kind'].forEach(k => u.searchParams.delete(k)); history.replaceState(null, '', u); } catch (e) {} }
   const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1);
   $('#fT2').value = T2;
-  useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 300), 1, 1000) / 1000, T1, T2 });
+  useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 25), 1, 1000) / 1000, T1, T2 });
+  // a slow drive needs a longer sweep trace to show a few Rabi cycles (3 cycles, at most 500 ns)
+  const needT = Math.min(500, Math.ceil(3e3 / clamp(num('#fRabi', 25), 1, 1000)));
+  if (num('#fdT', 25) < needT) $('#fdT').value = needT;
   $('#reveal').checked = true; renderReveal();
   try { const u = new URL(location.href); u.searchParams.delete('qubit'); u.searchParams.delete('assigned'); u.searchParams.set('free', freeParam()); history.replaceState(null, '', u); } catch (e) {}
 }
@@ -822,9 +826,19 @@ function syncQuickPulses() {
   const fit = state.freqFit, f = state.freq;
   $('#quickPulses').hidden = !(fit && fit.fMHz > 0);
   $('#useFit').hidden = !f;
+  $('#qpNote').innerHTML = fit && fit.fMHz > 0 ? `Uses Ω<sub>R</sub>/2π = ${fmtG(fit.fMHz)} MHz from your sweep's peak trace (π = ${fmtG(500 / fit.fMHz)} ns) and drives at the sweep peak, ${f.peakFreq.toFixed(4)} GHz.${offResWarn()}` : '';
+}
+// The fitted rate is the on-resonance Ω_R only when the peak trace swings all the way up. Off resonance by Δ the qubit
+// oscillates faster, at √(Ω_R² + Δ²), and only reaches Ω_R²/(Ω_R² + Δ²); a π pulse from that rate is too short.
+function offResWarn() {
+  const f = state.freq; if (!f) return '';
+  const top = f.maxProb[f.peakIdx];
+  return top < 0.9 ? `<br><b>⚠ Your peak trace only reaches P(|1⟩) = ${top.toFixed(2)}</b>: the nearest sweep point is off resonance, so this rate is the faster off-resonant one and the π pulse will come out too short. Press <b>Zoom in on the peak</b> on the Frequency Domain tab first.` : '';
 }
 $('#useFit').onclick = () => { $('#tdWd').value = state.freq.peakFreq.toFixed(6); syncSchedule(); scheduleRun(); };
 const quick = frac => () => {
+  // A π pulse only flips the qubit on resonance: drive at the sweep peak, where the Rabi rate was fitted.
+  if (state.freq && Math.abs(num('#tdWd', 0) - state.freq.peakFreq) > 5e-7) { $('#tdWd').value = state.freq.peakFreq.toFixed(6); syncSchedule(); }
   const dur = frac / (2 * state.freqFit.fMHz * 1e-3);       // π: 1/(2Ω), π/2: 1/(4Ω)
   addPulse({ type: 'square', target: 'x', amp: 1, start: clamp(num('#sqStart', 5), 0, state.td.tFinal), dur });
 };
@@ -974,7 +988,7 @@ function syncRamseyInputs() {
   const useFit = getPi2Src() === 'fit';
   $('#pi2ManualF').hidden = useFit;
   $('#pi2Info').innerHTML = useFit
-    ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, 'MHz')} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ns.`
+    ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, 'MHz')} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ns.${offResWarn()}`
     : `Corresponding π duration: ${(2 * num('#pi2', 0.7)).toFixed(3)} ns.`;
   $('#rTotal').textContent = `Total Ramsey points: ${clamp(int('#dN', 81), 11, 401) * clamp(int('#tN', 121), 11, 501)}`;
 }
@@ -1166,7 +1180,10 @@ function qvQubitLoad(r, s, offline) {
   const L = QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us, t2 }), who = `${QVault.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}`;
   const note = $('#qvQubitNote'); note.hidden = false;
   if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? QVault.sourceHTML(s, r.citekey) : ''}`; return; }
-  $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2;
+  // On the chip a ~20 ns π pulse is tiny next to T₁ ~ 100 µs. On the 1000× clock that would need a Rabi rate above f₀₁, so
+  // pick the slowest rate (25 MHz up to the lab's 300 MHz) whose π pulse is at most 1% of T₁ here.
+  const rabi = Math.min(300, Math.max(25, Math.ceil(5e4 / L.T1)));
+  $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2; $('#fRabi').value = rabi;
   if (getMode() === 'free') applyFree(true); else { $('#mode [data-v="free"]').click(); }
   // the mode switch above runs applyFree() without the flag, which clears the clock: set it after
   QVS = { who, k: +r.T1_us / L.T1, t1: +r.T1_us, t2, kind: t2 ? (t2r > 0 ? 'Ramsey' : 'echo') : '', f01: g4(r.f01_GHz) }; tsDraw(); renderFreq(); renderTD(); renderRamsey();
@@ -1177,7 +1194,7 @@ function qvQubitLoad(r, s, offline) {
   note.innerHTML = `<b>📚 A real qubit: ${who}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.<br>
     Its own numbers: f₀₁ = <b>${f(r.f01_GHz)} GHz</b>, T₁ = <b>${f(r.T1_us)} µs</b>${t2 ? `, T₂ (${kind}) = <b>${f(t2)} µs</b>` : ''}.
     Loaded with f₀₁ exact and time running ${QVault.TIME_SCALE}× faster, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns here${t2 ? ` (T₂/T₁ = ${(L.T2 / L.T1).toFixed(2)}, as on the chip)` : ''}.
-    The Rabi rate is the lab's (${$('#fRabi').value} MHz); a real transmon is driven at about 10–100 MHz.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
+    Rabi rate set to ${rabi} MHz, so the π pulse (${fmtG(500 / rabi)} ns) is ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁ here. On the real chip a 20 ns π pulse is about ${fmtG(100 * 0.02 / +r.T1_us, 1)}% of T₁; matching that on this clock would need a drive faster than the qubit itself.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
     ${offline ? '<br><i>Q-Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + QVault.sourceHTML(s, r.citekey)}`;
   ql('qvault', { level: 'qubit' });
 }
