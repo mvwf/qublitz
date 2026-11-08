@@ -24,5 +24,6 @@
     { id: 'sonify',      title: 'Sonify Images',                  path: 'qublitz/sonify.html',                      group: 'Fun' },
     { id: 'hub',         title: 'Demo hub',                       path: '',                                         group: 'Site' },
     { id: 'course',      title: 'Crash course map',               path: 'course.html',                              group: 'Site' },
+    { id: 'concepts',    title: 'Concept Map',                    path: 'concepts.html',                            group: 'Site' },
   ];
 })(typeof window !== 'undefined' ? window : globalThis);

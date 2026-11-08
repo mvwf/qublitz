@@ -446,6 +446,16 @@
       h('tbody', {}, ids.map(m => h('tr', {}, h('th', { scope: 'row', text: m }), h('td', { class: 'n', text: fmt(D[m]) }))))));
   }
 
+  function renderMaps() {
+    const M = summary.maps, box = $('cmaps'); if (!box) return;
+    if (!M) { box.replaceChildren(h('div', { class: 'empty', text: 'Not reported yet (it needs the updated collector, Code.gs).' })); return; }
+    if (!M.maps) { box.replaceChildren(h('div', { class: 'empty', text: 'No concept maps shared in this period.' })); return; }
+    const V = window.QL_CONCEPTS, L = id => (V && (V.CONCEPTS.find(c => c.id === id) || {}).label) || id, R = id => (V && (V.RELATIONS.find(r => r.id === id) || {}).label) || id;
+    box.replaceChildren(h('p', { class: 'note', text: `${fmt(M.maps)} shared maps. Most linked concepts: ${M.concepts.slice(0, 6).map(c => `${L(c.id)} (${c.degree})`).join(', ')}.` }),
+      h('table', {}, h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: 'Linked pair' }), h('th', { scope: 'col', text: 'Usually' }), h('th', { scope: 'col', class: 'n', text: 'Maps' }))),
+        h('tbody', {}, M.edges.slice(0, 20).map(e => h('tr', {}, h('th', { scope: 'row', text: `${L(e.a)} — ${L(e.b)}` }), h('td', { text: R(e.rel) }), h('td', { class: 'n', text: fmt(e.n) }))))));
+  }
+
   function renderStops() {
     const S = summary, box = $('stops');
     const ids = Object.keys(S.games).filter(g => g !== 'hub' && S.games[g].quits && Object.keys(S.games[g].quits).length).sort(byOpens);
@@ -500,7 +510,7 @@
     if (!summary) return;
     hideTip();
     renderKpis(); renderInsights(); renderLog(); renderVisits(); renderFunnel(); renderLevels(); renderRatings(); renderQuiz();
-    renderStops(); renderLab(); renderVersions(); renderDesigns(); renderCodes(); renderDevices(); renderCodeGames();
+    renderStops(); renderLab(); renderVersions(); renderDesigns(); renderMaps(); renderCodes(); renderDevices(); renderCodeGames();
   }
 
   // ── fetching a summary (dashboard period, report range, before/after windows) ─────────────────────────────

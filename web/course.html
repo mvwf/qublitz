@@ -49,6 +49,9 @@
   .mod .none{font-size:13.5px;color:var(--muted);margin:0}
   .foot{margin-top:26px;font-size:13.5px;color:var(--muted)}
   .foot details{margin-top:10px}
+  .cmap{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:16px 0 0}
+  .cmap a{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--green);font-weight:700;text-decoration:none}
+  .cmap span{font-size:13.5px;color:var(--muted)}
   label.all{font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 </style>
 </head>
@@ -68,6 +71,8 @@
 <div class="depths" id="depths" role="group" aria-label="Depth"></div>
 <div class="bar" id="bar"></div>
 <label class="all"><input type="checkbox" id="showAll"> Show the steps for every depth</label>
+
+<p class="cmap"><a href="concepts.html">🕸 Map what you know</a><span>link the key concepts, share your map, and compare with everyone's</span></p>
 
 <h2>The modules</h2>
 <div class="mods" id="mods"></div>
