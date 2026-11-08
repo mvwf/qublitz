@@ -101,6 +101,8 @@
   .depthCard p,.depthCard li{font-size:14px} .depthCard ol.steps3{margin:6px 0 8px;padding-left:22px} .depthCard ol.steps3 li{margin:4px 0}
   .realT{border-collapse:collapse;font-size:13px;width:100%;margin:6px 0} .realT th,.realT td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
   @media(max-width:640px){.realT{display:block;overflow-x:auto}}
+  .qvq{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px} .qvq select{max-width:100%;margin-top:6px}
+  .qvchips{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:6px} #qvQubitNote{margin-top:8px;font-size:13px}
 </style>
 </head>
 <body>
@@ -110,6 +112,7 @@
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
 <script src="../learning/qubit-lab.js"></script>
+<script src="../shared/qvault.js"></script>
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>⚛ Qublitz <span style="font-weight:400;color:var(--muted);font-size:17px">Virtual Qubit Lab</span></h1>
 <p class="sub">Characterize a qubit the way a lab does. Sweep the drive frequency to find the resonance, fit the Rabi
@@ -155,6 +158,12 @@
       <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
     </div>
     <p class="hint">T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
+    <div class="qvq">
+      <button id="qvQubitBtn" title="Published transmons from Q-Vault, the MARQUIS database">📚 Load a real qubit from Q-Vault</button>
+      <div id="qvQubitPick"></div>
+      <div class="note" id="qvQubitNote" role="status" hidden></div>
+      <div class="qvchips"><span data-qv-real="transmon.f01"></span><span data-qv-real="transmon.T1"></span><span data-qv-real="transmon.T2R"></span></div>
+    </div>
   </div>
 
   <div id="modeInstructor" hidden>
@@ -199,13 +208,15 @@
   <h2>🔧 Teaching numbers and real numbers</h2>
   <p>This lab's qubits are built to be quick to simulate, so a few numbers are far from a real transmon. Know which, before you compare:</p>
   <table class="realT">
-    <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons</th><th>why the lab differs</th></tr>
-    <tr><td>T₁</td><td>100–200 ns</td><td>tens to hundreds of µs</td><td>the lab solves every GHz oscillation (no rotating-wave approximation), so a 100 µs decay would take millions of time steps</td></tr>
-    <tr><td>Rabi rate Ω<sub>R</sub>/2π</td><td>200–500 MHz</td><td>roughly 10–100 MHz</td><td>a real transmon is not a two-level system: drive it faster than its anharmonicity (about −200 to −300 MHz) and it leaks into |2⟩</td></tr>
-    <tr><td>T₂</td><td>2T₁ (no pure dephasing)</td><td>often well below 2T₁</td><td>flux and charge noise dephase real qubits; free play lets you lower T₂</td></tr>
+    <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons (live from Q-Vault)</th><th>why the lab differs</th></tr>
+    <tr><td>frequency ω<sub>q</sub>/2π</td><td>4–6 GHz</td><td>a few GHz<br><span data-qv-real="transmon.f01"></span></td><td>the same: the lab's band is chosen to match</td></tr>
+    <tr><td>T₁</td><td>100–200 ns</td><td>tens to hundreds of µs<br><span data-qv-real="transmon.T1"></span></td><td>the lab solves every GHz oscillation (no rotating-wave approximation), so a 100 µs decay would take millions of time steps</td></tr>
+    <tr><td>Rabi rate Ω<sub>R</sub>/2π</td><td>200–500 MHz</td><td>roughly 10–100 MHz<br><span data-qv-real="transmon.alpha"></span></td><td>a real transmon is not a two-level system: drive it faster than its anharmonicity (about −200 to −300 MHz) and it leaks into |2⟩</td></tr>
+    <tr><td>T₂</td><td>2T₁ (no pure dephasing)</td><td>often well below 2T₁<br><span data-qv-real="transmon.T2R"></span><br><span data-qv-real="transmon.T2E"></span></td><td>flux and charge noise dephase real qubits; free play lets you lower T₂</td></tr>
   </table>
-  <p class="hint">Compare with published devices in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/compare" target="_blank" rel="noopener">Q-Vault</a>,
-    the MARQUIS database where every T₁, T₂ and quality factor links to the page it came from.</p>
+  <p class="hint">Each 📚 line is computed live from <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/parameters?kind=qubits" target="_blank" rel="noopener">Q-Vault</a>,
+    the MARQUIS database where every T₁, T₂ and quality factor links to the page it came from. To run one of those qubits here, use
+    <b>Free play → Load a real qubit</b>.</p>
 </div>
 
 <div class="card depthCard" data-depth="researcher">
@@ -591,7 +602,8 @@ const getMode = segmented('#mode', m => {
   if (m === 'free') applyFree();
   if (m === 'mystery' && state.qubit && state.qubit.code === 'FREE') setQubit(Q.randomCode());
 });
-function applyFree() {
+function applyFree(fromQV) {
+  if (!fromQV) { $('#qvQubitNote').hidden = true; try { const u = new URL(location.href); ['qv', 'f01', 't1', 't2', 't2kind'].forEach(k => u.searchParams.delete(k)); history.replaceState(null, '', u); } catch (e) {} }
   const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1);
   $('#fT2').value = T2;
   useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 300), 1, 1000) / 1000, T1, T2 });
@@ -600,7 +612,7 @@ function applyFree() {
 }
 // ?free=ωq[GHz],Ω_R[MHz],T1[ns],T2[ns] opens free play with that qubit (the lab manual links to these).
 const freeParam = () => [state.qubit.omegaQ, +(state.qubit.omegaRabi * 1000).toFixed(3), state.qubit.T1, state.qubit.T2].join(',');
-$('#fApply').onclick = applyFree;
+$('#fApply').onclick = () => applyFree();
 $('#copyFree').onclick = async () => {
   const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('free', freeParam());
   try { await navigator.clipboard.writeText(u.href); $('#copyFree').textContent = 'Copied ✓'; }
@@ -1106,6 +1118,62 @@ if (assigned && initial) {
   $('#newQubit').hidden = true; $('#codeIn').closest('.field').hidden = true;
 }
 syncQuickPulses();
+
+/* ---------------- real qubits from Q-Vault (web/shared/qvault.js) ---------------- */
+// A published transmon runs here with its own frequency and its own T₂/T₁, on a clock 1000× faster than the real chip
+// (QVault.labQubit). Q-Vault's "Qublitz" links (?qv=citekey~device~label&f01=&t1=&t2=) land here too: the numbers are
+// re-read from Q-Vault's live table by id; the link's own numbers are used only when Q-Vault cannot be reached.
+const QVQ = { rows: null, src: {}, list: null };
+async function qvQubitData() {
+  if (!QVQ.rows) {
+    const [p, s] = await Promise.all([QVault.load('qvault_parameters.csv'), QVault.load('qvault_sources.csv')]);
+    QVQ.rows = p; QVQ.src = QVault.sourceMap(s);
+    QVQ.list = p.filter(r => r.type === 'transmon' && QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us }).ok)
+      .sort((a, b) => (a.citekey < b.citekey ? -1 : a.citekey > b.citekey ? 1 : +b.T1_us - +a.T1_us));
+  }
+}
+function qvQubitLoad(r, s, offline) {
+  const t2r = parseFloat(r.T2R_us), t2e = parseFloat(r.T2E_us), t2 = t2r > 0 ? t2r : t2e > 0 ? t2e : null, kind = t2r > 0 ? 'Ramsey' : 'echo';
+  const L = QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us, t2 }), who = `${QVault.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}`;
+  const note = $('#qvQubitNote'); note.hidden = false;
+  if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? QVault.sourceHTML(s, r.citekey) : ''}`; return; }
+  $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2;
+  if (getMode() === 'free') applyFree(true); else { $('#mode [data-v="free"]').click(); }
+  // the mode switch calls applyFree() without the flag, which hides the note: show it again after
+  note.hidden = false;
+  try { const u = new URL(location.href); u.searchParams.set('qv', [r.citekey, r.device_id, r.label].filter(Boolean).join('~')); history.replaceState(null, '', u); } catch (e) {}
+  const f = v => +(+v).toPrecision(4);
+  note.innerHTML = `<b>📚 A real qubit: ${who}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.<br>
+    Its own numbers: f₀₁ = <b>${f(r.f01_GHz)} GHz</b>, T₁ = <b>${f(r.T1_us)} µs</b>${t2 ? `, T₂ (${kind}) = <b>${f(t2)} µs</b>` : ''}.
+    Loaded with f₀₁ exact and time running ${QVault.TIME_SCALE}× faster, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns here${t2 ? ` (T₂/T₁ = ${(L.T2 / L.T1).toFixed(2)}, as on the chip)` : ''}.
+    The Rabi rate is the lab's (${$('#fRabi').value} MHz); a real transmon is driven at about 10–100 MHz.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
+    ${offline ? '<br><i>Q-Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + QVault.sourceHTML(s, r.citekey)}`;
+  ql('qvault', { level: 'qubit' });
+}
+$('#qvQubitBtn').addEventListener('click', async () => {
+  const b = $('#qvQubitBtn'); b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+  try {
+    await qvQubitData(); b.hidden = true;
+    $('#qvQubitPick').innerHTML = `<select id="qvQubitSel" aria-label="A published transmon"><option value="">Pick one of ${QVQ.list.length} published transmons…</option>${QVQ.list.map((r, i) =>
+      `<option value="${i}">${QVault.cite(QVQ.src[r.citekey], r.citekey)} · ${r.label || r.device_id} · ${r.base_metal || '?'} · ${(+r.f01_GHz).toFixed(2)} GHz · T₁ ${+(+r.T1_us).toPrecision(3)} µs</option>`).join('')}</select>`;
+    $('#qvQubitSel').addEventListener('change', e => { const r = QVQ.list[+e.target.value]; if (r) qvQubitLoad(r, QVQ.src[r.citekey]); });
+  } catch (err) { b.disabled = false; b.textContent = '📚 Load a real qubit from Q-Vault'; $('#qvQubitPick').innerHTML = '<p class="hint">Could not reach Q-Vault (are you offline?).</p>'; }
+});
+(async function fromQVault() {
+  let sp; try { sp = new URL(location.href).searchParams; } catch (e) { return; }
+  // ?qvpick=1 (the hub's "Run a real transmon"): open free play with the list of published qubits showing
+  if (sp.get('qvpick') === '1' && !assigned) { $('#mode [data-v="free"]').click(); $('#qvQubitBtn').click(); $('#qvQubitBtn').closest('.qvq').scrollIntoView({ block: 'center' }); return; }
+  const qv = QVault.parseQV(sp.get('qv'));
+  if (!qv || !sp.get('f01') || assigned) return;
+  try {
+    await qvQubitData();
+    const r = QVault.findParam(QVQ.rows, qv);
+    if (r) return qvQubitLoad(r, QVQ.src[r.citekey]);
+  } catch (e) { /* offline: fall back to the link's numbers */ }
+  const t2 = sp.get('t2');
+  qvQubitLoad({ citekey: qv.citekey, device_id: qv.device, label: qv.label, f01_GHz: sp.get('f01'), T1_us: sp.get('t1'),
+    T2R_us: sp.get('t2kind') === 'r' ? t2 : '', T2E_us: sp.get('t2kind') === 'r' ? '' : t2 }, null, true);
+})();
 
 /* ---------------- arrivals from the games (?from=<id>, set by QL.labLink) ---------------- */
 // A short welcome that names the activity and points at the matching experiment; other parameters work as usual.

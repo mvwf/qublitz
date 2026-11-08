@@ -164,8 +164,11 @@
     <p class="hint" style="margin-top:0">Published papers list the attenuators on their drive lines, stage by stage, and
       <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a> records them. See how many thermal photons each
       lab's line lets through, with this page's model, next to yours.</p>
+    <div class="note" id="qvFromNote" role="status" hidden style="font-size:13px"></div>
     <button id="qvLoad">Show published wiring</button>
     <div id="qvOut"></div>
+    <p class="hint" style="margin-bottom:2px">Does it matter? Measured qubits read hotter than their mixing chamber, partly from photons that come down the lines:</p>
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px"><span data-qv-real="qubit.Teff"></span><span data-qv-real="qubit.Pexc"></span></div>
   </div>
 
   <details class="card math"><summary>Math used in this page</summary>
@@ -592,8 +595,29 @@ $('#dlCsv').addEventListener('click', ()=>{
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 });
 
+const ARRIVED = location.search;   // render() rewrites the query with the page state, so keep Q-Vault's link parameters
 writeState(fromQuery());
 render();
+
+// A wiring opened from Q-Vault's Setups page (?qv=citekey~setup&line=N): load it when it fits the five rows, and list it either way.
+(async function qvFrom(){
+  const sp = new URLSearchParams(ARRIVED);
+  const QV = window.QVault, qv = QV && QV.parseQV(sp.get('qv')); if (!qv) return;
+  const line = sp.get('line') || '', note = $('#qvFromNote');
+  note.hidden = false; note.textContent = `📚 Opened from Q-Vault: ${qv.citekey}, setup ${qv.device}. Loading its wiring…`;
+  try {
+    await qvShow(); if (!QVS.chains) throw new Error('offline');
+    const i = QVS.chains.findIndex(c => c.citekey === qv.citekey && c.setup === qv.device && (!line || String(c.line) === line));
+    const s = QVS.src[qv.citekey];
+    if (i < 0) { note.innerHTML = `📚 Opened from Q-Vault, but setup ${qv.device} of ${QV.cite(s, qv.citekey)} has no drive line with every attenuator's dB stated, so this page cannot compute it. ${QV.sourceHTML(s, qv.citekey)}`; return; }
+    const c = QVS.chains[i], parts = c.parts.map(p => `${STAGE_SHORT[p.stage] || p.stage} ${p.dB} dB${p.count > 1 ? ' ×' + p.count : ''}`).join(', ');
+    if (c.mappable) { const b = $('#qvOut').querySelector(`[data-qv="${i}"]`); if (b) b.click(); }
+    note.innerHTML = `<b>📚 A real drive line: ${QV.cite(s, c.citekey)}, setup ${c.setup}, ${c.role.replace('_', ' ')} line</b>: ${parts} (${c.total} dB in all).
+      ${c.mappable ? 'It is loaded into the rows above' + (c.base_mK ? `, with the paper's ${c.base_mK} mK base temperature` : '') + '.' : 'It has an attenuator on the 100 mK cold plate, a stage the rows above do not have, so it is computed in the table below instead of loaded.'}<br>${QV.sourceHTML(s, c.citekey)}`;
+    if (!c.mappable) $('#qvCard').scrollIntoView({ block: 'start' });
+    ql('qvault', { level: 'wiring-link' });
+  } catch (e) { note.textContent = `📚 Opened from Q-Vault (${qv.citekey}), but Q-Vault could not be reached. Try again when online.`; }
+})();
 </script>
 </body>
 </html>

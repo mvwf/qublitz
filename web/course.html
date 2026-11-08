@@ -36,6 +36,7 @@
   .mod.soon .n{background:var(--line);color:var(--ink)}
   .mod h3{margin:0;font-size:17px}
   .mod .idea{margin:6px 0 8px;font-size:14px;color:var(--muted)}
+  .mod .real{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin:0 0 8px}
   .mod ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
   .mod li a{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);min-height:44px}
   .mod li a:hover{border-color:var(--green)}
@@ -60,6 +61,7 @@
 <script src="shared/outreach-config.js"></script>
 <script src="learning/manifest.js"></script>
 <script src="shared/outreach.js"></script>
+<script src="shared/qvault.js"></script>
 <div class="wrap">
 <a class="back" href="index.html">← All demos</a>
 <h1>🧭 Quantum Engineering Crash Course</h1>
@@ -80,7 +82,8 @@
 <div class="foot">
   <p><b>Real data from Q-Vault.</b> Steps marked <span class="tag qv" style="border:1px solid #7a5cff;color:#7a5cff;border-radius:999px;padding:1px 8px;font-size:11.5px">Q-Vault</span>
   open <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/">Q-Vault</a>, the MARQUIS database of published coherence data for superconducting
-  qubits and resonators, where every number links to the page of the paper it came from.</p>
+  qubits and resonators, where every number links to the page of the paper it came from. The 📚 lines under a module (Student depth and
+  deeper) are computed live from it: the typical published value and its spread.</p>
   <p>Your progress (✓) comes from this browser only: which pages you have opened and which challenges you have finished. Nothing about
   it is sent anywhere.</p>
   <details><summary>For instructors and contributors</summary>
@@ -115,32 +118,32 @@
       ['student+', 'Three Equations, One Eigenbasis', 'Heat, waves and Schrödinger on the same modes', 'courses/engs23/heat-wave-schrodinger.html', 'trio'],
       ['engineer+', 'Hydrogen: lifetimes and pulses', 'Rates, saturation and the optical Bloch equations', 'courses/engs23/hydrogen.html', 'hydrogen'],
     ] },
-    { t: 'The qubit', idea: 'Two levels, one sphere: every qubit state is a point on the Bloch sphere, and gates are rotations.', steps: [
+    { t: 'The qubit', real: ['transmon.f01'], idea: 'Two levels, one sphere: every qubit state is a point on the Bloch sphere, and gates are rotations.', steps: [
       ['-student', 'Qubit Copter', 'Fly a qubit around the Bloch sphere', 'qublitz/qubit-copter.html', 'copter'],
       ['curious student', 'Beamline', 'A laser puzzle about pulse area and phase', 'qublitz/beamline.html', 'beamline'],
       ['engineer+', 'Virtual Qubit Lab: pulses', 'Square π and π/2 pulses on a simulated transmon', 'qublitz/qubit-simulator.html', 'qubit-lab'],
     ] },
-    { t: 'Control and coherence', idea: 'Pulses steer a qubit; T₁ and T₂ set how long you have before it forgets.', steps: [
+    { t: 'Control and coherence', real: ['transmon.T1', 'transmon.T2R'], idea: 'Pulses steer a qubit; T₁ and T₂ set how long you have before it forgets.', steps: [
       ['-student', 'Rabi Rider', 'Drive many runs to |1⟩ while T₁ pulls them back', 'qublitz/rabi-rider.html', 'rider'],
       ['student+', 'Virtual Qubit Lab: the checklist', 'Spectroscopy, Rabi, T₁ and Ramsey on a mystery qubit', 'qublitz/qubit-simulator.html', 'qubit-lab'],
       ['curious', 'Real qubits through the years', 'How long real qubits remember, paper by paper', QV, 'qv'],
       ['engineer+', 'Compare real devices', 'T₁ and T₂ of published qubits, side by side', QV + '#/compare', 'qv'],
       ['researcher', 'What did a fabrication change do?', 'Analyze one variable inside one paper, with error bars', QV + '#/analyze', 'qv'],
     ] },
-    { t: 'The hardware', idea: 'Superconducting circuits at 10 mK: resonators, junctions, wiring and the noise that sneaks in.', steps: [
+    { t: 'The hardware', real: ['resonator.Qi', 'qubit.Teff'], idea: 'Superconducting circuits at 10 mK: resonators, junctions, wiring and the noise that sneaks in.', steps: [
       ['-student', 'Fridge Noise Explorer', 'Keep the qubit cold: attenuators against thermal photons', 'qublitz/fridge-noise.html', 'fridge'],
       ['student+', 'Resonator Lab', 'Read the quality factor off a resonance', 'qublitz/resonator.html', 'resonator'],
       ['engineer+', 'Transmon energy levels', 'Solve real transmons and fluxonium from published E_J and E_C', QV + '#/levels', 'qv'],
       ['researcher', 'Exceptional points', 'Coupled lossy modes, where eigenvalues merge', 'qublitz/ep-tpd.html', 'ep-tpd'],
       ['researcher', 'Fab Lab', 'How each device was made, step by step', QV + '#/fablab', 'qv'],
     ] },
-    { t: 'Reading out a qubit', soon: true, idea: 'A qubit shifts its resonator’s frequency by ±χ, so the resonator’s response reveals 0 or 1.', steps: [
+    { t: 'Reading out a qubit', soon: true, real: ['transmon.chi', 'transmon.kappa'], idea: 'A qubit shifts its resonator’s frequency by ±χ, so the resonator’s response reveals 0 or 1.', steps: [
       ['student+', 'Resonator Lab', 'The resonance that readout listens to', 'qublitz/resonator.html', 'resonator'],
-      ['engineer+', 'Real χ and κ', 'Readout parameters of published qubits', QV + '#/explore', 'qv'],
+      ['engineer+', 'Real χ and κ', 'Readout parameters of published qubits', QV + '#/parameters?x=kappa_MHz&y=chi_MHz&kind=qubits', 'qv'],
     ], later: 'Coming next: a dispersive-readout lab with IQ blobs and readout fidelity.' },
     { t: 'Two qubits and entanglement', soon: true, idea: 'Two coupled qubits can share a state that neither has alone; a tuned interaction makes a two-qubit gate.', steps: [],
       later: 'Coming next: Bell states, a CZ gate from a tuned coupling, and an entanglement meter.' },
-    { t: 'Error correction', idea: 'Spread one qubit over many and measure only parities: find errors you cannot see.', steps: [
+    { t: 'Error correction', real: ['qubit.F2Q', 'qec.Lambda'], idea: 'Spread one qubit over many and measure only parities: find errors you cannot see.', steps: [
       ['-student', 'ErrorSweeper: Learn', 'From a parity bit to the surface code, with real circuits', 'qublitz/errorsweeper.html?mode=learn', 'errorsweeper'],
       ['curious', 'ErrorSweeper: Sweep', 'Turn off the lamps without flipping the logical qubit', 'qublitz/errorsweeper.html?mode=sweep', 'errorsweeper'],
       ['engineer+', 'Code lab and threshold', 'Design a code, watch a decoder, find where bigger codes win', 'qublitz/errorsweeper.html?mode=lab', 'errorsweeper'],
@@ -170,7 +173,7 @@
           <span class="t">${esc(t)}<small>${esc(note)}${ch}</small></span>${qv ? '<span class="tag qv">Q-Vault</span>' : ext ? '<span class="tag">reading</span>' : ''}${showAll ? `<span class="tag">${esc(tag)}</span>` : ''}</a></li>`;
       }).join('');
       return `<section class="mod ${m.soon ? 'soon' : ''}"><header><span class="n">${i + 1}</span><h3>${esc(m.t)}</h3></header>
-        <p class="idea">${esc(m.idea)}</p>${items ? `<ol>${items}</ol>` : `<p class="none">Nothing at this depth yet.</p>`}${m.later ? `<p class="later">⏳ ${esc(m.later)}</p>` : ''}</section>`;
+        <p class="idea">${esc(m.idea)}</p>${m.real && QL.atDepth('student+') ? `<div class="real">${m.real.map(k => `<span data-qv-real="${k}"></span>`).join('')}</div>` : ''}${items ? `<ol>${items}</ol>` : `<p class="none">Nothing at this depth yet.</p>`}${m.later ? `<p class="later">⏳ ${esc(m.later)}</p>` : ''}</section>`;
     }).join('');
     $('bar').innerHTML = `<span>${DEPTH_INFO[d][0]} path: <b>${done} of ${total}</b> activities opened</span><span class="meter"><i style="width:${total ? 100 * done / total : 0}%"></i></span>`;
   }

@@ -204,6 +204,7 @@
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
 <script src="../learning/errorsweeper.js"></script>
+<script src="../shared/qvault.js"></script>
 <a class="back" href="../index.html#labs">← All demos</a>
 <h1>🧹 ErrorSweeper <span>find the errors you cannot see</span></h1>
 <div class="sub" id="intro"><p style="margin:0">Quantum error correction as a deduction game: you never look at the data qubits, only at
@@ -405,6 +406,12 @@ The physics is real: these are the rotated surface code, the toric code, and the
   The dash-dot line is an unprotected qubit (it fails with probability p). If you built a code in the lab, tick the box to race it against them. Below the <b>threshold</b>, where the curves cross, bigger codes fail
   less often, so adding qubits helps; above it, bigger codes only collect more errors. <span id="thrNumbers"></span> Real devices also make errors
   in the check circuits and the measurements themselves, which lowers the threshold to about 1%.</p>
+  <h3 style="font-size:15px;margin:14px 0 4px">Where real qubits are</h3>
+  <p class="hint" style="margin:0 0 4px">A gate with fidelity F makes an error with probability about 1 − F, so a 99.5% two-qubit gate is p ≈ 0.5%,
+    under the 1% circuit-noise threshold but not far under it. Λ is what a real experiment measures: how many times the logical error rate drops
+    for each step in distance, d → d + 2. Λ &gt; 1 means the device is below threshold; the curves above give Λ ≈ (p<sub>th</sub>/p) for codes like these.</p>
+  <div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+    <span data-qv-real="qubit.F2Q"></span><span data-qv-real="qubit.F1Q"></span><span data-qv-real="qubit.readout"></span><span data-qv-real="qec.Lambda"></span></div>
 </div>
 </section>
 

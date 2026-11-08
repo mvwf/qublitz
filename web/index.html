@@ -29,6 +29,17 @@
   .hero .ctaBtn{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border-radius:999px;background:#fff;color:#00482b;font-weight:700;text-decoration:none;box-shadow:0 4px 18px rgba(0,0,0,.25)}
   .hero .ctaBtn:hover{transform:translateY(-1px)}
   .hero .cta span{font-size:13.5px;opacity:.85}
+  .hero .cta+.cta{margin-top:4px} .hero .ctaBtn.qv{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.55);box-shadow:none;min-height:40px}
+  .qvhub{margin:18px 0 0;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px 16px}
+  .qvhub h2{font-size:18px;margin:0 0 4px;color:var(--green)} .qvhub p{font-size:13.5px;margin:6px 0;max-width:900px}
+  .qvhub .go{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:10px 0 6px}
+  .qvhub .go a{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-decoration:none;color:var(--ink);background:var(--panel)}
+  .qvhub .go a:hover{border-color:var(--green2)} .qvhub .go b{display:block;color:var(--green);margin-bottom:2px} .qvhub .go small{color:var(--muted);font-size:12.5px}
+  .qvhub .chips2{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+  .funding{margin:22px 0 0;border-top:1px solid var(--line);padding:14px 0 4px;font-size:13.5px}
+  .funding h2{font-size:16px;margin:0 0 6px;color:var(--green)} .funding p{margin:6px 0;max-width:960px} .funding ul{margin:6px 0;padding-left:20px} .funding li{margin:3px 0}
+  .funding .disc{font-size:12px;color:var(--muted)}
+  html.retro .qvhub{background:transparent} html.retro .hero .ctaBtn.qv{background:transparent;color:var(--green);border:1px solid var(--green)}
   html.retro .hero .ctaBtn{background:var(--green);color:#061016}
   #heroCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.55}
   .hero .wrap{position:relative;padding-top:40px;padding-bottom:34px;pointer-events:none}
@@ -169,6 +180,7 @@
 <script src="shared/outreach-config.js"></script>
 <script src="learning/manifest.js"></script>
 <script src="shared/outreach.js"></script>
+<script src="shared/qvault.js"></script>
 <script src="learning/hub.js"></script>
 <header class="hero">
   <canvas id="heroCanvas" aria-hidden="true"></canvas>
@@ -178,6 +190,7 @@
     <p class="lede">Hands-on browser demos from our research and teaching, covering waves, Fourier modes, spectrograms, qubits and the
       cryogenics behind them. Everything runs in your browser. Nothing is installed and nothing is uploaded.</p>
     <p class="cta"><a class="ctaBtn" href="course.html">🧭 Take the crash course in quantum engineering</a><span>ten short modules, at the depth you choose</span></p>
+    <p class="cta"><a class="ctaBtn qv" href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">📚 Real device data: Q-Vault ↗</a><span>published T₁, T₂, quality factors and wiring, each linked to its paper</span></p>
     <div class="stats" id="stats"></div>
     <p class="hint" id="pluckHint">Move your cursor over the banner to pluck the field.</p>
   </div>
@@ -226,15 +239,47 @@
       anonymous usage counts and answers from that session can be grouped together. No names or accounts are involved.</p>
   </details>
 </div>
+<div class="wrap">
+  <section class="qvhub" id="qvault" aria-labelledby="qvH">
+    <h2 id="qvH">📚 Qublitz + Q-Vault: real numbers in every lab</h2>
+    <p>Qublitz labs teach with simple models; <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a>, the MARQUIS
+      database, holds what real superconducting devices achieve, each number linked to the page of the paper it came from. The two are wired together:
+      labs load published qubits, resonators and fridge wiring, and Q-Vault's tables open straight into the matching lab.</p>
+    <div class="go">
+      <a href="qublitz/qubit-simulator.html?qvpick=1"><b>⚛ Run a real transmon</b><small>Virtual Qubit Lab → Free play → Load a real qubit: its own frequency and T₂/T₁, on a fast clock</small></a>
+      <a href="qublitz/resonator.html?qvpick=1"><b>〰 Fit a real resonator</b><small>Resonator Lab → Load a measured Qᵢ from a published loss study</small></a>
+      <a href="qublitz/fridge-noise.html#qvCard"><b>❄ Wire a fridge like a real lab</b><small>Fridge Noise Explorer → Show published wiring: drive lines from papers, with their photon counts</small></a>
+      <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/parameters?kind=qubits" target="_blank" rel="noopener"><b>↗ Start in Q-Vault</b><small>Every qubit and resonator row has a <i>Qublitz</i> link that opens it in a lab</small></a>
+    </div>
+    <div class="chips2"><span data-qv-real="transmon.T1"></span><span data-qv-real="resonator.Qi"></span><span data-qv-real="qubit.F2Q"></span></div>
+  </section>
+</div>
 <script>if (window.QL) { if (QL.context) QL.context({ level: 'hub' }); if (QL.toLab) QL.toLab(document.getElementById('hubLab')); }</script>
 
 <main class="wrap" id="main"></main>
+
+<div class="wrap">
+  <section class="funding" id="funding" aria-labelledby="fundH">
+    <h2 id="fundH">Funding</h2>
+    <p>Qublitz is supported by:</p>
+    <ul>
+      <li>the <b>Unitary Foundation</b>;</li>
+      <li>the U.S. National Science Foundation, <b>NSF CAREER</b> award No. <a href="https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2540460" target="_blank" rel="noopener">2540460</a>,
+        <i>CAREER: Characterization of Material Defects Using Broadband Two-Level-System Spectroscopy</i>;</li>
+      <li>the U.S. National Science Foundation, <b>NSF MARQUIS</b> Quantum Leap Challenge Institute (Manufacturable and Resilient Superconducting
+        Quantum Information Systems), award No. <a href="https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2553633" target="_blank" rel="noopener">2553633</a>.</li>
+    </ul>
+    <p class="disc">Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not
+      necessarily reflect the views of the National Science Foundation.</p>
+  </section>
+</div>
 
 <footer>
   <div class="wrap">
     <span>Fitzlab, Thayer School of Engineering, Dartmouth · 15 Thayer Drive, Hanover, NH 03755</span>
     <span><a href="https://sites.google.com/view/fitzlab/open-source" target="_blank" rel="noopener">Fitzlab Open-Source</a> ·
-      <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Source on GitHub</a></span>
+      <a href="https://github.com/mvwf/qublitz" target="_blank" rel="noopener">Source on GitHub</a> ·
+      <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a> · <a href="#funding">Funding</a></span>
   </div>
 </footer>
 

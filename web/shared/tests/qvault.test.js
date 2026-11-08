@@ -43,5 +43,43 @@ const R = QV.resonatorQs(QV.parseCSV(MH + 'cro,D1,Qi_SP,15000000,1,best,,Fig. 3,
   'kim,D3,Qi_SP,1,1,single,,Table 1,superseded,resonator_cpw,NbN,Si,9.796\nx,D1,T1,5,us,best,,t,current,transmon,Al,Si,\n'));
 check('resonator Qs: current resonator Qi rows only, best first', R.length === 2 && R[0].value === 15e6 && R[1].f === 9.796);
 check('citations drop a stray leading "and"', QV.cite({ first_author: 'and Acharya', year: '2024' }, 'k') === 'Acharya 2024');
+
+// ── links from Q-Vault and the real qubit loader ──
+check('parseQV: citekey~device~label, labels may hold ~', JSON.stringify(QV.parseQV('bal2023systematic~D1~ST1~17')) === JSON.stringify({ citekey: 'bal2023systematic', device: 'D1', label: 'ST1~17' }));
+check('parseQV rejects junk', QV.parseQV('') === null && QV.parseQV('<script>~D1') === null);
+const PH = 'citekey,device_id,label,type,f01_GHz,T1_us,T2R_us,T2E_us,anharmonicity_MHz,Qi_SP_x,f_res_GHz\n';
+const PR = QV.parseCSV(PH + 'bal,D1,ST1-17,transmon,5.005,102,,155,,,\nbal,D1,ST1-18,transmon,4.746,118,,,-210,,\nsom,D1,,fluxonium,0.44,1000,,,,,\n' +
+  'kim,D3,,resonator_cpw,,,,,,272000,9.796\nx,D2,,transmon,6,30,20,,-300,,\n');
+check('findParam: exact label, and no silent fallback to a sibling when the label is wrong', QV.findParam(PR, QV.parseQV('bal~D1~ST1-18')).T1_us === '118' && QV.findParam(PR, QV.parseQV('bal~D1~nope')) === null);
+check('findParam: a device without a label', QV.findParam(PR, QV.parseQV('kim~D3')).Qi_SP_x === '272000');
+const L = QV.labQubit({ f01: 5.005, t1: 102, t2: 155 });
+check('labQubit: f01 exact, 1 µs real = 1 ns in the lab, T2/T1 kept', L.ok && L.omegaQ === 5.005 && L.T1 === 102 && L.T2 === 155 && QV.TIME_SCALE === 1000);
+const Lc = QV.labQubit({ f01: 4, t1: 30000, t2: 20000 });
+check('labQubit: T1 capped at 10 µs keeps T2/T1', Lc.ok && Lc.T1 === 1e4 && Math.abs(Lc.T2 / Lc.T1 - 2 / 3) < 1e-3 && Lc.notes.length === 1);
+const Lx = QV.labQubit({ f01: 5, t1: 50, t2: 140 });
+check('labQubit: T2 above 2T1 (not physical) is set to 2T1, with a note', Lx.T2 === 100 && /2T₁/.test(Lx.notes[0]));
+check('labQubit: no T2 means T2 = 2T1', QV.labQubit({ f01: 5, t1: 80 }).T2 === 160);
+check('labQubit: a fluxonium below 1 GHz is refused with a reason', !QV.labQubit({ f01: 0.44, t1: 1000 }).ok && /1–10 GHz/.test(QV.labQubit({ f01: 0.44, t1: 1000 }).why));
+
+// ── real-quantity statistics ──
+const vT1 = QV.realValues(PR, QV.REAL['transmon.T1']);
+check('realValues: only the listed device types', vT1.length === 3 && vT1.every(v => v.citekey !== 'som'));
+const st = QV.realStats(vT1);
+check('realStats: median, quartiles, counts', st.n === 3 && st.median === 102 && st.lo === 66 && st.hi === 110 && st.papers === 2, JSON.stringify(st));
+check('realValues: signed columns as magnitudes when asked (anharmonicity)', QV.realValues(PR, QV.REAL['transmon.alpha']).map(v => v.v).join() === '210,300');
+const MR = QV.parseCSV('citekey,device_id,quantity,value,qualifier,status\na,D1,F2Q,99.5,,current\nb,D1,F2Q,99.9,,current\nc,D1,F2Q,99.0,,superseded\nd,D1,readout_error,0.08,<,current\n');
+check('measurement quantities: superseded rows and bounds (<, >) left out', QV.realValues(MR, QV.REAL['qubit.F2Q']).length === 2 && QV.realValues(MR, QV.REAL['qubit.readout']).length === 0);
+const ML = QV.parseCSV('citekey,device_id,quantity,value,qualifier,status,notes\na,D1,QEC_Lambda,2.14,,current,Distance-7 surface code\na,D1,QEC_Lambda,8.4,,current,Repetition code average\n');
+check('Λ: surface-code values only, not the repetition code', QV.realValues(ML, QV.REAL['qec.Lambda']).map(v => v.v).join() === '2.14');
+check('realStats of nothing is null, and the text says so', QV.realStats([]) === null && /No published/.test(QV.realText('qubit.readout', null)));
+check('realText: median and middle half with units', /median 102 µs/.test(QV.realText('transmon.T1', st)) && /3 values from 2 papers/.test(QV.realText('transmon.T1', st)));
+check('fmt: big and small numbers in powers of ten', QV.fmt(3.4e6, '') === '3.4×10⁶' && QV.fmt(2.1e-6, '') === '2.1×10⁻⁶' && QV.fmt(99.5, '%') === '99.5%');
+check('every real quantity names a Q-Vault page', Object.keys(QV.REAL).every(k => QV.realURL(k).startsWith(QV.SITE)));
+
+// ── funding: the award numbers agree wherever they are stated ──
+const fs = require('fs'), rd = f => fs.readFileSync(path.join(__dirname, '../../..', f), 'utf8');
+const awards = t => ['2540460', '2553633'].every(id => t.includes('AWD_ID=' + id)) && /Unitary Foundation/.test(t);
+check('funding: site footer (sitebar.js), hub and README name the Unitary Foundation and both NSF awards with links',
+  awards(rd('web/shared/sitebar.js')) && awards(rd('web/index.html')) && awards(rd('README.md')));
 console.log(fails ? `\n${fails} check(s) failed` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

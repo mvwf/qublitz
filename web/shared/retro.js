@@ -148,6 +148,11 @@ html.retro .js-plotly-plot .plotly .modebar{background:transparent}
 html.retro .qsitebar{font-family:${BODY};color:${p.dim};border-bottom-color:${p.line}}
 html.retro .qsitebar a{color:${p.accent}}
 html.retro .qsitebar a.full{background:${p.accent};color:${p.onAccent}}
+html.retro .qfund{font-family:${BODY};color:${p.dim};border-top-color:${p.line}}
+html.retro .qfund a{color:${p.accent}}
+html.retro .qsitebar a.qv{background:${p.accent}1f}
+html.retro .qv-real{background:${p.accent}14;border-color:${p.line}}
+html.retro .qv-real a{color:${p.accent}}
 /* the outreach kit: learning panel, question dialogs, offer toast, privacy line */
 html.retro .ql-panel{background:${p.panel};border-color:${p.line};color:${p.ink};font-family:${BODY}}
 html.retro .ql-panel h3{font-family:${PIX};font-weight:400;font-size:11px;line-height:1.6;color:${p.gold}}
