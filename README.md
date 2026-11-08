@@ -13,6 +13,11 @@ You can link straight to the site or to any page on it, for example the
 [Rabi Rider](https://mvwf.github.io/qublitz/qublitz/rabi-rider.html). Pages embedded in another site (such as a
 Google Site) show an "Open the full page ↗" button at the top.
 
+**Real numbers from [Q-Vault](https://mvwf.github.io/MARQUIS_Q_VAULT/).** Qublitz is the teaching companion of Q-Vault, the
+NSF MARQUIS database of published superconducting-device data. The labs load real qubits, resonators and cryostat wiring
+from it, 📚 lines across the site show the published spread behind a number (computed live from Q-Vault's CSV files), and
+Q-Vault's tables open their rows straight into the matching Qublitz lab. See `web/shared/qvault.js`.
+
 ## Contents
 
 - [Gallery](#gallery)
@@ -21,6 +26,7 @@ Google Site) show an "Open the full page ↗" button at the top.
 - [Anonymous usage dashboard](#anonymous-usage-dashboard)
 - [Develop](#develop)
 - [Contact](#contact)
+- [Funding](#funding)
 
 ## Gallery
 
@@ -202,4 +208,11 @@ For help or advice, email:
 - Mattias Fitzpatrick: mattias.w.fitzpatrick@dartmouth.edu
 - Juan Sebastián Salcedo Gallo: juan.sebastian.salcedo-gallo.th@dartmouth.edu
 
-[![Unitary Fund](https://img.shields.io/badge/Supported%20By-UNITARY%20FUND-brightgreen.svg?style=for-the-badge)](https://unitary.fund)
+## Funding
+
+Qublitz is supported by the Unitary Foundation and by the U.S. National Science Foundation through an NSF CAREER award,
+No. [2540460](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2540460) (CAREER: Characterization of Material Defects Using
+Broadband Two-Level-System Spectroscopy), and the NSF MARQUIS Quantum Leap Challenge Institute (Manufacturable and Resilient
+Superconducting Quantum Information Systems), award No. [2553633](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2553633).
+Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not
+necessarily reflect the views of the National Science Foundation.

@@ -225,6 +225,8 @@
     <div class="lbl" style="margin-top:10px">Real resonators</div>
     <button id="qvRes" title="Measured internal quality factors from Q-Vault">📚 Load a measured Qᵢ from Q-Vault</button>
     <div id="qvResOut"></div>
+    <div class="note" id="qvFromNote" role="status" hidden style="font-size:13px;margin-top:6px"></div>
+    <div style="margin-top:6px"><span data-qv-real="resonator.Qi"></span></div>
   </div>
 </aside>
 
@@ -1506,16 +1508,41 @@ if (window.QL && QL.challenges && !K.wantsGuided()) QL.challenges([
     hint: 'Choose Mystery resonator, keep the built-in model that matches its geometry, press Run the fit, then Reveal the answer. A good fit lands within 2σ about 19 times in 20.' },
 ], { done: () => { toast('🏆 All five resonator challenges done!'); setTimeout(() => { if (window.QL && QL.offerQuiz) QL.offerQuiz('🏆 All five done! A 1-minute debrief checks what stuck and helps us improve this page.'); }, 2500); } });
 
+
+// A resonator opened from Q-Vault (?qv=citekey~device~label&f=&qi=&qc=): say whose it is and check the link's numbers
+// against Q-Vault's live table, which wins if they differ. Qc missing from the paper: set equal to Qi (critical coupling).
+async function qvFrom() {
+  let sp; try { sp = new URL(location.href).searchParams; } catch (e) { return; }
+  if (sp.get('qvpick') === '1') { $('#qvRes').click(); $('#qvRes').scrollIntoView({ block: 'center' }); return; }   // the hub's "Fit a real resonator"
+  const QV = window.QVault, qv = QV && QV.parseQV(sp.get('qv')); if (!qv) return;
+  const note = $('#qvFromNote'); note.hidden = false;
+  note.innerHTML = `📚 Opened from Q-Vault: ${qv.citekey} · ${qv.device}${qv.label ? ' · ' + qv.label : ''}. Checking its numbers…`;
+  try {
+    const [rows, srcs] = await Promise.all([QV.load('qvault_parameters.csv'), QV.load('qvault_sources.csv')]);
+    const r = QV.findParam(rows, qv), s = QV.sourceMap(srcs)[qv.citekey];
+    if (!r) { note.innerHTML = `📚 Opened from Q-Vault, but ${qv.citekey} · ${qv.device} is not in its table now, so the numbers are the link's. ${QV.NOTE}`; return; }
+    const qi = parseFloat(r.Qi_SP_x), qc = parseFloat(r.Qc_x), f = parseFloat(r.f_res_GHz), said = [];
+    if (qi > 0) { ex.qi = Math.min(1e10, qi); said.push(`Qᵢ (single photon) = ${QV.fmt(qi)}`); }
+    if (qc > 0) { ex.qc = Math.min(1e10, qc); said.push(`Q<sub>c</sub> = ${QV.fmt(qc)}`); } else if (qi > 0) ex.qc = ex.qi;
+    if (f > 0) { ex.fr = f; win = null; said.push(`f<sub>r</sub> = ${+f.toPrecision(5)} GHz`); }
+    ex.phi = 0; syncEx();
+    note.innerHTML = `<b>📚 A real resonator: ${QV.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.
+      Loaded: ${said.join(', ')}${qc > 0 ? '' : '; the paper gives no Q<sub>c</sub>, so Q<sub>c</sub> = Qᵢ (critical coupling)'}. Now drag Q<sub>c</sub>: how would you couple it to measure its Qᵢ best?<br>${QV.sourceHTML(s, r.citekey)}`;
+    try { window.QL && QL.event('qvault', { level: 'resonator-link' }); } catch (e) { /* optional */ }
+  } catch (e) { note.innerHTML = `📚 Opened from Q-Vault (${qv.citekey} · ${qv.device}); it could not be reached to check, so the numbers are the link's. ${QV.NOTE}`; }
+}
+
 /* ================================================================== start */
 (function start() {
   const q = K.params();
   const g = q.str('g', Object.keys(E.MODELS)); if (g) ex.g = g;
   const qi = q.num('qi', 10, 1e10); if (qi) ex.qi = qi;
   const qc = q.num('qc', 10, 1e10); if (qc) ex.qc = qc;
-  const fr = q.num('fr', 0.01, 100); if (fr) ex.fr = fr;
+  const fr = q.num('fr', 0.01, 100) || q.num('f', 0.01, 100); if (fr) ex.fr = fr;   // f: Q-Vault's links
   const ph = q.num('phi', -60, 60); if (ph != null) ex.phi = ph * Math.PI / 180;
   if (q.has('env')) ex.env = true;
   syncEx();
+  qvFrom();
   const h = location.hash.slice(1);
   showTab(TABS.includes(h) ? h : q.has('seed') ? 'fit' : 'explore');
   if (h.startsWith('l-') || h.startsWith('g-')) { showTab('learn'); requestAnimationFrame(() => document.getElementById(h)?.scrollIntoView()); }

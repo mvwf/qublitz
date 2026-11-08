@@ -86,7 +86,144 @@
       .sort((a, b) => b.value - a.value);
   }
 
-  const api = { SITE, CSV, NOTE, parseCSV, load, sourceMap, cite, doiURL, deviceURL, chains, chainNoise, resonatorQs, QI_NAMES, FRIDGE_STAGES };
+  // ── links from Q-Vault ("Qublitz" chips on its Parameters and Setups pages) ──
+  // qv=citekey~device~label names one row of qvault_parameters.csv (or citekey~setup for a wiring). Only the ids are
+  // trusted from the link; the values are read again from the live CSV, so a stale or edited link cannot put wrong numbers
+  // on the page under a paper's name.
+  function parseQV(s) {
+    const [citekey, device, ...rest] = String(s || '').split('~');
+    if (!/^[A-Za-z0-9_.:-]{2,100}$/.test(citekey || '')) return null;
+    return { citekey, device: device || '', label: rest.join('~') };
+  }
+  function findParam(rows, qv) {
+    if (!qv) return null;
+    const same = r => r.citekey === qv.citekey && (!qv.device || r.device_id === qv.device);
+    return (rows || []).find(r => same(r) && (r.label || '') === (qv.label || '')) || (qv.label ? null : (rows || []).find(same)) || null;
+  }
+  const paperURL = citekey => `${SITE}#/paper/${encodeURIComponent(citekey)}`;
+  const paramsURL = (x, y, kind) => `${SITE}#/parameters?` + [x && 'x=' + x, y && 'y=' + y, kind && 'kind=' + kind].filter(Boolean).join('&');
+  const num = v => (v === '' || v == null || !isFinite(+v) ? null : +v);
+
+  // A real qubit in the Virtual Qubit Lab. The lab solves every GHz oscillation, so it runs on nanoseconds: a real qubit is
+  // loaded with its own frequency and its own T2/T1, and with time running TIME_SCALE times faster (1 µs real = 1 ns here).
+  const TIME_SCALE = 1000;
+  function labQubit(p) {
+    const f01 = num(p.f01), t1 = num(p.t1), t2 = num(p.t2), notes = [];
+    if (!f01 || !t1 || t1 <= 0) return { ok: false, why: 'it needs both a qubit frequency and a T₁' };
+    if (f01 < 1 || f01 > 10) return { ok: false, why: `its frequency, ${f01} GHz, is outside the lab's 1–10 GHz range${f01 < 1 ? ' (a fluxonium sits below 1 GHz: driven at the lab’s Rabi rates it would not behave like a two-level qubit)' : ''}` };
+    let T1 = t1 * 1e3 / TIME_SCALE, T2;
+    if (T1 > 1e4) { notes.push(`T₁ is capped at the lab's 10 µs (${t1} µs would be ${T1} ns here)`); T1 = 1e4; }
+    if (t2 && t2 > 0) {
+      T2 = t2 * 1e3 / TIME_SCALE * (T1 / (t1 * 1e3 / TIME_SCALE));
+      if (T2 > 2 * T1) { notes.push(`the paper's T₂ (${t2} µs) is more than 2T₁, the most a qubit can have, so it is set to 2T₁`); T2 = 2 * T1; }
+    } else { T2 = 2 * T1; notes.push('Q-Vault lists no T₂ for it, so T₂ = 2T₁ (no pure dephasing)'); }
+    const r = v => +v.toPrecision(4);
+    return { ok: true, omegaQ: r(f01), T1: r(T1), T2: r(T2), notes };
+  }
+
+  // ── real quantities: the spread of published values behind a number on a Qublitz page ──
+  // src 'p': a column of qvault_parameters.csv (one row per qubit or resonator) for the listed device types.
+  // src 'm': a quantity of qvault_measurements.csv (current rows; bounds such as "< 0.1 %" are left out, and rows whose notes match
+  // skip, such as repetition-code Λ next to surface-code Λ).
+  const RES = ['resonator_cpw', 'resonator_lumped', 'resonator_stripline'];
+  const REAL = {
+    'transmon.T1': { src: 'p', types: ['transmon'], col: 'T1_us', unit: 'µs', sym: 'T₁', who: 'transmons', x: 'f01_GHz', kind: 'qubits' },
+    'transmon.T2E': { src: 'p', types: ['transmon'], col: 'T2E_us', unit: 'µs', sym: 'T₂ (echo)', who: 'transmons', x: 'T1_us', kind: 'qubits' },
+    'transmon.T2R': { src: 'p', types: ['transmon'], col: 'T2R_us', unit: 'µs', sym: 'T₂* (Ramsey)', who: 'transmons', x: 'T1_us', kind: 'qubits' },
+    'transmon.f01': { src: 'p', types: ['transmon'], col: 'f01_GHz', unit: 'GHz', sym: 'f₀₁', who: 'transmons', y: 'T1_us', kind: 'qubits' },
+    'transmon.alpha': { src: 'p', types: ['transmon'], col: 'anharmonicity_MHz', unit: 'MHz', sym: '|α|/2π', who: 'transmons', abs: true, x: 'f01_GHz', kind: 'qubits' },
+    'transmon.g': { src: 'p', types: ['transmon'], col: 'g_qr_MHz', unit: 'MHz', sym: 'g/2π', who: 'transmons', x: 'f_readout_GHz', kind: 'qubits' },
+    'transmon.chi': { src: 'p', types: ['transmon'], col: 'chi_MHz', unit: 'MHz', sym: '|χ|/2π', who: 'transmons', abs: true, x: 'kappa_MHz', kind: 'qubits' },
+    'transmon.kappa': { src: 'p', types: ['transmon'], col: 'kappa_MHz', unit: 'MHz', sym: 'κ/2π', who: 'readout resonators', x: 'f_readout_GHz', kind: 'qubits' },
+    'transmon.fr': { src: 'p', types: ['transmon'], col: 'f_readout_GHz', unit: 'GHz', sym: 'readout frequency', who: 'transmons', x: 'f01_GHz', kind: 'qubits' },
+    'fluxonium.T1': { src: 'p', types: ['fluxonium'], col: 'T1_us', unit: 'µs', sym: 'T₁', who: 'fluxoniums', x: 'f01_GHz', kind: 'qubits' },
+    'resonator.Qi': { src: 'p', types: RES, col: 'Qi_SP_x', unit: '', sym: 'single-photon Qᵢ', who: 'planar resonators', x: 'f_res_GHz', kind: 'resonators' },
+    'resonator.fr': { src: 'p', types: RES, col: 'f_res_GHz', unit: 'GHz', sym: 'frequency', who: 'planar resonators', y: 'Qi_SP_x', kind: 'resonators' },
+    'cavity.T1': { src: 'p', types: ['cavity_3d'], col: 'T1_us', unit: 'µs', sym: 'photon lifetime', who: '3D cavities', x: 'f_res_GHz', kind: 'resonators' },
+    'qubit.Teff': { src: 'm', quantity: 'T_eff', unit: 'mK', sym: 'effective temperature', who: 'qubits' },
+    'qubit.Pexc': { src: 'm', quantity: 'P_excited', unit: '%', sym: 'leftover excited population', who: 'qubits' },
+    'qubit.F1Q': { src: 'm', quantity: 'F1Q', unit: '%', sym: 'single-qubit gate fidelity', who: 'qubits' },
+    'qubit.F2Q': { src: 'm', quantity: 'F2Q', unit: '%', sym: 'two-qubit gate fidelity', who: 'qubits' },
+    'qubit.readout': { src: 'm', quantity: 'readout_error', unit: '%', sym: 'readout error', who: 'qubits' },
+    'qec.Lambda': { src: 'm', quantity: 'QEC_Lambda', unit: '', sym: 'Λ (logical error suppression per distance step)', who: 'surface-code experiments', skip: /repetition code/i },
+    'loss.tan': { src: 'm', quantity: 'tan_delta', unit: '', sym: 'loss tangent tan δ', who: 'devices' },
+  };
+  const FILE = { p: 'qvault_parameters.csv', m: 'qvault_measurements.csv' };
+  function realValues(rows, spec) {
+    if (spec.src === 'p') return (rows || []).filter(r => spec.types.includes(r.type) && num(r[spec.col]) != null)
+      .map(r => ({ v: spec.abs ? Math.abs(+r[spec.col]) : +r[spec.col], citekey: r.citekey, device: r.device_id, label: r.label || '' }));
+    return (rows || []).filter(r => r.quantity === spec.quantity && (r.status || 'current') === 'current' && num(r.value) != null && !/[<>]/.test(r.qualifier || '') && !(spec.skip && spec.skip.test(r.notes || '')))
+      .map(r => ({ v: +r.value, citekey: r.citekey, device: r.device_id, label: '' }));
+  }
+  // median and the middle half (25th to 75th percentile, linear interpolation), with how many values and papers
+  function realStats(vals) {
+    const v = vals.map(x => x.v).filter(isFinite).sort((a, b) => a - b), n = v.length;
+    if (!n) return null;
+    const q = p => { const i = (n - 1) * p, k = Math.floor(i); return k + 1 < n ? v[k] + (v[k + 1] - v[k]) * (i - k) : v[k]; };
+    return { n, papers: new Set(vals.map(x => x.citekey)).size, median: q(0.5), lo: q(0.25), hi: q(0.75), min: v[0], max: v[n - 1] };
+  }
+  function fmt(v, unit) {
+    if (!isFinite(v)) return '–';
+    const a = Math.abs(v);
+    const s = a >= 1e5 ? v.toExponential(1).replace(/e\+?(-?\d+)/, (m, e) => '×10' + String(e).replace(/-/, '⁻').replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]))
+      : a > 0 && a < 1e-2 ? v.toExponential(1).replace(/e(-?\d+)/, (m, e) => '×10' + e.replace('-', '⁻').replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]))
+        : String(+v.toPrecision(unit === '%' && a >= 90 ? 4 : a >= 10 ? 3 : 2));   // fidelities need their nines
+    return s + (unit ? (unit === '%' ? '%' : ' ' + unit) : '');
+  }
+  function realText(key, st) {
+    const s = REAL[key];
+    if (!st) return `No published ${s.sym} in Q-Vault yet.`;
+    // "3.6–4.7 GHz": the unit once, unless a power of ten would make the pair hard to read
+    const pair = (a, b) => (/×/.test(fmt(a, '') + fmt(b, '')) ? `${fmt(a, s.unit)} to ${fmt(b, s.unit)}` : `${fmt(a, '')}–${fmt(b, s.unit)}`);
+    const mid = st.n >= 4 ? `, middle half ${pair(st.lo, st.hi)}` : st.n > 1 ? `, range ${pair(st.min, st.max)}` : '';
+    return `${st.n > 1 ? 'median ' : ''}${fmt(st.median, s.unit)}${mid} · ${st.n} value${st.n > 1 ? 's' : ''} from ${st.papers} paper${st.papers > 1 ? 's' : ''}`;
+  }
+  const realURL = key => { const s = REAL[key]; return s && s.src === 'p' ? paramsURL(s.x || s.col, s.y || s.col, s.kind) : `${SITE}#/explore`; };
+
+  // Chips: <span data-qv-real="transmon.T1"></span> anywhere on a page becomes "📚 Real transmons: T₁ median 103 µs, …
+  // · Q-Vault ↗". The CSVs load once, when the first chip scrolls near the screen; offline, the chip is a plain link.
+  const CHIP_CSS = '.qv-real{display:inline-flex;flex-wrap:wrap;gap:2px 6px;align-items:baseline;font-size:12.5px;line-height:1.4;' +
+    'background:rgba(0,105,62,.07);border:1px solid rgba(0,105,62,.25);border-radius:7px;padding:2px 8px;margin:2px 0;color:inherit;max-width:100%}' +
+    '.qv-real b{font-weight:600}.qv-real a{font-weight:600;white-space:nowrap;display:inline-block;padding:4px 2px;margin:-2px 0}.qv-real .qv-w{opacity:.8}';
+  function chip(el, key, st) {
+    const s = REAL[key]; if (!s) return;
+    el.classList.add('qv-real');
+    el.innerHTML = `<span class="qv-w">📚 Real ${s.who}:</span> <span><b>${s.sym}</b> ${st === undefined ? '…' : realText(key, st)}</span> ` +
+      `<a href="${realURL(key)}" target="_blank" rel="noopener" title="See every value, with the paper it came from, in Q-Vault">Q-Vault ↗</a>`;
+  }
+  const valsCache = {};
+  function realFor(key) {
+    const s = REAL[key];
+    if (!s) return Promise.reject(new Error('unknown quantity ' + key));
+    return (valsCache[key] = valsCache[key] || load(FILE[s.src]).then(rows => realStats(realValues(rows, s))));
+  }
+  function mountChips(scope) {
+    const doc = root.document; if (!doc) return;
+    if (!doc.getElementById('qv-real-css')) { const st = doc.createElement('style'); st.id = 'qv-real-css'; st.textContent = CHIP_CSS; doc.head.append(st); }
+    const els = [...(scope || doc).querySelectorAll('[data-qv-real]:not([data-qv-done])')];
+    const fill = el => { const key = el.dataset.qvReal; realFor(key).then(st => chip(el, key, st)).catch(() => {
+      el.classList.add('qv-real'); el.innerHTML = `<span class="qv-w">📚 Real ${REAL[key] ? REAL[key].who : 'devices'}:</span> <a href="${realURL(key)}" target="_blank" rel="noopener">see published values in Q-Vault ↗</a>`; }); };
+    const io = 'IntersectionObserver' in root ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); fill(e.target); } }), { rootMargin: '300px' }) : null;
+    els.forEach(el => { el.dataset.qvDone = '1'; chip(el, el.dataset.qvReal, undefined); if (io) io.observe(el); else fill(el); });
+  }
+  if (root.document) {
+    const start = () => {
+      mountChips();
+      // pages that draw panels later (tabs, depth cards) get their chips too
+      let t = 0; new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => mountChips(), 60); }).observe(root.document.body, { childList: true, subtree: true });
+    };
+    if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', start); else start();
+  }
+
+  // The source line under anything loaded from Q-Vault: paper, Q-Vault page, the caveat.
+  function sourceHTML(s, citekey, extra) {
+    const url = doiURL(s);
+    return `${cite(s, citekey)}${s && s.title ? `, <i>${String(s.title).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]).slice(0, 120)}</i>` : ''}${extra ? ' · ' + extra : ''}. ` +
+      `${url ? `<a href="${url}" target="_blank" rel="noopener">Paper</a> · ` : ''}<a href="${paperURL(citekey)}" target="_blank" rel="noopener">In Q-Vault</a>. ${NOTE}`;
+  }
+
+  const api = { SITE, CSV, NOTE, parseCSV, load, sourceMap, cite, doiURL, deviceURL, chains, chainNoise, resonatorQs, QI_NAMES, FRIDGE_STAGES,
+    parseQV, findParam, paperURL, paramsURL, labQubit, TIME_SCALE, REAL, realValues, realStats, realText, realFor, realURL, fmt, mountChips, sourceHTML };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.QVault = api;
 })(typeof window !== 'undefined' ? window : globalThis);
