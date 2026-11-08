@@ -88,6 +88,11 @@ jobs:
       - name: ErrorSweeper engine test
         run: node web/qublitz/tests/qec-engine.test.js
 
+      # ErrorSweeper circuits (Learn, chapter 3): Girvin's encoder, parity measurement and Table 3, measurement-free
+      # correction (Fig. 17), phase-flip code, stabilizer checks, Shor's encoder, digitized rotations, and the classical codes.
+      - name: ErrorSweeper circuit engine test
+        run: node web/qublitz/tests/qcirc-engine.test.js
+
       # Qubit Copter: on-resonance rotations, the steering rule, and that every target can be reached in time.
       - name: Qubit Copter engine test
         run: node web/qublitz/tests/copter-engine.test.js
