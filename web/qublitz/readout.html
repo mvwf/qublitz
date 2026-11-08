@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../shared/retro-fonts.js"></script>
+<script src="../shared/retro.js"></script>
+<title>Readout Lab — Qublitz</title>
+<meta name="description" content="Read out a superconducting qubit through its resonator: the dispersive shift, IQ blobs, readout fidelity, and real devices from Q-Vault.">
+<!-- Everything this page needs ships with it (no CDN), so it also works offline. -->
+<script src="../vendor/plotly-2.35.2.min.js"></script>
+<script src="readout-engine.js"></script>
+<script src="../shared/qvault.js"></script>
+<script src="../shared/pagekit.js"></script>
+<style>
+  :root{color-scheme:light;--green:#00693e;--green2:#12855a;--ink:#1b2a24;--muted:#5a6b63;--line:#d8e2dc;--panel:#f5f9f6;--gold:#d9a521;
+    --s0:#2d6fb3;--s1:#c84b31}
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5;padding:18px 20px 48px}
+  @media(max-width:600px){body{padding:12px 16px 40px}}
+  .page{max-width:1200px;margin:0 auto}
+  a{color:var(--green)}
+  a.back{font-size:13px;color:var(--muted);text-decoration:none}
+  h1{font-size:24px;margin:4px 0 2px;color:var(--green)}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 12px;max-width:900px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 14px 12px;margin-bottom:14px;min-width:0}
+  .card>h2,.card>summary>h2{display:inline;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .card>h2{display:block}
+  details.card>summary{cursor:pointer;min-height:24px}
+  details.card[open]>summary{margin-bottom:10px}
+  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start}
+  @media(max-width:980px){.layout{grid-template-columns:minmax(0,1fr)}
+    /* one column: the controls, then the results, then the extras and Q-Vault */
+    .layout>aside{display:contents} .layout>aside>.card{order:3} .layout>aside>.card:first-child{order:1} .layout>div{order:2}}
+  .sl{margin:4px 0 12px}
+  .sl label{display:flex;justify-content:space-between;gap:8px;font-size:13.5px}
+  .sl label small{color:var(--muted);font-size:12px}
+  .sl .val{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  input[type=range]{accent-color:var(--green);width:100%;height:24px;margin:2px 0 0}
+  input[type=number],select{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff;color:var(--ink);max-width:100%}
+  input[type=number]{width:96px}
+  button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:6px 12px;cursor:pointer;min-height:32px}
+  button:hover{border-color:var(--green2);color:var(--green)}
+  button.primary{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
+  .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
+  .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
+  .note.ok{background:#e9f5ee;border-color:#bfe0cc;color:#0d4f31}
+  .big{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px}
+  .big .F{font-size:30px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums}
+  .big .F small{font-size:14px;color:var(--muted);font-weight:400}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--muted)}
+  .stat b{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .plots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+  @media(max-width:760px){.plots{grid-template-columns:minmax(0,1fr)}}
+  .plot{width:100%;height:300px;min-width:0}
+  .plot.iq{height:340px}
+  .key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  .key i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  ul.look{margin:0;padding-left:18px;font-size:13.5px}
+  ul.look li{margin:3px 0}
+  .qvq select{width:100%;margin-top:6px}
+  .learn{font-size:14px;max-width:880px}
+  .learn h3{font-size:15px;margin:14px 0 4px}
+  .learn p,.learn li{margin:4px 0}
+  .eq{font-family:"Times New Roman",Times,serif;font-size:16px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin:6px 0;overflow-x:auto;white-space:nowrap}
+  .refs li{font-size:13px}
+</style>
+</head>
+<body>
+<script src="../shared/sitebar.js"></script>
+<script src="../shared/outreach-config.js"></script>
+<script src="../learning/manifest.js"></script>
+<script src="../shared/outreach.js"></script>
+<script src="../learning/readout.js"></script>
+<div class="page">
+<a class="back" href="../course.html">&larr; Crash course</a>
+<h1>🎯 Readout Lab</h1>
+<p class="sub">You cannot look at a qubit directly. Instead, it shifts the pitch of a microwave resonator next to it, by
+  <b>−χ</b> when it is in |0⟩ and <b>+χ</b> in |1⟩. Send in a tone, listen to what comes back, and decide: 0 or 1? Each
+  measurement lands as a dot in the IQ plane; the two clouds of dots must not overlap. <span data-depth="engineer+">Real units throughout:
+  MHz, µs and photons, so a published qubit from Q-Vault loads exactly.</span></p>
+
+<div class="layout">
+<aside>
+  <div class="card">
+    <h2>The readout</h2>
+    <div class="sl"><label for="nR"><span>Photons in the resonator, n̄ <small>drive strength</small></span><span class="val" id="nV"></span></label>
+      <input type="range" id="nR" min="-1" max="2" step="0.01" aria-label="Photon number (log scale)"></div>
+    <div class="sl"><label for="tR"><span>Listening time, τ <small>integration</small></span><span class="val" id="tV"></span></label>
+      <input type="range" id="tR" min="-1.7" max="1.3" step="0.01" aria-label="Integration time (log scale)"></div>
+    <div data-depth="student+">
+      <div class="sl"><label for="cR"><span>Dispersive shift, χ/2π <small>how far the qubit pulls</small></span><span class="val" id="cV"></span></label>
+        <input type="range" id="cR" min="-1.7" max="1" step="0.01" aria-label="Dispersive shift (log scale)"></div>
+      <div class="sl"><label for="kR"><span>Linewidth, κ/2π <small>how fast photons leak out</small></span><span class="val" id="kV"></span></label>
+        <input type="range" id="kR" min="-1.3" max="1.7" step="0.01" aria-label="Resonator linewidth (log scale)"></div>
+    </div>
+    <p class="hint">Sliders are logarithmic. Every plot updates as you drag.</p>
+    <div class="row"><button id="newShots" title="Draw a fresh set of simulated measurements">🎲 New shots</button><button id="resetB">Reset</button><button id="linkB" title="Copy a link that reopens these settings">🔗 Copy link</button></div>
+  </div>
+
+  <details class="card" id="advCard" data-depth="engineer+">
+    <summary><h2>Real-world extras</h2></summary>
+    <div class="sl"><label for="eR"><span>Measurement efficiency, η</span><span class="val" id="eV"></span></label>
+      <input type="range" id="eR" min="-2" max="0" step="0.01" aria-label="Efficiency (log scale)">
+      <p class="hint">½ is a quantum-limited amplifier that keeps both quadratures (as plotted); a HEMT amplifier alone gives about 0.01–0.05.</p></div>
+    <div class="sl"><label for="t1R"><span>Qubit T₁</span><span class="val" id="t1V"></span></label>
+      <input type="range" id="t1R" min="-1" max="3.5" step="0.01" aria-label="T1 (log scale)"></div>
+    <div class="sl"><label for="pR"><span>Leftover excited population, P<sub>exc</sub></span><span class="val" id="pV"></span></label>
+      <input type="range" id="pR" min="0" max="15" step="0.1" aria-label="Thermal excited population, percent"></div>
+    <div class="sl"><label for="dR"><span>Drive frequency, f<sub>d</sub> − f<sub>r</sub></span><span class="val" id="dV"></span></label>
+      <input type="range" id="dR" min="-3" max="3" step="0.02" aria-label="Drive detuning in units of chi"></div>
+    <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pathC" checked> Show how the field rings up</label>
+    <div style="margin-top:6px"><span data-qv-real="qubit.Pexc"></span></div>
+  </details>
+
+  <details class="card" id="circCard" data-depth="researcher">
+    <summary><h2>Where χ comes from</h2></summary>
+    <p class="hint" style="margin-top:0">A transmon with coupling g, detuning Δ = ω<sub>q</sub> − ω<sub>r</sub> and anharmonicity α (all /2π, MHz).</p>
+    <div class="row">
+      <label class="hint">g <input type="number" id="gIn" step="1" min="1" max="1000"></label>
+      <label class="hint">Δ <input type="number" id="DIn" step="10" min="-10000" max="10000"></label>
+      <label class="hint">α <input type="number" id="aIn" step="5" min="-1000" max="-10"></label>
+    </div>
+    <div id="circOut" class="hint" aria-live="polite"></div>
+    <button id="circUse">Use this χ and n<sub>crit</sub></button>
+  </details>
+
+  <div class="card qvq">
+    <h2>Real qubits</h2>
+    <button id="qvBtn" title="Published dispersive shifts, linewidths and T₁ from Q-Vault">📚 Load a real qubit's readout from Q-Vault</button>
+    <select id="qvPick" hidden aria-label="Published qubit"></select>
+    <div class="note" id="qvNote" role="status" hidden></div>
+    <div style="margin-top:6px;display:flex;flex-direction:column;gap:2px" data-depth="student+">
+      <span data-qv-real="transmon.chi"></span><span data-qv-real="transmon.kappa"></span><span data-qv-real="qubit.readout"></span>
+    </div>
+  </div>
+</aside>
+
+<div>
+  <div class="card" aria-live="polite">
+    <div class="big"><span class="F" id="Fbig"></span><span id="Fsub" class="hint"></span></div>
+    <div class="stats" id="stats"></div>
+    <div id="warn"></div>
+  </div>
+  <div class="card">
+    <div class="key"><span><i style="background:var(--s0)"></i>prepared in |0⟩</span><span><i style="background:var(--s1)"></i>prepared in |1⟩</span><span>— decision line</span></div>
+    <div class="plots">
+      <div id="pIQ" class="plot iq" role="img" aria-label="IQ plane: each dot is one measurement"></div>
+      <div><div id="pHist" class="plot" role="img" aria-label="Histogram of the measurements along the line joining the two clouds"></div></div>
+    </div>
+    <div class="plots" style="margin-top:6px">
+      <div id="pSpec" class="plot" role="img" aria-label="Photons in the resonator against drive frequency, for each qubit state"></div>
+      <div id="pTau" class="plot" data-depth="engineer+" role="img" aria-label="Readout fidelity against listening time"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>What to look for</h2>
+    <ul class="look" id="look"></ul>
+  </div>
+</div>
+</div>
+
+<section class="card learn" id="learn">
+  <h2>How dispersive readout works</h2>
+  <h3>The idea</h3>
+  <p>A qubit and a resonator that are far apart in frequency do not swap energy, but they still push on each other. The
+    qubit's state shifts the resonator's frequency by ±χ. Shine a tone at the resonator and the light that leaks back out
+    carries a different amplitude and phase for |0⟩ and |1⟩. A single tone holds only a few photons, so each answer is
+    noisy: the dots form two fuzzy clouds, and the readout is good when the clouds are far apart compared with their size.</p>
+  <div data-depth="student+">
+    <h3>The equations this page solves</h3>
+    <p>The field α in the resonator, driven at ω<sub>d</sub> with strength ε, for the qubit in state s (Δ<sub>s</sub> = ω<sub>r</sub> ∓ χ − ω<sub>d</sub>):</p>
+    <div class="eq">dα/dt = −(κ/2 + iΔ<sub>s</sub>) α − iε &nbsp;→&nbsp; α<sub>s</sub> = −iε / (κ/2 + iΔ<sub>s</sub>)</div>
+    <p>It rings up to the pointer state α<sub>s</sub> in a time of about 2/κ. The measured record is the field averaged over τ,
+      plus vacuum noise of variance 1/(4ηκτ) in each quadrature. In steady state, the signal-to-noise ratio and the error of each state are</p>
+    <div class="eq">SNR = 2√(ηκτ) |α<sub>1</sub> − α<sub>0</sub>|, &nbsp; P(error) = ½ erfc(SNR / 2√2)</div>
+    <p>So SNR grows like √(n̄ τ): four times the photons or four times the listening doubles it. For a fixed photon number the
+      separation is largest when <b>κ = 2χ</b>.</p>
+  </div>
+  <div data-depth="engineer+">
+    <h3>Why not just listen longer, or louder?</h3>
+    <ul>
+      <li><b>Longer</b>: a qubit in |1⟩ can decay during the measurement and its dots slide toward the |0⟩ cloud. With a finite T₁ there is a best τ (the lower right plot).</li>
+      <li><b>Louder</b>: the dispersive picture holds only below the critical photon number n<sub>crit</sub> = (Δ/2g)². Above it, strong drives cause transitions out of the qubit's states.</li>
+      <li><b>Faster leak (bigger κ)</b>: photons leave faster, so the field rings up sooner, but the resonator also drains the qubit through the Purcell effect, T<sub>Purcell</sub> = (Δ/g)²/κ, unless a Purcell filter blocks it.</li>
+      <li><b>Dephasing</b>: the photons that tell you the answer also destroy the qubit's phase, at Γ<sub>d</sub> = κ|α<sub>0</sub> − α<sub>1</sub>|²/2. A measurement cannot be gentle and informative at once.</li>
+    </ul>
+  </div>
+  <details data-depth="student+"><summary><b>What this model leaves out</b></summary>
+    <ul>
+      <li>The record is a plain average over τ (a box filter). Labs weight the record with a matched filter, which helps when T₁ matters.</li>
+      <li>No Purcell decay, resonator nonlinearity (Kerr), amplifier saturation, or measurement-induced transitions above n<sub>crit</sub> (only a warning).</li>
+      <li>Two levels only: real transmons also have |2⟩, which can leak in, or be used on purpose ("shelving") to make |1⟩ easier to tell apart.</li>
+      <li>No heating during the readout, and no internal loss in the resonator (all photons reach the amplifier).</li>
+    </ul>
+  </details>
+  <h3>Read more (open access)</h3>
+  <ul class="refs">
+    <li>P. Krantz et al., <a href="https://arxiv.org/abs/1904.06560" target="_blank" rel="noopener">A quantum engineer's guide to superconducting qubits</a>, Appl. Phys. Rev. 6, 021318 (2019), §V.</li>
+    <li>A. Blais et al., <a href="https://arxiv.org/abs/2005.12667" target="_blank" rel="noopener">Circuit quantum electrodynamics</a>, Rev. Mod. Phys. 93, 025005 (2021), §V.</li>
+    <li>J. Gambetta et al., <a href="https://arxiv.org/abs/0709.4264" target="_blank" rel="noopener">Quantum trajectory approach to circuit QED: quantum jumps and the Zeno effect</a>, Phys. Rev. A 77, 012112 (2008).</li>
+    <li>J. Koch et al., <a href="https://arxiv.org/abs/cond-mat/0703002" target="_blank" rel="noopener">Charge-insensitive qubit design derived from the Cooper pair box</a>, Phys. Rev. A 76, 042319 (2007): χ for a transmon.</li>
+    <li>T. Walter et al., <a href="https://arxiv.org/abs/1701.06933" target="_blank" rel="noopener">Rapid high-fidelity single-shot dispersive readout of superconducting qubits</a>, Phys. Rev. Applied 7, 054020 (2017).</li>
+  </ul>
+</section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const E = window.ReadoutEngine, QV = window.QVault, K = window.PageKit;
+  const $ = s => document.querySelector(s);
+  const p = Object.assign({}, E.DEFAULTS);
+  let seed = 1, qvDev = null, circ = Object.assign({}, E.CIRCUIT);
+  const NSHOT = 500;
+  const at = tag => !window.QL || QL.atDepth(tag);
+
+  // ── formatting ──
+  const g3 = v => +(+v).toPrecision(3);
+  const tFmt = us => (us < 1 ? `${g3(us * 1e3)} ns` : `${g3(us)} µs`);
+  const fFmt = mhz => (Math.abs(mhz) < 1 ? `${g3(mhz * 1e3)} kHz` : `${g3(mhz)} MHz`);
+  const pct = v => { const x = 100 * v; return x >= 99.9 ? x.toFixed(3) + '%' : x >= 99 ? x.toFixed(2) + '%' : x < 0.1 ? x.toPrecision(2) + '%' : x.toFixed(1) + '%'; };
+
+  // ── sliders ⇄ state ──
+  const LOG = { nR: 'nbar', tR: 'tau', cR: 'chi', kR: 'kappa', eR: 'eta', t1R: 'T1' };
+  function toSliders() {
+    for (const [id, k] of Object.entries(LOG)) $('#' + id).value = Math.log10(p[k]);
+    $('#pR').value = p.pexc; $('#dR').value = p.delta / p.chi;
+  }
+  function labels() {
+    $('#nV').textContent = g3(p.nbar) + (p.nbar === 1 ? ' photon' : ' photons');
+    $('#tV').textContent = tFmt(p.tau);
+    $('#cV').textContent = fFmt(p.chi); $('#kV').textContent = fFmt(p.kappa) + `  (κ/2χ = ${g3(p.kappa / (2 * p.chi))})`;
+    $('#eV').textContent = g3(p.eta); $('#t1V').textContent = tFmt(p.T1); $('#pV').textContent = g3(p.pexc) + '%';
+    $('#dV').textContent = Math.abs(p.delta) < 1e-9 ? 'midpoint' : `${p.delta > 0 ? '+' : '−'}${fFmt(Math.abs(p.delta))} (${p.delta > 0 ? '+' : '−'}${g3(Math.abs(p.delta / p.chi))}χ)`;
+  }
+  for (const [id, k] of Object.entries(LOG)) $('#' + id).addEventListener('input', e => {
+    const d = p.delta / p.chi; p[k] = +Math.pow(10, +e.target.value).toPrecision(4);
+    if (k === 'chi') p.delta = d * p.chi;    // keep the drive at the same place relative to the two resonances
+    drawSoon();
+  });
+  $('#pR').addEventListener('input', e => { p.pexc = +e.target.value; drawSoon(); });
+  $('#dR').addEventListener('input', e => { const v = +e.target.value; p.delta = Math.abs(v) < 0.04 ? 0 : v * p.chi; drawSoon(); });
+  $('#pathC').addEventListener('change', drawSoon);
+  $('#newShots').addEventListener('click', () => { seed++; draw(); });
+  $('#resetB').addEventListener('click', () => { Object.assign(p, E.DEFAULTS); qvDev = null; $('#qvNote').hidden = true; toSliders(); draw(); });
+  $('#linkB').addEventListener('click', e => K.copyLink(e.target, 'qublitz/readout.html', query()));
+  function query() {
+    const q = new URLSearchParams({ chi: g3(p.chi), kappa: g3(p.kappa), n: g3(p.nbar), tau: g3(p.tau) });
+    if (p.eta !== E.DEFAULTS.eta) q.set('eta', g3(p.eta));
+    if (p.T1 !== E.DEFAULTS.T1) q.set('t1', g3(p.T1));
+    if (p.pexc) q.set('pexc', g3(p.pexc));
+    if (p.delta) q.set('d', g3(p.delta));
+    if (p.ncrit !== E.DEFAULTS.ncrit) q.set('ncrit', g3(p.ncrit));
+    if (qvDev) q.set('qv', [qvDev.citekey, qvDev.device, qvDev.label].filter(Boolean).join('~'));
+    return q.toString();
+  }
+
+  // ── plots ──
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const CFG = { displayModeBar: false, responsive: true };
+  const base = (x, y, extra) => Object.assign({ margin: { l: 52, r: 12, t: 28, b: 44 }, showlegend: false, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    xaxis: { title: { text: x }, zeroline: false }, yaxis: { title: { text: y }, zeroline: false }, font: { size: 11 } }, extra || {});
+  let raf = 0;
+  function drawSoon() { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+
+  function draw() {
+    labels();
+    const A = E.analyze(p), c0 = css('--s0') || '#2d6fb3', c1 = css('--s1') || '#c84b31';
+    // headline
+    $('#Fbig').innerHTML = `${pct(A.F)} <small>readout fidelity</small>`;
+    $('#Fsub').innerHTML = `|0⟩ misread as 1: <b>${pct(A.p10)}</b> · |1⟩ misread as 0: <b>${pct(A.p01)}</b>`;
+    const st = [
+      ['Separation / noise (SNR)', g3(A.snr)],
+      ['Photons in |0⟩ / |1⟩', `${g3(A.n0)} / ${g3(A.n1)}`],
+    ];
+    if (at('engineer+')) st.push(['Ring-up time 2/κ', tFmt(A.tRing)], ['Dephasing time 1/Γ<sub>d</sub>', tFmt(1 / A.gammaD)], ['Decays during τ', pct(A.pDecay)]);
+    if (at('researcher')) st.push(['Steady-state SNR', g3(A.snrSteady)]);
+    $('#stats').innerHTML = st.map(([a, b]) => `<div class="stat">${a}<b>${b}</b></div>`).join('');
+    $('#warn').innerHTML = A.overCrit ? `<p class="note warn">⚠ More photons than n<sub>crit</sub> ≈ ${g3(p.ncrit)}: a real transmon stops behaving like this
+      (measurement-induced transitions). The fidelity shown is what the simple model predicts, not what you would get.</p>` : '';
+
+    // shots in the IQ plane
+    const S = E.shots(p, NSHOT, seed), sig = A.sigma;
+    const pick = prep => { const x = [], y = []; S.pts.forEach(q => { if (q[2] === prep) { x.push(q[0]); y.push(q[1]); } }); return { x, y }; };
+    const s0 = pick(0), s1 = pick(1);
+    // decision line: through the midpoint, perpendicular to u
+    const mid = [(A.m0[0] + A.m1[0]) / 2, (A.m0[1] + A.m1[1]) / 2], v = [-A.u[1], A.u[0]];
+    const allx = s0.x.concat(s1.x), ally = s0.y.concat(s1.y);
+    const span = Math.max(...allx.map(Math.abs), ...ally.map(Math.abs), Math.hypot(...A.a0), Math.hypot(...A.a1), 0.1) * 1.08;
+    const traces = [
+      { x: s0.x, y: s0.y, mode: 'markers', type: 'scatter', marker: { size: 4, color: c0, opacity: 0.55 }, hoverinfo: 'skip' },
+      { x: s1.x, y: s1.y, mode: 'markers', type: 'scatter', marker: { size: 4, color: c1, opacity: 0.55 }, hoverinfo: 'skip' },
+      { x: [mid[0] - 3 * span * v[0], mid[0] + 3 * span * v[0]], y: [mid[1] - 3 * span * v[1], mid[1] + 3 * span * v[1]], mode: 'lines', line: { color: css('--ink') || '#1b2a24', width: 1.5, dash: 'dash' }, hoverinfo: 'skip' },
+      { x: [A.m0[0], A.m1[0]], y: [A.m0[1], A.m1[1]], mode: 'markers', marker: { size: 11, color: [c0, c1], line: { color: '#fff', width: 1.5 } }, hovertemplate: 'average record<extra></extra>' },
+    ];
+    if (at('engineer+') && $('#pathC').checked) {
+      for (const [s, c] of [[0, c0], [1, c1]]) {
+        const tr = E.trajectory(p, s, 80);
+        traces.push({ x: tr.map(z => z[0]), y: tr.map(z => z[1]), mode: 'lines', line: { color: c, width: 2 }, hoverinfo: 'skip' });
+        traces.push({ x: [s ? A.a1[0] : A.a0[0]], y: [s ? A.a1[1] : A.a0[1]], mode: 'markers', marker: { size: 10, symbol: 'circle-open', color: c, line: { width: 2 } }, hovertemplate: `steady state of |${s}⟩<extra></extra>` });
+      }
+    }
+    Plotly.react('pIQ', traces, base('I (√photons)', 'Q (√photons)', {
+      title: { text: 'Each dot is one measurement', font: { size: 12 } },
+      xaxis: { title: { text: 'I (√photons)' }, range: [-span, span], zeroline: false }, yaxis: { title: { text: 'Q (√photons)' }, range: [-span, span], scaleanchor: 'x', zeroline: false } }), CFG);
+
+    // histogram along the separation, in units of the noise σ, with the threshold at 0
+    const proj = q => ((q[0] * A.u[0] + q[1] * A.u[1]) - A.thr) / sig;
+    const h0 = [], h1 = []; S.pts.forEach(q => (q[2] ? h1 : h0).push(proj(q)));
+    const x0 = ((A.m0[0] * A.u[0] + A.m0[1] * A.u[1]) - A.thr) / sig, x1 = -x0;
+    const lo = Math.min(x0 - 4, ...h0, ...h1), hi = Math.max(x1 + 4, ...h0, ...h1), bw = (hi - lo) / 50;
+    const gx = [], g0 = [], g1 = []; for (let i = 0; i <= 200; i++) { const x = lo + (hi - lo) * i / 200; gx.push(x); g0.push(NSHOT * bw * Math.exp(-0.5 * (x - x0) ** 2) / Math.sqrt(2 * Math.PI)); g1.push(NSHOT * bw * Math.exp(-0.5 * (x - x1) ** 2) / Math.sqrt(2 * Math.PI)); }
+    const ymax = Math.max(...g0) * 1.4;
+    Plotly.react('pHist', [
+      { x: h0, type: 'histogram', xbins: { start: lo, end: hi, size: bw }, marker: { color: c0 }, opacity: 0.55, hoverinfo: 'skip' },
+      { x: h1, type: 'histogram', xbins: { start: lo, end: hi, size: bw }, marker: { color: c1 }, opacity: 0.55, hoverinfo: 'skip' },
+      { x: gx, y: g0, mode: 'lines', line: { color: c0, width: 1.5 }, hoverinfo: 'skip' },
+      { x: gx, y: g1, mode: 'lines', line: { color: c1, width: 1.5 }, hoverinfo: 'skip' },
+      { x: [0, 0], y: [0, ymax], mode: 'lines', line: { color: css('--ink') || '#1b2a24', width: 1.5, dash: 'dash' }, hoverinfo: 'skip' },
+    ], base('distance from the line (noise widths σ)', 'shots', { barmode: 'overlay', title: { text: 'Left of the line → "0", right → "1"', font: { size: 12 } }, yaxis: { title: { text: 'shots' }, range: [0, Math.max(ymax, 1)] } }), CFG);
+
+    // resonator response: photons against drive frequency, for each qubit state
+    const W = Math.max(2.5 * p.chi, p.chi + 2.5 * p.kappa, Math.abs(p.delta) * 1.3), fx = [], n0 = [], n1 = [];
+    for (let i = 0; i <= 300; i++) { const d = -W + 2 * W * i / 300; fx.push(d); n0.push(E.photonsAt(p, 0, d)); n1.push(E.photonsAt(p, 1, d)); }
+    const nmax = Math.max(...n0) * 1.12;
+    Plotly.react('pSpec', [
+      { x: fx, y: n0, mode: 'lines', line: { color: c0, width: 2.5 }, hovertemplate: '|0⟩: %{y:.3g} photons at %{x:.3g} MHz<extra></extra>' },
+      { x: fx, y: n1, mode: 'lines', line: { color: c1, width: 2.5 }, hovertemplate: '|1⟩: %{y:.3g} photons at %{x:.3g} MHz<extra></extra>' },
+      { x: [p.delta, p.delta], y: [0, nmax], mode: 'lines', line: { color: css('--gold') || '#d9a521', width: 2, dash: 'dot' }, hovertemplate: 'your drive tone<extra></extra>' },
+    ], base('drive frequency − f_r (MHz)', 'photons', { title: { text: `The qubit moves the resonance by ±χ · drive tone dotted`, font: { size: 12 } }, yaxis: { title: { text: 'photons' }, range: [0, nmax] } }), CFG);
+
+    // F against τ (engineer+)
+    if (at('engineer+')) {
+      const taus = []; for (let i = 0; i <= 70; i++) taus.push(0.02 * Math.pow(1000, i / 70));
+      const Fs = E.fidelityCurve(p, taus), b = E.bestTau(p, 0.02, 20);
+      Plotly.react('pTau', [
+        { x: taus, y: Fs.map(f => 100 * f), mode: 'lines', line: { color: css('--green') || '#00693e', width: 2.5 }, hovertemplate: 'τ = %{x:.3g} µs: F = %{y:.4g}%<extra></extra>' },
+        { x: [p.tau], y: [100 * A.F], mode: 'markers', marker: { size: 11, color: css('--green') || '#00693e', line: { color: '#fff', width: 1.5 } }, hovertemplate: 'yours<extra></extra>' },
+        { x: [b.tau], y: [100 * b.F], mode: 'markers', marker: { size: 12, symbol: 'star', color: css('--gold') || '#d9a521' }, hovertemplate: 'best: τ = %{x:.3g} µs, F = %{y:.4g}%<extra></extra>' },
+      ], base('listening time τ', 'readout fidelity (%)', { title: { text: `Best τ ≈ ${tFmt(b.tau)} (★), F = ${pct(b.F)}`, font: { size: 12 } }, xaxis: { type: 'log', title: { text: 'listening time τ' }, tickvals: [0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20], ticktext: ['20 ns', '50', '100', '200', '500', '1 µs', '2', '5', '10', '20'] }, yaxis: { title: { text: 'readout fidelity (%)' }, range: [50, 100.5] } }), CFG);
+    }
+    look(A);
+    try { history.replaceState(null, '', '?' + query() + location.hash); } catch (e) { /* file:// */ }
+  }
+
+  // ── what to look for: short, state-dependent pointers ──
+  function look(A) {
+    const L = [];
+    const r = p.kappa / (2 * p.chi);
+    if (A.snr < 2) L.push('The clouds overlap: many dots land on the wrong side of the line. More photons or a longer listen pulls them apart.');
+    else if (A.F < 0.99) L.push(`The clouds are ${g3(A.snr)} noise widths apart. Push past about 5 for 99%: SNR grows like √(n̄ τ).`);
+    else L.push('The clouds are well apart: almost every dot is on the right side.');
+    if (p.tau < A.tRing) L.push(`τ is shorter than the ring-up time 2/κ = ${tFmt(A.tRing)}: the field never reaches its steady state, so the average records sit close to the origin.`);
+    if (at('student+')) L.push(r < 0.7 ? `κ is small next to 2χ (κ/2χ = ${g3(r)}): photons leak out slowly, so you hear the answer late.` : r > 1.4 ? `κ is large next to 2χ (κ/2χ = ${g3(r)}): the two resonances overlap, so the two states sound alike.` : 'κ ≈ 2χ: the best separation for a given photon number.');
+    if (at('engineer+') && A.pDecay > 0.01) L.push(`${pct(A.pDecay)} of qubits in |1⟩ decay while you listen: see the red dots that trail toward the blue cloud.`);
+    if (at('engineer+') && p.pexc > 0) L.push(`A leftover ${g3(p.pexc)}% excited population puts a small red cluster inside the blue cloud (and vice versa): no readout can fix a wrong start.`);
+    if (at('engineer+') && Math.abs(p.delta) > 0.1 * p.chi) L.push('Off the midpoint, one state holds more photons than the other, and the separation shrinks: the midpoint is the usual choice.');
+    $('#look').innerHTML = L.map(s => `<li>${s}</li>`).join('');
+  }
+
+  // ── researcher: χ from a transmon circuit ──
+  function circDraw() {
+    $('#gIn').value = circ.g; $('#DIn').value = circ.Delta; $('#aIn').value = circ.alpha;
+    const t = E.transmonChi(circ.g, circ.Delta, circ.alpha);
+    const kap = 2 * Math.PI * p.kappa, tp = (circ.Delta / circ.g) ** 2 / kap;
+    const strad = circ.Delta < 0 ? false : circ.Delta < -circ.alpha;
+    $('#circOut').innerHTML = isFinite(t.chi) ? `χ/2π = <b>${g3(t.chi)} MHz</b> (negative outside the straddling regime; the sliders use |χ|) · n<sub>crit</sub> = (Δ/2g)² = <b>${g3(t.ncrit)}</b>
+      · Purcell limit on T₁ with this κ, no filter: (Δ/g)²/κ = <b>${tFmt(tp)}</b>${strad ? '<br>⚠ 0 < Δ < |α|: the straddling regime, where χ is large and the simple formula is least reliable.' : ''}` : 'Δ and Δ + α must not be zero.';
+  }
+  ['gIn', 'DIn', 'aIn'].forEach((id, i) => $('#' + id).addEventListener('input', e => { const v = +e.target.value; if (isFinite(v)) circ[['g', 'Delta', 'alpha'][i]] = v; circDraw(); }));
+  $('#circUse').addEventListener('click', () => {
+    const t = E.transmonChi(circ.g, circ.Delta, circ.alpha); if (!isFinite(t.chi) || !t.chi) return;
+    const d = p.delta / p.chi; p.chi = Math.min(10, Math.max(0.02, +Math.abs(t.chi).toPrecision(4))); p.delta = d * p.chi; p.ncrit = t.ncrit; toSliders(); draw();
+  });
+
+  // ── Q-Vault: published χ, κ and T₁ ──
+  let qvRows = null, qvSrc = {};
+  async function qvLoad() {
+    if (qvRows) return qvRows;
+    const [params, meas, srcs] = await Promise.all([QV.load('qvault_parameters.csv'), QV.load('qvault_measurements.csv'), QV.load('qvault_sources.csv')]);
+    qvSrc = QV.sourceMap(srcs); qvRows = QV.readoutRows(params, meas); qvRows.params = params;
+    return qvRows;
+  }
+  const devName = r => `${QV.cite(qvSrc[r.citekey], r.citekey)} · ${r.label || r.device}`;
+  $('#qvBtn').addEventListener('click', async () => {
+    const b = $('#qvBtn'); b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+    try {
+      const rows = await qvLoad(), sel = $('#qvPick');
+      sel.innerHTML = `<option value="">Choose one of ${rows.length} published qubits…</option>` + rows.map((r, i) =>
+        `<option value="${i}">${devName(r)} (${r.type}): χ/2π ${fFmt(r.chi)}, κ/2π ${fFmt(r.kappa)}${r.T1 ? `, T₁ ${g3(r.T1)} µs` : ''}</option>`).join('');
+      sel.hidden = false; b.hidden = true; sel.focus();
+    } catch (e) { b.disabled = false; b.textContent = '📚 Load a real qubit\'s readout from Q-Vault'; note(`Q-Vault could not be reached (are you offline?). <a href="${QV.paramsURL('kappa_MHz', 'chi_MHz', 'qubits')}" target="_blank" rel="noopener">Open it in a new tab ↗</a>`); }
+  });
+  $('#qvPick').addEventListener('change', e => { if (e.target.value !== '') useDevice(qvRows[+e.target.value], 'pick'); });
+  function note(html) { const n = $('#qvNote'); n.hidden = false; n.innerHTML = html; }
+  function useDevice(r, how) {
+    qvDev = r;
+    const d = p.delta / p.chi;
+    p.chi = Math.min(10, Math.max(0.02, r.chi)); p.kappa = Math.min(50, Math.max(0.05, r.kappa)); p.delta = d * p.chi;
+    if (r.T1) p.T1 = Math.min(3000, Math.max(0.1, r.T1));
+    if (r.pexc != null) p.pexc = Math.min(15, r.pexc);
+    p.ncrit = 0;                       // unknown for a real device unless the paper gives g and Δ
+    toSliders(); draw();
+    const A = E.analyze(p), ratio = r.kappa / (2 * r.chi), clipped = r.chi !== p.chi || r.kappa !== p.kappa;
+    const said = [`χ/2π = ${fFmt(r.chi)}${r.chiFrom === 'two_chi' ? ' (half the printed 2χ)' : ''}`, `κ/2π = ${fFmt(r.kappa)}`];
+    if (r.T1) said.push(`T₁ = ${g3(r.T1)} µs`); if (r.pexc != null) said.push(`P<sub>exc</sub> = ${g3(r.pexc)}%`);
+    note(`<b>📚 A real qubit: ${devName(r)}</b> (${r.type}${r.fr ? `, readout resonator at ${g3(r.fr)} GHz` : ''}). Loaded exactly: ${said.join(', ')}.
+      ${clipped ? 'One value is outside the sliders\' range, so it is set to the nearest end. ' : ''}κ/2χ = ${g3(ratio)}${Math.abs(Math.log(ratio)) < 0.35 ? ', close to the optimum' : ratio > 1 ? ': the resonator leaks faster than the shift, so the states sound alike unless you listen with more photons' : ': the resonator is slow to ring up, so short readouts suffer'}.
+      With ${g3(p.nbar)} photons and τ = ${tFmt(p.tau)} this page predicts F = ${pct(A.F)}. Can you find the photon number and listening time a lab would choose?
+      ${r.unsure ? '<br>⚠ The paper does not say whether its χ is half the shift or the full shift; this page assumes half (±χ). If it is the full shift, halve χ.' : ''}
+      The paper's critical photon number is not in Q-Vault, so there is no n<sub>crit</sub> warning for it.<br>${QV.sourceHTML(qvSrc[r.citekey], r.citekey)}`);
+    try { window.QL && QL.event('qvault', { level: how === 'link' ? 'readout-link' : 'readout' }); } catch (e) { /* optional */ }
+    try { window.QL && QL.challengeDone && QL.challengeDone('real'); } catch (e) { /* optional */ }
+  }
+  // Arrival from Q-Vault (?qv=citekey~device~label) or the hub (?qvpick=1). Values are read live by id, never from the link.
+  async function qvFrom(sp) {
+    if (sp.get('qvpick') === '1') { $('#qvBtn').click(); $('#qvBtn').closest('.card').scrollIntoView({ block: 'center' }); return; }
+    const id = QV.parseQV(sp.get('qv')); if (!id) return;
+    note(`📚 Opened from Q-Vault: ${id.citekey} · ${id.device}${id.label ? ' · ' + id.label : ''}. Reading its numbers…`);
+    try {
+      const rows = await qvLoad(), row = QV.findParam(rows.params, id);
+      const r = row && rows.find(x => x.citekey === row.citekey && x.device === row.device_id && x.label === (row.label || ''));
+      if (r) useDevice(r, 'link');
+      else note(row ? `📚 ${devName({ citekey: row.citekey, device: row.device_id, label: row.label })} is in Q-Vault, but without both a dispersive shift χ and a linewidth κ, so it cannot be read out here. <a href="${QV.paperURL(row.citekey)}" target="_blank" rel="noopener">See it in Q-Vault ↗</a>`
+        : `📚 ${id.citekey} · ${id.device} is not in Q-Vault's table now. ${QV.NOTE}`);
+    } catch (e) { note(`📚 Opened from Q-Vault (${id.citekey}), but Q-Vault could not be reached to read its numbers.`); }
+  }
+
+  // ── challenges (QL.challenges, web/shared/outreach.js). The page starts at F ≈ 88%, κ = 2χ, midpoint drive. ──
+  const F = () => E.analyze(p).F;
+  if (window.QL && QL.challenges) QL.challenges([
+    { id: 'f99', text: 'Reach a readout fidelity of <b>99%</b>. Which helps more: more photons, or a longer listen?',
+      hint: 'SNR grows like √(n̄ τ). Try n̄ ≈ 5 at τ ≈ 400 ns, or keep 2 photons and listen for 1 µs. Watch the two clouds separate.',
+      check: () => F() >= 0.99 && !E.analyze(p).overCrit },
+    { id: 'kappa', depth: 'student+', text: 'Set χ/2π = 0.5 MHz and listen for at least 2 µs. Which κ separates the clouds most?',
+      hint: 'Slide κ and watch the SNR. It peaks at κ = 2χ, here κ/2π ≈ 1 MHz: smaller and the photons barely leak out; larger and the two resonances overlap.',
+      check: () => Math.abs(p.chi - 0.5) < 0.03 && p.tau >= 2 && Math.abs(Math.log(p.kappa / (2 * p.chi))) < 0.08 },
+    { id: 'best', depth: 'engineer+', text: 'Open <b>Real-world extras</b>, set T₁ to 10 µs or less, and find the listening time that gives the best fidelity (the ★).',
+      hint: 'Too short and the clouds overlap; too long and qubits in |1⟩ decay while you listen. Put your τ within a hair of the ★ on the lower right plot.',
+      check: () => p.T1 <= 10 && F() >= E.bestTau(p, 0.02, 20).F - 0.002 },
+    { id: 'drive', depth: 'engineer+', text: 'Move the drive onto the |1⟩ resonance (f<sub>d</sub> − f<sub>r</sub> = +χ). Do the clouds get closer or farther apart?',
+      hint: 'Slide the drive frequency to +1χ. |1⟩ now fills with photons, but |0⟩ barely responds, and the separation shrinks compared with the midpoint.',
+      check: () => Math.abs(p.delta / p.chi - 1) < 0.06 },
+    { id: 'real', text: '📚 Load a <b>real qubit</b> from Q-Vault. How close does it get to 99% with its own χ, κ and T₁?',
+      hint: 'Press "Load a real qubit\'s readout from Q-Vault" and choose any device, then adjust the photons and listening time.' },
+  ], { done: () => { if (window.QL && QL.offerQuiz) setTimeout(() => QL.offerQuiz('🏆 All done! A 1-minute debrief checks what stuck and helps us improve this page.'), 1500); } });
+
+  // ── start: settings from the link ──
+  const q = K.params(), sp = q.raw;
+  const set = (k, key, lo, hi) => { const v = q.num(k, lo, hi); if (v != null) p[key] = v; };
+  set('chi', 'chi', 0.02, 10); set('kappa', 'kappa', 0.05, 50); set('n', 'nbar', 0.1, 100); set('tau', 'tau', 0.02, 20);
+  set('eta', 'eta', 0.01, 1); set('t1', 'T1', 0.1, 3000); set('pexc', 'pexc', 0, 15); set('d', 'delta', -30, 30); set('ncrit', 'ncrit', 0, 1e6);
+  toSliders(); circDraw(); draw();
+  if (window.QL && QL.onDepth) QL.onDepth(() => { draw(); setTimeout(() => window.dispatchEvent(new Event('resize')), 30); });
+  qvFrom(sp);
+  try { window.QL && QL.context && QL.context({ level: 'readout' }); } catch (e) { /* optional */ }
+})();
+</script>
+</body>
+</html>

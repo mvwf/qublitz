@@ -76,6 +76,17 @@ check('realText: median and middle half with units', /median 102 µs/.test(QV.re
 check('fmt: big and small numbers in powers of ten', QV.fmt(3.4e6, '') === '3.4×10⁶' && QV.fmt(2.1e-6, '') === '2.1×10⁻⁶' && QV.fmt(99.5, '%') === '99.5%');
 check('every real quantity names a Q-Vault page', Object.keys(QV.REAL).every(k => QV.realURL(k).startsWith(QV.SITE)));
 
+// ── dispersive readout rows (Readout Lab) ──
+const RP = QV.parseCSV('citekey,device_id,label,type,chi_MHz,two_chi_MHz,kappa_MHz,T1_us,f_readout_GHz,P_excited_percent\n' +
+  'a,D1,Q1,transmon,-2.3,,2.0,7.4,6.9,\nb,D2,Q2,transmon,,0.3,0.288,559,,\nc,D1,G,fluxonium,0.22,,2.19,1070,6.69,1.5\nd,D1,Q,transmon,0.5,,,100,,\ne,D1,Q,transmon,,,1.2,100,,\n');
+const RM = QV.parseCSV('citekey,device_id,quantity,value,notes\nc,D1,chi,0.22,"Designed. The paper does not say whether it is half or the full g-e shift."\na,D1,chi,-2.3,Half shift.\n');
+const RR = QV.readoutRows(RP, RM);
+check('readoutRows: only rows with both κ and χ (or 2χ)', RR.map(r => r.citekey).join() === 'a,b,c');
+check('readoutRows: χ as a magnitude, and 2χ halved', RR[0].chi === 2.3 && RR[1].chi === 0.15 && RR[1].chiFrom === 'two_chi' && RR[0].chiFrom === 'chi');
+check('readoutRows: unclear χ convention is flagged from the measurement note', RR[2].unsure && !RR[0].unsure && !RR[1].unsure);
+check('readoutRows: T₁, readout frequency and leftover population carried', RR[2].T1 === 1070 && RR[2].fr === 6.69 && RR[2].pexc === 1.5 && RR[1].pexc === null);
+check('χ chip: two_chi rows count, halved', QV.realValues(RP, QV.REAL['transmon.chi']).map(v => v.v).sort().join() === '0.15,0.5,2.3');
+
 // ── funding: the award numbers agree wherever they are stated ──
 const fs = require('fs'), rd = f => fs.readFileSync(path.join(__dirname, '../../..', f), 'utf8');
 const awards = t => ['2540460', '2553633'].every(id => t.includes('AWD_ID=' + id)) && /Unitary Foundation/.test(t);

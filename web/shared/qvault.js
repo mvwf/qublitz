@@ -121,6 +121,21 @@
     return { ok: true, omegaQ: r(f01), T1: r(T1), T2: r(T2), notes };
   }
 
+  // ── dispersive readout (Readout Lab): qubits with both a readout linewidth κ and a dispersive shift ──
+  // χ is half the resonator's shift between |0⟩ and |1⟩: chi_MHz as printed, or two_chi_MHz / 2. When Q-Vault's note on that
+  // value says the paper does not state which convention it used, unsure is set and the page says so.
+  function readoutRows(params, meas) {
+    const unsure = new Set((meas || []).filter(m => (m.quantity === 'chi' || m.quantity === 'two_chi') && /does not say whether|may be th/i.test(m.notes || ''))
+      .map(m => m.citekey + '|' + m.device_id));
+    return (params || []).map(r => {
+      const k = num(r.kappa_MHz), c = num(r.chi_MHz), c2 = num(r.two_chi_MHz);
+      const chi = c != null ? Math.abs(c) : c2 != null ? Math.abs(c2) / 2 : null;
+      if (!(k > 0) || !(chi > 0)) return null;
+      return { citekey: r.citekey, device: r.device_id, label: r.label || '', type: r.type, kappa: k, chi, chiFrom: c != null ? 'chi' : 'two_chi',
+        unsure: unsure.has(r.citekey + '|' + r.device_id), T1: num(r.T1_us), fr: num(r.f_readout_GHz), f01: num(r.f01_GHz), pexc: num(r.P_excited_percent) };
+    }).filter(Boolean).sort((a, b) => (a.citekey < b.citekey ? -1 : a.citekey > b.citekey ? 1 : String(a.label).localeCompare(String(b.label), undefined, { numeric: true })));
+  }
+
   // ── real quantities: the spread of published values behind a number on a Qublitz page ──
   // src 'p': a column of qvault_parameters.csv (one row per qubit or resonator) for the listed device types.
   // src 'm': a quantity of qvault_measurements.csv (current rows; bounds such as "< 0.1 %" are left out, and rows whose notes match
@@ -133,7 +148,8 @@
     'transmon.f01': { src: 'p', types: ['transmon'], col: 'f01_GHz', unit: 'GHz', sym: 'f₀₁', who: 'transmons', y: 'T1_us', kind: 'qubits' },
     'transmon.alpha': { src: 'p', types: ['transmon'], col: 'anharmonicity_MHz', unit: 'MHz', sym: '|α|/2π', who: 'transmons', abs: true, x: 'f01_GHz', kind: 'qubits' },
     'transmon.g': { src: 'p', types: ['transmon'], col: 'g_qr_MHz', unit: 'MHz', sym: 'g/2π', who: 'transmons', x: 'f_readout_GHz', kind: 'qubits' },
-    'transmon.chi': { src: 'p', types: ['transmon'], col: 'chi_MHz', unit: 'MHz', sym: '|χ|/2π', who: 'transmons', abs: true, x: 'kappa_MHz', kind: 'qubits' },
+    // χ: half the resonator's shift between |0⟩ and |1⟩. Q-Vault stores papers that print the full shift as two_chi; halve those.
+    'transmon.chi': { src: 'p', types: ['transmon'], col: 'chi_MHz', alt: ['two_chi_MHz', 0.5], unit: 'MHz', sym: '|χ|/2π', who: 'transmons', abs: true, x: 'kappa_MHz', kind: 'qubits' },
     'transmon.kappa': { src: 'p', types: ['transmon'], col: 'kappa_MHz', unit: 'MHz', sym: 'κ/2π', who: 'readout resonators', x: 'f_readout_GHz', kind: 'qubits' },
     'transmon.fr': { src: 'p', types: ['transmon'], col: 'f_readout_GHz', unit: 'GHz', sym: 'readout frequency', who: 'transmons', x: 'f01_GHz', kind: 'qubits' },
     'fluxonium.T1': { src: 'p', types: ['fluxonium'], col: 'T1_us', unit: 'µs', sym: 'T₁', who: 'fluxoniums', x: 'f01_GHz', kind: 'qubits' },
@@ -150,8 +166,11 @@
   };
   const FILE = { p: 'qvault_parameters.csv', m: 'qvault_measurements.csv' };
   function realValues(rows, spec) {
-    if (spec.src === 'p') return (rows || []).filter(r => spec.types.includes(r.type) && num(r[spec.col]) != null)
-      .map(r => ({ v: spec.abs ? Math.abs(+r[spec.col]) : +r[spec.col], citekey: r.citekey, device: r.device_id, label: r.label || '' }));
+    if (spec.src === 'p') {
+      const val = r => (num(r[spec.col]) != null ? +r[spec.col] : spec.alt && num(r[spec.alt[0]]) != null ? +r[spec.alt[0]] * spec.alt[1] : null);
+      return (rows || []).filter(r => spec.types.includes(r.type) && val(r) != null)
+        .map(r => ({ v: spec.abs ? Math.abs(val(r)) : val(r), citekey: r.citekey, device: r.device_id, label: r.label || '' }));
+    }
     return (rows || []).filter(r => r.quantity === spec.quantity && (r.status || 'current') === 'current' && num(r.value) != null && !/[<>]/.test(r.qualifier || '') && !(spec.skip && spec.skip.test(r.notes || '')))
       .map(r => ({ v: +r.value, citekey: r.citekey, device: r.device_id, label: '' }));
   }
@@ -223,7 +242,7 @@
   }
 
   const api = { SITE, CSV, NOTE, parseCSV, load, sourceMap, cite, doiURL, deviceURL, chains, chainNoise, resonatorQs, QI_NAMES, FRIDGE_STAGES,
-    parseQV, findParam, paperURL, paramsURL, labQubit, TIME_SCALE, REAL, realValues, realStats, realText, realFor, realURL, fmt, mountChips, sourceHTML };
+    parseQV, findParam, paperURL, paramsURL, labQubit, readoutRows, TIME_SCALE, REAL, realValues, realStats, realText, realFor, realURL, fmt, mountChips, sourceHTML };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.QVault = api;
 })(typeof window !== 'undefined' ? window : globalThis);
