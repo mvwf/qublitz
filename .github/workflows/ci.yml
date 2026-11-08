@@ -78,6 +78,11 @@ jobs:
       - name: Hydrogen Atom engine test
         run: node web/courses/engs23/tests/hydrogen-engine.test.js
 
+      # Spectrogram Doppler mode: exact emission time, f = f0/(1 + ṙ/c), plateaus and CPA slope, the synthetic
+      # recording's measured pitch, curve scoring, and locating a microphone from two flyovers (one leaves a mirror twin).
+      - name: Doppler flyover engine test
+        run: node web/courses/engs23/tests/doppler-engine.test.js
+
       # ErrorSweeper: [[n,k,d]] of every built-in code, syndromes, decoders correct all errors up to (d−1)/2,
       # logical detection, threshold behaviour, and code-lab validation.
       - name: ErrorSweeper engine test
