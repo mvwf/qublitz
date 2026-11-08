@@ -133,8 +133,10 @@
   .tools{margin:8px 0}
   .side .card{margin-bottom:10px}
   @media(max-width:920px){.side .msg{margin-top:4px}}
-  @media(max-width:600px){.tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.tabs button{flex:none}.sub p{font-size:13px}
+  @media(max-width:600px){.tabs{flex-wrap:wrap;gap:5px}.tabs button{flex:1 1 auto;padding:6px 8px}.sub p{font-size:13px}
     #gameSec .tools{gap:6px}#gameSec .tools .lbl{display:none}}
+  .pmCtl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.pmCtl input{flex:1;min-width:120px;accent-color:#2fe0d0}
+  .whyDlg .bl{color:#5fb4ff;font-weight:700}.whyDlg .gd{color:#f5b73c;font-weight:700}
   .ghostTip{position:absolute;pointer-events:none;background:rgba(11,18,32,.92);color:#eaf0ff;border:1px solid #2fe0d0;border-radius:8px;padding:4px 8px;font-size:12.5px;line-height:1.35;max-width:240px;z-index:3;white-space:normal}
   .ghostTip b{color:#f5b73c}
   #fcPlot{display:block;width:100%;height:160px;background:var(--night);border-radius:10px;margin:6px 0}
@@ -206,6 +208,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
   <div class="side">
     <div class="msg" id="msg"></div>
     <div id="learnSide">
+      <div class="card primerCard"><h2>Start here</h2><p class="note" style="margin:0 0 8px">New to quantum error correction? A nine-step picture tour of the idea: why qubits need it, how checks find errors without looking, and when a fix wins or loses.</p><button class="primary" id="primerBtn">🎬 How error correction works</button></div>
       <div class="card"><h2>Lessons</h2><div class="lessons" id="lessons"></div></div>
     </div>
     <div id="sweepSide" hidden>
@@ -359,7 +362,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
   X⊗X⊗X⊗X check does the same for Z (phase-flip) errors; a Y error is both. That pattern of flipped checks is the <b>syndrome</b>.</p></details>
   <details><summary>Why loops are harmless and strings are fatal</summary>
   <p class="note">After your correction the lamps are off, so errors plus corrections form chains with no loose ends. A closed
-  chain that encloses a region (one you could shrink to nothing) is a product of checks (a stabilizer) and does nothing to the encoded qubit, which is why many different
+  chain that encloses a region (one you could shrink to nothing), or a chain that leaves an edge and comes back to the same edge, is a product of checks (a stabilizer) and does nothing to the encoded qubit, which is why many different
   corrections can all be right (<b>degeneracy</b>). A chain that runs from one edge of the code to the opposite edge, or
   around the torus, is a <b>logical operator</b>: it flips the encoded qubit and no lamp can see it. The code distance d is
   the length of the shortest such chain, so a code can always fix up to ⌊(d − 1)/2⌋ errors.</p></details>
@@ -631,8 +634,8 @@ const ico = t => `<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="t
   (t === 'Z' ? '<circle cx="11" cy="11" r="10" fill="#5fb4ff"/>' : '<polygon points="11,0 22,11 11,22 0,11" fill="#f5b73c"/>') +
   `<text x="11" y="15.3" text-anchor="middle" font-size="12.5" font-weight="800" fill="#0b1220" font-family="Helvetica,Arial,sans-serif">${t === 'Z' ? 'X' : 'Z'}</text></svg>`;
 function keyHTML(code) {
-  return `<span>${ico('Z')}<span><b>Blue disc = bit-flip alarm.</b> A Z-type check: it measures ZZZZ on its corners and lights when an <b>X error</b> touches it. Fix with <b>X</b>.</span></span>` +
-    (code.X.length ? `<span>${ico('X')}<span><b>Gold diamond = phase-flip alarm.</b> An X-type check: it measures XXXX and lights when a <b>Z error</b> touches it. Fix with <b>Z</b>.</span></span>` +
+  return `<span>${ico('Z')}<span><b>Blue disc = bit-flip alarm.</b> A Z-type check: it measures Z⊗Z⊗… on its qubits and lights when an <b>X error</b> touches it. Fix with <b>X</b>.</span></span>` +
+    (code.X.length ? `<span>${ico('X')}<span><b>Gold diamond = phase-flip alarm.</b> An X-type check: it measures X⊗X⊗… on its qubits and lights when a <b>Z error</b> touches it. Fix with <b>Z</b>.</span></span>` +
       `<span class="wide">A <b>Y</b> error is an X and a Z at once, so it lights both kinds of lamp around the same qubit; fix it with Y. A lamp only counts errors modulo 2: two errors on one face cancel.</span>` : '');
 }
 function setTool(t) { G.tool = t; for (const b of $('toolSeg').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.t === t)); }
@@ -665,7 +668,7 @@ $('commit').addEventListener('click', () => {
   const nErr = Q.weight(G.e.x.map((v, i) => v | G.e.z[i])), nCor = Q.weight(G.c.x.map((v, i) => v | G.c.z[i]));
   const same = nCor === nErr && G.e.x.every((v, i) => v === G.c.x[i]) && G.e.z.every((v, i) => v === G.c.z[i]);
   let html;
-  if (cls.trivial) html = `<h3>✓ The logical qubit survived</h3>${same ? 'You found exactly the errors.' : `Your correction is not the same as the errors (${plural(nErr, 'error')}, ${plural(nCor, 'flip')}), but together they make only <b>closed loops</b> (green rings), which are products of checks and do nothing to the encoded qubit. That freedom is called degeneracy.`}`;
+  if (cls.trivial) html = `<h3>✓ The logical qubit survived</h3>${same ? 'You found exactly the errors.' : `Your correction is not the same as the errors (${plural(nErr, 'error')}, ${plural(nCor, 'flip')}), but together they make only <b>closed loops</b> (green rings), or chains that leave and come back to the same edge, which are products of checks and do nothing to the encoded qubit. That freedom is called degeneracy.`}`;
   else html = `<h3>✗ Logical ${cls.logicalX && cls.logicalZ ? 'X and Z' : cls.logicalX ? 'X' : 'Z'} error</h3>Every lamp is off, but errors plus corrections form a chain (red rings) that ${G.code.family === 'toric' ? 'wraps all the way around the torus' : 'stretches from one edge of the code to the opposite edge'}. That chain is a logical operator: it flipped the encoded qubit and no check can see it.`;
   html += `<br><span class="lbl">The decoder ${dcls.trivial ? 'would have succeeded' : 'would have failed too'}${dcls.trivial === cls.trivial ? '' : dcls.trivial ? ', so this one was solvable' : ', so you beat it'}.</span>`;
   const wc = whyCase(G.revealed);
@@ -867,9 +870,9 @@ function whyScene() {
 // ───────── learn: lessons ─────────
 // Each lesson fixes the code and the errors (qubit indices), and says what to look for.
 const LESSONS = [
-  { t: 'One lamp, two suspects', take: 'A lamp compares the qubits it touches. The qubit that disagrees with <i>both</i> lit neighbours is the one that flipped.',  code: () => Q.repetition(3), x: [1], text: 'Three qubits store one bit as 000 or 111. The two checks compare neighbours: a lit lamp means its two qubits disagree. <b>Both</b> lamps are lit. Which single qubit disagrees with both neighbours? Tap it to flip it back (X).' },
+  { t: 'Two lamps, one culprit', key: 'lesson-one-lamp-two-suspects', take: 'A lamp compares the qubits it touches. The qubit that disagrees with <i>both</i> lit neighbours is the one that flipped.',  code: () => Q.repetition(3), x: [1], text: 'Three qubits store one qubit as α|000⟩ + β|111⟩. The two checks only ask whether neighbours agree, which both |000⟩ and |111⟩ answer the same way, so they never reveal α or β. The checks compare neighbours: a lit lamp means its two qubits disagree. <b>Both</b> lamps are lit. Which single qubit disagrees with both neighbours? Tap it to flip it back (X).' },
   { t: 'The edge', take: 'Errors are rare, so the explanation with the <b>fewest flips</b> is the best bet. That is what decoders look for.',  code: () => Q.repetition(3), x: [0], text: 'Only the first lamp is lit. One flip on the end qubit explains it; so would flipping the other two. Errors are rare, so the <b>fewest flips</b> is the best bet.' },
-  { t: 'Too many errors', take: 'A distance-3 code fixes 1 error, not 2. Bigger codes fix more, but only while errors are rare: above the <b>threshold</b> (about 10% per qubit here) adding qubits makes things worse, not better. Try it in the Threshold tab.',  code: () => Q.repetition(3), x: [0, 1], text: 'Two errors, and only one lamp lit. The fewest-flips answer is now wrong: commit it and see. A distance-3 code can fix 1 error, not 2. The fix is a bigger code.', expectFail: true },
+  { t: 'Too many errors', take: 'A distance-3 code fixes 1 error, not 2. Bigger codes fix more, but only while errors are rare: above the <b>threshold</b> adding qubits makes things worse, not better. For the surface code with perfect checks it is about 10% per qubit (the repetition code alone reaches 50% against bit flips, but cannot see phase flips at all). Try it in the Threshold tab.',  code: () => Q.repetition(3), x: [0, 1], text: 'Two errors, and only one lamp lit. The fewest-flips answer is now wrong: commit it and see. A distance-3 code can fix 1 error, not 2. The fix is a bigger code.', expectFail: true },
   { t: 'Into 2D: the surface code', take: 'Blue lamps (marked X) light around an X error. The error sits where the lit lamps meet.',  code: () => Q.rotatedSurface(3), x: [4], text: 'Now the qubits form a grid and every face is a check. The <b>blue discs marked X</b> are bit-flip alarms (Z-type checks): they light when an X error touches their face. Two are lit: find the one qubit they share, and flip it back with the <b>X</b> tool.' },
   { t: 'Two flips cancel', take: 'A lamp counts errors <b>modulo 2</b>: two errors on the same face cancel, and that face stays dark. Lamps mark the <b>ends</b> of a chain of errors, not every error in it.', code: () => Q.rotatedSurface(3), x: [4, 5], text: 'Two bit flips hit neighbouring qubits. Look at the face they share: its lamp is <b>dark</b>, because it counts its errors modulo 2, and two flips look like none. Only the lamps at the two ends of the pair light up. Find both errors (it takes two X flips).' },
   { t: 'Phase flips', take: 'Quantum errors come in two kinds, bit flips (X) and phase flips (Z), and each kind has its own lamps: gold for Z.',  code: () => Q.rotatedSurface(3), z: [4], text: 'Quantum errors can also flip the phase (a Z error), which a classical code never sees. The <b>gold diamonds marked Z</b> are phase-flip alarms (X-type checks). Switch the tool to <b>Z</b>, the one marked with a gold diamond, and fix it.' },
@@ -891,13 +894,14 @@ function armStuck() {
   }, 25000);
 }
 // a stable name per lesson for the statistics, so adding a lesson does not renumber the others
-const lessonKey = L => 'lesson-' + L.t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+const lessonKey = L => L.key || 'lesson-' + L.t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
 function lessonErr(L, code) { const e = Q.pauli(code.n); (L.x || []).forEach(i => { e.x[i] = 1; }); (L.z || []).forEach(i => { e.z[i] = 1; }); return e; }
 function startLesson(k) {
   G.lesson = k; const L = LESSONS[k]; setCode(L.code()); G.sweep = null;
   setTool(L.z && !L.x ? 'Z' : L.x && L.z ? 'Y' : 'X');
   newRound(lessonErr(L, G.code));
   setMsg('', `<h3>${k + 1}. ${L.t}</h3>${L.text}`);
+  if (k === 0 && !G.done.size) { $('msg').insertAdjacentHTML('beforeend', `<p style="margin:8px 0 0"><button id="primerBtn2">🎬 New to this? See how error correction works first</button></p>`); $('primerBtn2').onclick = primerOpen; }
   drawLessons(); armStuck();
   try { window.QL && QL.context({ level: lessonKey(L) }); } catch (e) { /* optional */ }
 }
@@ -1867,6 +1871,167 @@ function setMode(m) {
   ev('mode', { level: m });
 }
 $('modeTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); });
+
+// ───────── "How error correction works" primer ─────────
+// A picture tour of the idea before the lessons: a fragile qubit, why copying and looking fail, encoding, parity checks,
+// how measuring the checks turns a small rotation into "no error" or "a full flip" (sampled from the Born rule:
+// e^{-iθX/2}|ψ⟩ = cos(θ/2)|ψ⟩ − i sin(θ/2) X|ψ⟩, so the check lights with probability sin²(θ/2)), checks for phase flips,
+// minimum-weight decoding, loops versus logical chains, and the threshold. Reuses the Why explainer's dialog styles.
+const PC = { blue: '#5fb4ff', gold: '#f5b73c', cyan: '#2fe0d0', red: '#ff5a72', green: '#3fe08a', ink: '#eaf0ff', mute: '#9aa3cf', tile: '#1a2540', edge: '#3a4d8f' };
+let PR = null;
+function prScene() {
+  const cv = $('prCv'), dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth || 600, H = cv.clientHeight || 320;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.fillStyle = '#0b1220'; c.fillRect(0, 0, W, H);
+  const u = Math.min(W / (W < 520 ? 8.5 : 12), H / 6.4);
+  const S = { c, W, H, u };
+  S.text = (x, y, s, col, size, align, weight, alpha) => { c.save(); c.globalAlpha = alpha == null ? 1 : alpha; c.fillStyle = col || PC.ink;
+    c.font = `${weight || 600} ${Math.round(Math.max(size || u * 0.3, W < 520 ? 10.5 : 9))}px Helvetica,Arial,sans-serif`; c.textAlign = align || 'center'; c.textBaseline = 'middle'; c.fillText(s, x, y); c.restore(); };
+  S.rrect = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+  S.tile = (x, y, w, h, label, col, size) => { S.rrect(x - w / 2, y - h / 2, w, h, Math.min(w, h) * 0.18); c.fillStyle = PC.tile; c.fill(); c.strokeStyle = col || PC.edge; c.lineWidth = 1.6; c.stroke();
+    if (label) S.text(x, y, label, PC.ink, size || u * 0.3); };
+  // a check lamp: type 'Z' (Z-type check: blue disc marked X, lights for X errors) or 'X' (gold diamond marked Z)
+  S.lamp = (x, y, type, on, r) => { r = r || u * 0.24; c.save(); c.globalAlpha = on ? 1 : 0.22;
+    if (on) { c.shadowColor = type === 'Z' ? PC.blue : PC.gold; c.shadowBlur = r * 1.4; }
+    c.fillStyle = type === 'Z' ? PC.blue : PC.gold; c.beginPath();
+    if (type === 'Z') c.arc(x, y, r, 0, 2 * Math.PI); else { c.moveTo(x, y - r * 1.15); c.lineTo(x + r * 1.15, y); c.lineTo(x, y + r * 1.15); c.lineTo(x - r * 1.15, y); c.closePath(); }
+    c.fill(); c.restore(); S.text(x, y + 0.5, type === 'Z' ? 'X' : 'Z', '#0b1220', r * 1.05, 'center', 800, on ? 1 : 0.5); };
+  S.bolt = (x, y, letter, alpha) => S.text(x, y, '⚡' + (letter || ''), PC.red, u * 0.34, 'center', 800, alpha);
+  S.arrow = (x1, y1, x2, y2, col) => { c.strokeStyle = col || PC.mute; c.fillStyle = col || PC.mute; c.lineWidth = 2; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+    const a = Math.atan2(y2 - y1, x2 - x1), h = u * 0.18; c.beginPath(); c.moveTo(x2, y2); c.lineTo(x2 - h * Math.cos(a - 0.45), y2 - h * Math.sin(a - 0.45)); c.lineTo(x2 - h * Math.cos(a + 0.45), y2 - h * Math.sin(a + 0.45)); c.closePath(); c.fill(); };
+  S.cross = (x, y, r) => { c.strokeStyle = PC.red; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(x - r, y - r); c.lineTo(x + r, y + r); c.moveTo(x + r, y - r); c.lineTo(x - r, y + r); c.stroke(); c.lineCap = 'butt'; };
+  // the 3-qubit repetition code: tiles at cx + (i − 1)·sp, lamps between them lit by the parity of the flips
+  S.rep = (cx, cy, sp, flips, alpha) => { const w = sp * 0.62, xs = [0, 1, 2].map(i => cx + (i - 1) * sp);
+    c.fillStyle = 'rgba(95,180,255,.18)'; c.fillRect(xs[0], cy - w * 0.16, xs[2] - xs[0], w * 0.32);
+    xs.forEach((x, i) => { S.tile(x, cy, w, w, '', flips[i] ? PC.red : null); S.text(x, cy + w * 0.78, sp > u * 1.4 ? `qubit ${i + 1}` : String(i + 1), PC.mute, u * 0.22); if (flips[i]) S.bolt(x, cy, 'X', alpha); });
+    for (let i = 0; i < 2; i++) S.lamp((xs[i] + xs[i + 1]) / 2, cy - w * 0.75, 'Z', !!(flips[i] ^ flips[i + 1])); };
+  // the d = 3 rotated surface code with errors ex, ez (0/1 arrays) and optional marks [{q, s, col}]
+  S.surf = (code, cx, cy, sc, ex, ez, marks, ring) => {
+    const P = q => [cx + (code.qubits[q].x - 1) * sc, cy + (code.qubits[q].y - 1) * sc];
+    const syn = Q.syndrome(code, { x: ex, z: ez });
+    code.checks.forEach((ch, k) => { const pts = ch.q.map(P), on = syn[k], col = ch.type === 'Z' ? 'rgba(95,180,255,' : 'rgba(245,183,60,';
+      let lx, ly;
+      c.fillStyle = col + (on ? '.45)' : '.16)');
+      if (pts.length === 4) { lx = pts.reduce((a, p) => a + p[0], 0) / 4; ly = pts.reduce((a, p) => a + p[1], 0) / 4;
+        pts.sort((a, b) => Math.atan2(a[1] - ly, a[0] - lx) - Math.atan2(b[1] - ly, b[0] - lx));
+        c.beginPath(); pts.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); c.closePath(); c.fill(); }
+      else { const mx = (pts[0][0] + pts[1][0]) / 2, my = (pts[0][1] + pts[1][1]) / 2, phi = Math.atan2(my - cy, mx - cx);
+        c.beginPath(); c.arc(mx, my, sc / 2, phi - Math.PI / 2, phi + Math.PI / 2); c.closePath(); c.fill(); lx = mx + Math.cos(phi) * sc * 0.24; ly = my + Math.sin(phi) * sc * 0.24; }
+      S.lamp(lx, ly, ch.type, on, sc * 0.15); });
+    for (let q = 0; q < code.n; q++) { const [x, y] = P(q), hit = ex[q] || ez[q]; S.tile(x, y, sc * 0.38, sc * 0.38, '', hit ? PC.red : null);
+      if (hit) S.text(x, y, ex[q] && ez[q] ? 'Y' : ex[q] ? 'X' : 'Z', PC.red, sc * 0.24, 'center', 800); }
+    if (ring) { c.strokeStyle = ring.col; c.lineWidth = 3; c.setLineDash([6, 5]); c.beginPath(); ring.q.map(P).forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y))); if (ring.closed) c.closePath(); c.stroke(); c.setLineDash([]); }
+    (marks || []).forEach(m => { const [x, y] = P(m.q); c.save(); c.globalAlpha = m.a == null ? 1 : m.a; S.tile(x, y, sc * 0.38, sc * 0.38, '', m.col); c.restore(); S.text(x, y, m.s, m.col, sc * 0.24, 'center', 800, m.a); });
+  };
+  return S;
+}
+const sinc2 = th => Math.pow(Math.sin(th / 2), 2);
+function primerSteps() {
+  const surf = Q.rotatedSurface(3), z9 = () => new Uint8Array(9), one = (q, t) => { const v = z9(); if (t) v[q] = 1; return v; };
+  const tick = (ms, n) => Math.floor((performance.now() - PR.t0) / ms) % n;
+  return [
+    { t: 'A qubit is fragile', cap: 'A qubit holds a superposition <b>α|0⟩ + β|1⟩</b>. Its surroundings keep nudging it, and two errors matter most: a <b>bit flip X</b> (|0⟩ ↔ |1⟩) and a <b>phase flip Z</b> (the sign of β flips). A phase flip has no classical counterpart: an ordinary bit cannot suffer one.',
+      draw: S => { const k = tick(1500, 4), lab = ['α|0⟩ + β|1⟩', 'α|1⟩ + β|0⟩', 'α|0⟩ + β|1⟩', 'α|0⟩ − β|1⟩'][k];
+        S.tile(S.W / 2, S.H * 0.45, S.u * 4.2, S.u * 1.6, lab, k % 2 ? PC.red : PC.cyan, S.u * 0.42);
+        if (k % 2) S.bolt(S.W / 2 + S.u * 2.3, S.H * 0.45 - S.u * 0.9, k === 1 ? 'X' : 'Z');
+        S.text(S.W / 2, S.H * 0.8, ['no error', 'bit flip X: |0⟩ ↔ |1⟩', 'no error', 'phase flip Z: β → −β'][k], k % 2 ? PC.red : PC.mute, S.u * 0.3); } },
+    { t: 'Two obvious fixes that fail', cap: '<b>Keep a backup?</b> The no-cloning theorem forbids copying an unknown quantum state. <b>Check it now and then?</b> Measuring the qubit returns just 0 or 1, and α and β are gone. Quantum error correction has to find errors without copying the data and without looking at it.',
+      draw: S => { const y = S.H * 0.42, w = S.u * 2.2, h = S.u * 1.1;
+        S.tile(S.W * 0.13, y, w, h, 'α|0⟩+β|1⟩', PC.cyan, S.u * 0.26); S.arrow(S.W * 0.13 + w / 2 + 6, y, S.W * 0.37 - w / 2 - 6, y); S.tile(S.W * 0.37, y, w, h, '?', PC.edge, S.u * 0.4);
+        S.text(S.W * 0.25, y - S.u * 0.62, 'copy', PC.mute, S.u * 0.24); S.cross(S.W * 0.25, y, S.u * 0.28); S.text(S.W * 0.25, S.H * 0.78, 'no-cloning theorem', PC.red, S.u * 0.27);
+        S.tile(S.W * 0.63, y, w, h, 'α|0⟩+β|1⟩', PC.cyan, S.u * 0.26); S.arrow(S.W * 0.63 + w / 2 + 6, y, S.W * 0.87 - w / 2 - 6, y); S.tile(S.W * 0.87, y, w, h, '0 or 1', PC.edge, S.u * 0.3);
+        S.text(S.W * 0.75, y - S.u * 0.62, 'measure', PC.mute, S.u * 0.24); S.cross(S.W * 0.75, y, S.u * 0.28); S.text(S.W * 0.75, S.H * 0.78, 'α and β are lost', PC.red, S.u * 0.27); } },
+    { t: 'Spread one qubit over several', cap: 'Instead, <b>encode</b> it: α|0⟩ + β|1⟩ becomes <b>α|000⟩ + β|111⟩</b>, one <i>logical</i> qubit stored in three <i>physical</i> qubits. These are not three copies, which would be (α|0⟩ + β|1⟩)(α|0⟩ + β|1⟩)(α|0⟩ + β|1⟩); the information lives in how the three are correlated, and no single qubit holds it.',
+      draw: (S, t) => { const y = S.H * 0.42; S.tile(S.W * 0.16, y, S.u * 2.3, S.u * 1.1, 'α|0⟩+β|1⟩', PC.cyan, S.u * 0.27);
+        S.arrow(S.W * 0.16 + S.u * 1.3, y, S.W * 0.42, y); S.text(S.W * 0.335, y - S.u * 0.4, 'encode', PC.mute, S.u * 0.24);
+        S.rep(S.W * 0.67, y, S.u * 1.6, [0, 0, 0]); S.text(S.W * 0.67, S.H * 0.84, 'α|000⟩ + β|111⟩', PC.cyan, S.u * 0.36, 'center', 700, Math.min(1, t * 2)); } },
+    { t: 'Ask parity questions', cap: 'Two <b>check qubits</b> (ancillas) ask “do qubits 1 and 2 agree?” and “do qubits 2 and 3 agree?”: they measure the parities Z₁Z₂ and Z₂Z₃. Both |000⟩ and |111⟩ answer “agree”, so the answers say <b>nothing about α and β</b>, and the superposition survives. A bit flip makes one or two answers “disagree”. That pattern of lit lamps, the <b>syndrome</b>, points to the culprit.',
+      draw: S => { const k = tick(1700, 4), flips = [0, 0, 0]; if (k) flips[k - 1] = 1;
+        S.rep(S.W / 2, S.H * 0.4, S.u * 1.7, flips);
+        const rows = [['no error', [0, 0]], ['qubit 1', [1, 0]], ['qubit 2', [1, 1]], ['qubit 3', [0, 1]]];
+        const narrow = S.W < 520; rows.forEach(([lab, l], i) => { const x = narrow ? S.W * (0.22 + 0.48 * (i % 2)) : S.W * (0.14 + 0.24 * i), y = narrow ? S.H * (0.8 + 0.11 * (i >> 1)) : S.H * 0.86, a = i === k ? 1 : 0.35; S.c.save(); S.c.globalAlpha = a;
+          S.lamp(x - S.u * 0.75, y, 'Z', l[0], S.u * 0.13); S.lamp(x - S.u * 0.4, y, 'Z', l[1], S.u * 0.13); S.c.restore();
+          S.text(x - S.u * 0.15, y, '→ ' + lab, i === k ? PC.ink : PC.mute, S.u * 0.24, 'left', 600); }); } },
+    { t: 'Measuring makes errors digital', interactive: true,
+      cap: 'Real noise is usually not a clean flip but a small rotation. Say qubit 1 turns by an angle θ: the state becomes cos(θ/2)·|ψ⟩ − i·sin(θ/2)·X₁|ψ⟩. Measuring the checks forces a choice. With probability cos²(θ/2) the lamps stay dark and the state is <b>exactly</b> restored; with probability sin²(θ/2) a lamp lights and the error is a <b>full X flip</b>, which the code can undo. So a code only ever has to fix X, Z and Y. Try it:' +
+        '<div class="pmCtl"><span>θ</span><input type="range" id="pmTh" min="0" max="180" step="5" value="30" aria-label="Rotation angle θ in degrees"><b id="pmThT">30°</b><button id="pmGo">Measure 100 times</button></div>',
+      setup: () => { const upd = () => { $('pmThT').textContent = $('pmTh').value + '°'; PR.counts = null; };
+        $('pmTh').oninput = upd;
+        $('pmGo').onclick = () => { const th = +$('pmTh').value * Math.PI / 180; let lit = 0; for (let i = 0; i < 100; i++) if (Math.random() < sinc2(th)) lit++; PR.counts = { lit, dark: 100 - lit, th }; ev('primer_measure', { level: $('pmTh').value }); }; },
+      draw: S => { const th = +(($('pmTh') || {}).value || 30) * Math.PI / 180, pl = sinc2(th), C = PR.counts, top = S.H * 0.16, bh = S.H * 0.56, bw = S.W * 0.16;
+        S.text(S.W / 2, S.H * 0.07, `cos²(θ/2) = ${(1 - pl).toFixed(3)}     sin²(θ/2) = ${pl.toFixed(3)}`, PC.mute, S.u * 0.27);
+        [['lamps dark: state restored', 1 - pl, C && C.dark, PC.green, 0.3], ['a lamp lit: a full X flip', pl, C && C.lit, PC.red, 0.7]].forEach(([lab, p, n, col, fx]) => {
+          const x = S.W * fx, base = top + bh; S.c.strokeStyle = PC.edge; S.c.lineWidth = 1; S.c.strokeRect(x - bw / 2, top, bw, bh);
+          if (n != null) { S.c.fillStyle = col; S.c.globalAlpha = 0.75; S.c.fillRect(x - bw / 2, base - bh * n / 100, bw, bh * n / 100); S.c.globalAlpha = 1; S.text(x, base - bh * n / 100 - S.u * 0.22, String(n), col, S.u * 0.34, 'center', 800); }
+          S.c.strokeStyle = PC.ink; S.c.setLineDash([5, 4]); S.c.lineWidth = 2; S.c.beginPath(); S.c.moveTo(x - bw / 2 - 6, base - bh * p); S.c.lineTo(x + bw / 2 + 6, base - bh * p); S.c.stroke(); S.c.setLineDash([]);
+          S.text(x, base + S.u * 0.32, lab, col, S.u * 0.26); });
+        S.text(S.W / 2, S.H * 0.97, C ? 'dashed lines: the expected share out of 100' : 'pick θ, then press “Measure 100 times” (dashed lines: the expected share)', PC.mute, S.u * 0.22); } },
+    { t: 'Phase flips need their own checks', cap: 'A Z error leaves every Z₁Z₂-type parity unchanged, so the repetition code cannot see it. The fix is a second kind of check, X⊗X⊗…, which a Z error does flip. The <b>surface code</b> puts both kinds on a grid: <span class="bl">blue faces</span> (Z-type checks) light for X errors, <span class="gd">gold faces</span> (X-type checks) light for Z errors, and a Y error lights both. Neighbouring blue and gold faces share two qubits, an even number, so all the checks can be measured together without disturbing one another.',
+      draw: S => { const k = tick(1700, 3), sc = Math.min(S.u * 1.45, S.H * 0.26);
+        S.surf(surf, S.W / 2, S.H * 0.45, sc, one(4, k !== 1), one(4, k !== 0));
+        S.text(S.W / 2, S.H * 0.93, ['X error: two blue lamps light', 'Z error: two gold lamps light', 'Y = X and Z: both kinds light'][k], PC.ink, S.u * 0.28); } },
+    { t: 'Decode: bet on the fewest flips', cap: 'Different errors can light the same lamps. Here only the first lamp is lit: a flip on qubit 1 explains it, and so do flips on qubits 2 and 3 together. If each qubit flips with probability p, one particular pattern of w flips among n qubits has probability p<sup>w</sup>(1 − p)<sup>n − w</sup>, so at p = 5% the single flip is 19 times likelier. A <b>decoder</b> picks the most likely explanation, usually the one with the fewest flips, and undoes it.',
+      draw: S => { const y = S.H * 0.42, sp = Math.min(S.W * 0.135, S.u * 1.5);
+        S.rep(S.W * 0.27, y, sp, [1, 0, 0]); S.rep(S.W * 0.73, y, sp, [0, 1, 1]);
+        S.text(S.W * 0.27, S.H * 0.72, '1 flip: p(1 − p)² ≈ 4.5%', PC.green, S.u * 0.28, 'center', 700); S.text(S.W * 0.27, S.H * 0.84, 'the decoder’s bet ✓', PC.green, S.u * 0.24);
+        S.text(S.W * 0.73, S.H * 0.72, '2 flips: p²(1 − p) ≈ 0.24%', PC.mute, S.u * 0.28, 'center', 700); S.text(S.W * 0.73, S.H * 0.84, 'same lamps, 19× less likely', PC.mute, S.u * 0.24);
+        S.text(S.W / 2, S.H * 0.06, 'p = 5% per qubit', PC.mute, S.u * 0.24); } },
+    { t: 'Win or lose', cap: 'After the fix every lamp is dark, and errors plus fix together are one of two things. A <span class="ok">product of checks</span>, such as a closed loop, does nothing to the stored qubit: you win, even if your fix was not the true error. A <span class="bad">logical operator</span>, a chain from one edge to the opposite edge, flips the stored qubit, and no lamp can see it: you lose. The shortest such chain has length <b>d</b>, the code distance, so a code can always fix ⌊(d − 1)/2⌋ errors: one, for d = 3.',
+      draw: (S, t) => { const sc = Math.min(S.u * 1.05, S.H * 0.2), y = S.H * 0.42, a = Math.min(1, t * 1.5), z = z9();
+        S.surf(surf, S.W * 0.26, y, sc, z, z, [0, 1, 3, 4].map(q => ({ q, s: 'X', col: PC.green, a })), a > 0.5 ? { q: [0, 1, 4, 3], col: PC.green, closed: true } : null);
+        S.surf(surf, S.W * 0.74, y, sc, z, z, [1, 4, 7].map(q => ({ q, s: 'X', col: PC.red, a })), a > 0.5 ? { q: [1, 4, 7], col: PC.red } : null);
+        S.text(S.W * 0.26, S.H * 0.8, 'a loop = one gold check', PC.green, S.u * 0.26, 'center', 700); S.text(S.W * 0.26, S.H * 0.9, 'harmless ✓', PC.green, S.u * 0.24);
+        S.text(S.W * 0.74, S.H * 0.8, 'top edge to bottom edge', PC.red, S.u * 0.26, 'center', 700); S.text(S.W * 0.74, S.H * 0.9, 'logical X: the qubit flips ✗', PC.red, S.u * 0.24);
+        S.text(S.W / 2, S.H * 0.06, 'every lamp is dark in both', PC.mute, S.u * 0.24); } },
+    { t: 'Bigger codes win, below a threshold', cap: 'A bigger code needs more errors before it fails. Below a <b>threshold</b> error rate p<sub>th</sub>, the logical failure rate falls roughly as (p/p<sub>th</sub>)<sup>(d+1)/2</sup>, so each step up in distance multiplies the protection. Above it, the extra qubits just collect more errors. With perfect checks, as in this game, p<sub>th</sub> ≈ 10%; when the check circuits and measurements make errors too it is about 1%. In 2024 Google’s Willow processor got below it: each step from d = 3 to 5 to 7 cut the logical error rate by a factor of about 2.1.',
+      draw: (S, t) => { const x0 = S.W * 0.14, x1 = S.W * 0.9, y0 = S.H * 0.86, y1 = S.H * 0.08, lp0 = Math.log10(0.01), lp1 = Math.log10(0.3), lq0 = -5, lq1 = 0;
+        const X = p => x0 + (Math.log10(p) - lp0) / (lp1 - lp0) * (x1 - x0), Y = q => y0 - (Math.log10(Math.max(q, 1e-5)) - lq0) / (lq1 - lq0) * (y0 - y1), c = S.c;
+        c.strokeStyle = PC.edge; c.lineWidth = 1; c.beginPath(); c.moveTo(x0, y1); c.lineTo(x0, y0); c.lineTo(x1, y0); c.stroke();
+        [0.01, 0.03, 0.1, 0.3].forEach(p => S.text(X(p), y0 + S.u * 0.25, (100 * p) + '%', PC.mute, S.u * 0.22));
+        [1, 1e-2, 1e-4].forEach(q => S.text(x0 - 6, Y(q), q === 1 ? '1' : '10' + (q === 1e-2 ? '⁻²' : '⁻⁴'), PC.mute, S.u * 0.22, 'right'));
+        S.text((x0 + x1) / 2, S.H * 0.985, 'physical error rate p per qubit', PC.mute, S.u * 0.22);
+        c.save(); c.translate(S.W * 0.035, (y0 + y1) / 2); c.rotate(-Math.PI / 2); S.text(0, 0, 'logical failure', PC.mute, S.u * 0.22); c.restore();
+        c.strokeStyle = PC.mute; c.setLineDash([3, 4]); c.beginPath(); c.moveTo(X(0.1), y1); c.lineTo(X(0.1), y0); c.stroke(); c.setLineDash([]);
+        S.text(X(0.1) + 4, y1 + S.u * 0.15, 'threshold', PC.mute, S.u * 0.22, 'left');
+        const line = (f, col, lab) => { c.strokeStyle = col; c.lineWidth = 2.5; c.beginPath(); for (let i = 0; i <= 80; i++) { const p = Math.pow(10, lp0 + (lp1 - lp0) * i / 80 * Math.min(1, t * 1.4)), q = Math.min(1, f(p)); i ? c.lineTo(X(p), Y(q)) : c.moveTo(X(p), Y(q)); } c.stroke();
+          if (t > 0.7) { const p = 0.013, q = f(p); S.text(X(p) + 4, Y(Math.max(q, 1.4e-5)) - S.u * 0.34, lab, col, S.u * 0.22, 'left', 700); } };
+        line(p => p, PC.mute, 'bare qubit'); line(p => 0.1 * Math.pow(p / 0.1, 2), PC.blue, 'd = 3'); line(p => 0.1 * Math.pow(p / 0.1, 3), PC.cyan, 'd = 5'); line(p => 0.1 * Math.pow(p / 0.1, 4), PC.gold, 'd = 7');
+        S.text(x1, y0 - S.u * 0.3, 'a sketch of 0.1·(p/p_th)^((d+1)/2) with p_th = 10%', PC.mute, S.u * 0.2, 'right'); } },
+  ];
+}
+function primerOpen() {
+  if (PR || document.querySelector('.whyVeil')) return;
+  PR = { steps: null, i: 0, t0: performance.now(), raf: 0, counts: null };
+  const steps = PR.steps = primerSteps(), opener = document.activeElement;
+  const veil = document.createElement('div'); veil.className = 'whyVeil';
+  veil.innerHTML = `<div class="whyDlg" role="dialog" aria-modal="true" aria-labelledby="prTitle"><h2 id="prTitle"></h2><p class="whySub">How quantum error correction works · step <span id="prN"></span> of ${steps.length}</p>
+    <canvas id="prCv" aria-label="Illustration for this step"></canvas><div class="whyCap" id="prCap" aria-live="polite"></div>
+    <div class="whyRow"><button id="prBack">◀ Back</button><span class="whyDots" id="prDots">${steps.map(() => '<i></i>').join('')}</span><button id="prClose">Close</button><button class="go" id="prNext">Next ▶</button></div></div>`;
+  document.body.append(veil);
+  const close = () => { cancelAnimationFrame(PR.raf); veil.remove(); document.removeEventListener('keydown', key); PR = null; if (opener && opener.focus) opener.focus(); };
+  const go = d => { const n = PR.i + d; if (n < 0) return;
+    if (n >= steps.length) { ev('primer_done', { level: 'primer' }); close(); if (G.mode === 'learn') startLesson(0); return; }
+    PR.i = n; PR.t0 = performance.now(); PR.counts = null; primerStep(); };
+  const key = e => { if (e.key === 'Escape') close(); else if (/INPUT/.test((e.target && e.target.tagName) || '')) return; else if (e.key === 'ArrowRight') go(1); else if (e.key === 'ArrowLeft') go(-1); };
+  document.addEventListener('keydown', key);
+  veil.addEventListener('click', e => { if (e.target === veil) close(); });
+  $('prClose').onclick = close; $('prNext').onclick = () => go(1); $('prBack').onclick = () => go(-1);
+  primerStep(); $('prNext').focus();
+  ev('primer_open', { level: G.mode });
+}
+function primerStep() {
+  const P0 = PR, st = P0.steps[P0.i], last = P0.i === P0.steps.length - 1;
+  $('prTitle').textContent = st.t; $('prCap').innerHTML = st.cap; $('prN').textContent = P0.i + 1;
+  if (st.setup) st.setup();
+  [...$('prDots').children].forEach((d, k) => d.classList.toggle('on', k <= P0.i));
+  $('prBack').disabled = P0.i === 0; $('prNext').textContent = last ? (G.mode === 'learn' ? 'Start the lessons ▶' : 'Done ✓') : 'Next ▶';
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frame = now => { if (PR !== P0) return; const t = reduce ? 1 : Math.min(1, (now - P0.t0) / 1400);
+    st.draw(prScene(), t); $('prNext').classList.toggle('pulse', t >= 1 && !st.interactive); P0.raf = requestAnimationFrame(frame); };
+  cancelAnimationFrame(P0.raf); P0.raf = requestAnimationFrame(frame);
+}
+$('primerBtn').addEventListener('click', primerOpen);
 
 // ───────── boot ─────────
 $('codeSel').innerHTML = Object.keys(CODES).map(k => `<option value="${k}" ${k === 'surf3' ? 'selected' : ''}>${CODE_NAMES[k]}</option>`).join('');
