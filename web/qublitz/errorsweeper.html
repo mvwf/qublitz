@@ -219,8 +219,8 @@ The physics is real: these are the rotated surface code, the toric code, and the
   <button role="tab" data-m="learn" aria-selected="true">📘 Learn</button>
   <button role="tab" data-m="sweep" aria-selected="false">🎯 Sweep</button>
   <button role="tab" data-m="lab" aria-selected="false">🧪 Code lab</button>
-  <button role="tab" data-m="hunt" aria-selected="false">🧭 Code Hunt</button>
-  <button role="tab" data-m="thr" aria-selected="false">📈 Threshold</button>
+  <button role="tab" data-m="hunt" aria-selected="false" data-depth="engineer+">🧭 Code Hunt</button>
+  <button role="tab" data-m="thr" aria-selected="false" data-depth="student+">📈 Threshold</button>
 </div>
 
 <!-- ───────── learn: the course ───────── -->
@@ -309,7 +309,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
       <button class="primary" id="runDec">Run the decoder ▶</button>
     </div>
     <div class="msg" id="labMsg" hidden></div>
-    <details id="freeForm" style="margin-top:8px"><summary>Draw a check on any qubits (advanced)</summary>
+    <details id="freeForm" style="margin-top:8px" data-depth="engineer+"><summary>Draw a check on any qubits (advanced)</summary>
       <p class="note">Tap grid points to select qubits (a point with no qubit gets one), then add a check on them. Use this for
       checks that are not squares, such as the weight-6 faces of color codes. Two checks can be measured together only if
       they <b>commute</b>: an X check and a Z check must share an even number of qubits.</p>
@@ -322,7 +322,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
       <div class="missionBar" id="labMission" hidden></div>
       <div class="verdict" id="verdict"></div>
       <div class="score" id="score"></div>
-      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link</button></div>
+      <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><button class="primary" id="playLab">Play this code ▶</button><button id="shareLab">Copy link</button><button id="exportH" data-depth="engineer+" title="Copy the X and Z check matrices as text, for Python">Export H</button></div>
     </div>
     <div class="card" id="fcCard"><h2>🔮 Decoder forecast</h2><div class="lbl" id="fcState" style="margin:-6px 0 4px"></div>
       <div class="fcHead" id="fcHead">Add ancillas and the forecast updates by itself: thousands of noisy rounds, decoded live.</div>
@@ -330,7 +330,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
       <div class="note" id="fcNote" style="font-size:12.5px"></div>
       <label class="lbl"><input type="checkbox" id="fcHeat" checked> Show weak spots and the weakest link on the board</label>
     </div>
-    <div class="card"><h2>How good is it? <span class="lbl" style="text-transform:none;letter-spacing:0">(precise, 10 000 rounds)</span></h2>
+    <div class="card" data-depth="student+"><h2>How good is it? <span class="lbl" style="text-transform:none;letter-spacing:0">(precise, 10 000 rounds)</span></h2>
       <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><select id="labNoise" aria-label="Noise"><option value="dep" selected>Depolarizing (X, Y, Z)</option><option value="X">Bit flips (X)</option><option value="Z">Phase flips (Z)</option></select>
         <button class="primary" id="labMeasure">Measure ▶</button><span class="lbl" id="labProg"></span></div>
       <div id="labPlot" hidden></div>
@@ -421,7 +421,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
   corrections can all be right (<b>degeneracy</b>). A chain that runs from one edge of the code to the opposite edge, or
   around the torus, is a <b>logical operator</b>: it flips the encoded qubit and no lamp can see it. The code distance d is
   the length of the shortest such chain, so a code can always fix up to ⌊(d − 1)/2⌋ errors.</p></details>
-  <details><summary>What this game leaves out</summary>
+  <details data-depth="student+"><summary>What this game leaves out</summary>
   <p class="note">Code-capacity noise: each round the checks are measured once and perfectly. Real hardware repeats the
   measurements many times, because the ancillas and the measurements make errors too, and decodes in space and time;
   that lowers the surface-code threshold to about 1%. The decoder looks for the lightest set of errors that explains the lamps.
@@ -429,7 +429,7 @@ The physics is real: these are the rotated surface code, the toric code, and the
   16 lamps of one type are lit, which is rare here); for codes without a matching graph, such as the Steane code and many
   lab designs, it uses an exact lookup table or search. It decodes X and Z separately, so for Y errors it ignores their
   correlation.</p></details>
-  <details><summary>How matching works, and when it cannot</summary>
+  <details data-depth="engineer+"><summary>How matching works, and when it cannot</summary>
   <p class="note">An error on a qubit in the middle of a surface code lights the two lamps of its kind on either side; an
   error at the edge lights one. So the lit lamps are the <b>ends of error chains</b>, and decoding means pairing them up
   (or pairing one with the edge) so that the chains joining them are as short as possible: a minimum-weight perfect
@@ -439,9 +439,15 @@ The physics is real: these are the rotated surface code, the toric code, and the
   lights three lamps, and the problem becomes a hypergraph; decoders then use other ideas, such as projecting onto
   matchable sub-lattices or belief propagation with ordered-statistics decoding (Roffe <i>et al.</i> 2020). Turn on
   <b>Show the matching graph</b> in the lab’s Test mode to see the graph for your own code.</p></details>
+  <details data-depth="researcher"><summary>Open questions this page cannot settle</summary>
+  <p class="note">Everything here is code-capacity noise: perfect, one-shot checks. Real thresholds come from circuit-level noise, where the
+  check circuits themselves fail, errors spread through the CNOTs (the order of the four gates matters: “hook” errors), and decoding runs in
+  space and time; the surface code's threshold falls from about 10% to about 1%. Color codes and most lab designs have no matching graph, so
+  which decoder, and at what speed? And for qLDPC codes like the ones in Code Hunt, how do you lay out long-range checks on a chip? Export your
+  lab code's check matrices (Code lab → <b>Export H</b>) to try your own decoder, for example with the open-source <i>ldpc</i> or <i>Stim</i> packages.</p></details>
 </div>
 
-<div class="card">
+<div class="card" data-depth="student+">
   <h2>Sources</h2>
   <ol class="refs">
     <li>S. M. Girvin, “Introduction to quantum error correction and fault tolerance,” <i>SciPost Phys. Lect. Notes</i> <b>70</b> (2023), arXiv:2111.08894. The Learn course follows its order: classical codes first, then qubits; the circuits of chapter 3 are its Fig. 16, Box 5 and Fig. 17.</li>
@@ -1485,6 +1491,15 @@ function decodeSpec(str) {
     return { qubits, checks, geom };
   } catch (e) { return null; }
 }
+// the check matrices of the lab code as Python-ready text (rows of 0/1), for students who want to run their own decoder
+$('exportH').addEventListener('click', e => {
+  const c = labCode(); if (!c) return;
+  const rows = H => '[' + H.map(r => '[' + Array.from(r).join(',') + ']').join(',\n      ') + ']';
+  const txt = `# ErrorSweeper code lab: n = ${c.n}, k = ${c.k}\n# H_X: X-type checks (rows) on qubits (columns); H_Z: Z-type checks\nHX = ${rows(c.Hx)}\nHZ = ${rows(c.Hz)}\n`;
+  const b = e.target, done = t => { b.textContent = t; setTimeout(() => { b.textContent = 'Export H'; }, 1600); };
+  try { navigator.clipboard.writeText(txt).then(() => done('Copied ✓'), () => done('Copy failed')); } catch (err) { done('Copy failed'); }
+  ev('export_h', { value: c.n });
+});
 $('shareLab').addEventListener('click', e => { const q = 'mode=lab&lab=' + encodeSpec({ qubits: lab.qubits, checks: lab.checks });
   window.PageKit ? PageKit.copyLink(e.target, 'qublitz/errorsweeper.html', q) : navigator.clipboard && navigator.clipboard.writeText(location.pathname + '?' + q); });
 
@@ -2094,16 +2109,19 @@ const QC = window.QCirc;
 const CH_KEY = 'es_chapter';
 const CHAPTERS = [
   { n: 1, t: 'Classical codes', icon: '🔢' }, { n: 2, t: 'Why qubits are harder', icon: '⚛️' },
-  { n: 3, t: 'Circuits', icon: '🔌' }, { n: 4, t: 'Codes on a grid', icon: '🧹' },
+  { n: 3, t: 'Circuits', icon: '🔌', depth: 'student+' }, { n: 4, t: 'Codes on a grid', icon: '🧹' },
 ];
 let CH = 1;
 try { const v = +localStorage.getItem(CH_KEY); if (v >= 1 && v <= 4) CH = v; } catch (e) { /* storage off */ }
 const chSeen = new Set();
 function drawCourseBar() {
-  $('courseBar').innerHTML = CHAPTERS.map(c => `<button data-ch="${c.n}" aria-pressed="${c.n === CH}" class="${chSeen.has(c.n) && c.n !== CH ? 'seen' : ''}"><span class="chN">${c.n}</span>${c.icon} ${c.t}</button>`).join('');
+  const atD = t => !window.QL || !QL.atDepth || QL.atDepth(t);
+  $('courseBar').innerHTML = CHAPTERS.filter(c => atD(c.depth)).map(c => `<button data-ch="${c.n}" aria-pressed="${c.n === CH}" class="${chSeen.has(c.n) && c.n !== CH ? 'seen' : ''}"><span class="chN">${c.n}</span>${c.icon} ${c.t}</button>`).join('');
 }
+if (window.QL && QL.onDepth) QL.onDepth(() => { if (G.mode === 'learn') showChapter(CH); });
 $('courseBar').addEventListener('click', e => { const b = e.target.closest('[data-ch]'); if (b) showChapter(+b.dataset.ch); });
 function showChapter(n) {
+  if (n === 3 && window.QL && QL.atDepth && !QL.atDepth('student+')) n = 4;   // the circuits chapter starts at the Student depth
   CH = n; chSeen.add(n); try { localStorage.setItem(CH_KEY, String(n)); } catch (e) { /* storage off */ }
   drawCourseBar();
   for (const k of [1, 2, 3]) $('ch' + k).hidden = n !== k;
@@ -2131,7 +2149,7 @@ const CLS_STEPS = [
         <b>parity bit</b>, chosen so the number of 1s is even. Tap any bit to flip it, as noise would.</p>
         <div class="bitRow">${bits.map((b, i) => tile(b, b, CLS.flips.has(i) ? 'hit' : '', `data-pf="${i}"`)).join('')}<span class="plus">+</span>${tile(par, par, 'par ' + (CLS.flips.has(7) ? 'hit' : ''), 'data-pf="7"')}</div>
         <p class="clsOut">${ok ? (nf ? `<b class="bad">✗ ${nf} flips, and the check says all is well.</b> An even number of flips leaves the parity even.` : '✓ Parity even: no error seen.') : `<b class="warn">⚠ Parity odd: an error happened</b>, but the check cannot say which bit. Ask for the message again.`}</p>
-        <p class="note">With m data bits and error rate ε per bit, one flip is caught every time; the check is fooled only by two flips (or four, …), with
+        <p class="note" data-depth="student+">With m data bits and error rate ε per bit, one flip is caught every time; the check is fooled only by two flips (or four, …), with
         probability ≈ m(m + 1)ε²/2 (Girvin, eq. 4). For m = 7 and ε = 1% that is ${(100 * QC.parityMiss(7, 0.01)).toFixed(2)}% of messages, instead of losing ${(100 * (1 - Math.pow(0.99, 7))).toFixed(1)}% unprotected.
         <button data-pclear>Clear the flips</button></p>`; } },
   { t: 'Repeat and vote', draw: () => {
@@ -2144,7 +2162,7 @@ const CLS_STEPS = [
         <div class="row"><button class="primary" id="repSend">⚡ Store a 0 and read it back</button><button id="repMany">Do it 1000 times</button>
           <span class="lbl">${CLS.sent ? `measured: <b>${CLS.failed}</b> wrong of ${CLS.sent} (${(100 * CLS.failed / CLS.sent).toFixed(1)}%)` : ''} · predicted ε<sub>L</sub> = <b>${(100 * eL).toFixed(eL < 0.01 ? 3 : 1)}%</b> · gain ε/ε<sub>L</sub> = <b>${(CLS.eps / eL).toFixed(1)}×</b></span></div>
         <div id="repPlot" class="clsPlot"></div>
-        <p class="note">Every curve crosses the bare line at ε = ½: below it, more copies always help; above it, they always hurt, because then the
+        <p class="note" data-depth="student+">Every curve crosses the bare line at ε = ½: below it, more copies always help; above it, they always hurt, because then the
         majority is usually wrong (Girvin, eq. 13: break-even does not depend on N). That crossing is the simplest <b>threshold</b>.</p>`; },
     after: () => {
       const xs = [], N = CLS.N; for (let i = 0; i <= 100; i++) xs.push(i / 100);
@@ -2169,7 +2187,7 @@ const CLS_STEPS = [
         <div class="bitRow">${w.map((b, i) => tile(b, `${i + 1}<small>${(i + 1).toString(2).padStart(3, '0')}</small>`, b ? 'hit' : '', `data-hm="${i}"`)).join('')}</div>
         <div class="bitRow">${lampC(s[2], 'pool C')}${lampC(s[1], 'pool B')}${lampC(s[0], 'pool A')}<span class="plus">→ ${k ? `binary ${s[2]}${s[1]}${s[0]} = <b>sample ${k}</b>` : 'all clear'}</span></div>
         <p class="clsOut">${nPos > 1 ? `<b class="bad">Two positives point at sample ${k || '…none'}, which may be clean.</b> The Hamming code has distance 3: it corrects one error.` : nPos ? '✓ One positive, found with 3 tests instead of 7.' : 'Pick a sample.'}</p>
-        <p class="note">This is the Hamming code [7, 4, 3]: 7 bits carry 4 bits of message (rate 4/7, against 1/3 for the repetition code), and its
+        <p class="note" data-depth="student+">This is the Hamming code [7, 4, 3]: 7 bits carry 4 bits of message (rate 4/7, against 1/3 for the repetition code), and its
         parity-check matrix H has the binary numbers 1…7 as columns, so the syndrome H·e reads out where the error is. In general R check bits can name
         at most 2<sup>R</sup> − 1 places (the Hamming bound 2<sup>R</sup> ≥ M + R + 1). Steane's quantum code, in the last lesson of chapter 4, is this
         code used twice: once against bit flips and once against phase flips.</p>`; } },

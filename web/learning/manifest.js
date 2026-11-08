@@ -23,5 +23,6 @@
     { id: 'hydrogen',    title: 'The Hydrogen Atom',              path: 'courses/engs23/hydrogen.html',             group: 'ENGS 23' },
     { id: 'sonify',      title: 'Sonify Images',                  path: 'qublitz/sonify.html',                      group: 'Fun' },
     { id: 'hub',         title: 'Demo hub',                       path: '',                                         group: 'Site' },
+    { id: 'course',      title: 'Crash course map',               path: 'course.html',                              group: 'Site' },
   ];
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -98,6 +98,9 @@
   .ck li.done{background:#e9f6ef;border-color:#b9dcc8}
   .ck li.done::before{content:'✓';background:var(--green);border-color:var(--green);color:#fff}
   .empty{color:var(--muted);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:10px;background:var(--panel)}
+  .depthCard p,.depthCard li{font-size:14px} .depthCard ol.steps3{margin:6px 0 8px;padding-left:22px} .depthCard ol.steps3 li{margin:4px 0}
+  .realT{border-collapse:collapse;font-size:13px;width:100%;margin:6px 0} .realT th,.realT td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+  @media(max-width:640px){.realT{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -121,7 +124,7 @@
 <div class="card">
   <h2>Your qubit</h2>
   <div class="seg" id="mode" role="group" aria-label="Mode">
-    <button data-v="mystery" aria-pressed="true">Mystery qubit</button><button data-v="free" aria-pressed="false">Free play</button><button data-v="instructor" aria-pressed="false">Instructor</button>
+    <button data-v="mystery" aria-pressed="true">Mystery qubit</button><button data-v="free" aria-pressed="false">Free play</button><button data-v="instructor" aria-pressed="false" data-depth="student+">Instructor</button>
   </div>
   <p class="note" id="assignedNote" hidden>This qubit was assigned by your instructor. Its parameters are hidden: find them by experiment.</p>
   <div id="modeMystery">
@@ -171,10 +174,53 @@
     <p class="note warn">Keep the answer key private. Student links hide the Reveal panel, but the page runs entirely in the browser,
       so a determined student could still recover the parameters from the code. Treat it like a take-home problem set.</p>
   </div>
-  <details><summary>Simulation convention</summary>
+  <details data-depth="student+"><summary>Simulation convention</summary>
     <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), written in the engine's basis, where the ground state |0⟩ has σ<sub>z</sub> = −1 (the plots below use the textbook sphere, with |0⟩ at ⟨σz⟩ = +1), and with no rotating-wave
       approximation. Energy relaxation at rate 1/T₁. Mystery and assigned qubits have T₂ = 2T₁ (no pure dephasing), the teaching model of the ENGS 53 lab; in free play you can lower T₂ to add pure dephasing.
       Frequencies are in GHz (ω/2π) and times in ns. Results match the Python/qutip implementation to better than 10⁻⁶.</p></details>
+</div>
+
+<div class="card depthCard" data-depth="curious">
+  <h2>🌱 New here? What this lab is</h2>
+  <p>A qubit here is a tiny electrical circuit, cooled to a hundredth of a degree above absolute zero, that can be in a mix of two
+    states, |0⟩ and |1⟩. You never see the mix directly: you nudge the qubit with a microwave pulse, then measure it many times and count
+    how often it shows 1. Everything you learn comes from that count, P(|1⟩).</p>
+  <ol class="steps3">
+    <li><b>Find its note.</b> Every qubit answers to one frequency, like a tuning fork. On <b>Frequency Domain</b>, press
+      <b>Run frequency sweep</b> and look for the bright stripe.</li>
+    <li><b>Flip it.</b> Drive it at that frequency for just the right time and it turns from |0⟩ to |1⟩: a <i>π pulse</i>.</li>
+    <li><b>Watch it forget.</b> Left alone, a flipped qubit slowly falls back to |0⟩. How long it lasts, T₁, is what engineers fight for.</li>
+  </ol>
+  <p class="hint">Easier first steps: fly a qubit around the sphere in <a href="qubit-copter.html">🚁 Qubit Copter</a>, or race the decay in
+    <a href="rabi-rider.html">🌀 Rabi Rider</a>. Ready for the equations? Set the depth to 🎓 Student in the site bar.</p>
+</div>
+
+<div class="card depthCard" data-depth="engineer+">
+  <h2>🔧 Teaching numbers and real numbers</h2>
+  <p>This lab's qubits are built to be quick to simulate, so a few numbers are far from a real transmon. Know which, before you compare:</p>
+  <table class="realT">
+    <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons</th><th>why the lab differs</th></tr>
+    <tr><td>T₁</td><td>100–200 ns</td><td>tens to hundreds of µs</td><td>the lab solves every GHz oscillation (no rotating-wave approximation), so a 100 µs decay would take millions of time steps</td></tr>
+    <tr><td>Rabi rate Ω<sub>R</sub>/2π</td><td>200–500 MHz</td><td>roughly 10–100 MHz</td><td>a real transmon is not a two-level system: drive it faster than its anharmonicity (about −200 to −300 MHz) and it leaks into |2⟩</td></tr>
+    <tr><td>T₂</td><td>2T₁ (no pure dephasing)</td><td>often well below 2T₁</td><td>flux and charge noise dephase real qubits; free play lets you lower T₂</td></tr>
+  </table>
+  <p class="hint">Compare with published devices in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/compare" target="_blank" rel="noopener">Q-Vault</a>,
+    the MARQUIS database where every T₁, T₂ and quality factor links to the page it came from.</p>
+</div>
+
+<div class="card depthCard" data-depth="researcher">
+  <h2>🔬 Questions this model can answer, and ones it cannot</h2>
+  <ul>
+    <li><b>Measure the Bloch–Siegert shift.</b> The lab keeps the counter-rotating terms. Sweep a narrow window at two Rabi rates in free
+      play and check that the peak moves by roughly Ω<sub>R</sub>²/(4ω<sub>q</sub>) (Ω and ω as frequencies): about 16 MHz at 500 MHz and 4 GHz. Which way does it move, and
+      does the answer depend on exactly when the pulse ends relative to the drive's oscillation?</li>
+    <li><b>T₂* or T₂?</b> The model has no slow noise, so a Ramsey envelope gives T₂ itself. Which experiment would separate T₂* from T₂
+      on a real qubit, and what would its envelope look like with 1/f flux noise?</li>
+    <li><b>What a two-level model hides.</b> No |2⟩ level, so no leakage and no need for DRAG pulses. Look up a real transmon's
+      E<sub>J</sub>/E<sub>C</sub> and anharmonicity in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/levels" target="_blank" rel="noopener">Q-Vault Levels</a>
+      and estimate the shortest safe π pulse.</li>
+    <li><b>Your own fits.</b> Download the CSVs and fit them yourself in Python: do your error bars agree with the page's?</li>
+  </ul>
 </div>
 
 <div class="card" id="checklist">

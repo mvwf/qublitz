@@ -61,6 +61,15 @@
  *   QL.frontier(mission)        Promise of the board for a mission: [{ spec, family, n, k, d, dExact, score, day,
  *                               count }], best first; [] when there is no collector or on any error
  *   QL.enabled(), QL.optOut(on), QL.code()
+ *
+ * DEPTH. One site-wide choice of how deep to go: curious · student (default) · engineer · researcher, picked in the site bar,
+ *   by a link (?depth=engineer, remembered) or by QL.setDepth(d). It is stored in this browser only (localStorage
+ *   'qublitz_depth', shared with Q-Vault on the same origin) and sent with each event as the one-word label x.depth.
+ *   Tag any element with data-depth="engineer+" (that depth and deeper), "-student" (up to student), "curious" (only
+ *   there) or several tokens separated by spaces; untagged content shows at every depth. Learning-file objectives,
+ *   quiz items, challenges, and howTo/goals entries written as { text, depth } take the same tag in a `depth` field.
+ *   QL.depth() → current depth · QL.setDepth(d) · QL.onDepth(fn) (called with the new depth) · QL.atDepth(tag) → bool
+ *   QL.progress(id) → { explored, done, total } for a page id, from this browser's own records (for the course map)
  */
 (function (root) {
   'use strict';
@@ -150,6 +159,17 @@
     const h = String(hostname || '').toLowerCase();
     return !!webdriver || h === 'localhost' || h === '[::1]' || h === '::1' || /^127\./.test(h) || h === '0.0.0.0' || /\.local$/.test(h) || h === '';
   }
+  // ── Depth (pure) ───────────────────────────────────────────────────────────────────────────────────────
+  const DEPTHS = ['curious', 'student', 'engineer', 'researcher'];
+  // tag: tokens separated by spaces: 'engineer' (only), 'engineer+' (and deeper), '-student' (up to student). No tag
+  // (or no valid token) means every depth, so untagged content never disappears.
+  function depthMatch(tag, d) {
+    const i = DEPTHS.indexOf(d); if (i < 0 || tag == null || tag === '') return true;
+    const toks = (Array.isArray(tag) ? tag : String(tag).trim().split(/\s+/)).map(t => /^(-?)(curious|student|engineer|researcher)(\+?)$/.exec(t)).filter(Boolean);
+    if (!toks.length) return true;
+    return toks.some(m => { const j = DEPTHS.indexOf(m[2]); return m[1] ? i <= j : m[3] ? i >= j : i === j; });
+  }
+
   // The debrief asks a few questions, not all of them: unanswered items first, one per learning objective before
   // a second on any objective, in random order. rand() in [0, 1).
   function pickQuiz(items, n, skip, rand) {
@@ -162,7 +182,7 @@
   }
 
   if (typeof root.document === 'undefined') {           // Node: export the pure parts for the tests
-    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, cleanDesign, isTestHost, pickQuiz };
+    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, cleanDesign, isTestHost, pickQuiz, depthMatch, DEPTHS };
     return;
   }
 
@@ -199,6 +219,58 @@
     return (B.pages && B.pages[pagePath]) || B.sha || '';
   };
   const ctx = () => ({ day: day(), dev: dev(), code: code(), gv: gv() });
+
+  // ── Depth: how deep this visitor wants to go (see DEPTH above) ──────────────────────────────────────────
+  const DEPTH_KEY = 'qublitz_depth';
+  const DEPTH_LABEL = { curious: '🌱 Curious', student: '🎓 Student', engineer: '🔧 Engineer', researcher: '🔬 Researcher' };
+  let curDepth = (() => {
+    const m = /[?&]depth=(curious|student|engineer|researcher)(?![a-z])/.exec(location.search);
+    if (m) { store.set(DEPTH_KEY, m[1]); return m[1]; }
+    const v = store.get(DEPTH_KEY); return DEPTHS.includes(v) ? v : 'student';
+  })();
+  const depthSubs = [];
+  doc.documentElement.setAttribute('data-depth', curDepth);
+  (function () {
+    const toks = []; DEPTHS.forEach(d => toks.push(d, d + '+', '-' + d));
+    let css = '';
+    DEPTHS.forEach(d => toks.forEach(t => { if (!depthMatch(t, d)) css += `html[data-depth="${d}"] [data-depth="${t}"]{display:none !important}`; }));
+    css += '.ql-depth{display:inline-flex;align-items:center;gap:5px;font:inherit;color:inherit}.ql-depth select{font:inherit;font-size:12.5px;border:1px solid currentColor;border-radius:999px;padding:2px 8px;background:transparent;color:inherit;cursor:pointer}' +
+      '.ql-depth select option{color:#1b2a24;background:#fff}@media (pointer: coarse){.ql-depth select{min-height:36px}}';
+    const st = doc.createElement('style'); st.id = 'ql-depth-css'; st.textContent = css; (doc.head || doc.documentElement).appendChild(st);
+  })();
+  function depth() { return curDepth; }
+  function atDepth(tag) { return depthMatch(tag, curDepth); }
+  function onDepth(fn) { if (typeof fn === 'function') depthSubs.push(fn); }
+  function setDepth(d, quiet) {
+    if (!DEPTHS.includes(d) || d === curDepth) return;
+    curDepth = d; doc.documentElement.setAttribute('data-depth', d);
+    if (!quiet) store.set(DEPTH_KEY, d);
+    doc.querySelectorAll('.ql-depth select').forEach(s => { s.value = d; });
+    if (panelBox) panel(panelHost, Object.assign({}, panelOpts, { _swap: true }));
+    if (chAll.length) { chList = chAll.filter(c => depthMatch(c.depth, curDepth)); chDraw(); }
+    depthSubs.forEach(f => { try { f(d); } catch (e) { /* a page's handler must not break the others */ } });
+    if (!quiet) event('depth', { level: d });
+  }
+  // another tab (or Q-Vault) changed it
+  root.addEventListener('storage', e => { if (e.key === DEPTH_KEY && DEPTHS.includes(e.newValue)) setDepth(e.newValue, true); });
+  // the picker sits in the site bar, next to the theme switch
+  function mountDepthPicker() {
+    const bar = doc.querySelector('.qsitebar'); if (!bar || bar.querySelector('.ql-depth')) return;
+    const lab = doc.createElement('label'); lab.className = 'ql-depth'; lab.title = 'How deep to go: pages show more equations, data and open problems at greater depth';
+    lab.innerHTML = '<span>Depth</span><select aria-label="Depth">' + DEPTHS.map(d => `<option value="${d}"${d === curDepth ? ' selected' : ''}>${DEPTH_LABEL[d]}</option>`).join('') + '</select>';
+    lab.querySelector('select').addEventListener('change', e => setDepth(e.target.value));
+    const theme = bar.querySelector('.rt-wrap');
+    if (theme) theme.before(lab); else bar.append(lab);
+  }
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', () => setTimeout(mountDepthPicker, 0)); else setTimeout(mountDepthPicker, 0);
+  root.addEventListener('load', mountDepthPicker);
+  // progress on a page, from this browser's own records: opened it? how many of its challenges are done?
+  function progress(id) {
+    let done = 0, total = 0;
+    try { const a = JSON.parse(store.get(`ql_ch:${id}`) || '[]'); done = Array.isArray(a) ? a.length : 0; } catch (e) { /* none */ }
+    total = +store.get(`ql_ch:${id}:n`) || 0;
+    return { explored: explored().includes(id), done, total };
+  }
 
   // Which page is this? Match the page path against the manifest (the hub is '').
   function detectGame() {
@@ -251,7 +323,7 @@
     if (name === 'level_start' && data && data.level != null && place.split('|')[0] !== String(data.level)) context({ level: data.level });
     if (name === 'level_complete') completedThisVisit++;
     if (!enabled() || !game || sentCount >= MAX_EVENTS) return;
-    const e = cleanEvent(game, name, data, ctx());
+    const e = cleanEvent(game, name, Object.assign({ depth: curDepth }, data), ctx());
     if (!e) return;
     queue.push(e); sentCount++;
     if (queue.length >= 20) flush(false);
@@ -331,22 +403,27 @@
     spec = s || null;
     if (spec && spec.id && ID.test(spec.id)) game = spec.id;
   }
+  let panelHost = null, panelOpts = null, panelBox = null;
   function panel(target, opts) {
     const host = typeof target === 'string' ? doc.querySelector(target) : target;
     if (!host || !spec) return null;
     const o = opts || {};
-    const list = (items, ordered) => { const l = el(ordered ? 'ol' : 'ul'); (items || []).forEach(t => l.append(el('li', { html: t }))); return l; };
+    // entries are strings, or { text, depth } shown only at matching depths
+    const pickT = x => (typeof x === 'string' ? x : x && depthMatch(x.depth, curDepth) ? x.text : null);
+    const list = (items, ordered) => { const l = el(ordered ? 'ol' : 'ul'); (items || []).map(pickT).filter(Boolean).forEach(t => l.append(el('li', { html: t }))); return l; };
     const box = el('section', { class: 'ql-panel', 'aria-label': 'What you will learn and how to play' },
       el('h3', {}, o.title || spec.title || 'What you will learn'),
       spec.tagline ? el('p', { class: 'ql-tag', html: spec.tagline }) : null,
       el('div', { class: 'ql-cols' },
-        el('div', {}, el('h4', {}, 'You will learn to'), list((spec.objectives || []).map(x => x.text))),
+        el('div', {}, el('h4', {}, 'You will learn to'), list((spec.objectives || []).filter(x => depthMatch(x.depth, curDepth)).map(x => x.text))),
         spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
         spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
       o.noDebrief ? null : el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
-    if (o.replace) host.replaceChildren(box); else host.append(box);
+    if (o._swap && panelBox && panelBox.isConnected) panelBox.replaceWith(box);
+    else if (o.replace) host.replaceChildren(box); else host.append(box);
+    panelHost = host; panelOpts = Object.assign({}, o, { _swap: false }); panelBox = box;
     return box;
   }
 
@@ -387,7 +464,7 @@
     quizOpen = true;
     event('quiz_open');
     // a short debrief: QUIZ_N questions (CFG.quizN, default 3), with an offer of more at the end
-    const rest = (spec.quiz || []).filter(q => !answered.has(q.id)), items = pickQuiz(rest, CFG.quizN || 3);
+    const rest = (spec.quiz || []).filter(q => !answered.has(q.id) && depthMatch(q.depth, curDepth)), items = pickQuiz(rest, CFG.quizN || 3);
     const picks = items.map(() => -1), rate = { fun: 0, learned: 0 };
     const prevFocus = doc.activeElement;
     const veil = el('div', { class: 'ql-veil' });
@@ -488,10 +565,12 @@
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
   // ── Challenges: live goals that tick off from the page's own state ───────────────────────────────────
-  let chList = [], chBox = null, chDone = new Set(), chEarly = new Set(), chTimer = 0, chOpts = {}, chSince = 0, chCur = null, chStarted = new Set();
+  let chAll = [], chList = [], chBox = null, chDone = new Set(), chEarly = new Set(), chTimer = 0, chOpts = {}, chSince = 0, chCur = null, chStarted = new Set();
   const chKey = () => `ql_ch:${game || 'page'}`;
   function challenges(list, opts) {
-    chList = (list || []).filter(c => c && ID.test(c.id || '') && c.text);
+    chAll = (list || []).filter(c => c && ID.test(c.id || '') && c.text);
+    chList = chAll.filter(c => depthMatch(c.depth, curDepth));
+    store.set(chKey() + ':n', String(chAll.length));
     chOpts = opts || {};
     try { const a = JSON.parse(store.get(chKey()) || '[]'); chDone = new Set(Array.isArray(a) ? a.filter(id => chList.some(c => c.id === id)) : []); } catch (e) { chDone = new Set(); }
     const mount = () => { if (chBox) chBox.remove(); chBox = el('aside', { class: 'ql-ch', 'aria-label': 'Challenges' }); doc.body.append(chBox);
@@ -585,7 +664,7 @@
       .then(j => (j && Array.isArray(j.designs) ? j.designs : [])).catch(() => []);
   }
 
-  root.QL = { challenges, challengeDone, submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { depth, setDepth, onDepth, atDepth, progress, DEPTHS, challenges, challengeDone, submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 

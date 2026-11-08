@@ -429,7 +429,8 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
   button, .btn, select, input[type=number], input[type=text], input[type=search], input[type=url] { min-height: 40px; }
   .seg button, .tab, .chip { min-height: 40px; }
   input[type=range] { min-height: 32px; }
-  input[type=checkbox], input[type=radio] { width: 20px; height: 20px; vertical-align: middle; }
+  input[type=checkbox], input[type=radio] { width: 24px; height: 24px; vertical-align: middle; }
+  .qsitebar a, a.back, a#back { display: inline-block; padding: 8px 0; }   /* text links that stand alone get a finger-sized target */
   .rt-theme { height: 36px; }
   button { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .pad button, .ctrl button, .stagebtn { touch-action: none; }   /* hold-to-drive buttons: a slight drift must not turn into a scroll */
