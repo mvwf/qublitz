@@ -25,6 +25,11 @@
   html.retro header.hero{background:radial-gradient(900px 380px at 18% 0%,#1d2a5c 0%,transparent 60%),radial-gradient(800px 420px at 95% 30%,#2a1450 0%,transparent 60%),linear-gradient(160deg,#070a16 0%,#0e1430 60%,#070a16 100%);border-bottom:1px solid rgba(124,140,230,.35);box-shadow:0 0 40px rgba(47,224,208,.12)}
   html.retro-synthwave header.hero{background:radial-gradient(900px 380px at 50% 120%,#ff7a4566 0%,transparent 60%),linear-gradient(180deg,#12051f 0%,#2a0a3a 100%)}
   html.retro-phosphor header.hero{background:linear-gradient(180deg,#030a05 0%,#0b2614 100%)}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:14px 0 4px}
+  .hero .ctaBtn{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border-radius:999px;background:#fff;color:#00482b;font-weight:700;text-decoration:none;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+  .hero .ctaBtn:hover{transform:translateY(-1px)}
+  .hero .cta span{font-size:13.5px;opacity:.85}
+  html.retro .hero .ctaBtn{background:var(--green);color:#061016}
   #heroCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.55}
   .hero .wrap{position:relative;padding-top:40px;padding-bottom:34px;pointer-events:none}
   .hero .wrap *{pointer-events:auto}
@@ -172,6 +177,7 @@
     <h1>Interactive Demos</h1>
     <p class="lede">Hands-on browser demos from our research and teaching, covering waves, Fourier modes, spectrograms, qubits and the
       cryogenics behind them. Everything runs in your browser. Nothing is installed and nothing is uploaded.</p>
+    <p class="cta"><a class="ctaBtn" href="course.html">🧭 Take the crash course in quantum engineering</a><span>ten short modules, at the depth you choose</span></p>
     <div class="stats" id="stats"></div>
     <p class="hint" id="pluckHint">Move your cursor over the banner to pluck the field.</p>
   </div>

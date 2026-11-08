@@ -12,6 +12,17 @@ let fails = 0;
 const summ = (e, q, f, d, n, o) => gs.summarize(e, q, f, d, n, Object.assign({ dev: '1' }, o || {}));
 const check = (name, ok, detail) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  · ' + detail : ''}`); if (!ok) fails++; };
 
+// depth tags: 'x' only, 'x+' and deeper, '-x' up to x; untagged or unknown tags show everywhere
+{
+  const m = kit.depthMatch;
+  check('depth: untagged content shows at every depth', kit.DEPTHS.every(d => m(undefined, d) && m('', d) && m('banana', d)));
+  check('depth: "engineer+" shows for engineer and researcher only', !m('engineer+', 'curious') && !m('engineer+', 'student') && m('engineer+', 'engineer') && m('engineer+', 'researcher'));
+  check('depth: "-student" shows for curious and student only', m('-student', 'curious') && m('-student', 'student') && !m('-student', 'engineer'));
+  check('depth: "curious researcher" lists two depths', m('curious researcher', 'curious') && m('curious researcher', 'researcher') && !m('curious researcher', 'student'));
+  const ev = kit.cleanEvent('beamline', 'open', { depth: 'engineer' }, { day: '2026-11-08', dev: 'touch' });
+  check('the depth travels as a one-word label in x', ev && ev.x && ev.x.depth === 'engineer');
+}
+
 // redaction: identifying text never survives, ordinary text does
 const r = kit.redact('I am jo.smith+x@dartmouth.edu, call 603-555-0199 or see https://x.y/z. Rotations   about x!');
 check('redact removes emails, phone numbers and links, keeps the rest', !/@|555|https/.test(r) && /Rotations about x!/.test(r), r);

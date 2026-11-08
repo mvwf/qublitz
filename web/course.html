@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="shared/retro-fonts.js"></script>
+<script src="shared/retro.js"></script>
+<title>Quantum Engineering Crash Course</title>
+<meta name="description" content="An interactive crash course in quantum engineering, from waves to error correction, at four depths.">
+<style>
+  :root{color-scheme:light;--green:#00693e;--green2:#12855a;--ink:#1b2a24;--muted:#5a6b63;--line:#d8e2dc;--panel:#f5f9f6;--gold:#d9a521;--blue:#2d6fb3}
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px 48px}
+  @media(max-width:600px){.wrap{padding:0 16px 40px}}
+  a{color:var(--green)}
+  a.back{display:inline-block;margin:6px 0 4px;font-size:13px;color:var(--muted);text-decoration:none}
+  h1{font-size:26px;margin:6px 0 4px;color:var(--green)}
+  .lede{color:var(--muted);font-size:15px;margin:0 0 14px;max-width:820px}
+  h2{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+  .depths{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media(max-width:860px){.depths{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .depths button{text-align:left;font:inherit;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;min-height:96px}
+  .depths button b{display:block;font-size:16px;margin-bottom:3px}
+  .depths button span{font-size:13px;color:var(--muted)}
+  .depths button[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,105,62,.22)}
+  .bar{display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-size:13.5px;color:var(--muted);flex-wrap:wrap}
+  .bar .meter{flex:1 1 200px;height:10px;border-radius:5px;background:var(--panel);border:1px solid var(--line);overflow:hidden;max-width:420px}
+  .bar .meter i{display:block;height:100%;background:var(--green)}
+  .mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media(max-width:860px){.mods{grid-template-columns:minmax(0,1fr)}}
+  .mod{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;min-width:0}
+  .mod.soon{border-style:dashed}
+  .mod header{display:flex;align-items:baseline;gap:10px}
+  .mod .n{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;font-size:14px}
+  .mod.soon .n{background:var(--line);color:var(--ink)}
+  .mod h3{margin:0;font-size:17px}
+  .mod .idea{margin:6px 0 8px;font-size:14px;color:var(--muted)}
+  .mod ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  .mod li a{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--ink);min-height:44px}
+  .mod li a:hover{border-color:var(--green)}
+  .mod li .ck{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--muted);display:inline-grid;place-items:center;font-size:13px;font-weight:700}
+  .mod li.done .ck{background:var(--green);border-color:var(--green);color:#fff}
+  .mod li .t{flex:1;min-width:0;font-size:14px}
+  .mod li .t small{display:block;color:var(--muted);font-size:12.5px}
+  .mod li .tag{flex:none;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .mod li .tag.qv{border-color:#7a5cff;color:#7a5cff}
+  .mod .later{font-size:13px;color:var(--muted);margin:8px 0 0}
+  .mod .none{font-size:13.5px;color:var(--muted);margin:0}
+  .foot{margin-top:26px;font-size:13.5px;color:var(--muted)}
+  .foot details{margin-top:10px}
+  label.all{font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+<script src="shared/sitebar.js"></script>
+<script src="shared/outreach-config.js"></script>
+<script src="learning/manifest.js"></script>
+<script src="shared/outreach.js"></script>
+<div class="wrap">
+<a class="back" href="index.html">← All demos</a>
+<h1>🧭 Quantum Engineering Crash Course</h1>
+<p class="lede">From a vibrating string to a protected qubit, in ten modules. Each one is a short unit: an idea, something to play
+  with, something to measure, and a check. Pick how deep you want to go; every page on the site follows the same choice, and you can
+  change it at any time from the site bar.</p>
+
+<h2>How deep do you want to go?</h2>
+<div class="depths" id="depths" role="group" aria-label="Depth"></div>
+<div class="bar" id="bar"></div>
+<label class="all"><input type="checkbox" id="showAll"> Show the steps for every depth</label>
+
+<h2>The modules</h2>
+<div class="mods" id="mods"></div>
+
+<div class="foot">
+  <p><b>Real data from Q-Vault.</b> Steps marked <span class="tag qv" style="border:1px solid #7a5cff;color:#7a5cff;border-radius:999px;padding:1px 8px;font-size:11.5px">Q-Vault</span>
+  open <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/">Q-Vault</a>, the MARQUIS database of published coherence data for superconducting
+  qubits and resonators, where every number links to the page of the paper it came from.</p>
+  <p>Your progress (✓) comes from this browser only: which pages you have opened and which challenges you have finished. Nothing about
+  it is sent anywhere.</p>
+  <details><summary>For instructors and contributors</summary>
+    <p>Link a class straight to a depth with <code>?depth=engineer</code> (or curious, student, researcher) on any page; the choice is
+    remembered. Students at the Engineer and Researcher depths can write new challenges for any page; see
+    <a href="https://github.com/mvwf/qublitz/blob/main/docs/WRITING_CHALLENGES.md">Writing a challenge</a>.</p></details>
+</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const QL = window.QL || { depth: () => 'student', setDepth() {}, onDepth() {}, atDepth: () => true, progress: () => ({ explored: false, done: 0, total: 0 }), DEPTHS: ['curious', 'student', 'engineer', 'researcher'] };
+  const QV = 'https://mvwf.github.io/MARQUIS_Q_VAULT/';
+  const DEPTH_INFO = {
+    curious: ['🌱 Curious', 'Games and pictures, no equations. A few minutes each.'],
+    student: ['🎓 Student', 'The ideas with their equations, predictions and quick checks.'],
+    engineer: ['🔧 Engineer', 'Real units, noise and calibration: measure, fit and design.'],
+    researcher: ['🔬 Researcher', 'Open questions, real data and what the models leave out.'],
+  };
+  // step: [depth tag, title, note, href, page id (for progress) or 'qv' for Q-Vault]
+  const MODS = [
+    { t: 'Waves and modes', idea: 'Everything quantum is built on modes: standing waves with set frequencies.', steps: [
+      ['-student', 'The Vibrating String', 'Pluck it and see its harmonics', 'courses/engs23/vibrating-string.html', 'string'],
+      ['curious', 'Spectrogram Explorer', 'Whistle into it, and hear a plane fly past', 'courses/engs23/spectrogram.html', 'spectrogram'],
+      ['student', 'Spectrogram: guided predictions', 'The time–frequency trade-off and aliasing', 'courses/engs23/spectrogram.html?guided=1', 'spectrogram'],
+      ['student engineer', 'The Drum Head', 'Why a drum is not a string: Bessel modes', 'courses/engs23/drum-head.html', 'drum'],
+      ['engineer+', 'Doppler flyovers', 'Fit a Doppler curve, then locate a hidden microphone', 'courses/engs23/spectrogram.html?rec=mystery', 'spectrogram'],
+    ] },
+    { t: 'Quantization', idea: 'Confine a wave and only some energies are allowed; light kicks an atom between them.', steps: [
+      ['-student', 'The Hydrogen Atom', 'Find its spectral lines with a laser', 'courses/engs23/hydrogen.html', 'hydrogen'],
+      ['student+', 'Three Equations, One Eigenbasis', 'Heat, waves and Schrödinger on the same modes', 'courses/engs23/heat-wave-schrodinger.html', 'trio'],
+      ['engineer+', 'Hydrogen: lifetimes and pulses', 'Rates, saturation and the optical Bloch equations', 'courses/engs23/hydrogen.html', 'hydrogen'],
+    ] },
+    { t: 'The qubit', idea: 'Two levels, one sphere: every qubit state is a point on the Bloch sphere, and gates are rotations.', steps: [
+      ['-student', 'Qubit Copter', 'Fly a qubit around the Bloch sphere', 'qublitz/qubit-copter.html', 'copter'],
+      ['curious student', 'Beamline', 'A laser puzzle about pulse area and phase', 'qublitz/beamline.html', 'beamline'],
+      ['engineer+', 'Virtual Qubit Lab: pulses', 'Square π and π/2 pulses on a simulated transmon', 'qublitz/qubit-simulator.html', 'qubit-lab'],
+    ] },
+    { t: 'Control and coherence', idea: 'Pulses steer a qubit; T₁ and T₂ set how long you have before it forgets.', steps: [
+      ['-student', 'Rabi Rider', 'Drive many runs to |1⟩ while T₁ pulls them back', 'qublitz/rabi-rider.html', 'rider'],
+      ['student+', 'Virtual Qubit Lab: the checklist', 'Spectroscopy, Rabi, T₁ and Ramsey on a mystery qubit', 'qublitz/qubit-simulator.html', 'qubit-lab'],
+      ['curious', 'Real qubits through the years', 'How long real qubits remember, paper by paper', QV, 'qv'],
+      ['engineer+', 'Compare real devices', 'T₁ and T₂ of published qubits, side by side', QV + '#/compare', 'qv'],
+      ['researcher', 'What did a fabrication change do?', 'Analyze one variable inside one paper, with error bars', QV + '#/analyze', 'qv'],
+    ] },
+    { t: 'The hardware', idea: 'Superconducting circuits at 10 mK: resonators, junctions, wiring and the noise that sneaks in.', steps: [
+      ['-student', 'Fridge Noise Explorer', 'Keep the qubit cold: attenuators against thermal photons', 'qublitz/fridge-noise.html', 'fridge'],
+      ['student+', 'Resonator Lab', 'Read the quality factor off a resonance', 'qublitz/resonator.html', 'resonator'],
+      ['engineer+', 'Transmon energy levels', 'Solve real transmons and fluxonium from published E_J and E_C', QV + '#/levels', 'qv'],
+      ['researcher', 'Exceptional points', 'Coupled lossy modes, where eigenvalues merge', 'qublitz/ep-tpd.html', 'ep-tpd'],
+      ['researcher', 'Fab Lab', 'How each device was made, step by step', QV + '#/fablab', 'qv'],
+    ] },
+    { t: 'Reading out a qubit', soon: true, idea: 'A qubit shifts its resonator’s frequency by ±χ, so the resonator’s response reveals 0 or 1.', steps: [
+      ['student+', 'Resonator Lab', 'The resonance that readout listens to', 'qublitz/resonator.html', 'resonator'],
+      ['engineer+', 'Real χ and κ', 'Readout parameters of published qubits', QV + '#/explore', 'qv'],
+    ], later: 'Coming next: a dispersive-readout lab with IQ blobs and readout fidelity.' },
+    { t: 'Two qubits and entanglement', soon: true, idea: 'Two coupled qubits can share a state that neither has alone; a tuned interaction makes a two-qubit gate.', steps: [],
+      later: 'Coming next: Bell states, a CZ gate from a tuned coupling, and an entanglement meter.' },
+    { t: 'Error correction', idea: 'Spread one qubit over many and measure only parities: find errors you cannot see.', steps: [
+      ['-student', 'ErrorSweeper: Learn', 'From a parity bit to the surface code, with real circuits', 'qublitz/errorsweeper.html?mode=learn', 'errorsweeper'],
+      ['curious', 'ErrorSweeper: Sweep', 'Turn off the lamps without flipping the logical qubit', 'qublitz/errorsweeper.html?mode=sweep', 'errorsweeper'],
+      ['engineer+', 'Code lab and threshold', 'Design a code, watch a decoder, find where bigger codes win', 'qublitz/errorsweeper.html?mode=lab', 'errorsweeper'],
+      ['researcher', 'Code Hunt', 'Search for qLDPC codes and post them to the shared frontier', 'qublitz/errorsweeper.html?mode=hunt', 'errorsweeper'],
+    ] },
+    { t: 'Bosonic qubits', soon: true, idea: 'Store a qubit in the many levels of an oscillator: cat states and GKP grids.', steps: [
+      ['researcher', 'Girvin’s notes, §6–8', 'Bosonic codes, from cats to GKP (arXiv:2111.08894)', 'https://arxiv.org/abs/2111.08894', 'ext'],
+    ], later: 'Coming next: Wigner functions of cat and GKP states, photon loss, and correcting it.' },
+    { t: 'Capstone: bring up a qubit', soon: true, idea: 'One run through the whole stack: cool, find the resonator, calibrate, read out, protect.', steps: [
+      ['engineer+', 'The Virtual Qubit Lab checklist', 'Everything a lab does on day one with a new qubit', 'qublitz/qubit-simulator.html', 'qubit-lab'],
+    ], later: 'Coming next: a guided bring-up that ties the fridge, resonator, qubit and error-correction pages together.' },
+  ];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let showAll = false;
+  function draw() {
+    const d = QL.depth();
+    $('depths').innerHTML = QL.DEPTHS.map(k => `<button data-d="${k}" aria-pressed="${k === d}"><b>${DEPTH_INFO[k][0]}</b><span>${DEPTH_INFO[k][1]}</span></button>`).join('');
+    let total = 0, done = 0;
+    $('mods').innerHTML = MODS.map((m, i) => {
+      const steps = m.steps.filter(s => showAll || QL.atDepth(s[0]));
+      const items = steps.map(([tag, t, note, href, id]) => {
+        const qv = id === 'qv', ext = qv || id === 'ext', p = ext ? null : QL.progress(id), ok = p && p.explored;
+        if (!ext) { total++; if (ok) done++; }
+        const ch = p && p.total ? ` · challenges ${p.done}/${p.total}` : '';
+        return `<li class="${ok ? 'done' : ''}"><a href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}><span class="ck" aria-hidden="true">${ok ? '✓' : ''}</span>
+          <span class="t">${esc(t)}<small>${esc(note)}${ch}</small></span>${qv ? '<span class="tag qv">Q-Vault</span>' : ext ? '<span class="tag">reading</span>' : ''}${showAll ? `<span class="tag">${esc(tag)}</span>` : ''}</a></li>`;
+      }).join('');
+      return `<section class="mod ${m.soon ? 'soon' : ''}"><header><span class="n">${i + 1}</span><h3>${esc(m.t)}</h3></header>
+        <p class="idea">${esc(m.idea)}</p>${items ? `<ol>${items}</ol>` : `<p class="none">Nothing at this depth yet.</p>`}${m.later ? `<p class="later">⏳ ${esc(m.later)}</p>` : ''}</section>`;
+    }).join('');
+    $('bar').innerHTML = `<span>${DEPTH_INFO[d][0]} path: <b>${done} of ${total}</b> activities opened</span><span class="meter"><i style="width:${total ? 100 * done / total : 0}%"></i></span>`;
+  }
+  $('depths').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b) { QL.setDepth(b.dataset.d); draw(); } });
+  $('showAll').addEventListener('change', e => { showAll = e.target.checked; draw(); });
+  QL.onDepth(draw);
+  try { window.QL && QL.context && QL.context({ level: 'course' }); } catch (e) { /* optional */ }
+  draw();
+})();
+</script>
+</body>
+</html>
