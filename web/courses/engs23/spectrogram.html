@@ -41,6 +41,17 @@
   .spacer{flex:1 1 auto}
   .dl{font-size:12.5px;color:var(--muted);margin:10px 0 0}
   .dl[hidden]{display:none}
+  .dopGrid{display:grid;grid-template-columns:auto minmax(120px,1fr) auto;gap:6px 10px;align-items:center;max-width:720px}
+  .dopGrid input[type=range]{width:100%}
+  .dopMeter{height:10px;border-radius:5px;background:var(--panel);border:1px solid var(--line);margin:10px 0 4px;max-width:720px;overflow:hidden}
+  .dopMeter i{display:block;height:100%;width:0;transition:width .15s}
+  .dopMys{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}.dopMapWrap{flex:0 1 380px;min-width:240px}.dopSide{flex:1 1 260px;min-width:0}
+  #dopMap{border-radius:10px;cursor:crosshair;background:#0b1220}
+  .dopSeg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}.dopSeg button{border:none;border-radius:0}
+  .dopSeg button[aria-pressed="true"]{background:var(--green);color:#fff}
+  #dopCard [hidden],#dopCard[hidden]{display:none !important}
+  #dopCard details{margin-top:8px} #dopCard summary{cursor:pointer;font-size:13px;color:var(--green)}
+  @media(max-width:600px){.dopGrid{grid-template-columns:1fr auto}.dopGrid label{grid-column:1/-1;margin-top:4px}}
   code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
 </style>
 
@@ -108,7 +119,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
   </div>
   <div class="row">
     <label class="lbl" for="fmax">Max frequency</label>
-    <input id="fmax" type="range" min="1000" max="22050" step="500" value="22050">
+    <input id="fmax" type="range" min="200" max="22050" step="50" value="22050">
     <span class="val" id="fmaxLbl">— Hz</span>
     <label class="lbl" for="drange">Dynamic range</label>
     <input id="drange" type="range" min="30" max="120" step="5" value="80">
@@ -123,6 +134,48 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
     <canvas id="overlay"></canvas>
   </div>
   <div class="status" id="status">Select a recording to begin.</div>
+</div>
+
+<div class="card" id="dopCard" hidden>
+  <h2 id="dopTitle">✈️ Fit the flyover</h2>
+  <div id="dopFit" hidden>
+    <p class="hint" style="margin:0 0 8px">A propeller hums at one steady pitch, but as the plane flies past you hear it <b>drop</b>: the
+    <b>Doppler effect</b>. Sound from an approaching plane arrives squeezed together, from a receding one stretched out. Drag the sliders until the dashed
+    curves sit on the bright lines, and the curve tells you how fast the plane flew and how close it came.</p>
+    <div class="dopGrid" id="dopSliders"></div>
+    <div class="dopMeter"><i id="dopBar"></i></div>
+    <p class="hint" id="dopMsg" style="font-size:13px;color:var(--ink)"></p>
+    <p class="hint" id="dopRead"></p>
+    <div class="row"><button id="dopNew">✈️ New plane</button><span class="hint">Then load <b>Doppler: two flyovers</b> to find a hidden microphone.</span></div>
+    <details><summary>Read v and D straight off the curve</summary><p class="hint">Sound heard at time t left the plane at an earlier time τ, when it was
+    a distance r away: t = τ + r/c, with c = 343 m/s. A tone f₀ therefore arrives at f = f₀/(1 + ṙ/c), where ṙ is how fast the distance grows. Long before
+    the plane arrives ṙ = −v, so you hear f<sub>app</sub> = f₀/(1 − v/c); long after, f<sub>rec</sub> = f₀/(1 + v/c). Two readings give both unknowns:
+    v = c (f<sub>app</sub> − f<sub>rec</sub>)/(f<sub>app</sub> + f<sub>rec</sub>) and f₀ = 2 f<sub>app</sub>f<sub>rec</sub>/(f<sub>app</sub> + f<sub>rec</sub>).
+    At the closest point ṙ = 0 and you hear f₀ itself, D/c seconds late, and the pitch falls fastest there, at about f₀v²/(cD) Hz per second: a close pass
+    gives a sharp drop, a distant one a gentle slide. Every harmonic k f₀ follows the same curve scaled by k, so the higher harmonics show the shape more clearly.</p></details>
+  </div>
+  <div id="dopMys" hidden>
+    <p class="hint" style="margin:0 0 8px">Two planes flew past a hidden microphone during this 40 s recording. Their tracks are public: aircraft broadcast their
+    position and speed (ADS-B), drawn below with a dot every 10 s. <b>Tap the map</b> to place a microphone: the page works out the Doppler curves a microphone
+    there would have heard (dashed, on the spectrogram) and how well they fit the recording.</p>
+    <div class="dopMys"><div class="dopMapWrap"><canvas id="dopMap" aria-label="Map, 8 km across, with the two flight tracks. Tap to place a microphone."></canvas></div>
+      <div class="dopSide"><p class="hint" id="dopPlanes" style="margin:0 0 8px"></p><p class="hint" id="dopScore" style="font-size:13px;color:var(--ink)"></p>
+        <div class="row"><button class="primary" id="dopSearch">🔍 Search the whole map</button></div>
+        <div class="row" id="dopSeg" hidden><span class="dopSeg"><button data-w="A">First plane</button><button data-w="B">Second plane</button><button data-w="both" aria-pressed="true">Both</button></span></div>
+        <p class="hint" id="dopHeatNote"></p>
+        <div class="row"><button id="dopReveal">Reveal the microphone</button><button id="dopNewMys">🎲 New mystery</button></div></div></div>
+    <details><summary>Why two planes, and why this matters</summary><p class="hint">One flyover's curve fixes the plane's speed, the moment it was
+    closest and how far away it was then. With the track known, the moment puts the microphone on a line at right angles to the track, through where the
+    plane was then. The distance picks two points on that line, one on each side of the track, which hear exactly the same thing; it is also the least sharp
+    of the three, since it only shows in how steep the drop is. A second plane on a different heading gives a second line, and only one spot fits both. This is how a recording can give
+    away where it was made: the creator of the video that inspired this mode (colsto, 2026,
+    <a href="https://www.youtube.com/watch?v=UytYrhYLOKI" target="_blank" rel="noopener">“I discovered a sound that leaks your exact location”</a>) reports locating
+    real recordings to about 100 m from faint aircraft sounds and public flight data, and that common fixes such as high-pass filtering, masking noise and
+    phone-call compression did not remove the clue. The recordings here are synthetic.</p>
+    <p class="hint"><b>Left out:</b> wind and temperature changes with height (which bend sound and change c), ground reflections (which add interference
+    fringes to real flyover spectrograms), the air's absorption of high frequencies, and the extra loudness of an approaching source. Real searches also do not
+    know the exact propeller tone or the recording's start time, and fit those too.</p></details>
+  </div>
 </div>
 
 <div class="card" id="lineCard">
@@ -144,6 +197,7 @@ if (window.QUBLITZ_STANDALONE) {
 }
 </script>
 <script src="../../shared/pagekit.js"></script>
+<script src="doppler-engine.js"></script>
 <script>
 "use strict";
 
@@ -239,6 +293,8 @@ const TEST_SIGNALS=[
   {key:"clicks", name:"Test: two clicks, 20 ms apart",   synth:"clicks"},
   {key:"chirp",  name:"Test: chirp from 200 Hz rising at 800 Hz/s", synth:"chirp"},
   {key:"alias",  name:"Test: 5 kHz then 7 kHz, sampled at 8 kHz",   synth:"alias"},
+  {key:"flyover", name:"Doppler: a propeller plane flies past", synth:"flyover"},
+  {key:"mystery", name:"Doppler: two flyovers. Where was the microphone?", synth:"mystery"},
 ];
 function synthSignal(kind){
   const fs = kind==="alias" ? 8000 : 44100, n=2*fs, x=new Float32Array(n), TAU=2*Math.PI;
@@ -261,7 +317,9 @@ function wavURL(x,fs){   // 16-bit mono WAV, so the generated signal can be play
   return URL.createObjectURL(new Blob([b],{type:"audio/wav"}));
 }
 function loadSynth(entry){
-  const {fs,x}=synthSignal(entry.synth);
+  const doppler = entry.synth==='flyover' || entry.synth==='mystery';
+  if(doppler) window.__dopDefaults(entry);
+  const {fs,x}= doppler ? window.__dopSynth(entry) : synthSignal(entry.synth);
   if(!entry.src) entry.src=wavURL(x,fs);
   audio.src=entry.src;
   mono=x; sampleRate=fs; duration=x.length/fs;
@@ -307,6 +365,7 @@ function recompute(){
     spec=computeSpectro(mono, fftSize);
     draw();
     updateFileSpectrum();
+    if(window.__dopShow) window.__dopShow();
     status("Done — "+spec.nFrames+" frames, "+spec.nBins+" bins, "+(duration).toFixed(2)+" s, "
       +sampleRate+" Hz  ("+Math.round(performance.now()-t0)+" ms).");
   },20);
@@ -452,6 +511,7 @@ function drawPlayhead(){
   if(!spec||!duration) return;
   const m={l:MARG.l*dpr,r:MARG.r*dpr,t:MARG.t*dpr,b:MARG.b*dpr};
   const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  if(window.__dopOverlay && !live.on) window.__dopOverlay(m,pw,ph,dpr);
   const x=m.l+(audio.currentTime/duration)*pw;
   octx.strokeStyle="rgba(255,255,255,0.9)"; octx.lineWidth=1.5*dpr;
   octx.beginPath(); octx.moveTo(x,m.t); octx.lineTo(x,m.t+ph); octx.stroke();
@@ -576,6 +636,7 @@ async function startLive(){
     if(actx.state==="suspended") await actx.resume();
     const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     stopFilePlayback();
+    if(window.__dopShow) setTimeout(window.__dopShow,0);
     const srcNode=actx.createMediaStreamSource(stream);
     const an=actx.createAnalyser();
     an.fftSize=Math.min(32768, Math.max(32, +$("fftSel").value));
@@ -731,6 +792,7 @@ async function resolveArchiveUrl(id){
   return "https://archive.org/download/"+encodeURIComponent(id)+"/"+pick.name.split("/").map(encodeURIComponent).join("/");
 }
 async function selectEntry(i){ const e=entries[i]; if(!e) return; stopLive();
+  if(window.__dopShow && !(e.synth==='flyover'||e.synth==='mystery')) window.__dopShow();
   if(e.src || e.synth){ loadEntry(e); return; }
   if(e.archiveId){ $("btnPlay").disabled=true; status("Fetching “"+e.name+"” from archive.org …");
     try{ e.src=await resolveArchiveUrl(e.archiveId); loadEntry(e); }
@@ -776,7 +838,7 @@ function readQuery(){
   const rec=P.str("rec",entries.map(e=>e.key).filter(Boolean)); if(rec) st.rec=rec;
   const N=P.str("N",FFTS); if(N) st.N=+N;
   const sc=P.str("scale",["lin","log"]); if(sc) st.scale=sc;
-  const fm=P.num("fmax",1000,22050); if(fm!=null) st.fmax=fm;
+  const fm=P.num("fmax",200,22050); if(fm!=null) st.fmax=fm;
   const dr=P.num("dr",30,120); if(dr!=null) st.dr=dr;
   return st;
 }
@@ -818,6 +880,168 @@ function qlGuided(steps, key, obj) { return {
 }; }
 QLK.context({ level: 'explore' });
 
+/* ---------- Doppler flyovers (doppler-engine.js): fit a flyover's curve, then find a hidden microphone ---------- */
+// Two synthetic recordings built from the physics in doppler-engine.js. "flyover": one propeller plane; the student
+// drags f0, v, D and t0 until the predicted curves sit on the measured lines. "mystery": two planes on known tracks
+// (as ADS-B broadcasts give them) and a hidden microphone; tapping the map overlays what a microphone there would
+// have heard, and a full search shows why one flyover leaves a mirror ambiguity and two pin the spot down. The idea
+// follows colsto's 2026 video on locating recordings from aircraft Doppler curves; everything here is synthetic.
+const DE = window.DopplerEngine;
+const DOP = { saved: null, mode: null, fit: { f0: 92, v: 30, D: 800, t0: 11 }, locked: false, pin: null, heat: null, heatWhich: 'both', revealed: false, found: false, floorFor: null, floor: null, busy: false };
+const DFS = 11025;
+const DCOL = ['#2fe0d0', '#f5b73c'];
+function dopSpec() {   // the page's STFT in the engine's format, with the band floor cached per STFT
+  if (!spec) return null;
+  const S = { data: spec.data, nFrames: spec.nFrames, nBins: spec.nBins, hop: spec.hop, fs: sampleRate, fftSize: 2 * spec.nBins };
+  if (DOP.floorFor !== spec) { DOP.floor = DE.bandFloor(S, 30, 600); DOP.floorFor = spec; }
+  return S;
+}
+function dopSynth(entry) {
+  if (entry.synth === 'flyover') { if (!entry.scene) entry.scene = DE.flyoverScene(); return { fs: DFS, x: DE.render(DE.flyoverSources(entry.scene), { fs: DFS, dur: entry.scene.dur, mic: [0, 0, 0], rng: DE.rng(11) }) }; }
+  if (!entry.scene) entry.scene = DE.mysteryScene(DE.rng(entry.seed || 2026));
+  return { fs: DFS, x: DE.render(DE.mysterySources(entry.scene), { fs: DFS, dur: entry.scene.dur, mic: entry.scene.mic, rng: DE.rng(5) }) };
+}
+// a display that suits these recordings (long window, 0–750 Hz) when you switch to one; the previous settings come
+// back when you switch to anything else
+function dopDefaults(entry) {
+  if (DOP.saved) return;
+  DOP.saved = { N: $("fftSel").value, scale: $("scaleSel").value, fmax: $("fmax").value };
+  $("fftSel").value = "4096"; $("scaleSel").value = "lin"; $("fmax").value = 750; $("fmaxLbl").textContent = "750 Hz";
+}
+function dopRestore() {
+  const sv = DOP.saved; if (!sv) return; DOP.saved = null;
+  $("fftSel").value = sv.N; $("scaleSel").value = sv.scale; $("fmax").max = 22050; $("fmax").value = sv.fmax; $("fmaxLbl").textContent = (+$("fmax").value) + " Hz";
+}
+function dopEntry() { const e = entries[+$("fileSel").value]; return e && !live.on && (e.synth === 'flyover' || e.synth === 'mystery') ? e : null; }
+function dopShow() {
+  const e = dopEntry(); DOP.mode = e ? e.synth : null;
+  if (!e) dopRestore();
+  $("dopCard").hidden = !e; $("dopFit").hidden = DOP.mode !== 'flyover'; $("dopMys").hidden = DOP.mode !== 'mystery';
+  $("dopTitle").textContent = DOP.mode === 'mystery' ? '🗺 Where was the microphone?' : '✈️ Fit the flyover';
+  if (DOP.mode === 'flyover') dopFitUI();
+  if (DOP.mode === 'mystery') { DOP.heat = null; DOP.pin = null; DOP.revealed = false; dopMysUI(); }
+  drawPlayhead();
+}
+// frequency → y on the spectrogram (the same mapping as draw())
+function dopY(f, m, ph) {
+  const nyq = sampleRate / 2, fmax = Math.min(+$("fmax").value, nyq), logMode = $("scaleSel").value === "log", fmin = Math.max(20, sampleRate / (spec.nBins * 2));
+  const frac = logMode ? Math.log(f / fmin) / Math.log(fmax / fmin) : f / fmax;
+  return frac < 0 || frac > 1 ? null : m.t + (1 - frac) * ph;
+}
+function dopOverlay(m, pw, ph, dpr) {
+  if (!DOP.mode || !spec || !duration) return;
+  const curves = [];   // [{ fn, col, H, from, to }]
+  if (DOP.mode === 'flyover') { const p = DOP.fit; curves.push({ fn: t => DE.flyoverFreq(t, p.f0, p.v, p.D, p.t0), col: DOP.locked ? '#3fe08a' : '#ffffff', H: 5, from: 0, to: duration }); }
+  else if (DOP.pin) DOP.scene().tracks.forEach((T, k) => { const w = DE.eventWindow(T, DOP.pin); curves.push({ fn: DE.predictedCurve(T, DOP.pin), col: DCOL[k], H: 3, from: Math.max(0, w[0]), to: Math.min(duration, w[1]) }); });
+  octx.save(); octx.lineWidth = 2 * dpr; octx.setLineDash([7 * dpr, 6 * dpr]);
+  for (const cv of curves) for (let k = 1; k <= cv.H; k++) {
+    octx.strokeStyle = cv.col; octx.globalAlpha = k === 1 ? 0.95 : 0.7; octx.beginPath(); let pen = false;
+    for (let px = 0; px <= pw; px += 3 * dpr) { const t = px / pw * duration; if (t < cv.from || t > cv.to) { pen = false; continue; }
+      const y = dopY(k * cv.fn(t), m, ph); if (y == null) { pen = false; continue; } if (pen) octx.lineTo(m.l + px, y); else { octx.moveTo(m.l + px, y); pen = true; } }
+    octx.stroke();
+  }
+  octx.restore();
+}
+DOP.scene = () => { const e = dopEntry(); return e && e.scene; };
+
+// ---- fit the flyover ----
+const FIT = [
+  { k: 'f0', label: 'Propeller tone f₀', min: 50, max: 130, step: 0.5, fmt: v => v.toFixed(1) + ' Hz' },
+  { k: 'v', label: 'Speed v', min: 10, max: 120, step: 1, fmt: v => v.toFixed(0) + ' m/s (' + (3.6 * v).toFixed(0) + ' km/h)' },
+  { k: 'D', label: 'Closest distance D', min: 50, max: 1500, step: 10, fmt: v => v.toFixed(0) + ' m' },
+  { k: 't0', label: 'Closest at time t₀', min: 0, max: 20, step: 0.1, fmt: v => v.toFixed(1) + ' s' },
+];
+$("dopSliders").innerHTML = FIT.map(s => `<label class="lbl" for="dop_${s.k}">${s.label}</label><input type="range" id="dop_${s.k}" min="${s.min}" max="${s.max}" step="${s.step}"><span class="val" id="dop_${s.k}V"></span>`).join('');
+FIT.forEach(s => $("dop_" + s.k).addEventListener("input", e => { DOP.fit[s.k] = +e.target.value; dopFitUI(); drawPlayhead(); }));
+function dopFitUI() {
+  const p = DOP.fit, c = DE.C_AIR;
+  FIT.forEach(s => { $("dop_" + s.k).value = p[s.k]; $("dop_" + s.k + "V").textContent = s.fmt(p[s.k]); });
+  $("dopRead").innerHTML = `Approaching: f₀/(1 − v/c) = <b>${DE.fApproach(p.f0, p.v).toFixed(1)} Hz</b> · going away: f₀/(1 + v/c) = <b>${DE.fRecede(p.f0, p.v).toFixed(1)} Hz</b> · steepest fall ≈ −f₀v²/(cD) = <b>${DE.cpaSlope(p.f0, p.v, p.D).toFixed(1)} Hz/s</b>`;
+  const S = dopSpec(); if (!S) return;
+  const sc = DE.scoreCurve(S, DOP.floor, t => DE.flyoverFreq(t, p.f0, p.v, p.D, p.t0), 5, 0, duration), pct = Math.round(100 * sc);
+  $("dopBar").style.width = pct + '%'; $("dopBar").style.background = sc >= 0.9 ? '#3fe08a' : sc >= 0.6 ? '#f5b73c' : '#c84b31';
+  const was = DOP.locked; DOP.locked = sc >= 0.9;
+  $("dopMsg").innerHTML = DOP.locked
+    ? `<b>✓ Locked on: ${pct}% of the dashed curve sits on the lines.</b> The plane flew at about ${p.v.toFixed(0)} m/s (${(3.6 * p.v).toFixed(0)} km/h) and passed ${p.D.toFixed(0)} m from the microphone, ${p.t0.toFixed(1)} s in. Its propeller hums at ${p.f0.toFixed(1)} Hz. Press <b>▶ Play</b> to hear the pitch drop.`
+    : `<b>${pct}%</b> of the dashed curve sits on a bright line. ${sc < 0.3 ? 'Start with the flat parts: before the plane arrives you hear f₀/(1 − v/c), after it leaves f₀/(1 + v/c). Match those two with <b>f₀</b> and <b>v</b>.' : 'Now slide <b>t₀</b> so the drop happens at the right time, and set <b>D</b> by how steep it is: nearer means a sharper drop.'}`;
+  if (DOP.locked && !was) QLK.event('level_complete', { level: 'doppler-fit', value: 1 });
+}
+$("dopNew").addEventListener("click", () => { const e = dopEntry(); if (!e) return; e.scene = DE.randomFlyover(); if (e.src) URL.revokeObjectURL(e.src); e.src = null; DOP.locked = false; loadSynth(e); QLK.event('mode', { level: 'doppler-new-plane' }); });
+
+// ---- the mystery map ----
+const mapCv = $("dopMap"), mctx = mapCv.getContext("2d");
+function mapGeom() { const css = Math.min(380, mapCv.parentElement.clientWidth || 380), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (mapCv.width !== Math.round(css * dpr)) { mapCv.width = mapCv.height = Math.round(css * dpr); mapCv.style.width = mapCv.style.height = css + 'px'; }
+  const sc = DOP.scene(), W = mapCv.width, half = sc ? sc.map : 4000; return { W, dpr, X: x => (x + half) / (2 * half) * W, Y: y => (half - y) / (2 * half) * W, half }; }
+function drawMap() {
+  const sc = DOP.scene(); if (!sc) return;
+  const g = mapGeom(), W = g.W, c = mctx, dpr = g.dpr;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#0b1220'; c.fillRect(0, 0, W, W);
+  if (DOP.heat) { const n = DOP.heat.n, h = DOP.heat.v; let mx = 0; for (const v of h) mx = Math.max(mx, v); const cell = W / n;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const t = mx > 0 ? h[j * n + i] / mx : 0; if (t < 0.05) continue; const col = inferno(0.15 + 0.85 * t);
+      c.fillStyle = `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${0.25 + 0.75 * t})`; c.fillRect(i * cell, W - (j + 1) * cell, cell + 0.5, cell + 0.5); } }
+  c.strokeStyle = 'rgba(160,190,230,.14)'; c.lineWidth = 1;
+  for (let k = -g.half; k <= g.half; k += 1000) { c.beginPath(); c.moveTo(g.X(k), 0); c.lineTo(g.X(k), W); c.moveTo(0, g.Y(k)); c.lineTo(W, g.Y(k)); c.stroke(); }
+  c.fillStyle = '#9aa3cf'; c.font = `${11 * dpr}px Helvetica,Arial`; c.textAlign = 'left'; c.fillText('1 km grid', 6 * dpr, W - 7 * dpr);
+  sc.tracks.forEach((T, k) => { const tr = T.track, p = t => DE.posAt(tr, t);
+    c.strokeStyle = DCOL[k]; c.lineWidth = 2.2 * dpr; c.beginPath(); const a = p(-200), b = p(240); c.moveTo(g.X(a[0]), g.Y(a[1])); c.lineTo(g.X(b[0]), g.Y(b[1])); c.stroke();
+    c.fillStyle = DCOL[k]; c.textAlign = 'center';
+    for (let t = 0; t <= sc.dur; t += 10) { const q = p(t); c.beginPath(); c.arc(g.X(q[0]), g.Y(q[1]), (t === 0 ? 4.5 : 3) * dpr, 0, 2 * Math.PI); c.fill(); c.fillText(t + ' s', g.X(q[0]), g.Y(q[1]) - 8 * dpr); }
+    const q = p(sc.dur), r = p(sc.dur + 4), ang = Math.atan2(-(r[1] - q[1]), r[0] - q[0]), hx = g.X(r[0]), hy = g.Y(r[1]), s = 8 * dpr;
+    c.beginPath(); c.moveTo(hx + s * Math.cos(ang), hy + s * Math.sin(ang)); c.lineTo(hx + s * Math.cos(ang + 2.5), hy + s * Math.sin(ang + 2.5)); c.lineTo(hx + s * Math.cos(ang - 2.5), hy + s * Math.sin(ang - 2.5)); c.fill(); });
+  if (DOP.pin) { c.strokeStyle = '#fff'; c.lineWidth = 2.5 * dpr; c.beginPath(); c.arc(g.X(DOP.pin[0]), g.Y(DOP.pin[1]), 7 * dpr, 0, 2 * Math.PI); c.stroke();
+    c.beginPath(); c.moveTo(g.X(DOP.pin[0]) - 11 * dpr, g.Y(DOP.pin[1])); c.lineTo(g.X(DOP.pin[0]) + 11 * dpr, g.Y(DOP.pin[1])); c.moveTo(g.X(DOP.pin[0]), g.Y(DOP.pin[1]) - 11 * dpr); c.lineTo(g.X(DOP.pin[0]), g.Y(DOP.pin[1]) + 11 * dpr); c.stroke(); }
+  if (DOP.revealed) { const m = sc.mic; c.fillStyle = '#3fe08a'; c.font = `${20 * dpr}px Helvetica,Arial`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎙', g.X(m[0]), g.Y(m[1])); c.textBaseline = 'alphabetic'; }
+}
+function dopMysUI() {
+  const sc = DOP.scene(); if (!sc) return;
+  $("dopPlanes").innerHTML = sc.tracks.map((T, k) => `<span style="color:${DCOL[k]}">━</span> <b>${T.name}</b>: propeller tone ${T.f0} Hz, ${DE.speed(T.track).toFixed(0)} m/s, ${T.track.p0[2]} m up`).join('<br>');
+  const S = dopSpec();
+  if (!DOP.pin || !S) $("dopScore").innerHTML = 'Tap the map to place a microphone.';
+  else {
+    const parts = sc.tracks.map((T, k) => { const w = DE.eventWindow(T, DOP.pin); return Math.round(100 * DE.scoreCurve(S, DOP.floor, DE.predictedCurve(T, DOP.pin), 3, w[0], w[1])); });
+    const err = Math.hypot(DOP.pin[0] - sc.mic[0], DOP.pin[1] - sc.mic[1]);
+    if (!DOP.revealed && parts[0] >= 85 && parts[1] >= 85 && err < 500 && !DOP.found) { DOP.found = true; QLK.event('level_complete', { level: 'doppler-find', value: 1 }); }
+    $("dopScore").innerHTML = sc.tracks.map((T, k) => `<span style="color:${DCOL[k]}">${T.name}</span>: <b>${parts[k]}%</b> on the lines`).join(' · ') +
+      (parts[0] >= 85 && parts[1] >= 85 ? '<br><b>Both curves fit.</b> A microphone here would have heard exactly this recording.' : parts[0] >= 85 || parts[1] >= 85 ? '<br>One plane fits. Its curve fixes when that plane was closest, which puts the microphone on a line at right angles to its track, and roughly how far away, but not which side. Use the other plane to decide.' : '') +
+      (DOP.revealed ? `<br>Your pin is <b>${err < 1000 ? err.toFixed(0) + ' m' : (err / 1000).toFixed(1) + ' km'}</b> from the real microphone.` : '');
+  }
+  $("dopSeg").hidden = !DOP.heat;
+  drawMap();
+}
+mapCv.addEventListener("click", e => { const sc = DOP.scene(); if (!sc) return; const r = mapCv.getBoundingClientRect(), half = sc.map;
+  DOP.pin = [((e.clientX - r.left) / r.width * 2 - 1) * half, (1 - (e.clientY - r.top) / r.height * 2) * half, 0];
+  dopMysUI(); drawPlayhead(); QLK.event('doppler_pin', {}); });
+$("dopSearch").addEventListener("click", () => {
+  const sc = DOP.scene(), S = dopSpec(); if (!sc || !S || DOP.busy) return;
+  DOP.busy = true; $("dopSearch").disabled = true; const n = 48, out = { n, A: new Float32Array(n * n), B: new Float32Array(n * n) }, step = 2 * sc.map / n; let j = 0;
+  const row = () => {
+    for (let i = 0; i < n; i++) { const mic = [-sc.map + (i + 0.5) * step, -sc.map + (j + 0.5) * step, 0];
+      sc.tracks.forEach((T, k) => { const w = DE.eventWindow(T, mic); (k ? out.B : out.A)[j * n + i] = DE.scoreCurve(S, DOP.floor, DE.predictedCurve(T, mic), 3, w[0], w[1]); }); }
+    $("dopSearch").textContent = `Searching… ${Math.round(100 * (j + 1) / n)}%`;
+    if (++j < n) { setTimeout(row, 0); return; }
+    DOP.busy = false; $("dopSearch").disabled = false; $("dopSearch").textContent = '🔍 Search the whole map';
+    DOP.heatAll = out; dopHeat(DOP.heatWhich); QLK.event('doppler_search', {});
+  };
+  row();
+});
+function dopHeat(which) {
+  DOP.heatWhich = which; const H = DOP.heatAll; if (!H) return;
+  // "both" multiplies the two fits, so a spot must explain both planes at once
+  const v = new Float32Array(H.n * H.n); for (let i = 0; i < v.length; i++) v[i] = which === 'A' ? H.A[i] : which === 'B' ? H.B[i] : H.A[i] * H.B[i];
+  DOP.heat = { n: H.n, v };
+  [...$("dopSeg").querySelectorAll('button')].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.w === which)));
+  $("dopHeatNote").innerHTML = which === 'both' ? 'Bright = a microphone there would hear <b>both</b> curves. The two bands from each plane cross in one spot.' :
+    `Bright = a microphone there would hear the ${which === 'A' ? 'first' : 'second'} plane's curve. <b>When</b> the pitch drops fixes when the plane was closest, so the band runs at right angles to the track through that point, sharply. <b>How steep</b> the drop is gives the distance along the band, much less sharply, and the two sides of the track hear exactly the same thing.`;
+  dopMysUI();
+}
+$("dopSeg").addEventListener("click", e => { const b = e.target.closest('button'); if (b) dopHeat(b.dataset.w); });
+$("dopReveal").addEventListener("click", () => { DOP.revealed = true; dopMysUI(); QLK.event('doppler_reveal', {}); });
+$("dopNewMys").addEventListener("click", () => { const e = dopEntry(); if (!e) return; e.scene = DE.mysteryScene(); if (e.src) URL.revokeObjectURL(e.src); e.src = null;
+  DOP.heatAll = null; DOP.found = false; loadSynth(e); QLK.event('mode', { level: 'doppler-new-mystery' }); });
+window.addEventListener("resize", () => { if (DOP.mode === 'mystery') drawMap(); });
+window.__dopShow = dopShow; window.__dopOverlay = dopOverlay; window.__dopSynth = dopSynth; window.__dopDefaults = dopDefaults;
+
 /* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ---------- */
 // Each check reads the page's own state. Window sizes match the guided steps: 1000 + 1050 Hz split at N = 4096
 // (bins 10.8 Hz), the 20 ms clicks separate only at N = 512 (window 11.6 ms).
@@ -843,6 +1067,12 @@ if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
   { id: 'mic', text: 'Press <b>🎙 Live mic</b> and whistle or sing for a few seconds. Can you see evenly spaced harmonics?',
     hint: 'Allow microphone access when the browser asks. A sung "aah" shows a ladder of lines; a whistle shows one.',
     check: () => chMicMs >= 4000 },
+  { id: 'doppler-fit', text: 'Load <b>Doppler: a propeller plane flies past</b> and fit the dashed curve until it locks on. How fast was the plane?',
+    hint: 'Match the flat parts first (before and after the plane passes) with f₀ and v, then the time of the drop with t₀, then its steepness with D.',
+    check: () => DOP.locked },
+  { id: 'doppler-find', text: 'Load <b>Doppler: two flyovers</b> and find the hidden microphone to within 500 m, before you reveal it.',
+    hint: 'Place pins until one plane fits, then move along that band until the other fits too. 🔍 Search shows both bands.',
+    check: () => DOP.found },
 ]);
 
 /* ---------- guided predictions (?guided=1) ---------- */
