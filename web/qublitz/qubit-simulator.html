@@ -47,6 +47,7 @@
   .hint{font-size:12.5px;color:var(--muted);margin:4px 0}
   .note{font-size:13px;border-radius:8px;padding:9px 12px;margin:10px 0;background:#eef5fb;border:1px solid #cfe0f0;color:#1f4a73}
   .note.warn{background:#fdf3e7;border-color:#f0d9b5;color:#7a4b12}
+  .note.tscale{border-width:2px;font-size:13.5px} .note.tscale b.big{font-size:15px} .chipT{display:block;font-size:12px;font-weight:400;opacity:.85}
   .eq{font-family:'Latin Modern Roman','CMU Serif',Cambria,Georgia,serif;margin:6px 0;overflow-x:auto}
   .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:4px 0 14px;flex-wrap:wrap}
   .tab{border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:none;padding:8px 14px;
@@ -245,6 +246,7 @@
   <p class="hint" id="ckMsg" style="margin-bottom:0">The checklist compares your results with the hidden values without showing them. Loading a new qubit starts it again.</p>
 </div>
 
+<div class="note tscale" id="tsBanner" role="status" hidden></div>
 <div class="tabs" role="tablist">
   <button class="tab" role="tab" aria-selected="true" data-tab="freq">Frequency Domain</button>
   <button class="tab" role="tab" aria-selected="false" data-tab="time">Time Domain</button>
@@ -577,6 +579,7 @@ function setQubit(code, { keepUrl = false } = {}) {
 }
 function useQubit(q) {
   state.qubit = q;
+  if (q.code !== 'FREE' && QVS) { QVS = null; tsDraw(); }   // a mystery or assigned qubit runs on the lab's own clock
   // _clear_results_and_pulses()
   state.freq = null; state.freqFit = null; state.chev = null;
   state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null;
@@ -603,7 +606,7 @@ const getMode = segmented('#mode', m => {
   if (m === 'mystery' && state.qubit && state.qubit.code === 'FREE') setQubit(Q.randomCode());
 });
 function applyFree(fromQV) {
-  if (!fromQV) { $('#qvQubitNote').hidden = true; try { const u = new URL(location.href); ['qv', 'f01', 't1', 't2', 't2kind'].forEach(k => u.searchParams.delete(k)); history.replaceState(null, '', u); } catch (e) {} }
+  if (!fromQV) { QVS = null; tsDraw(); $('#qvQubitNote').hidden = true; try { const u = new URL(location.href); ['qv', 'f01', 't1', 't2', 't2kind'].forEach(k => u.searchParams.delete(k)); history.replaceState(null, '', u); } catch (e) {} }
   const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1);
   $('#fT2').value = T2;
   useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 300), 1, 1000) / 1000, T1, T2 });
@@ -719,7 +722,7 @@ function renderFreq() {
     height: 640, margin: { t: 50, b: 50, l: 65, r: 20 },
     grid: { rows: 2, columns: 1, roworder: 'top to bottom' },
     xaxis: { title: { text: 'Drive frequency ω<sub>d</sub>/2π [GHz]' }, anchor: 'y2', gridcolor: '#eef2ef' },
-    yaxis: { title: { text: 'Time [ns]' }, domain: [0.32, 1] },
+    yaxis: { title: { text: tAx('Time [ns]') }, domain: [0.32, 1] },
     yaxis2: { title: { text: 'Max P(|1⟩)' }, domain: [0, 0.24], range: [-0.05, 1.05], gridcolor: '#eef2ef' },
     shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: f.peakFreq, x1: f.peakFreq, y0: 0, y1: 1, line: { color: C.red, width: 1, dash: 'dot' } }],
   }), PLOT_CFG);
@@ -729,7 +732,7 @@ function renderFreq() {
     line: { color: C.blue, width: 2.5 }, marker: { size: 3 } }];
   if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(f.timeList), y: fit.fitCurve, name: 'Rabi fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
   Plotly.react('cutPlot', traces, layout(`P(|1⟩) vs time at peak frequency (ωd = ${f.peakFreq.toFixed(6)} GHz)`, {
-    height: 380, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    height: 380, xaxis: { title: { text: tAx('Time [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
   }), PLOT_CFG);
   $('#cutFit').innerHTML = fit
     ? `<div class="metrics">${metric('Peak drive frequency ω<sub>d</sub>/2π', f.peakFreq.toFixed(6) + ' GHz')}
@@ -779,7 +782,7 @@ function syncSchedule() {                                         // pulse_ui() 
     { type: 'scatter', mode: 'lines', x: Array.from(t), y: Array.from(td.sy), name: 'Ω<sub>y</sub>(t)', line: { color: C.gold, width: 2.5 } },
   ], layout('Time-dependent envelopes', {
     height: 260, margin: { t: 40, b: 40, l: 55, r: 15 }, legend: { orientation: 'h', y: 1.15, x: 1, xanchor: 'right' },
-    xaxis: { title: { text: 'Time [ns]' }, range: [0, tf], gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Amplitude' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
+    xaxis: { title: { text: tAx('Time [ns]') }, range: [0, tf], gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Amplitude' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
   }), PLOT_CFG);
   return { t, n, tf };
 }
@@ -872,7 +875,7 @@ function bloch(o) {
       marker: { size: 3, color: idx.map(i => o.t[i]), opacity: 0.9,
         // dark theme: Viridis from 0.3 up, so the earliest dots do not vanish into the background
         colorscale: window.RETRO && window.RETRO.palette ? [[0, '#31688e'], [0.17, '#26828e'], [0.33, '#1f9e89'], [0.5, '#35b779'], [0.67, '#6ece58'], [0.83, '#b5de2b'], [1, '#fde725']] : 'Cividis',
-        colorbar: { title: { text: 'Time [ns]' }, len: 0.7, thickness: 14 } },
+        colorbar: { title: { text: tAx('Time [ns]') }, len: 0.7, thickness: 14 } },
       hovertemplate: 't=%{marker.color:.2f} ns<extra></extra>' },
     { type: 'scatter3d', mode: 'text', x: [0, 0], y: [0, 0], z: [1.18, -1.18], text: ['|0⟩', '|1⟩'], textfont: { size: 16, color: '#1b2a24' }, hoverinfo: 'skip', showlegend: false },
     { type: 'scatter3d', mode: 'lines+markers', x: [0, 0], y: [0, 0], z: [0, 0], line: { color: C.red, width: 7 }, marker: { size: [0, 6], color: C.red }, hoverinfo: 'skip', showlegend: false },
@@ -890,7 +893,7 @@ function renderTD() {
     { type: 'scatter', mode: 'lines', x: t, y: Array.from(o.y), name: '⟨σy⟩', line: { color: C.gold, width: 2.2 } },
     { type: 'scatter', mode: 'lines', x: t, y: Array.from(o.z), name: '⟨σz⟩', line: { color: window.RETRO && window.RETRO.palette ? '#c77dff' : C.blue, width: 2.2 } },
   ], layout(`Rotating-frame dynamics (ωd = ${o.wd.toFixed(6)} GHz)`, {
-    height: 440, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Expectation value' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
+    height: 440, xaxis: { title: { text: tAx('Time [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Expectation value' }, range: [-1.05, 1.05], gridcolor: '#eef2ef' },
     shapes: [vline], legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
   }), PLOT_CFG);
   Plotly.react('blochPlot', bloch(o), layout('State vector on the Bloch sphere', {
@@ -911,11 +914,11 @@ function renderTD() {
     traces.push({ type: 'scatter', mode: 'lines', x: f.t1.fitCurve.map((_, i) => t[i0 + i]), y: f.t1.fitCurve, name: 'T₁ fit', line: { color: C.red, width: 2.5, dash: 'dot' } });
   }
   Plotly.react('p1Plot', traces, layout(`Measurement record (shots = ${o.shots})`, {
-    height: 380, xaxis: { title: { text: 'Time [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Measured P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    height: 380, xaxis: { title: { text: tAx('Time [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'Measured P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
     shapes: [vline], legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
   }), PLOT_CFG);
 
-  $('#tdMetrics').innerHTML = (f.t1 ? metric('Fitted T₁', formatPM(f.t1.T1Ns, f.t1.T1NsErr, 'ns')) : '')
+  $('#tdMetrics').innerHTML = (f.t1 ? metric('Fitted T₁', formatPM(f.t1.T1Ns, f.t1.T1NsErr, 'ns') + onChip(f.t1.T1Ns, f.t1.T1NsErr, 't1')) : '')
     + (f.rabi ? metric('Fitted Ω<sub>R</sub>/2π during the pulse', formatPM(f.rabi.fMHz, f.rabi.fMHzErr, 'MHz')) : '');
   $('#tdMsgs').innerHTML = (f.t1 ? '' : '<div class="note">T₁ fit unavailable for the current schedule.</div>')
     + f.messages.map(m => `<p class="hint">${m}</p>`).join('');
@@ -1018,7 +1021,7 @@ function renderRamsey() {
     customdata: hasRef ? Array.from(c.delays, () => Array.from(c.dets, d => c.refF + 1e-3 * d)) : undefined,
     hovertemplate: 'Δ=%{x:.3f} MHz' + (hasRef ? '<br>ωd/2π=%{customdata:.9f} GHz' : '') + '<br>τ=%{y:.1f} ns<br>P1=%{z:.3f}<extra></extra>',
   }], layout(`Ramsey chevron, π/2 = ${c.pi2.toFixed(3)} ns`, {
-    height: 560, xaxis: { title: { text: 'Relative detuning Δ/2π [MHz]' }, showline: true, mirror: true }, yaxis: { title: { text: 'Idle time τ [ns]' }, showline: true, mirror: true },
+    height: 560, xaxis: { title: { text: 'Relative detuning Δ/2π [MHz]' }, showline: true, mirror: true }, yaxis: { title: { text: tAx('Idle time τ [ns]') }, showline: true, mirror: true },
     // the cut: a dark underlay so the dashed line reads on every colour of the map
     shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: cutX, x1: cutX, y0: 0, y1: 1, line: { color: 'rgba(7,10,22,0.85)', width: 4 } },
       { type: 'line', xref: 'x', yref: 'paper', x0: cutX, x1: cutX, y0: 0, y1: 1, line: { color: '#2fe0d0', width: 2, dash: 'dash' } }],
@@ -1043,11 +1046,11 @@ function renderCut() {
     line: { color: C.blue, width: 2.2 }, marker: { size: 4 } }];
   if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(c.delays), y: fit.fitCurve, name: 'Ramsey fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
   Plotly.react('rCutPlot', traces, layout('Ramsey trace from a vertical cut of the chevron', {
-    height: 400, xaxis: { title: { text: 'Idle time τ [ns]' }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    height: 400, xaxis: { title: { text: tAx('Idle time τ [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
     legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
   }), PLOT_CFG);
   $('#rFit').innerHTML = fit
-    ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, 'ns')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, 'MHz'))
+    ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, 'ns') + onChip(fit.T2Ns, fit.T2NsErr, 't2')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, 'MHz'))
       + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe',
         `${(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(6)} or ${(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(6)} GHz`) : '')
     : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
@@ -1120,6 +1123,32 @@ if (assigned && initial) {
 syncQuickPulses();
 
 /* ---------------- real qubits from Q-Vault (web/shared/qvault.js) ---------------- */
+// The lab clock for a real qubit. QVault.labQubit keeps f₀₁ exact and runs time TIME_SCALE (1000) times faster, so
+// 1 ns here stands for 1 µs on the chip; QVS.k is that factor in µs per lab-ns (larger only when T₁ hit the lab's cap).
+// While QVS is set, a banner says so above the experiments, time axes name both units, and fitted T₁ and T₂ are
+// converted back to µs next to the paper's value. Editing the qubit by hand (applyFree) or leaving free play clears it.
+var QVS = null;   // var: render functions read it during start-up, before this line runs
+const g4 = v => +(+v).toPrecision(3);
+function tAx(label) { return QVS ? label.replace('[ns]', Math.abs(QVS.k - 1) < 1e-9 ? '[ns] (= µs on the real chip)' : `[ns] (× ${g4(QVS.k)} = µs on the real chip)`) : label; }
+function onChip(ns, err, which) {
+  if (!QVS || !isFinite(ns)) return '';
+  const paper = which === 't1' ? QVS.t1 : QVS.t2;
+  return `<span class="chipT">= ${formatPM(ns * QVS.k, isFinite(err) ? err * QVS.k : NaN, 'µs')} on the real chip${paper ? ` · the paper: ${g4(paper)} µs${which === 't2' && QVS.kind ? ' (' + QVS.kind + ')' : ''}` : ''}</span>`;
+}
+function tsDraw() {
+  const b = $('#tsBanner'); if (!b) return;
+  b.hidden = !QVS;
+  ['fT1', 'fT2'].forEach(id => { const l = document.querySelector(`label[for=${id}]`); if (l) { l.dataset.base = l.dataset.base || l.innerHTML; l.innerHTML = l.dataset.base + (QVS ? ' <small>(= µs on the chip)</small>' : ''); } });
+  if (!QVS) return;
+  const k = QVS.k * 1000;
+  b.innerHTML = `<b class="big">⏱ Real qubit, clock running ${g4(k)}× faster.</b> 1 ns on every plot here = ${k === 1000 ? '1 µs' : g4(QVS.k) + ' µs'} on the real chip (${QVS.who}).
+    <br>Scaled: T₁, T₂, pulse lengths and idle times. Not scaled: the qubit frequency f₀₁ (${QVS.f01} GHz, exact). Ramsey detunings scale the other way: a 1 MHz detuning here plays the role of ${g4(1000 / k)} kHz on the chip.
+    The Rabi rate is the lab's, not the chip's. Fitted T₁ and T₂ are converted back to µs under each fit.
+    ${k !== 1000 ? `<br>The factor is ${g4(k)}, not ${QVault.TIME_SCALE}, because this qubit's T₁ is longer than the lab's 10 µs limit would allow at ${QVault.TIME_SCALE}×.` : ''}
+    <a href="#" id="tsWhy">Why scale time?</a><span id="tsWhyTxt" hidden> This lab solves the qubit's every GHz oscillation, which takes a few picoseconds per step; a real 100 µs T₁ experiment would need about 10⁸ steps per shot.
+    Running the clock ${QVault.TIME_SCALE}× faster keeps every ratio that shapes the plots (T₂/T₁, how many Rabi flips fit in T₁) while each run takes a moment. Edit any number above to leave the real-qubit clock.</span>`;
+  $('#tsWhy').onclick = e => { e.preventDefault(); $('#tsWhyTxt').hidden = !$('#tsWhyTxt').hidden; };
+}
 // A published transmon runs here with its own frequency and its own T₂/T₁, on a clock 1000× faster than the real chip
 // (QVault.labQubit). Q-Vault's "Qublitz" links (?qv=citekey~device~label&f01=&t1=&t2=) land here too: the numbers are
 // re-read from Q-Vault's live table by id; the link's own numbers are used only when Q-Vault cannot be reached.
@@ -1139,6 +1168,8 @@ function qvQubitLoad(r, s, offline) {
   if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? QVault.sourceHTML(s, r.citekey) : ''}`; return; }
   $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2;
   if (getMode() === 'free') applyFree(true); else { $('#mode [data-v="free"]').click(); }
+  // the mode switch above runs applyFree() without the flag, which clears the clock: set it after
+  QVS = { who, k: +r.T1_us / L.T1, t1: +r.T1_us, t2, kind: t2 ? (t2r > 0 ? 'Ramsey' : 'echo') : '', f01: g4(r.f01_GHz) }; tsDraw(); renderFreq(); renderTD(); renderRamsey();
   // the mode switch calls applyFree() without the flag, which hides the note: show it again after
   note.hidden = false;
   try { const u = new URL(location.href); u.searchParams.set('qv', [r.citekey, r.device_id, r.label].filter(Boolean).join('~')); history.replaceState(null, '', u); } catch (e) {}
