@@ -143,8 +143,10 @@
   </div>
   <p class="hint" id="offlineHint"><a id="dlOffline" href="qubit-simulator-offline.html" download="qublitz-qubit-simulator.html">Download this simulator</a>
     as a single HTML file that runs offline in any browser, with nothing to install.</p>
-  <p class="hint">Its frequency, Rabi rate and T₁ are hidden. The same code always gives the same qubit, and <b>Reveal parameters</b>
-    on the Ramsey tab lets you check your answers. Loading a new qubit clears your results and pulses.</p>
+  <p class="hint" id="mqNote" role="status"></p>
+  <p class="hint">Every code is a <b>real transmon</b> from a published paper in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a>, run in the chip's
+    own units. Its frequency, Rabi rate, T₁ and T₂ are hidden. The same code always gives the same qubit, and <b>Reveal parameters</b>
+    on the Ramsey tab lets you check your answers and see which paper it came from. Loading a new qubit clears your results and pulses.</p>
   </div>
 
   <div id="modeFree" hidden>
@@ -170,7 +172,9 @@
   <div id="modeInstructor" hidden>
     <p class="hint">Give every student their own qubit. Paste your roster (one student per line, e.g. an ID or a name) and choose a
       class seed. Each code is derived from the seed and the roster line, so the same seed and roster always rebuild the same key.
-      Parameters are drawn from ω<sub>q</sub>/2π ∈ [4, 6] GHz, Ω<sub>R</sub>/2π ∈ [200, 500] MHz and T₁ ∈ [100, 200] ns, with T₂ = 2T₁.</p>
+      Each student gets a real published transmon from Q-Vault (f₀₁ 3.5–6.5 GHz, T₁ 30–600 µs, the paper's T₂, or 2T₁ when it gives none),
+      with a drive Ω<sub>R</sub>/2π of 100–300 kHz, in real-chip units. The links name the device, so the key stays right as Q-Vault grows.
+      Links made before real qubits (no device in the link) still open the old practice qubits, so earlier answer keys still match.</p>
     <div class="row" style="align-items:flex-start">
       <div class="field" style="flex:1;min-width:240px"><label for="roster">Roster</label>
         <textarea id="roster" rows="6" placeholder="f0082rd&#10;f0083n2&#10;…" style="font:13px ui-monospace,monospace;border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%"></textarea></div>
@@ -178,6 +182,7 @@
         <button id="genKey" class="primary" style="margin-top:8px">Generate codes</button></div>
     </div>
     <div id="keyOut" hidden>
+      <p class="hint" id="keyNote"></p>
       <div style="overflow-x:auto"><table id="keyTable" class="key"></table></div>
       <div class="row"><button id="dlKey">Download answer key CSV</button><button id="dlStudents">Download student list (no answers)</button></div>
     </div>
@@ -186,7 +191,7 @@
   </div>
   <details data-depth="student+"><summary>Simulation convention</summary>
     <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), written in the engine's basis, where the ground state |0⟩ has σ<sub>z</sub> = −1 (the plots below use the textbook sphere, with |0⟩ at ⟨σz⟩ = +1), and with no rotating-wave
-      approximation. Energy relaxation at rate 1/T₁. Mystery and assigned qubits have T₂ = 2T₁ (no pure dephasing), the teaching model of the ENGS 53 lab; in free play you can lower T₂ to add pure dephasing.
+      approximation. Energy relaxation at rate 1/T₁. Mystery and assigned qubits are real transmons with their published T₂ (or T₂ = 2T₁ when the paper gives none), shown in real-chip units (µs, kHz; see the banner); in free play you can set T₂ yourself.
       Frequencies are in GHz (ω/2π) and times in ns. Results match the Python/qutip implementation to better than 10⁻⁶.</p></details>
 </div>
 
@@ -395,6 +400,7 @@
   <label class="lbl" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="reveal"> Show hidden simulator parameters</label>
   <div class="reveal" id="revealBox">
     <div class="metrics" id="revealMetrics"></div>
+    <p class="hint" id="revealSrc"></p>
     <a id="battle" href="arena.html">⚔️ Battle with this qubit →</a>
   </div>
   </div>
@@ -570,17 +576,54 @@ if (STANDALONE) {
 }
 
 /* ---------------- qubit selection ---------------- */
-function setQubit(code, { keepUrl = false } = {}) {
-  const q = Q.qubitFromCode(code);
-  useQubit({ ...q, T2: 2 * q.T1 });
-  $('#qcode').textContent = q.code;
-  if (!keepUrl) {
-    try { const u = new URL(location.href); u.searchParams.set('qubit', q.code); u.searchParams.delete('assigned'); u.searchParams.delete('free'); history.replaceState(null, '', u); } catch (e) {}
-  }
+// A code is a real transmon from Q-Vault (QVault.mysteryPool / mysteryPick / mysteryQubit), or, for links made before
+// real qubits (assigned without a device token, or ?classic=1) and when Q-Vault cannot be reached, the original practice
+// qubit from Q.qubitFromCode (lab units, T₂ = 2T₁). The practice qubit is also the placeholder while Q-Vault loads; the real
+// one replaces it only if the page is still in mystery mode with the same code, keeping any pulses already placed.
+const MQ = { p: null, pool: null, src: {}, seq: 0 };
+function mqPool() {
+  if (!MQ.p) MQ.p = Promise.all([QVault.load('qvault_parameters.csv'), QVault.load('qvault_sources.csv')])
+    .then(([rows, srcs]) => { MQ.pool = QVault.mysteryPool(rows); MQ.src = QVault.sourceMap(srcs); if (!MQ.pool.length) throw new Error('empty pool'); return MQ.pool; })
+    .catch(e => { MQ.p = null; throw e; });
+  return MQ.p;
+}
+function setQuery(code, token) {
+  try { const u = new URL(location.href); u.searchParams.set('qubit', code); if (token) u.searchParams.set('d', token); else u.searchParams.delete('d');
+    u.searchParams.delete('assigned'); u.searchParams.delete('free'); u.searchParams.delete('classic'); history.replaceState(null, '', u); } catch (e) {}
+}
+function classicQubit(code) { const q = Q.qubitFromCode(code); return { ...q, T2: 2 * q.T1 }; }
+function setQubit(code, { keepUrl = false, token = null, classic = false } = {}) {
+  const norm = String(code).trim().toUpperCase(), seq = ++MQ.seq;
+  $('#qcode').textContent = norm;
+  useQubit({ ...classicQubit(norm), placeholder: !classic });
+  if (classic) { $('#mqNote').innerHTML = 'A practice qubit from before real qubits (lab units: ns and MHz), so earlier answer keys still match.'; if (!keepUrl) setQuery(norm); return; }
+  $('#mqNote').textContent = '📚 Fetching a real qubit from Q-Vault…';
+  if (!keepUrl) setQuery(norm);
+  mqPool().then(pool => {
+    if (seq !== MQ.seq || getMode() !== 'mystery') return;
+    const fromTok = token ? QVault.mysteryFromToken(pool, token, norm) : null;
+    const row = fromTok || QVault.mysteryPick(pool, norm), q = row && QVault.mysteryQubit(row, norm);
+    if (!q) throw new Error('no qubit');
+    adoptReal(q);
+    $('#mqNote').innerHTML = `📚 A real transmon from Q-Vault, in real-chip units (µs, kHz).${token && !fromTok ? ' <b>The device in this link is no longer in Q-Vault</b>, so the code picked another.' : ''} Which paper it is from stays hidden until you reveal the parameters.`;
+    if (!keepUrl) setQuery(norm, QVault.mysteryToken(row, norm));
+  }).catch(() => {
+    if (seq !== MQ.seq || getMode() !== 'mystery') return;
+    state.qubit.placeholder = false;
+    $('#mqNote').innerHTML = 'Q-Vault could not be reached (are you offline?), so this is a practice qubit in lab units (ns, MHz). Reload when online for a real one.';
+  });
+}
+// Swap the placeholder for the real qubit: keep any pulses already placed (a link may have set them), drop results.
+function adoptReal(q) {
+  const td = state.td, pulses = td.sx && (td.sx.some(v => v) || td.sy.some(v => v)) ? { sx: td.sx, sy: td.sy, h: td.history } : null;
+  useQubit(q);
+  if (pulses && td.sx.length === pulses.sx.length) { td.sx = pulses.sx; td.sy = pulses.sy; td.history = pulses.h; syncSchedule(); scheduleRun(); }
 }
 function useQubit(q) {
   state.qubit = q;
-  if (q.code !== 'FREE' && QVS) { QVS = null; tsDraw(); }   // a mystery or assigned qubit runs on the lab's own clock
+  // a real mystery qubit runs in chip units with its identity hidden; a practice qubit runs on the lab's own clock
+  if (q.real) { QVS = { who: '', k: 1, t1: q.real.t1, t2: q.real.t2, kind: q.real.kind, f01: null, f01x: q.omegaQ, mystery: true }; tsDraw(); }
+  else if (q.code !== 'FREE' && QVS) { QVS = null; tsDraw(); }
   // _clear_results_and_pulses()
   state.freq = null; state.freqFit = null; state.chev = null;
   state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null;
@@ -593,6 +636,7 @@ $('#useCode').onclick = () => { const v = $('#codeIn').value.trim(); if (v) { se
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#useCode').click(); });
 $('#copyLink').onclick = async () => {
   const u = pageUrl(); u.searchParams.set('qubit', state.qubit.code); u.searchParams.delete('from'); u.hash = '';
+  const rr = state.qubit.real; if (rr && MQ.pool) { const row = MQ.pool.find(x => x.citekey === rr.citekey && x.device_id === rr.device && (x.label || '') === rr.label); if (row) u.searchParams.set('d', QVault.mysteryToken(row, state.qubit.code)); }
   try { await navigator.clipboard.writeText(u.href); $('#copyLink').textContent = 'Copied ✓'; }
   catch (e) { prompt('Copy this link:', u.href); }
   setTimeout(() => ($('#copyLink').textContent = 'Copy link'), 1500);
@@ -631,20 +675,30 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 let key = [];
 const csvQuote = v => '"' + String(v).replace(/"/g, '""') + '"';
 $('#seed').value = 'ENGS53-' + Q.randomCode().slice(0, 4);
-$('#genKey').onclick = () => {
+$('#genKey').onclick = async () => {
   const seed = $('#seed').value.trim() || 'class';
   const students = [...new Set($('#roster').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean))];
-  key = students.map(st => { const code = Q.codeFor(seed, st), q = Q.qubitFromCode(code); return { st, code, q }; });
-  const link = code => { const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('qubit', code); u.searchParams.set('assigned', '1'); return u.href; };
-  key.forEach(k => (k.link = link(k.code)));
+  let pool = null; $('#genKey').disabled = true;
+  try { pool = await mqPool(); } catch (e) { pool = null; }
+  $('#genKey').disabled = false;
+  const link = (code, token) => { const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('qubit', code); if (token) u.searchParams.set('d', token); u.searchParams.set('assigned', '1'); return u.href; };
+  key = students.map(st => {
+    const code = Q.codeFor(seed, st), row = pool && QVault.mysteryPick(pool, code), q = row && QVault.mysteryQubit(row, code);
+    if (q) return { st, code, q, real: true, dev: `${QVault.cite(MQ.src[row.citekey], row.citekey)} · ${row.device_id}${row.label ? ' · ' + row.label : ''}`, link: link(code, QVault.mysteryToken(row, code)) };
+    return { st, code, q: classicQubit(code), real: false, dev: 'practice qubit (lab units)', link: link(code, null) };
+  });
+  const allReal = key.every(k => k.real);
   $('#keyOut').hidden = !key.length;
-  $('#keyTable').innerHTML = '<tr><th>Student</th><th>Code</th><th>ω<sub>q</sub>/2π [GHz]</th><th>Ω<sub>R</sub>/2π [MHz]</th><th>T₁ [ns]</th><th>T₂ [ns]</th></tr>'
-    + key.map(k => `<tr><td>${esc(k.st)}</td><td><a href="${esc(k.link)}" target="_blank" rel="noopener">${k.code}</a></td><td>${k.q.omegaQ.toFixed(4)}</td>`
-      + `<td>${(k.q.omegaRabi * 1e3).toFixed(2)}</td><td>${k.q.T1.toFixed(1)}</td><td>${(2 * k.q.T1).toFixed(1)}</td></tr>`).join('');
+  $('#keyNote').innerHTML = !key.length ? '' : allReal ? 'Real qubits: frequencies in GHz, Rabi rates in kHz and times in µs, as the students will see them.'
+    : '<b>Q-Vault could not be reached</b>, so these are practice qubits in lab units (MHz, ns). Generate again when online for real qubits.';
+  const fu = allReal ? 'kHz' : 'MHz', tu = allReal ? 'µs' : 'ns';
+  $('#keyTable').innerHTML = `<tr><th>Student</th><th>Code</th><th>Device</th><th>ω<sub>q</sub>/2π [GHz]</th><th>Ω<sub>R</sub>/2π [${fu}]</th><th>T₁ [${tu}]</th><th>T₂ [${tu}]</th></tr>`
+    + key.map(k => `<tr><td>${esc(k.st)}</td><td><a href="${esc(k.link)}" target="_blank" rel="noopener">${k.code}</a></td><td>${esc(k.dev)}</td><td>${k.q.omegaQ.toFixed(4)}</td>`
+      + `<td>${(k.q.omegaRabi * 1e3).toFixed(1)}</td><td>${k.q.T1.toFixed(1)}</td><td>${k.q.T2.toFixed(1)}</td></tr>`).join('');
 };
-$('#dlKey').onclick = () => downloadCSV(`qublitz_answer_key_${$('#seed').value.trim()}.csv`,
-  ['student', 'code', 'omega_q_GHz', 'rabi_rate_MHz', 'T1_ns', 'T2_ns', 'link'],
-  key.map(k => [csvQuote(k.st), k.code, k.q.omegaQ, +(k.q.omegaRabi * 1e3).toFixed(2), k.q.T1, 2 * k.q.T1, k.link]));
+$('#dlKey').onclick = () => { const r = key.length && key.every(k => k.real); downloadCSV(`qublitz_answer_key_${$('#seed').value.trim()}.csv`,
+  ['student', 'code', 'device', 'omega_q_GHz', r ? 'rabi_rate_kHz' : 'rabi_rate_MHz', r ? 'T1_us' : 'T1_ns', r ? 'T2_us' : 'T2_ns', 'link'],
+  key.map(k => [csvQuote(k.st), k.code, csvQuote(k.dev), k.q.omegaQ, +(k.q.omegaRabi * 1e3).toFixed(2), k.q.T1, k.q.T2, k.link])); };
 $('#dlStudents').onclick = () => downloadCSV(`qublitz_student_codes_${$('#seed').value.trim()}.csv`,
   ['student', 'code', 'link'], key.map(k => [csvQuote(k.st), k.code, k.link]));
 
@@ -1055,7 +1109,7 @@ function renderCut() {
   const det = c.dets[j], col = c.cols[j], fit = Q.fitRamsey(c.delays, col, Math.abs(det));
   Plotly.relayout('chevPlot', { 'shapes[0].x0': det, 'shapes[0].x1': det });
   $('#cutInfo').innerHTML = metric('Selected detuning', `${det >= 0 ? '+' : ''}${det.toFixed(3)} ${UF()}`)
-    + (isFinite(c.refF) ? metric('Corresponding ω<sub>d</sub>/2π', chipF(c.refF + 1e-3 * det).toFixed(9) + ' GHz') : '');
+    + (isFinite(c.refF) ? metric('Corresponding ω<sub>d</sub>/2π' + labFrame(), chipF(c.refF + 1e-3 * det).toFixed(9) + ' GHz') : '');
   const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(c.delays), y: Array.from(col), name: `Ramsey data (Δ = ${det >= 0 ? '+' : ''}${det.toFixed(3)} ${UF()})`,
     line: { color: C.blue, width: 2.2 }, marker: { size: 4 } }];
   if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(c.delays), y: fit.fitCurve, name: 'Ramsey fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
@@ -1065,7 +1119,7 @@ function renderCut() {
   }), PLOT_CFG);
   $('#rFit').innerHTML = fit
     ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, UT()) + onChip(fit.T2Ns, fit.T2NsErr, 't2')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, UF()))
-      + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe',
+      + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe' + labFrame(),
         `${chipF(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(CU() ? 9 : 6)} or ${chipF(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(CU() ? 9 : 6)} GHz`) : '')
     : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
   if (fit && isFinite(c.refF)) {
@@ -1088,15 +1142,20 @@ function renderReveal() {
     + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' ' + UF())
     + metric('T₁', q.T1.toFixed(1) + ' ' + UT()) + metric('T₂', q.T2.toFixed(1) + ' ' + UT());
   // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
+  const rr = q.real;
+  $('#revealSrc').innerHTML = rr ? `<b>📚 Your qubit: ${QVault.cite(MQ.src[rr.citekey], rr.citekey)} · ${esc(rr.device)}${rr.label ? ' · ' + esc(rr.label) : ''}</b>${rr.metal ? ` (${esc(rr.metal)}${rr.substrate ? ' on ' + esc(rr.substrate) : ''})` : ''}.
+    The paper: T₁ = ${g4(rr.t1)} µs${rr.t2 ? `, T₂ (${rr.kind}) = ${g4(rr.t2)} µs` : ', no T₂ (so T₂ = 2T₁ here)'}. The drive (Ω<sub>R</sub>) is this lab's choice: papers do not list it.
+    ${QVault.sourceHTML(MQ.src[rr.citekey], rr.citekey)}` : '';
   $('#battle').href = arenaUrl(q.T1.toFixed(1));
   $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
 }
 $('#reveal').addEventListener('change', () => { renderReveal(); if ($('#reveal').checked) ql('hint', { level: 'reveal' }); });
 
 /* ---------------- boot ---------------- */
-let initial = null, assigned = false, free = null;
-try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; free = sp.get('free'); } catch (e) {}
-setQubit(initial || Q.randomCode(), { keepUrl: !!initial });
+let initial = null, assigned = false, free = null, dTok = null, classicQ = false;
+try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; free = sp.get('free'); dTok = sp.get('d'); classicQ = sp.get('classic') === '1'; } catch (e) {}
+// an instructor link without a device token was made before real qubits: keep its practice qubit so the old key matches
+setQubit(initial || Q.randomCode(), { keepUrl: !!initial, token: dTok, classic: classicQ || (assigned && !!initial && !dTok) });
 if (free && !assigned) {
   const v = free.split(',').map(Number);
   if (v.length === 4 && v.every(Number.isFinite)) {
@@ -1150,13 +1209,15 @@ const g4 = v => +(+v).toPrecision(3);
 function CU() { return !!QVS && Math.abs(QVS.k - 1) < 1e-3; }      // chip units on
 function UT() { return CU() ? 'µs' : 'ns'; }
 function UF() { return CU() ? 'kHz' : 'MHz'; }
-function chipF(ghz) { return CU() ? QVS.f01x + (ghz - QVS.f01x) / 1000 : ghz; }   // a lab frequency as the chip's
+// a lab frequency as the chip's; not for a mystery qubit, where it would give away f₀₁ (those stay in the lab frame)
+function chipF(ghz) { return CU() && !QVS.mystery ? QVS.f01x + (ghz - QVS.f01x) / 1000 : ghz; }
+const labFrame = () => (CU() && QVS.mystery ? ' (lab frame)' : '');
 function tAx(label) {
   if (CU()) return label.replace('[ns]', '[µs]');
   return QVS ? label.replace('[ns]', `[ns] (× ${g4(QVS.k)} = µs on the real chip)`) : label;
 }
 function onChip(ns, err, which) {
-  if (!QVS || !isFinite(ns)) return '';
+  if (!QVS || !isFinite(ns) || QVS.mystery) return '';   // a mystery qubit's paper values stay hidden until Reveal
   const paper = which === 't1' ? QVS.t1 : QVS.t2, pp = paper ? `the paper: ${g4(paper)} µs${which === 't2' && QVS.kind ? ' (' + QVS.kind + ')' : ''}` : '';
   if (CU()) return pp ? `<span class="chipT">${pp}</span>` : '';
   return `<span class="chipT">= ${formatPM(ns * QVS.k, isFinite(err) ? err * QVS.k : NaN, 'µs')} on the real chip${pp ? ' · ' + pp : ''}</span>`;
@@ -1173,7 +1234,11 @@ function tsDraw() {
     µs-scale runs instead of the ms-scale ones a direct simulation would need (about 10⁸ steps per shot). The qubit frequency f₀₁ is not scaled. Only the fast
     counter-rotating terms feel that: they shift the resonance by about Ω<sub>R</sub>²/(4f₀₁), which your sweep measures and your calibrations absorb.
     Edit any number above to return to the lab's own units.</span>`;
-  b.innerHTML = CU()
+  b.innerHTML = QVS.mystery
+    ? `<b class="big">⏱ A real qubit, in real-chip units.</b> Times are in <b>µs</b>; Rabi rates, detunings and fringe frequencies are in <b>kHz</b>, so the T₁ and T₂ you fit
+      are the chip's own, in the units papers use. The frequency-sweep axis and the absolute frequencies on the Ramsey tab stay in the lab's GHz frame:
+      there, an offset of 1 MHz stands for 1 kHz on the chip, and the qubit frequency itself is the chip's. ${why}`
+    : CU()
     ? `<b class="big">⏱ Real qubit, in real-chip units.</b> Times are in <b>µs</b>; Rabi rates, detunings and fringe frequencies are in <b>kHz</b>, read straight off the plots:
       a T₁ you fit here compares directly with the paper's (${QVS.who}). f₀₁ = ${QVS.f01} GHz is exact. The frequency-sweep axis stays in the lab's GHz:
       there, an offset of 1 MHz from f₀₁ stands for 1 kHz on the chip. ${why}`

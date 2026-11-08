@@ -136,6 +136,51 @@
     }).filter(Boolean).sort((a, b) => (a.citekey < b.citekey ? -1 : a.citekey > b.citekey ? 1 : String(a.label).localeCompare(String(b.label), undefined, { numeric: true })));
   }
 
+  // ── mystery qubits: every Virtual Qubit Lab code is a real published transmon ──
+  // The pool: transmons with f₀₁ in the lab's default sweep window (3.5–6.5 GHz) and 30 µs ≤ T₁ ≤ 600 µs, so that on the
+  // 1000× clock a π pulse stays short next to T₁ and a full T₁ decay fits in a 2000 µs run. Each code picks one by a hash
+  // (sorted by id, so the same code gives the same qubit while Q-Vault's table is unchanged) and a drive, since papers do not
+  // list Rabi rates: Ω_R/2π between max(100, 5×10⁴/T₁[µs]) and 300 kHz on the chip (π pulse at most 1% of T₁).
+  // Instructor links carry the chosen device as a token (the id XOR-ed with the code, base64url), so an answer key keeps
+  // naming the same device as the table grows. It hides the device from a casual look, not from a determined student.
+  const MYSTERY = { f01: [3.5, 6.5], T1: [30, 600] };
+  function fnv(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; }
+  function mulberry(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  const rowId = r => [r.citekey, r.device_id, r.label || ''].join('~');
+  function mysteryPool(params) {
+    return (params || []).filter(r => r.type === 'transmon' && num(r.f01_GHz) != null && num(r.T1_us) != null
+      && +r.f01_GHz >= MYSTERY.f01[0] && +r.f01_GHz <= MYSTERY.f01[1] && +r.T1_us >= MYSTERY.T1[0] && +r.T1_us <= MYSTERY.T1[1])
+      .sort((a, b) => (rowId(a) < rowId(b) ? -1 : rowId(a) > rowId(b) ? 1 : 0));
+  }
+  // The lab qubit for one pool row and code: f₀₁ exact, T₁ and T₂ in lab ns (= µs on the chip), the paper's T₂ (Ramsey, else
+  // echo, else 2T₁), and the drive. Returns null if the row cannot run.
+  function mysteryQubit(row, code) {
+    const t2r = num(row.T2R_us), t2e = num(row.T2E_us), t2 = t2r > 0 ? t2r : t2e > 0 ? t2e : null;
+    const L = labQubit({ f01: row.f01_GHz, t1: row.T1_us, t2 });
+    if (!L.ok) return null;
+    const r = mulberry(fnv('qublitz-real-drive:' + code)), lo = Math.min(300, Math.max(100, 5e4 / L.T1));
+    const rabiMHz = Math.round(10 * (lo + (300 - lo) * r())) / 10;
+    return { code, omegaQ: L.omegaQ, omegaRabi: rabiMHz / 1000, T1: L.T1, T2: L.T2,
+      real: { citekey: row.citekey, device: row.device_id, label: row.label || '', t1: +row.T1_us, t2, kind: t2 ? (t2r > 0 ? 'Ramsey' : 'echo') : '', metal: row.base_metal || '', substrate: row.substrate || '' } };
+  }
+  function mysteryPick(pool, code) {
+    if (!pool || !pool.length) return null;
+    return pool[Math.floor(mulberry(fnv('qublitz-real:' + String(code).trim().toUpperCase()))() * pool.length)];
+  }
+  const b64u = { enc: bytes => (typeof btoa === 'function' ? btoa(String.fromCharCode(...bytes)) : Buffer.from(bytes).toString('base64')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+    dec: s => { const t = s.replace(/-/g, '+').replace(/_/g, '/'); const bin = typeof atob === 'function' ? atob(t) : Buffer.from(t, 'base64').toString('binary'); return Array.from(bin, c => c.charCodeAt(0)); } };
+  function mysteryToken(row, code) {
+    const id = unescape(encodeURIComponent(rowId(row))), r = mulberry(fnv('qublitz-token:' + String(code).trim().toUpperCase()));
+    return b64u.enc(Array.from(id, c => c.charCodeAt(0) ^ Math.floor(r() * 256)));
+  }
+  function mysteryFromToken(pool, token, code) {
+    try {
+      const r = mulberry(fnv('qublitz-token:' + String(code).trim().toUpperCase()));
+      const id = decodeURIComponent(escape(String.fromCharCode(...b64u.dec(String(token)).map(b => b ^ Math.floor(r() * 256)))));
+      return (pool || []).find(x => rowId(x) === id) || null;
+    } catch (e) { return null; }
+  }
+
   // ── real quantities: the spread of published values behind a number on a Qublitz page ──
   // src 'p': a column of qvault_parameters.csv (one row per qubit or resonator) for the listed device types.
   // src 'm': a quantity of qvault_measurements.csv (current rows; bounds such as "< 0.1 %" are left out, and rows whose notes match
@@ -242,7 +287,7 @@
   }
 
   const api = { SITE, CSV, NOTE, parseCSV, load, sourceMap, cite, doiURL, deviceURL, chains, chainNoise, resonatorQs, QI_NAMES, FRIDGE_STAGES,
-    parseQV, findParam, paperURL, paramsURL, labQubit, readoutRows, TIME_SCALE, REAL, realValues, realStats, realText, realFor, realURL, fmt, mountChips, sourceHTML };
+    parseQV, findParam, paperURL, paramsURL, labQubit, readoutRows, MYSTERY, mysteryPool, mysteryQubit, mysteryPick, mysteryToken, mysteryFromToken, TIME_SCALE, REAL, realValues, realStats, realText, realFor, realURL, fmt, mountChips, sourceHTML };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.QVault = api;
 })(typeof window !== 'undefined' ? window : globalThis);

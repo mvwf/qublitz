@@ -87,6 +87,24 @@ check('readoutRows: unclear χ convention is flagged from the measurement note',
 check('readoutRows: T₁, readout frequency and leftover population carried', RR[2].T1 === 1070 && RR[2].fr === 6.69 && RR[2].pexc === 1.5 && RR[1].pexc === null);
 check('χ chip: two_chi rows count, halved', QV.realValues(RP, QV.REAL['transmon.chi']).map(v => v.v).sort().join() === '0.15,0.5,2.3');
 
+// ── mystery qubits (Virtual Qubit Lab): real transmons from Q-Vault ──
+const MP = QV.parseCSV('citekey,device_id,label,type,f01_GHz,T1_us,T2R_us,T2E_us,base_metal\n' +
+  'b,D1,Q2,transmon,4.4,49,95,,Al\na,D1,Q1,transmon,5.2,120,,150,Ta\nc,D1,,transmon,7.1,100,,,Nb\nd,D1,,transmon,4.8,10,,,Al\n' +
+  'e,D1,,fluxonium,0.4,500,,,Al\nf,D2,Q3,transmon,6.0,400,,,Ta\n');
+const pool = QV.mysteryPool(MP);
+check('mysteryPool: transmons in 3.5–6.5 GHz with 30–600 µs T₁, sorted by id', pool.map(r => r.citekey).join() === 'a,b,f');
+const picks = new Set(['K7RX4P', 'ABCD12', 'ZZZZZZ', 'Q1Q1Q1', 'HELLO1', 'X9X9X9'].map(c => QV.mysteryPick(pool, c).citekey));
+check('mysteryPick: same code → same qubit; codes spread over the pool', QV.mysteryPick(pool, 'k7rx4p ') === QV.mysteryPick(pool, 'K7RX4P') && picks.size >= 2);
+const mq = QV.mysteryQubit(pool[1], 'K7RX4P');
+check('mysteryQubit: f₀₁ exact, T₁ and T₂ in lab ns = chip µs, paper values kept', mq.omegaQ === 4.4 && mq.T1 === 49 && mq.T2 === 95 && mq.real.t1 === 49 && mq.real.kind === 'Ramsey');
+check('mysteryQubit: no T₂ in the paper → 2T₁, echo used when no Ramsey', QV.mysteryQubit(pool[2], 'A').T2 === 800 && QV.mysteryQubit(pool[0], 'A').real.kind === 'echo');
+const rabis = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(c => QV.mysteryQubit(pool[1], c).omegaRabi * 1e3);
+check('mysteryQubit: drive 100–300 kHz on the chip, π pulse ≤ 1% of T₁ where possible', rabis.every(r => r >= 5e4 / 49 - 0.1 || r === 300) && rabis.every(r => r >= 100 && r <= 300));
+check('mysteryQubit: a long-T₁ qubit can get a gentle drive', ['A', 'B', 'C', 'D', 'E', 'F', 'G'].some(c => QV.mysteryQubit(pool[2], c).omegaRabi * 1e3 < 200));
+const tok = QV.mysteryToken(pool[2], 'K7RX4P');
+check('device token: round-trips with its code, not with another, and hides the id', QV.mysteryFromToken(pool, tok, 'K7RX4P') === pool[2] && QV.mysteryFromToken(pool, tok, 'OTHER1') !== pool[2] && !/f~D2/.test(tok) && /^[A-Za-z0-9_-]+$/.test(tok));
+check('device token: garbage gives null', QV.mysteryFromToken(pool, '!!!', 'K7RX4P') === null && QV.mysteryFromToken(pool, 'AAAA', 'K7RX4P') === null);
+
 // ── funding: the award numbers agree wherever they are stated ──
 const fs = require('fs'), rd = f => fs.readFileSync(path.join(__dirname, '../../..', f), 'utf8');
 const awards = t => ['2540460', '2553633'].every(id => t.includes('AWD_ID=' + id)) && /Unitary Foundation/.test(t);
