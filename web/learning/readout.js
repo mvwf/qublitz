@@ -1,0 +1,62 @@
+/* readout.js: learning material for the Readout Lab (qublitz/readout.html).
+ * The page's model (readout-engine.js): the resonator sits at f_r ∓ χ/2π for |0⟩/|1⟩; pointer states
+ * α_s = −iε/(κ/2 + iΔ_s); record noise 1/(4ηκτ) per quadrature, so SNR = 2√(ηκτ)|α₁ − α₀| in steady state and each
+ * state's error is ½ erfc(SNR/2√2). For a fixed photon number the steady SNR peaks at κ = 2χ. Transmon χ = g²α/(Δ(Δ+α)),
+ * n_crit = (Δ/2g)², Purcell T₁ = (Δ/g)²/κ. Every number below was computed with the engine
+ * (web/qublitz/tests/readout-engine.test.js checks the formulas). */
+if (window.QL) QL.learning({
+  id: 'readout',
+  title: 'Readout Lab',
+  tagline: 'A qubit is read out by the resonator next to it: the qubit shifts the resonator’s pitch by ±χ, and the light that comes back says 0 or 1.',
+  fun: 'every measurement lands as a dot in the IQ plane, and you can watch the two clouds of dots pull apart as you add photons or listen longer, then load real qubits from Q-Vault.',
+  objectives: [
+    { id: 'shift', text: 'Explain dispersive readout: the qubit state shifts the resonator frequency by ±χ, so the reflected tone differs for |0⟩ and |1⟩.' },
+    { id: 'snr', text: 'Relate readout fidelity to the separation of the IQ clouds over their width, and know that SNR grows like √(n̄ τ).' },
+    { id: 'kappa', text: 'Choose the resonator linewidth: for a fixed photon number the separation is best at κ = 2χ.', depth: 'student+' },
+    { id: 'tradeoff', text: 'Weigh the limits on a fast, strong readout: qubit decay during the readout, the critical photon number, Purcell decay and measurement-induced dephasing.', depth: 'engineer+' },
+  ],
+  howTo: [
+    'Drag <b>Photons</b> and <b>Listening time</b> and watch the two clouds of dots in the IQ plane and the readout fidelity at the top.',
+    { text: 'Change <b>χ</b> and <b>κ</b>: the lower left plot shows the two resonances the qubit chooses between.', depth: 'student+' },
+    { text: 'Open <b>Real-world extras</b> for amplifier efficiency, T₁, leftover heat and the drive frequency; the lower right plot finds the best listening time.', depth: 'engineer+' },
+    'Press <b>📚 Load a real qubit’s readout</b> to try a published device from Q-Vault.',
+    'The 🎯 <b>Challenges</b> card (bottom left) walks you through it.',
+  ],
+  goals: [
+    'Reach 99% readout fidelity, and explain which knob got you there.',
+    'Load a real qubit and find a photon number and listening time a lab would choose.',
+    'Do the 1-minute debrief.',
+  ],
+  quiz: [
+    { id: 'two-chi', objective: 'shift',
+      q: 'A qubit has χ/2π = 1 MHz (the resonator moves by −χ for |0⟩ and +χ for |1⟩). How far apart are the two resonance frequencies?',
+      choices: ['2 MHz', '1 MHz', '0.5 MHz', 'They are the same frequency; only the phase changes'],
+      answer: 0,
+      explain: 'From f<sub>r</sub> − χ/2π to f<sub>r</sub> + χ/2π is 2χ/2π = 2 MHz. Papers differ on whether they quote χ or this full 2χ, so always check the convention (Q-Vault stores the two separately).' },
+    { id: 'sqrt', objective: 'snr',
+      q: 'Your readout has an SNR of 3. To reach an SNR of 6 by listening longer (in steady state), the listening time must be…',
+      choices: ['4 times longer', '2 times longer', '√2 times longer', '6 times longer'],
+      answer: 0,
+      explain: 'The signal grows in proportion to τ and the noise like √τ, so SNR ∝ √τ: twice the SNR takes four times the listening (or four times the photons).' },
+    { id: 'snr6', objective: 'snr',
+      q: 'Two equal Gaussian clouds whose centres are 6 noise widths apart (SNR = 6), split by a line halfway. The readout fidelity is about…',
+      choices: ['99.87%', '97.7%', '93%', '99.9999%'],
+      answer: 0,
+      explain: 'Each state is misread when its noise crosses the line, 3σ away: ½ erfc(6/2√2) = 0.13%, so F ≈ 99.87%. At SNR = 4 it would be 97.7%, at SNR = 3 about 93%.' },
+    { id: 'k2chi', objective: 'kappa',
+      q: 'With the photon number fixed, which resonator linewidth gives the best steady-state separation for a qubit with dispersive shift χ?',
+      choices: ['κ = 2χ', 'As small as possible', 'As large as possible', 'κ = χ/2'],
+      answer: 0,
+      explain: 'Smaller κ leaks the photons out too slowly to hear them; larger κ blurs the two resonances together. The signal rate κ|α₁ − α₀|² ∝ κχ²/(κ²/4 + χ²) peaks at κ = 2χ.' },
+    { id: 'longer', objective: 'tradeoff',
+      q: 'With T₁ = 10 µs, why does listening for 20 µs give a worse readout than listening for about 0.6 µs?',
+      choices: ['Most qubits in |1⟩ decay to |0⟩ during the long readout and are read as 0', 'The amplifier saturates', 'The resonator heats up', 'Longer readouts add more noise than signal'],
+      answer: 0,
+      explain: 'A longer record averages away more noise, but a qubit that decays during the readout moves toward the |0⟩ cloud. 1 − e<sup>−20/10</sup> ≈ 86% decay in 20 µs; the best τ balances the two (here about 0.6 µs at the page’s defaults).' },
+    { id: 'ncrit', objective: 'tradeoff', depth: 'researcher',
+      q: 'A transmon with g/2π = 91 MHz sits Δ/2π = −1.25 GHz from its resonator. Roughly how many readout photons can it take before the dispersive picture fails?',
+      choices: ['About 47 (n<sub>crit</sub> = (Δ/2g)²)', 'About 1', 'About 4700', 'Any number: the shift is exactly linear'],
+      answer: 0,
+      explain: 'n<sub>crit</sub> = (1250 / 182)² ≈ 47. Real readouts stay well below it, because strong drives cause transitions out of the qubit’s states. The same circuit with κ/2π = 2 MHz and no Purcell filter would limit T₁ to (Δ/g)²/κ ≈ 15 µs.' },
+  ],
+});

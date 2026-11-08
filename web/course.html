@@ -137,10 +137,14 @@
       ['researcher', 'Exceptional points', 'Coupled lossy modes, where eigenvalues merge', 'qublitz/ep-tpd.html', 'ep-tpd'],
       ['researcher', 'Fab Lab', 'How each device was made, step by step', QV + '#/fablab', 'qv'],
     ] },
-    { t: 'Reading out a qubit', soon: true, real: ['transmon.chi', 'transmon.kappa'], idea: 'A qubit shifts its resonator’s frequency by ±χ, so the resonator’s response reveals 0 or 1.', steps: [
+    { t: 'Reading out a qubit', real: ['transmon.chi', 'transmon.kappa', 'qubit.readout'], idea: 'A qubit shifts its resonator’s frequency by ±χ, so the resonator’s response reveals 0 or 1.', steps: [
+      ['curious', 'Readout Lab', 'Pull two clouds of dots apart to tell 0 from 1', 'qublitz/readout.html', 'readout'],
       ['student+', 'Resonator Lab', 'The resonance that readout listens to', 'qublitz/resonator.html', 'resonator'],
+      ['student', 'Readout Lab: χ, κ and the IQ plane', 'Why SNR grows like √(n̄τ), and why κ = 2χ is best', 'qublitz/readout.html', 'readout'],
+      ['engineer+', 'Readout Lab: a real readout budget', 'Amplifier efficiency, T₁, heat and the best listening time', 'qublitz/readout.html', 'readout'],
       ['engineer+', 'Real χ and κ', 'Readout parameters of published qubits', QV + '#/parameters?x=kappa_MHz&y=chi_MHz&kind=qubits', 'qv'],
-    ], later: 'Coming next: a dispersive-readout lab with IQ blobs and readout fidelity.' },
+      ['researcher', 'Read out a published qubit', 'Load its χ, κ and T₁ from Q-Vault, then design the readout', 'qublitz/readout.html?qvpick=1', 'readout'],
+    ] },
     { t: 'Two qubits and entanglement', soon: true, idea: 'Two coupled qubits can share a state that neither has alone; a tuned interaction makes a two-qubit gate.', steps: [],
       later: 'Coming next: Bell states, a CZ gate from a tuned coupling, and an entanglement meter.' },
     { t: 'Error correction', real: ['qubit.F2Q', 'qec.Lambda'], idea: 'Spread one qubit over many and measure only parities: find errors you cannot see.', steps: [
@@ -154,6 +158,7 @@
     ], later: 'Coming next: Wigner functions of cat and GKP states, photon loss, and correcting it.' },
     { t: 'Capstone: bring up a qubit', soon: true, idea: 'One run through the whole stack: cool, find the resonator, calibrate, read out, protect.', steps: [
       ['engineer+', 'The Virtual Qubit Lab checklist', 'Everything a lab does on day one with a new qubit', 'qublitz/qubit-simulator.html', 'qubit-lab'],
+      ['engineer+', 'Design its readout', 'Pick photons and listening time for 99% fidelity', 'qublitz/readout.html', 'readout'],
     ], later: 'Coming next: a guided bring-up that ties the fridge, resonator, qubit and error-correction pages together.' },
   ];
   const $ = id => document.getElementById(id);
