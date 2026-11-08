@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="shared/retro-fonts.js"></script>
+<script src="shared/retro.js"></script>
+<title>Concept Map</title>
+<meta name="description" content="Build a map of how the ideas of quantum engineering connect, share it, and compare with everyone else's.">
+<style>
+  :root{color-scheme:light;--green:#00693e;--green2:#12855a;--ink:#1b2a24;--muted:#5a6b63;--line:#d8e2dc;--panel:#f5f9f6;--gold:#d9a521}
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:#fff;color:var(--ink);font-family:Helvetica,"Helvetica Neue",Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 40px}
+  @media(max-width:600px){.wrap{padding:0 16px 32px}}
+  a{color:var(--green)} a.back{display:inline-block;margin:6px 0 4px;font-size:13px;color:var(--muted);text-decoration:none}
+  h1{font-size:25px;margin:6px 0 2px;color:var(--green)}
+  .lede{color:var(--muted);font-size:14.5px;margin:0 0 12px;max-width:860px}
+  button,select{font:inherit;font-size:13.5px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer;min-height:36px}
+  button.primary{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  button:disabled{opacity:.45;cursor:default}
+  .tabs{display:flex;gap:6px;margin:4px 0 12px;flex-wrap:wrap}
+  .tabs button[aria-selected="true"]{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+  .grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:14px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;min-width:0}
+  .card h2{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+  .concept{font-size:20px;font-weight:700;margin:2px 0 4px}
+  .def{font-size:14px;margin:0 0 10px}
+  .mod{font-size:12px;color:var(--muted)}
+  .q{font-size:14.5px;font-weight:600;margin:10px 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .chips button{border-radius:999px;padding:6px 12px}
+  .chips button[aria-pressed="true"]{background:var(--green);color:#fff;border-color:var(--green)}
+  .chips button .new{font-size:11px;opacity:.8;margin-left:4px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+  .lbl{font-size:12.5px;color:var(--muted)}
+  .progress{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .stage{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  #svg{display:block;width:100%;height:min(66vh,600px);touch-action:none;user-select:none;-webkit-user-select:none}
+  @media(max-width:600px){#svg{height:440px}}
+  .tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+  .tip{font-size:12.5px;color:var(--muted)}
+  .edgeBox{position:absolute;left:10px;bottom:10px;right:10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+  .msg{font-size:13.5px;margin:6px 0}
+  .ok{color:var(--green);font-weight:600}
+  svg text{font-family:Helvetica,Arial,sans-serif;pointer-events:none}
+  .boardList{margin:8px 0 0;padding-left:20px;font-size:13.5px}
+  .note{font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<script src="shared/sitebar.js"></script>
+<script src="shared/outreach-config.js"></script>
+<script src="learning/manifest.js"></script>
+<script src="shared/outreach.js"></script>
+<script src="learning/concepts.js"></script>
+<div class="wrap">
+<a class="back" href="course.html">← Crash course</a>
+<h1>🕸 Concept Map</h1>
+<p class="lede">How do the ideas of quantum engineering fit together? Meet the key concepts one at a time and link each to the ones it is most
+  related to. Your map grows as you go. Share it with a link, and compare it with the connections everyone else makes.</p>
+
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-tab="mine">🕸 My map</button>
+  <button role="tab" aria-selected="false" data-tab="all">👥 Everyone's map</button>
+</div>
+
+<section id="mineSec">
+<div class="grid">
+  <div class="card" id="askCard">
+    <h2 id="askHead">Concept 1</h2>
+    <div id="ask"></div>
+  </div>
+  <div>
+    <div class="stage"><svg id="svg" role="img" aria-label="Your concept map. Drag concepts to move them; tap one and then another to link them."></svg>
+      <div class="edgeBox" id="edgeBox" hidden></div></div>
+    <div class="tools">
+      <span class="lbl">New links</span><select id="relSel" aria-label="Relation for new links"></select>
+      <select id="addSel" aria-label="Add any concept"><option value="">＋ Add a concept…</option></select>
+      <button id="undo">Undo</button><button id="clear">Clear</button>
+      <span style="flex:1"></span>
+      <button id="svgDl" title="Download the map as an image">⬇ Image</button>
+      <button class="primary" id="share">🔗 Share my map</button>
+    </div>
+    <p class="tip">Drag a concept to move it. Tap one concept, then another, to link them. Tap a link to change or delete it.</p>
+    <p class="msg" id="shareMsg" aria-live="polite"></p>
+  </div>
+</div>
+</section>
+
+<section id="allSec" hidden>
+  <div class="grid">
+    <div class="card"><h2>The connections people make most</h2><div id="boardInfo" class="msg">Loading…</div><ol class="boardList" id="boardList"></ol>
+      <p class="note">Built from maps that people chose to share. Thicker lines: linked more often. Only which listed concepts were linked is
+      stored, never anything typed and nothing about who made them (see <a href="privacy.html">privacy</a>).</p></div>
+    <div class="stage"><svg id="svgAll" role="img" aria-label="The combined concept map from everyone's shared maps"></svg></div>
+  </div>
+</section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const V = window.QL_CONCEPTS, QL = window.QL || { atDepth: () => true, depth: () => 'student', onDepth() {}, submitMap: () => false, mapBoard: () => Promise.resolve(null), event() {} };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const BY = Object.fromEntries(V.CONCEPTS.map(c => [c.id, c])), REL = Object.fromEntries(V.RELATIONS.map(r => [r.id, r.label]));
+  const MODCOL = ['#888', '#2d6fb3', '#7a5cff', '#00a37a', '#d9a521', '#c84b31', '#b04aa8', '#3a9bd9', '#12855a', '#e07b39', '#666'];
+  const ev = (n, d) => { try { QL.event(n, d); } catch (e) { /* optional */ } };
+
+  // ── state ──
+  const S = { nodes: new Map(), edges: [], queue: [], step: 0, picks: new Set(), history: [], sel: null, shared: '', viewing: false };
+  const W = () => $('svg').clientWidth || 800, H = () => $('svg').clientHeight || 560;
+  function addNode(id, near) {
+    if (S.nodes.has(id) || !BY[id]) return;
+    const base = near && S.nodes.get(near), w = W(), h = H();
+    S.nodes.set(id, { id, x: base ? base.x + (Math.random() - 0.5) * 120 : w / 2 + (Math.random() - 0.5) * w * 0.4, y: base ? base.y + (Math.random() - 0.5) * 120 : h / 2 + (Math.random() - 0.5) * h * 0.4, vx: 0, vy: 0, pin: false });
+  }
+  const hasEdge = (a, b) => S.edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+  function link(a, b, r) { if (a === b || hasEdge(a, b)) return false; S.edges.push({ a, b, r }); return true; }
+  const snapshot = () => JSON.stringify({ n: [...S.nodes.keys()], e: S.edges, s: S.step });
+  function remember() { S.history.push(snapshot()); if (S.history.length > 80) S.history.shift(); }
+  const encode = () => S.edges.map(e => `${e.a}>${e.b}:${e.r}`).join(';');
+
+  // ── the guided questions ──
+  function buildQueue() {
+    S.queue = V.CONCEPTS.filter(c => QL.atDepth(c.depth)).map(c => c.id);
+  }
+  function candidates(id) {
+    const c = BY[id], placed = [...S.nodes.keys()].filter(x => x !== id);
+    const score = x => -Math.abs(BY[x].module - c.module) + Math.random() * 1.5;
+    const fromMap = placed.sort((a, b) => score(b) - score(a)).slice(0, 5);
+    const fresh = S.queue.filter(x => x !== id && !S.nodes.has(x) && Math.abs(BY[x].module - c.module) <= 1).sort(() => Math.random() - 0.5).slice(0, fromMap.length >= 4 ? 2 : 6 - fromMap.length);
+    return fromMap.concat(fresh);
+  }
+  let cands = [];
+  function drawAsk() {
+    const done = S.step >= S.queue.length;
+    if (done) {
+      $('askHead').textContent = 'All concepts met';
+      $('ask').innerHTML = `<p class="def">You have met all ${S.queue.length} concepts at this depth, with <b>${S.edges.length}</b> links. Add any links you think are
+        missing by tapping two concepts, then <b>share your map</b> and see how it compares with <b>Everyone's map</b>.</p>
+        <p class="note">Change the depth in the site bar to meet more (or fewer) concepts.</p>`;
+      return;
+    }
+    const id = S.queue[S.step], c = BY[id];
+    $('askHead').textContent = `Concept ${S.step + 1} of ${S.queue.length}`;
+    if (S.step === 0 || S.nodes.size === 0) {
+      $('ask').innerHTML = `<div class="concept">${esc(c.label)}</div><p class="mod">${esc(V.MODULE_NAMES[c.module])}</p><p class="def">${esc(c.def)}</p>
+        <button class="primary" id="placeFirst">Put it on my map ▶</button>`;
+      $('placeFirst').onclick = () => { remember(); addNode(id); S.step++; S.picks.clear(); drawAsk(); render(); };
+      return;
+    }
+    if (!cands.length || cands._for !== id) { cands = candidates(id); cands._for = id; S.picks.clear(); }
+    $('ask').innerHTML = `<div class="concept">${esc(c.label)}</div><p class="mod">${esc(V.MODULE_NAMES[c.module])}</p><p class="def">${esc(c.def)}</p>
+      <p class="q">What is it most related to? Pick one or more.</p>
+      <div class="chips" id="cands">${cands.map(x => `<button data-c="${x}" aria-pressed="${S.picks.has(x)}" title="${esc(BY[x].def)}">${esc(BY[x].label)}${S.nodes.has(x) ? '' : '<span class="new">new</span>'}</button>`).join('')}</div>
+      <div class="row"><span class="lbl">${esc(c.label)}</span><select id="askRel" aria-label="How they are related">${V.RELATIONS.map(r => `<option value="${r.id}">${esc(r.label)}</option>`).join('')}</select><span class="lbl">the one${S.picks.size > 1 ? 's' : ''} you picked</span></div>
+      <div class="row"><button class="primary" id="addLinks" ${S.picks.size ? '' : 'disabled'}>Add to my map ▶</button><button id="skip">None of these</button></div>
+      <p class="progress">${S.nodes.size} concepts and ${S.edges.length} links on your map.</p>`;
+    $('askRel').value = $('relSel').value;
+    $('cands').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; const x = b.dataset.c; S.picks.has(x) ? S.picks.delete(x) : S.picks.add(x); drawAsk(); };
+    $('askRel').onchange = e => { $('relSel').value = e.target.value; };
+    $('addLinks').onclick = () => { remember(); addNode(id, [...S.picks][0]); const r = $('askRel').value;
+      for (const x of S.picks) { addNode(x, id); link(id, x, r); } ev('map_link', { level: id, value: S.picks.size }); S.step++; cands = []; S.picks.clear(); drawAsk(); render(); kick(); };
+    $('skip').onclick = () => { remember(); addNode(id); S.step++; cands = []; S.picks.clear(); drawAsk(); render(); kick(); };
+  }
+
+  // ── the graph: a small force layout in SVG ──
+  let raf = 0, heat = 0;
+  function kick() { heat = 1; if (!raf) raf = requestAnimationFrame(tick); }
+  function tick() {
+    raf = 0; const w = W(), h = H(), N = [...S.nodes.values()];
+    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
+      const a = N[i], b = N[j]; let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy + 0.01; const f = 5200 / d2, d = Math.sqrt(d2);
+      dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (const e of S.edges) { const a = S.nodes.get(e.a), b = S.nodes.get(e.b); if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, f = (d - 120) * 0.02; a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f; }
+    let move = 0;
+    for (const n of N) {
+      n.vx += (w / 2 - n.x) * 0.004; n.vy += (h / 2 - n.y) * 0.004;
+      if (n.pin) { n.vx = n.vy = 0; continue; }
+      n.vx *= 0.82; n.vy *= 0.82; const hw = nodeBox(n).w / 2 + 4; n.x = Math.max(hw, Math.min(w - hw, n.x + n.vx)); n.y = Math.max(20, Math.min(h - 20, n.y + n.vy)); move += Math.abs(n.vx) + Math.abs(n.vy);
+    }
+    render(); heat *= 0.985;
+    if (move > 0.3 * N.length && heat > 0.02) raf = requestAnimationFrame(tick);
+  }
+  function nodeBox(n) { const c = BY[n.id], wpx = Math.max(56, c.label.length * 7 + 18); return { w: wpx, h: 30 }; }
+  function render() {
+    const svg = $('svg'); let s = '';
+    S.edges.forEach((e, i) => { const a = S.nodes.get(e.a), b = S.nodes.get(e.b); if (!a || !b) return;
+      const sel = S.selEdge === i, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      s += `<g data-e="${i}"><line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="transparent" stroke-width="18"/><line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${sel ? '#d9a521' : '#8a9bb0'}" stroke-width="${sel ? 3.5 : 2}"/>` +
+        (e.r !== 'related' || sel ? `<text x="${mx}" y="${my - 5}" text-anchor="middle" font-size="11" fill="#5a6b63">${esc(REL[e.r])}</text>` : '') + '</g>'; });
+    for (const n of S.nodes.values()) { const c = BY[n.id], bx = nodeBox(n), col = MODCOL[c.module], sel = S.sel === n.id;
+      s += `<g data-n="${n.id}" style="cursor:grab"><rect x="${n.x - bx.w / 2}" y="${n.y - bx.h / 2}" width="${bx.w}" height="${bx.h}" rx="15" fill="${sel ? col : '#fff'}" stroke="${col}" stroke-width="${sel ? 3 : 2}"/>` +
+        `<text x="${n.x}" y="${n.y + 4.5}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${sel ? '#fff' : '#1b2a24'}">${esc(c.label)}</text></g>`; }
+    if (!S.nodes.size) s = `<text x="${W() / 2}" y="${H() / 2}" text-anchor="middle" font-size="14" fill="#5a6b63">Your map appears here</text>`;
+    svg.setAttribute('viewBox', `0 0 ${W()} ${H()}`); svg.innerHTML = s;
+    $('undo').disabled = !S.history.length; $('share').disabled = !S.edges.length;
+    $('addSel').innerHTML = '<option value="">＋ Add a concept…</option>' + V.CONCEPTS.filter(c => QL.atDepth(c.depth) && !S.nodes.has(c.id)).map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+  }
+  // pointer: drag nodes; tap node then node to link; tap an edge to edit it
+  let drag = null;
+  const pt = e => { const r = $('svg').getBoundingClientRect(); return { x: (e.clientX - r.left) * W() / r.width, y: (e.clientY - r.top) * H() / r.height }; };
+  $('svg').addEventListener('pointerdown', e => {
+    const g = e.target.closest('[data-n]'), ge = e.target.closest('[data-e]');
+    if (g) { const n = S.nodes.get(g.dataset.n), p = pt(e); drag = { n, dx: n.x - p.x, dy: n.y - p.y, moved: false, x0: e.clientX, y0: e.clientY }; n.pin = true; $('svg').setPointerCapture(e.pointerId); return; }
+    if (ge) { S.selEdge = +ge.dataset.e; S.sel = null; edgeBox(); render(); return; }
+    S.sel = null; S.selEdge = null; $('edgeBox').hidden = true; render();
+  });
+  $('svg').addEventListener('pointermove', e => { if (!drag) return; if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 4) drag.moved = true;
+    if (drag.moved) { const p = pt(e), hw = nodeBox(drag.n).w / 2 + 4; drag.n.x = Math.max(hw, Math.min(W() - hw, p.x + drag.dx)); drag.n.y = Math.max(16, Math.min(H() - 16, p.y + drag.dy)); render(); } });
+  $('svg').addEventListener('pointerup', () => {
+    if (!drag) return; const n = drag.n, moved = drag.moved; drag = null;
+    if (moved) return;   // stays pinned where it was dropped
+    n.pin = false;
+    if (S.sel && S.sel !== n.id) { remember(); if (link(S.sel, n.id, $('relSel').value)) ev('map_link', { level: 'tap', value: 1 }); S.sel = null; kick(); }
+    else S.sel = S.sel === n.id ? null : n.id;
+    $('edgeBox').hidden = true; S.selEdge = null; render();
+  });
+  function edgeBox() {
+    const e = S.edges[S.selEdge]; if (!e) return;
+    const box = $('edgeBox'); box.hidden = false;
+    box.innerHTML = `<b>${esc(BY[e.a].label)}</b><select id="eRel">${V.RELATIONS.map(r => `<option value="${r.id}" ${r.id === e.r ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select><b>${esc(BY[e.b].label)}</b>
+      <button id="eFlip" title="Swap the direction">⇄</button><button id="eDel">Delete link</button><button id="eDone">Done</button>`;
+    $('eRel').onchange = ev2 => { remember(); e.r = ev2.target.value; render(); };
+    $('eFlip').onclick = () => { remember(); [e.a, e.b] = [e.b, e.a]; edgeBox(); render(); };
+    $('eDel').onclick = () => { remember(); S.edges.splice(S.selEdge, 1); S.selEdge = null; box.hidden = true; render(); kick(); };
+    $('eDone').onclick = () => { S.selEdge = null; box.hidden = true; render(); };
+  }
+
+  // ── toolbar ──
+  $('relSel').innerHTML = V.RELATIONS.map(r => `<option value="${r.id}">${esc(r.label)}</option>`).join('');
+  $('addSel').onchange = e => { const id = e.target.value; if (!id) return; remember(); addNode(id); S.sel = id; render(); kick(); };
+  $('undo').onclick = () => { const h = S.history.pop(); if (!h) return; const o = JSON.parse(h); const keep = new Map(S.nodes); S.nodes = new Map();
+    o.n.forEach(id => { S.nodes.set(id, keep.get(id) || null); if (!S.nodes.get(id)) { S.nodes.delete(id); addNode(id); } }); S.edges = o.e; S.step = o.s; cands = []; drawAsk(); render(); };
+  $('clear').onclick = () => { if (!S.nodes.size) return; remember(); S.nodes.clear(); S.edges = []; S.step = 0; cands = []; drawAsk(); render(); };
+  $('share').onclick = () => {
+    const code = encode(); if (!code) return;
+    const url = location.href.split('#')[0] + '#m=' + encodeURIComponent(code);
+    let sent = false; if (code !== S.shared) { sent = !!QL.submitMap({ edges: code }); S.shared = code; ev('map_share', { value: S.edges.length }); }
+    const say = t => { $('shareMsg').innerHTML = t; };
+    const tail = sent ? ' It was also added, anonymously, to <b>Everyone’s map</b>.' : '';
+    try { navigator.clipboard.writeText(url).then(() => say(`<span class="ok">Link copied ✓</span> Anyone who opens it sees your map.${tail}`), () => say(`Copy this link: <a href="${esc(url)}">${esc(url.slice(0, 60))}…</a>${tail}`)); }
+    catch (e) { say(`Copy this link: <a href="${esc(url)}">open</a>${tail}`); }
+  };
+  $('svgDl').onclick = () => {
+    const svg = $('svg').cloneNode(true); svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', W()); svg.setAttribute('height', H());
+    svg.insertAdjacentHTML('afterbegin', `<rect width="100%" height="100%" fill="#f5f9f6"/>`);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([svg.outerHTML], { type: 'image/svg+xml' })); a.download = 'concept-map.svg'; a.click();
+  };
+
+  // ── a shared map in the link ──
+  function loadShared() {
+    const m = /#m=([^&]+)/.exec(location.hash); if (!m) return false;
+    let code = ''; try { code = decodeURIComponent(m[1]); } catch (e) { return false; }
+    const toks = code.split(';').map(t => /^([a-z0-9-]{1,24})>([a-z0-9-]{1,24}):([a-z-]{1,12})$/.exec(t)).filter(x => x && BY[x[1]] && BY[x[2]] && REL[x[3]]);
+    if (!toks.length) return false;
+    for (const x of toks) { addNode(x[1]); addNode(x[2], x[1]); link(x[1], x[2], x[3]); }
+    S.step = S.queue.length; S.shared = encode();
+    $('askHead').textContent = 'A shared map';
+    $('ask').innerHTML = `<p class="def">You are looking at a map someone shared: ${S.nodes.size} concepts and ${S.edges.length} links. Tap a link to see how they
+      described it. You can change it and share your own version.</p><div class="row"><button class="primary" id="ownMap">Start my own map</button></div>`;
+    $('ownMap').onclick = () => { history.replaceState(null, '', location.pathname + location.search); S.nodes.clear(); S.edges = []; S.step = 0; S.shared = ''; S.history = []; drawAsk(); render(); };
+    return true;
+  }
+
+  // ── everyone's map ──
+  async function drawAll() {
+    const B = await QL.mapBoard();
+    const svg = $('svgAll'), w = svg.clientWidth || 700, h = svg.clientHeight || 520;
+    if (!B || !B.edges.length) { $('boardInfo').textContent = B ? 'No maps have been shared yet. Be the first!' : 'The combined map is not available here (offline, or on a test copy of the site).'; svg.innerHTML = ''; $('boardList').innerHTML = ''; return; }
+    $('boardInfo').innerHTML = `<b>${B.maps}</b> shared map${B.maps === 1 ? '' : 's'}. The most frequent links:`;
+    $('boardList').innerHTML = B.edges.slice(0, 15).map(e => `<li><b>${esc((BY[e.a] || {}).label || e.a)}</b> — <b>${esc((BY[e.b] || {}).label || e.b)}</b> <span class="note">(${e.n}×, mostly “${esc(REL[e.rel] || 'related')}”)</span></li>`).join('');
+    // a circle layout ordered by module, line width by count
+    const ids = [...new Set(B.edges.flatMap(e => [e.a, e.b]))].filter(id => BY[id]).sort((a, b) => BY[a].module - BY[b].module);
+    const R = Math.min(w, h) / 2 - 70, P = {}; ids.forEach((id, i) => { const t = 2 * Math.PI * i / ids.length - Math.PI / 2; P[id] = [w / 2 + R * Math.cos(t), h / 2 + R * Math.sin(t)]; });
+    const max = Math.max(...B.edges.map(e => e.n));
+    let s = B.edges.filter(e => P[e.a] && P[e.b]).map(e => `<line x1="${P[e.a][0]}" y1="${P[e.a][1]}" x2="${P[e.b][0]}" y2="${P[e.b][1]}" stroke="#8a9bb0" stroke-opacity="${0.35 + 0.65 * e.n / max}" stroke-width="${1 + 7 * e.n / max}"/>`).join('');
+    s += ids.map(id => { const c = BY[id], wpx = c.label.length * 6.6 + 14; return `<rect x="${P[id][0] - wpx / 2}" y="${P[id][1] - 12}" width="${wpx}" height="24" rx="12" fill="#fff" stroke="${MODCOL[c.module]}" stroke-width="2"/><text x="${P[id][0]}" y="${P[id][1] + 4}" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1b2a24">${esc(c.label)}</text>`; }).join('');
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.innerHTML = s;
+  }
+  document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return;
+    document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    $('mineSec').hidden = b.dataset.tab !== 'mine'; $('allSec').hidden = b.dataset.tab !== 'all';
+    if (b.dataset.tab === 'all') { drawAll(); ev('mode', { level: 'all-maps' }); } else render(); });
+  $('svgAll').style.cssText = 'display:block;width:100%;height:min(66vh,600px)';
+
+  QL.onDepth(() => { buildQueue(); if (S.step > S.queue.length) S.step = S.queue.length; cands = []; drawAsk(); render(); });
+  window.addEventListener('resize', () => { render(); kick(); });
+  buildQueue();
+  if (!loadShared()) drawAsk();
+  render(); kick();
+  try { QL.context && QL.context({ level: 'concepts' }); } catch (e) { /* optional */ }
+})();
+</script>
+</body>
+</html>

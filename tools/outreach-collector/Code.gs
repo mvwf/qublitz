@@ -18,10 +18,21 @@ var TABS = {
   quiz:     ['received', 'day', 'game', 'code', 'device', 'score', 'n', 'fun', 'learned', 'answers', 'source', 'gv'],
   // code designs for ErrorSweeper's frontier board: a mission id, numbers and a compact layout string, never free text
   designs:  ['received', 'day', 'mission', 'family', 'n', 'k', 'd', 'd_exact', 'score', 'spec', 'gv'],
+  // concept maps students chose to share: links between ids from a fixed vocabulary, never free text
+  maps:     ['received', 'day', 'depth', 'device', 'n', 'edges', 'code', 'gv'],
   feedback: ['received', 'day', 'game', 'code', 'learned_text', 'confusing_text'],
 };
 var MAX_BODY = 20000, MAX_EVENTS = 60, CACHE_S = 300, MAX_DESIGNS = 3, DESIGN_CACHE_S = 120, BOARD_TOP = 25;
 var RE_MISSION = /^[a-z0-9-]{1,32}$/, RE_SPEC = /^[0-9A-Za-z.,;:|+=-]{1,2000}$/;
+// The Concept Map vocabulary (web/learning/concepts.js): the only ids and relations a stored map may contain.
+// Keep in step with that file; web/shared/tests/outreach.test.js fails if the lists differ.
+var CONCEPT_IDS = ['mode', 'frequency', 'resonance', 'fourier', 'spectrogram', 'doppler', 'quantization', 'energy-level', 'photon',
+  'spectral-line', 'schrodinger', 'qubit', 'superposition', 'bloch-sphere', 'measurement', 'gate', 'phase', 'rabi', 'detuning', 'pi-pulse',
+  't1', 't2', 'decoherence', 'ramsey', 'superconductivity', 'josephson', 'transmon', 'anharmonicity', 'resonator', 'quality-factor',
+  'dilution-fridge', 'thermal-noise', 'attenuator', 'dispersive-readout', 'entanglement', 'no-cloning', 'parity-check', 'syndrome',
+  'logical-qubit', 'code-distance', 'decoder', 'threshold', 'harmonic-oscillator', 'cat-state', 'gkp'];
+var RELATION_IDS = ['related', 'causes', 'part-of', 'measured-by', 'example-of', 'limits', 'enables'];
+var MAX_MAP_EDGES = 80, MAP_TOP = 40, RE_DEPTH = /^(curious|student|engineer|researcher)$/;
 
 function doPost(e) {
   try {
@@ -41,6 +52,10 @@ function doPost(e) {
         var q = cleanQuizRows(msg.quiz, now);
         if (q) append_('quiz', [q.quiz]);
       }
+      if (msg.map) {
+        var mr = cleanMapRow_(msg.map, now);
+        if (mr) append_('maps', [mr]);
+      }
       if (msg.design) {
         var drows = [];
         (Array.isArray(msg.design) ? msg.design : [msg.design]).slice(0, MAX_DESIGNS).forEach(function (d) { var r = cleanDesignRow_(d, now); if (r) drows.push(r); });
@@ -57,6 +72,13 @@ function doPost(e) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var days = Math.max(1, Math.min(730, parseInt(p.days || '90', 10) || 90));
+  if (p.maps) {   // the combined map: pair counts only, never a single student's map
+    var mc = CacheService.getScriptCache(), mkey = 'maps:' + (mc.get('ver') || '0'), mhit = mc.get(mkey);
+    if (mhit) return json_(mhit);
+    var mout = JSON.stringify(mapBoard_(read_('maps'), { dev: p.dev === '1' }));
+    try { mc.put(mkey, mout, CACHE_S); } catch (err) { /* too big to cache */ }
+    return json_(mout);
+  }
   if (p.designs) {
     var mission = RE_MISSION.test(p.mission || '') ? p.mission : '', dev = p.dev === '1';
     if (!mission) return json_(JSON.stringify({ mission: '', generated: new Date().toISOString(), designs: [] }));
@@ -71,7 +93,7 @@ function doGet(e) {
   var cache = CacheService.getScriptCache();
   var key = ['summary' + days, opts.from, opts.to, opts.code, opts.dev].join('|') + ':' + (cache.get('ver') || '0'), hit = cache.get(key);
   if (hit) return json_(hit);
-  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts, read_('designs')));
+  var out = JSON.stringify(summarize(read_('events'), read_('quiz'), [], days, new Date(), opts, read_('designs'), read_('maps')));
   if (out.length < 90000) cache.put(key, out, CACHE_S);
   return json_(out);
 }
@@ -150,6 +172,41 @@ function cleanDesignRow_(d, now) {
   return [Utilities_formatDay_(now), day_(d.day, now), d.mission, d.family, d.n, d.k, d.k > 0 ? d.d : '', !!d.dExact,
           Math.round(d.score * 1e4) / 1e4, d.spec, RE_GV.test(d.gv || '') ? d.gv : ''];
 }
+function cleanMapRow_(m, now) {
+  // the server-side twin of cleanMap in web/shared/outreach.js: only known ids and relations survive
+  if (!m || typeof m.edges !== 'string' || m.edges.length > 4000) return null;
+  var seen = {}, out = [];
+  m.edges.split(';').forEach(function (tok) {
+    var x = /^([a-z0-9-]{1,24})>([a-z0-9-]{1,24}):([a-z-]{1,12})$/.exec(tok);
+    if (!x || x[1] === x[2] || CONCEPT_IDS.indexOf(x[1]) < 0 || CONCEPT_IDS.indexOf(x[2]) < 0 || RELATION_IDS.indexOf(x[3]) < 0) return;
+    var key = x[1] < x[2] ? x[1] + '|' + x[2] : x[2] + '|' + x[1];
+    if (seen[key] || out.length >= MAX_MAP_EDGES) return;
+    seen[key] = 1; out.push(x[1] + '>' + x[2] + ':' + x[3]);
+  });
+  if (!out.length) return null;
+  return [Utilities_formatDay_(now), day_(m.day, now), RE_DEPTH.test(m.depth || '') ? m.depth : '', m.dev === 'touch' ? 'touch' : 'desktop',
+          out.length, out.join(';'), RE_CODE.test(m.code || '') ? m.code : '', RE_GV.test(m.gv || '') ? m.gv : ''];
+}
+/* The combined concept map: how often each pair of concepts was linked (in either direction), the relation chosen most
+ * for it, and each concept's degree. Rows with no page version count only with opts.dev. */
+function mapBoard_(rows, opts) {
+  var o = opts || {}, pairs = {}, deg = {}, maps = 0;
+  rows.forEach(function (r) {
+    if (!r[7] && !o.dev) return;
+    maps++;
+    String(r[5] || '').split(';').forEach(function (tok) {
+      var x = /^([a-z0-9-]+)>([a-z0-9-]+):([a-z-]+)$/.exec(tok); if (!x) return;
+      var a = x[1] < x[2] ? x[1] : x[2], b = x[1] < x[2] ? x[2] : x[1], k = a + '|' + b;
+      var P = pairs[k] || (pairs[k] = { a: a, b: b, n: 0, rels: {} });
+      P.n++; P.rels[x[3]] = (P.rels[x[3]] || 0) + 1;
+      deg[a] = (deg[a] || 0) + 1; deg[b] = (deg[b] || 0) + 1;
+    });
+  });
+  var edges = Object.keys(pairs).map(function (k) { var P = pairs[k], best = Object.keys(P.rels).sort(function (u, v) { return P.rels[v] - P.rels[u]; })[0];
+    return { a: P.a, b: P.b, n: P.n, rel: best }; }).sort(function (u, v) { return v.n - u.n || (u.a + u.b < v.a + v.b ? -1 : 1); }).slice(0, MAP_TOP);
+  var concepts = Object.keys(deg).map(function (id) { return { id: id, degree: deg[id] }; }).sort(function (u, v) { return v.degree - u.degree; });
+  return { maps: maps, generated: new Date().toISOString(), edges: edges, concepts: concepts };
+}
 /* The frontier board for one mission: designs deduplicated by spec (count = times submitted, day = the earliest),
  * best score first, then larger d, then the earliest day; the top BOARD_TOP. Rows with no page version are left out
  * unless opts.dev, as in the summary. */
@@ -179,7 +236,7 @@ function frontier_(rows, mission, opts) {
  *   byMonth{YYYY-MM: {game: {opens, minutes, completes, debriefs, ingame}}}, codeTotals{code: {minutes, completes}}.
  *   Free text never leaves the sheet.
  * opts (optional): { from, to: 'YYYY-MM-DD' (inclusive; from replaces days), code: keep only that outreach session }. */
-function summarize(events, quiz, feedback, days, now, opts, designs) {
+function summarize(events, quiz, feedback, days, now, opts, designs, maps) {
   var o = opts || {};
   var since = RE_DAY.test(o.from || '') ? o.from : Utilities_formatDay_(new Date(now.getTime() - days * 86400000));
   var until = RE_DAY.test(o.to || '') ? o.to : '';
@@ -295,6 +352,7 @@ function summarize(events, quiz, feedback, days, now, opts, designs) {
     out.designs[r[2]] = (out.designs[r[2]] || 0) + 1;
   });
   feedback.forEach(function (r) { if (inRange(dayKey_(r[1])) && (!only || r[3] === only)) out.feedbackCount[r[2]] = (out.feedbackCount[r[2]] || 0) + 1; });
+  out.maps = mapBoard_((maps || []).filter(function (r) { return inRange(dayKey_(r[1])) && (!only || r[6] === only); }), { dev: devOK });
   return out;
 }
 
@@ -343,6 +401,8 @@ var DICTIONARY = [
   'designs: day, mission (ErrorSweeper design mission id), family (lattice|bb), n, k, d (distance; empty if k = 0),',
   '  d_exact (true if d was proven by exhaustive search), score (the mission\'s figure of merit), spec (compact',
   '  layout string the game can reload), gv.',
+  'maps: day, depth (curious|student|engineer|researcher, as chosen in the site bar), device, n (links), edges',
+  '  ("a>b:relation;…", concept ids and relations from web/learning/concepts.js), code, gv.',
   'Question and objective text: web/learning/<game>.js in https://github.com/mvwf/qublitz (the quiz list,',
   '  choices in index order). There are no identifiers: rows cannot be linked to a person or to each other.',
 ].join('\n');
@@ -363,7 +423,7 @@ function rowsToRecords_(table, header, rows) {
 }
 function exportForAI() {
   var lines = [];
-  ['events', 'quiz', 'designs'].forEach(function (name) {
+  ['events', 'quiz', 'designs', 'maps'].forEach(function (name) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
     if (!sh || sh.getLastRow() < 2) return;
     var header = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -378,4 +438,4 @@ function exportForAI() {
   return msg;
 }
 
-if (typeof module !== 'undefined') module.exports = { TABS: TABS, cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, cleanDesignRow_: cleanDesignRow_, frontier_: frontier_, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };
+if (typeof module !== 'undefined') module.exports = { TABS: TABS, cleanEventRow: cleanEventRow, cleanQuizRows: cleanQuizRows, cleanDesignRow_: cleanDesignRow_, frontier_: frontier_, cleanMapRow_: cleanMapRow_, mapBoard_: mapBoard_, CONCEPT_IDS: CONCEPT_IDS, RELATION_IDS: RELATION_IDS, summarize: summarize, redact_: redact_, cleanExtra_: cleanExtra_, rowsToRecords_: rowsToRecords_ };

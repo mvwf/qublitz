@@ -23,6 +23,26 @@ const check = (name, ok, detail) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${na
   check('the depth travels as a one-word label in x', ev && ev.x && ev.x.depth === 'engineer');
 }
 
+// concept maps: only vocabulary ids and relations survive, in the browser and on the server, and the two lists match
+{
+  const V = require(path.join(root, 'web/learning/concepts.js'));
+  const ids = V.CONCEPTS.map(c => c.id), rels = V.RELATIONS.map(r => r.id);
+  check('collector concept ids match web/learning/concepts.js', JSON.stringify(gs.CONCEPT_IDS) === JSON.stringify(ids), ids.filter(i => !gs.CONCEPT_IDS.includes(i)).concat(gs.CONCEPT_IDS.filter(i => !ids.includes(i))).join(','));
+  check('collector relations match web/learning/concepts.js', JSON.stringify(gs.RELATION_IDS) === JSON.stringify(rels));
+  check('concept ids are unique and well formed', new Set(ids).size === ids.length && ids.every(i => /^[a-z0-9-]{1,24}$/.test(i)));
+  const raw = 'qubit>superposition:part-of;t1>decoherence:causes;jo-smith>qubit:related;qubit>qubit:related;superposition>qubit:causes;t2>t1:hates;mode>frequency:related';
+  const m = kit.cleanMap({ edges: raw, depth: 'engineer' }, { day: '2026-11-08', dev: 'touch' }, ids, rels);
+  check('cleanMap keeps known links once, drops unknown ids, self-links, repeats and unknown relations',
+    m && m.edges === 'qubit>superposition:part-of;t1>decoherence:causes;mode>frequency:related' && m.n === 3 && m.depth === 'engineer', m && m.edges);
+  check('cleanMap refuses a map with nothing valid', kit.cleanMap({ edges: 'hello>world:related' }, {}, ids, rels) === null);
+  const row = gs.cleanMapRow_({ edges: raw, depth: 'student', dev: 'touch', gv: '2026-11-08+abc' }, new Date('2026-11-08T12:00:00Z'));
+  check('collector keeps the same links and no others', row && row[5] === 'qubit>superposition:part-of;t1>decoherence:causes;mode>frequency:related' && row[4] === 3 && row[2] === 'student');
+  const B = gs.mapBoard_([['', '2026-11-08', 'student', 'desktop', 2, 'qubit>superposition:part-of;t1>decoherence:causes', '', 'v1'],
+    ['', '2026-11-08', 'curious', 'touch', 1, 'superposition>qubit:related', '', 'v1'], ['', '2026-11-08', '', 'touch', 1, 'mode>frequency:related', '', '']], {});
+  const top = B.edges[0];
+  check('the combined map counts a pair in either direction, and skips unversioned rows', B.maps === 2 && top.a === 'qubit' && top.b === 'superposition' && top.n === 2 && !B.edges.some(e => e.a === 'frequency' || e.b === 'frequency'));
+}
+
 // redaction: identifying text never survives, ordinary text does
 const r = kit.redact('I am jo.smith+x@dartmouth.edu, call 603-555-0199 or see https://x.y/z. Rotations   about x!');
 check('redact removes emails, phone numbers and links, keeps the rest', !/@|555|https/.test(r) && /Rotations about x!/.test(r), r);

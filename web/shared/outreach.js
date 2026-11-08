@@ -60,6 +60,9 @@
  *                               Returns true if sent (never from test hosts, opted-out or offline copies)
  *   QL.frontier(mission)        Promise of the board for a mission: [{ spec, family, n, k, d, dExact, score, day,
  *                               count }], best first; [] when there is no collector or on any error
+ *   QL.submitMap({ edges })    send a concept map the visitor chose to share: 'a>b:rel;…' with ids and relations from
+ *                               web/learning/concepts.js only (anything else is dropped); returns true if sent
+ *   QL.mapBoard()               Promise of the combined map from everyone's shared maps, or null
  *   QL.enabled(), QL.optOut(on), QL.code()
  *
  * DEPTH. One site-wide choice of how deep to go: curious · student (default) · engineer · researcher, picked in the site bar,
@@ -153,6 +156,29 @@
     return out;
   }
 
+  // A concept map (web/concepts.html): links between ids from the fixed vocabulary in web/learning/concepts.js, each with a
+  // relation from its fixed list. Nothing typed can get in: unknown ids and relations are dropped. edges = 'a>b:rel;…'.
+  const MAX_MAP_EDGES = 80, MAP_ID = /^[a-z0-9-]{1,24}$/;
+  function cleanMap(rec, ctx, ids, rels) {
+    const r = rec || {}, c = ctx || {}, idSet = new Set(ids || []), relSet = new Set(rels || []);
+    if (typeof r.edges !== 'string' || r.edges.length > 4000) return null;
+    const seen = new Set(), out = [];
+    for (const tok of r.edges.split(';')) {
+      const m = /^([a-z0-9-]{1,24})>([a-z0-9-]{1,24}):([a-z-]{1,12})$/.exec(tok);
+      if (!m || m[1] === m[2] || !idSet.has(m[1]) || !idSet.has(m[2]) || !relSet.has(m[3])) continue;
+      const key = m[1] < m[2] ? m[1] + '|' + m[2] : m[2] + '|' + m[1];
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(`${m[1]}>${m[2]}:${m[3]}`);
+      if (out.length >= MAX_MAP_EDGES) break;
+    }
+    if (!out.length) return null;
+    const res = { edges: out.join(';'), n: out.length, day: c.day, dev: c.dev === 'touch' ? 'touch' : 'desktop' };
+    if (DEPTHS.includes(r.depth)) res.depth = r.depth;
+    if (c.code && CODE.test(c.code)) res.code = c.code;
+    if (c.gv && GV.test(c.gv)) res.gv = c.gv;
+    return res;
+  }
+
   // Test traffic never counts: pages served from this machine or driven by an automated browser (tests, crawlers that
   // announce themselves) send nothing, so the statistics are real visitors only.
   function isTestHost(hostname, webdriver) {
@@ -182,7 +208,7 @@
   }
 
   if (typeof root.document === 'undefined') {           // Node: export the pure parts for the tests
-    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, cleanDesign, isTestHost, pickQuiz, depthMatch, DEPTHS };
+    if (typeof module !== 'undefined') module.exports = { redact, cleanEvent, cleanQuiz, cleanExtra, cleanDesign, cleanMap, isTestHost, pickQuiz, depthMatch, DEPTHS };
     return;
   }
 
@@ -657,6 +683,18 @@
     const d = cleanDesign(rec, ctx());
     return d ? send({ v: V, design: d }, false) : false;
   }
+  // a concept map the visitor chose to share (pressing Share sends it; nothing is sent while they build it)
+  function submitMap(rec) {
+    const V0 = root.QL_CONCEPTS; if (!V0) return false;
+    const d = cleanMap(Object.assign({ depth: curDepth }, rec), ctx(), V0.CONCEPTS.map(x => x.id), V0.RELATIONS.map(x => x.id));
+    return d ? send({ v: V, map: d }, false) : false;
+  }
+  // the combined picture from everyone's shared maps: { maps, edges: [{ a, b, n, rel }], concepts: [{ id, degree }] }
+  function mapBoard() {
+    if (!CFG.endpoint || offline || typeof fetch !== 'function') return Promise.resolve(null);
+    const u = CFG.endpoint + (CFG.endpoint.includes('?') ? '&' : '?') + 'maps=1';
+    return fetch(u, { redirect: 'follow', cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => (j && Array.isArray(j.edges) ? j : null)).catch(() => null);
+  }
   function frontier(mission) {
     if (!CFG.endpoint || offline || !MISSION.test(mission || '') || typeof fetch !== 'function') return Promise.resolve([]);
     const u = CFG.endpoint + (CFG.endpoint.includes('?') ? '&' : '?') + 'designs=1&mission=' + encodeURIComponent(mission);
@@ -664,7 +702,7 @@
       .then(j => (j && Array.isArray(j.designs) ? j.designs : [])).catch(() => []);
   }
 
-  root.QL = { depth, setDepth, onDepth, atDepth, progress, DEPTHS, challenges, challengeDone, submitDesign, frontier, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
+  root.QL = { depth, setDepth, onDepth, atDepth, progress, DEPTHS, challenges, challengeDone, submitDesign, frontier, submitMap, mapBoard, explored, event, context, answer, answered: id => answered.has(id), addItems, labLink, toLab, learning, panel, showQuiz, offerQuiz, enabled, optOut, code,
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
