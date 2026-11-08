@@ -18,6 +18,7 @@ if (window.QL) QL.learning({
     { id: 'scaling', text: 'Predict how a code’s failure rate scales at low error rates, p<sup>⌈d/2⌉</sup>, and read the distance off a log–log forecast.' },
   ],
   howTo: [
+    'New to error correction? In <b>Learn</b>, press <b>🎬 How error correction works</b> for a nine-step picture tour: fragile qubits, parity checks, how measuring the checks turns small errors into clean flips, decoding, and the threshold.',
     'Start with <b>Learn</b>: eleven short lessons, from a 3-qubit repetition code to the surface code, the torus and Steane’s code.',
     'Read the lamps: a <b>blue disc marked X</b> lights for X (bit-flip) errors, a <b>gold diamond marked Z</b> for Z (phase-flip) errors. Each tool is marked with the lamp it fixes.',
     'Tap a qubit tile to apply the selected correction (<b>X</b>, <b>Z</b> or <b>Y</b>); tap again to undo it. With a mouse, hovering shows which lamps a flip would switch.',
