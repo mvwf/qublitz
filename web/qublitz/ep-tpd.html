@@ -129,7 +129,7 @@
     <div id="pqSplit"></div>
     <div id="split"></div>
     <p class="hint">Along a cut through the primary EP: the transmission peaks <i>&nu;</i><sub>&plusmn;</sub> (purple) merge at
-      the TPD, while the eigenvalues |Im <i>&lambda;</i><sub>&plusmn;</sub>| (dashed) merge at the EP.
+      the TPD, while the eigenfrequencies &minus;Im <i>&lambda;</i><sub>&plusmn;</sub> (dashed) merge at the EP.
       <span id="cutNote"></span></p>
   </div>
 </div>
@@ -260,7 +260,7 @@ function drawSplit(phi, kc) {
     line: { width: 3.5, color } });
   const traces = [
     line(s.nuPlus, 'ν±', 'nu', true, nu), line(s.nuMinus, 'ν±', 'nu', false, nu), line(s.nu0, 'ν±', 'nu', false, nu),
-    line(s.lamPlus, '|Im(λ±)|', 'lam', true, lam), line(s.lamMinus, '|Im(λ±)|', 'lam', false, lam),
+    line(s.lamPlus, '−Im(λ±)', 'lam', true, lam), line(s.lamMinus, '−Im(λ±)', 'lam', false, lam),
   ];
   if (s.tpd !== null) traces.push(vline(s.tpd, 'TPD', 'cyan'));
   traces.push(vline(s.ep, 'EP', 'red'));
@@ -268,7 +268,7 @@ function drawSplit(phi, kc) {
   Plotly.react('split', traces, {
     margin: { t: 10, r: 10, b: 50, l: 60 },
     xaxis: { title: { text: AX[s.axis], font: { size: 20 } }, showgrid: false },
-    yaxis: { title: { text: 'Frequency [arb.]' }, showgrid: false },
+    yaxis: { title: { text: 'Frequency [units of J]' }, showgrid: false },
     legend: { font: { size: 13 } }, font: { family: 'Helvetica, Arial, sans-serif' },
   }, CONFIG);
   $('#cutNote').textContent = s.axis === 'df'

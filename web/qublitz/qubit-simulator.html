@@ -254,7 +254,7 @@
       </span>
     </div>
     <p class="hint" id="resHint"></p>
-    <p class="hint">Each square pulse turns the Bloch vector about an axis in the equator, the σx and σy channels about perpendicular axes (this lab's plots put |0⟩ at the bottom and label the rotating-frame axes in their own convention), and
+    <p class="hint">Each square pulse turns the Bloch vector about an axis in the equator, the σx and σy channels about perpendicular axes (this lab keeps the original Streamlit page's conventions: the ground state |0⟩ has ⟨σz⟩ = −1 in the plots but is drawn at the top of the Bloch sphere, and the rotating-frame x and y axes are swapped relative to Qubit Copter), and
       both at once about the axis between them. A pulse of duration <i>t</i> turns it by 2π(Ω<sub>R</sub>/2π)<i>t</i>. To feel what each
       rotation does, steer by hand in <a id="copterSched" href="qubit-copter.html">🚁 Qubit Copter</a>; its Learn and Free flight modes send your moves back here as a schedule.</p>
     <div id="envPlot" class="plot"></div>
@@ -645,7 +645,7 @@ $('#fdRun').onclick = async () => {
 function renderFreq() {
   const f = state.freq;
   $('#fdEmpty').hidden = !!f; $('#fdDlRow').hidden = !f;
-  if (f) $('#fdStepHint').textContent = `Grid step ${(1e3 * (f.stop - f.start) / (f.freqs.length - 1)).toFixed(2)} MHz: ω_q is somewhere within about half a step of the peak.`;
+  if (f) $('#fdStepHint').textContent = `Grid step ${(1e3 * (f.stop - f.start) / (f.freqs.length - 1)).toFixed(2)} MHz: the peak is within about half a step of the grid point. At these strong drives the line is about Ω_R wide, and the terms beyond the rotating-wave approximation pull it by up to about Ω_R²/(4ω_q) (≈ 15 MHz at 500 MHz and 4 GHz), so the sweep gives ω_q to a few MHz at best; Ramsey pins it down.`;
   if (!f) { Plotly.purge('fdPlot'); Plotly.purge('cutPlot'); $('#cutFit').innerHTML = ''; $('#fdNotice').innerHTML = ''; return; }
   // Heatmap rows are time; thin very long traces for display only.
   const stride = Math.max(1, Math.ceil(f.timeList.length / 600));

@@ -172,8 +172,8 @@
     <p>and the <b>noise reduction versus room temperature</b> is
       10 log<sub>10</sub>(<i>n̄</i><sub>room</sub>(<i>f</i>) / <i>n̄</i><sub>eff</sub>(<i>f</i>)).</p>
     <p>The drive power at each stage is the generator power minus the attenuation so far, and the cable insertion loss is
-      taken off at the MXC. The cable loss only affects the drive, not the noise, and attenuation does not depend on
-      frequency. The drive photon flux is <i>P</i>/<i>hf</i>.</p>
+      taken off at the MXC. In this model the cable loss is applied only to the drive, and attenuation does not depend on
+      frequency. A real lossy cable also attenuates the noise and re-emits at its own temperature, so the noise shown is a slight overestimate. The drive photon flux is <i>P</i>/<i>hf</i>.</p>
   </details>
 </div>
 
@@ -374,8 +374,8 @@ function render(){
 
   const mx = model.at[4];
   $('#driveOut').innerHTML = `<p class="hint" style="margin:0">At the MXC: <b>${mx.P.toFixed(1)} dBm</b>,
-    about <b>${sci(mx.perUs)}</b> drive photons per µs at ${st.fRef.toFixed(2)} GHz, against
-    n<sub>eff</sub> = <b>${sci(mx.n)}</b> thermal photons in the line.</p>`;
+    about <b>${sci(mx.perUs)}</b> drive photons per µs at ${st.fRef.toFixed(2)} GHz, against a thermal background of
+    n<sub>eff</sub> = <b>${sci(mx.n)}</b> photons per mode, about ${sci(mx.n)} photons per second in each hertz of bandwidth.</p>`;
 
   $('#table').innerHTML = `<thead><tr><th>Stage</th><th>T<sub>stage</sub></th><th>Atten [dB]</th><th>n<sub>eff</sub></th>
     <th>T<sub>eff</sub></th><th>Below room [dB]</th><th>Drive [dBm]</th><th>Drive photons/µs</th></tr></thead><tbody>` +
@@ -400,7 +400,7 @@ const CK = [
   { id:'cold_line', ok:(st,n,std)=>std(4) && st.A.reduce((a,b)=>a+b,0) <= 60 && st.A[4] <= 30 && n < 0.01,
     msg:n=>`${sci(n)} photons at the MXC. Each attenuator needs enough dB to bring the noise from the plate above down to near its own plate's level, and the coldest plates do the final cleanup. The 30 dB cap stands in for heat: the power an attenuator absorbs heats its plate, and the MXC has only microwatts of cooling power. This page tracks noise, not heat.` },
   { id:'warm_mxc', ok:(st,n,std)=>std(4, true) && st.T[4] >= 0.1 && st.A[4] >= 10,
-    msg:(n,st)=>`At ${F.formatTemp(st.T[4])} the MXC attenuator emits n̄ ≈ ${sci(F.thermalN(st.T[4], 5))} photons of its own, so n<sub>eff</sub> ≈ ${sci(n)}: the line can be no quieter than the plate its last attenuator sits on.` },
+    msg:(n,st)=>`At ${F.formatTemp(st.T[4])} the MXC attenuator emits n̄ ≈ ${sci(F.thermalN(st.T[4], 5))} photons of its own, so n<sub>eff</sub> ≈ ${sci(n)}: the line can be no quieter than the plate its last attenuator sits on, as long as the noise arriving from above is hotter than that plate.` },
 ];
 /* Predict-then-run checkpoints: one optional question before an experiment, scored with QL.answer
  * (web/shared/outreach.js) and explained once the run shows the answer. Answered or skipped ones stay away. */

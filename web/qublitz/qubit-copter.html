@@ -251,7 +251,7 @@
     |0⟩/|1⟩ basis, yet it changes the state: a later X or Y pulse takes it somewhere else.</p>
   <p><b>In the Virtual Qubit Lab</b> your moves become square pulses on the σx and σy channels of a 5 GHz qubit with Ω<sub>R</sub>/2π = 50 MHz (a π pulse
     is 10 ns) and long T₁, so the lab's P(1) matches the game. The lab has no σz channel, so Z turns become a <b>virtual Z</b>, as on real hardware: every later
-    pulse has its phase shifted instead, which gives the same P(1). The lab plots its Bloch vector in its own axes (|0⟩ at the bottom, and its x and y swapped relative to this game), so compare P(1) rather than the arrow. Lower T₁ there to watch the
+    pulse has its phase shifted instead, which gives the same P(1). The lab plots its Bloch vector in its own axes (its ⟨σz⟩ trace puts |0⟩ at −1, and its x and y are swapped relative to this game), so compare P(1) rather than the arrow. Lower T₁ there to watch the
     same moves decohere. (The lab keeps the terms the rotating-wave approximation drops, so with a much faster drive its answer would drift by a few degrees.)</p>
   <p><b>Point to steer</b> (Targets and Circuit) uses the same fact: a rotation about an equatorial axis <b>n</b> joins <b>r</b> to a point <b>p</b> in one turn when
     (<b>r</b> − <b>p</b>)·<b>n</b> = 0, that is <b>n</b> ∥ (<b>r</b> − <b>p</b>) × <b>z</b>, a real choice of drive phase. <b>Circuit</b> targets are the states a random

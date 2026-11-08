@@ -46,7 +46,7 @@ if (window.QL) QL.learning({
       q: 'With 60 dB in total, which split (4 K / Still / MXC) leaves the fewest thermal photons at the MXC in this model?',
       choices: ['60 / 0 / 0', '20 / 20 / 20', '40 / 20 / 0', '0 / 0 / 60'],
       answer: 3,
-      explain: 'The noise leaving the last attenuator can never be colder than that attenuator, so attenuation is worth most on the coldest plate: 0/0/60 gives about 1.3×10⁻³ photons, 20/20/20 about 0.03, 40/20/0 about 2.5 and 60/0/0 about 16. Real fridges still spread the attenuation over several plates, because the power an attenuator absorbs heats its plate and the MXC has only microwatts of cooling power. This page tracks noise, not heat.' },
+      explain: 'The noise leaving the last attenuator can never be colder than that attenuator, so attenuation is worth most on the coldest plate: 0/0/60 gives about 1.3×10⁻³ photons, 20/20/20 about 0.03, 40/20/0 about 2.6 and 60/0/0 about 16. Real fridges still spread the attenuation over several plates, because the power an attenuator absorbs heats its plate and the MXC has only microwatts of cooling power. This page tracks noise, not heat.' },
     { id: 'drive', objective: 'drive',
       q: 'The attenuators also cut the drive signal by 60 dB (and more for the cable). Why is that acceptable?',
       choices: ['It is not: labs remove the attenuators when they want to drive the qubit', 'The drive is only scaled down, so you turn up the generator, while the noise is reset to the cold plate temperature', 'Attenuators only absorb noise and let the drive through untouched', 'The drive is at a different frequency from the noise, so attenuators do not affect it'],
