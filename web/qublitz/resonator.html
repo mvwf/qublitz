@@ -270,7 +270,8 @@
     <div id="photonOut" class="stats" style="margin-top:10px"></div>
     <p class="hint">Mean photon number on resonance, from the Q's above and the power at the device, after all the fridge attenuation
       (see the <a href="fridge-noise.html">Fridge Noise Explorer</a>). Resonator loss is usually quoted at about one photon,
-      where two-level-system defects matter most.</p>
+      where two-level-system defects matter most. With an asymmetry φ, only cos φ/|Q<sub>c</sub>| of the coupling carries energy
+      into the resonator, and that effective coupling is what is used here.</p>
   </details>
   <div class="row" style="margin-top:0"><button id="exCopy">Copy link to this setup</button><button id="exReset">Reset</button></div>
 </div>
@@ -895,7 +896,10 @@ function renderLook(p) {
 
 function renderPhotons() {
   const p = exParams(), P = +$('#pIn').value;
-  const n = E.photonNumber(ex.g, P, p.fr, p.Ql, p.Qc), p1 = E.powerForPhotons(ex.g, 1, p.fr, p.Ql, p.Qc);
+  // Only the in-phase part of the coupling, cos φ/|Qc|, moves energy between line and resonator, so the photon number
+  // uses the effective coupling Q = |Qc| / cos φ.
+  const qcEff = p.Qc / Math.max(Math.cos(p.phi), 1e-6);
+  const n = E.photonNumber(ex.g, P, p.fr, p.Ql, qcEff), p1 = E.powerForPhotons(ex.g, 1, p.fr, p.Ql, qcEff);
   $('#photonOut').innerHTML = `<div class="stat tot"><span>Mean photon number ⟨n⟩</span><b>${sci(n, 3)}</b></div>
     <div class="stat"><span>Power for ⟨n⟩ = 1</span><b>${p1.toFixed(1)} dBm</b></div>`;
 }

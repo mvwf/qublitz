@@ -694,6 +694,8 @@
         for (let j = 0; j < m; j++) { out[j] = y.re[j] - data.re[j]; out[m + j] = yi[j] - data.im[j]; }
         return out;
       }
+      // A phase residual is taken on the circle, so neither the data's nor the model's 2π branch matters.
+      if (target === 'phase') return Array.from(y.re, (x, j) => { const d = x - data.y[j]; return Math.atan2(Math.sin(d), Math.cos(d)); });
       return Array.from(y.re, (x, j) => x - data.y[j]);
     };
     const fit = levmar(resid, p0, { fixed: names.map(nm => !!fixed[nm]) });
@@ -717,7 +719,7 @@
     return {
       params: best, sigma, derived: der, cov: fit.cov, names,
       rms: Math.sqrt(ss / r.length), converged: fit.converged, message: fit.message, iters: fit.iters, notes,
-      curve: ff => project(target, evaluate(F.ast, ff, best)),
+      curve: ff => { const v = project(target, evaluate(F.ast, ff, best)); return target === 'phase' ? { ...v, re: unwrap(v.re) } : v; },
       python: pythonScript(F, target, best, fixed),
     };
   }
