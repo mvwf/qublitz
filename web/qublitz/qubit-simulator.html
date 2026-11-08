@@ -172,7 +172,7 @@
       so a determined student could still recover the parameters from the code. Treat it like a take-home problem set.</p>
   </div>
   <details><summary>Simulation convention</summary>
-    <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), with no rotating-wave
+    <p>H(t) = 2π·ω<sub>q</sub>σ<sub>z</sub>/2 + 2π·Ω<sub>R</sub>[I(t)σ<sub>x</sub> + Q(t)σ<sub>y</sub>]·cos(2π·ω<sub>d</sub>t), written in the engine's basis, where the ground state |0⟩ has σ<sub>z</sub> = −1 (the plots below use the textbook sphere, with |0⟩ at ⟨σz⟩ = +1), and with no rotating-wave
       approximation. Energy relaxation at rate 1/T₁. Mystery and assigned qubits have T₂ = 2T₁ (no pure dephasing), the teaching model of the ENGS 53 lab; in free play you can lower T₂ to add pure dephasing.
       Frequencies are in GHz (ω/2π) and times in ns. Results match the Python/qutip implementation to better than 10⁻⁶.</p></details>
 </div>
@@ -254,7 +254,7 @@
       </span>
     </div>
     <p class="hint" id="resHint"></p>
-    <p class="hint">Each square pulse turns the Bloch vector about an axis in the equator, the σx and σy channels about perpendicular axes (this lab keeps the original Streamlit page's conventions: the ground state |0⟩ has ⟨σz⟩ = −1 in the plots but is drawn at the top of the Bloch sphere, and the rotating-frame x and y axes are swapped relative to Qubit Copter), and
+    <p class="hint">Each square pulse turns the Bloch vector about an axis in the equator, the σx and σy channels about perpendicular axes (the plots use the textbook Bloch sphere: |0⟩ at the top with ⟨σz⟩ = +1, right-handed axes, a σx pulse turning the vector about +x and a σy pulse about +y, the same as Qubit Copter), and
       both at once about the axis between them. A pulse of duration <i>t</i> turns it by 2π(Ω<sub>R</sub>/2π)<i>t</i>. To feel what each
       rotation does, steer by hand in <a id="copterSched" href="qubit-copter.html">🚁 Qubit Copter</a>; its Learn and Free flight modes send your moves back here as a schedule.</p>
     <div id="envPlot" class="plot"></div>
@@ -780,7 +780,9 @@ function runTD() {                                                 // run_time_d
   const r = Q.runQuantumSimulation({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: td.tFinal, nSteps: n, omegaD: wd,
     envI: clip(td.sx), envQ: clip(td.sy), T1: q.T1, T2: q.T2 }, shots());
   const rot = Q.rotatingFrame(r.t, r.x, r.y, wd);
-  td.out = { t: r.t, x: rot.x, y: rot.y, z: r.z, p1: r.p1Sampled, wd, shots: shots() };
+  // textbook Bloch axes: the engine's ground state has ⟨σz⟩ = −1 and its rotating-frame components come out as (y, x),
+  // so plot (rot.y, rot.x, −z): |0⟩ at +z, right-handed, σx-channel pulses about +x and σy-channel pulses about +y
+  td.out = { t: r.t, x: rot.y, y: rot.x, z: Float64Array.from(r.z, v => -v), p1: r.p1Sampled, wd, shots: shots() };
   td.fits = Q.analyzeTimeDomainFits(r.t, r.p1Sampled, td.sx, td.sy);
   renderTD();
   ckRun('time');
@@ -805,10 +807,10 @@ function bloch(o) {
   }
   const stride = Math.max(1, Math.ceil(o.t.length / 1500));
   const idx = []; for (let i = 0; i < o.t.length; i += stride) idx.push(i);
-  // |0⟩ (the ground state, ⟨σz⟩ = −1 in the engine) is drawn at the top, as on the original page.
+  // o is already in textbook axes (|0⟩ = ground at ⟨σz⟩ = +1, drawn at the top)
   return [
     { type: 'surface', x: xs, y: ys, z: zs, opacity: 0.18, showscale: false, hoverinfo: 'skip', colorscale: [[0, '#cfe3d8'], [1, '#cfe3d8']] },
-    { type: 'scatter3d', mode: 'markers', x: idx.map(i => o.x[i]), y: idx.map(i => o.y[i]), z: idx.map(i => -o.z[i]), name: 'State',
+    { type: 'scatter3d', mode: 'markers', x: idx.map(i => o.x[i]), y: idx.map(i => o.y[i]), z: idx.map(i => o.z[i]), name: 'State',
       marker: { size: 3, color: idx.map(i => o.t[i]), opacity: 0.9,
         // dark theme: Viridis from 0.3 up, so the earliest dots do not vanish into the background
         colorscale: window.RETRO && window.RETRO.palette ? [[0, '#31688e'], [0.17, '#26828e'], [0.33, '#1f9e89'], [0.5, '#35b779'], [0.67, '#6ece58'], [0.83, '#b5de2b'], [1, '#fde725']] : 'Cividis',
@@ -838,7 +840,7 @@ function renderTD() {
     scene: { aspectmode: 'cube', camera: { eye: { x: 1.35, y: 1.35, z: 0.8 } },
       xaxis: { title: { text: '⟨σx⟩' }, range: [-1.2, 1.2], showbackground: false },
       yaxis: { title: { text: '⟨σy⟩' }, range: [-1.2, 1.2], showbackground: false },
-      zaxis: { title: { text: '−⟨σz⟩' }, range: [-1.2, 1.2], showbackground: false } },
+      zaxis: { title: { text: '⟨σz⟩' }, range: [-1.2, 1.2], showbackground: false } },
   }), PLOT_CFG);
 
   const traces = [{ type: 'scatter', mode: 'lines', x: t, y: Array.from(o.p1), name: 'Measured P(|1⟩)', line: { color: C.blue, width: 2 } }];
@@ -867,7 +869,7 @@ function setScrub(v) {
   const o = state.td.out; if (!o) return;
   const i = Math.round(v / 1000 * (o.t.length - 1)), tt = o.t[i];
   $('#scrubVal').textContent = `t = ${tt.toFixed(2)} ns`;
-  Plotly.restyle('blochPlot', { x: [[0, o.x[i]]], y: [[0, o.y[i]]], z: [[0, -o.z[i]]] }, [3]);
+  Plotly.restyle('blochPlot', { x: [[0, o.x[i]]], y: [[0, o.y[i]]], z: [[0, o.z[i]]] }, [3]);
   const sh = { 'shapes[0].x0': tt, 'shapes[0].x1': tt };
   Plotly.relayout('expPlot', sh); Plotly.relayout('p1Plot', sh);
 }
