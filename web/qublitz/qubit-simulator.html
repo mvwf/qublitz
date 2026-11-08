@@ -151,9 +151,9 @@
     <p class="hint">Set the qubit yourself and watch how each parameter shows up in the experiments.</p>
     <div class="row">
       <div class="field"><label for="fWq">ω<sub>q</sub>/2π [GHz]</label><input id="fWq" type="number" min="1" max="10" step="0.001" value="5.0"></div>
-      <div class="field"><label for="fRabi">Rabi rate Ω<sub>R</sub>/2π [MHz]</label><input id="fRabi" type="number" min="1" max="1000" step="1" value="25"></div>
-      <div class="field"><label for="fT1">T₁ [ns]</label><input id="fT1" type="number" min="1" max="10000" step="1" value="150"></div>
-      <div class="field"><label for="fT2">T₂ [ns] (≤ 2T₁)</label><input id="fT2" type="number" min="1" max="20000" step="1" value="300"></div>
+      <div class="field"><label for="fRabi">Rabi rate Ω<sub>R</sub>/2π [<span class="u-f">MHz</span>]</label><input id="fRabi" type="number" min="1" max="1000" step="1" value="25"></div>
+      <div class="field"><label for="fT1">T₁ [<span class="u-t">ns</span>]</label><input id="fT1" type="number" min="1" max="10000" step="1" value="150"></div>
+      <div class="field"><label for="fT2">T₂ [<span class="u-t">ns</span>] (≤ 2T₁)</label><input id="fT2" type="number" min="1" max="20000" step="1" value="300"></div>
       <button class="primary" id="fApply">Use this qubit</button>
       <button id="copyFree" title="Copy a link that opens free play with this qubit">Copy link</button>
       <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
@@ -241,7 +241,7 @@
     <li data-step="sweep" data-n="1"><b>Find the resonance.</b> Run a frequency sweep whose peak lands inside the window.</li>
     <li data-step="flip" data-n="2"><b>Flip the qubit.</b> On the Time Domain tab, drive at the sweep peak with a pulse that leaves P(|1⟩) above 0.9 when it ends.</li>
     <li data-step="t1" data-n="3"><b>Measure T₁.</b> After that flip, get a T₁ fit within 20% of the true value. Leave plenty of idle time after the pulse.</li>
-    <li data-step="ramsey" data-n="4"><b>Pin ω<sub>q</sub> with Ramsey.</b> Fit a chevron cut so that one of its two ω<sub>q</sub> candidates is within 1 MHz of the true value.</li>
+    <li data-step="ramsey" data-n="4"><b>Pin ω<sub>q</sub> with Ramsey.</b> Fit a chevron cut so that one of its two ω<sub>q</sub> candidates is within 1 <span class="u-f">MHz</span> of the true value.</li>
   </ol>
   <p class="hint" id="ckMsg" style="margin-bottom:0">The checklist compares your results with the hidden values without showing them. Loading a new qubit starts it again.</p>
 </div>
@@ -262,7 +262,7 @@
     <div class="field"><label for="fdStart">Start ω<sub>d</sub>/2π [GHz]</label><input id="fdStart" type="number" step="0.01" value="3.5"></div>
     <div class="field"><label for="fdStop">Stop ω<sub>d</sub>/2π [GHz]</label><input id="fdStop" type="number" step="0.01" value="6.5"></div>
     <div class="field"><label for="fdN">Number of frequencies</label><input id="fdN" type="number" min="5" max="201" step="2" value="41"></div>
-    <div class="field"><label for="fdT">Pulse duration [ns]</label><input id="fdT" type="number" min="1" max="500" step="1" value="25"></div>
+    <div class="field"><label for="fdT">Pulse duration [<span class="u-t">ns</span>]</label><input id="fdT" type="number" min="1" max="500" step="1" value="25"></div>
     <button class="primary" id="fdRun">Run frequency sweep</button>
     <span class="progress" id="fdProg"><i></i></span>
   </div>
@@ -281,7 +281,7 @@
   <div id="pqTime"></div>
   <div class="row">
     <div class="field"><label for="tdWd">ω<sub>d</sub>/2π [GHz]</label><input id="tdWd" type="number" step="0.000001" value="5.0" style="width:170px"></div>
-    <div class="field"><label for="tdT">Duration Δt [ns]</label><input id="tdT" type="number" min="1" max="2000" step="1" value="200"></div>
+    <div class="field"><label for="tdT">Duration Δt [<span class="u-t">ns</span>]</label><input id="tdT" type="number" min="1" max="2000" step="1" value="200"></div>
     <button id="useFit" hidden title="Set ωd to the peak of your frequency sweep">Use sweep peak</button>
   </div>
 
@@ -295,13 +295,13 @@
       <div class="field"><label for="amp">Amplitude <span class="val" id="ampVal">1.00</span></label><input id="amp" type="range" min="-1" max="1" step="0.05" value="1"></div>
     </div>
     <div class="row" id="sqFields">
-      <div class="field"><label for="sqStart">Start [ns]</label><input id="sqStart" type="number" min="0" step="0.04" value="5"></div>
-      <div class="field"><label for="sqDur">Duration [ns]</label><input id="sqDur" type="number" min="0.04" step="0.04" value="20"></div>
+      <div class="field"><label for="sqStart">Start [<span class="u-t">ns</span>]</label><input id="sqStart" type="number" min="0" step="0.04" value="5"></div>
+      <div class="field"><label for="sqDur">Duration [<span class="u-t">ns</span>]</label><input id="sqDur" type="number" min="0.04" step="0.04" value="20"></div>
       <span class="hint" id="sqStop"></span>
     </div>
     <div class="row" id="gFields" hidden>
-      <div class="field"><label for="gCenter">Center [ns]</label><input id="gCenter" type="number" min="0" step="0.04" value="50"></div>
-      <div class="field"><label for="gSigma">Sigma [ns]</label><input id="gSigma" type="number" min="0.04" step="0.04" value="10"></div>
+      <div class="field"><label for="gCenter">Center [<span class="u-t">ns</span>]</label><input id="gCenter" type="number" min="0" step="0.04" value="50"></div>
+      <div class="field"><label for="gSigma">Sigma [<span class="u-t">ns</span>]</label><input id="gSigma" type="number" min="0.04" step="0.04" value="10"></div>
     </div>
     <div class="row">
       <button class="primary" id="addPulse">Add pulse</button>
@@ -356,20 +356,20 @@
   <div class="row" id="pi2Row">
     <div class="field"><span class="lbl">π/2 duration source</span>
       <div class="seg" id="pi2Src"><button aria-pressed="false" data-v="fit">Fitted Rabi rate</button><button aria-pressed="true" data-v="manual">Manual entry</button></div></div>
-    <div class="field" id="pi2ManualF"><label for="pi2">π/2 pulse duration [ns]</label><input id="pi2" type="number" min="0.01" max="500" step="0.01" value="0.7"></div>
+    <div class="field" id="pi2ManualF"><label for="pi2">π/2 pulse duration [<span class="u-t">ns</span>]</label><input id="pi2" type="number" min="0.01" max="500" step="0.01" value="0.7"></div>
     <span class="hint" id="pi2Info"></span>
   </div>
 
   <div id="pqRamsey"></div>
   <h3>Chevron sweep</h3>
   <div class="row">
-    <div class="field"><label for="dMin">Detuning min [MHz]</label><input id="dMin" type="number" step="0.1" value="-2"></div>
-    <div class="field"><label for="dMax">Detuning max [MHz]</label><input id="dMax" type="number" step="0.1" value="2"></div>
+    <div class="field"><label for="dMin">Detuning min [<span class="u-f">MHz</span>]</label><input id="dMin" type="number" step="0.1" value="-2"></div>
+    <div class="field"><label for="dMax">Detuning max [<span class="u-f">MHz</span>]</label><input id="dMax" type="number" step="0.1" value="2"></div>
     <div class="field"><label for="dN">Detuning points</label><input id="dN" type="number" min="11" max="401" step="2" value="81"></div>
   </div>
   <div class="row">
-    <div class="field"><label for="tMin">Idle-time min [ns]</label><input id="tMin" type="number" min="0" step="10" value="0"></div>
-    <div class="field"><label for="tMax">Idle-time max [ns]</label><input id="tMax" type="number" min="10" step="50" value="1000"></div>
+    <div class="field"><label for="tMin">Idle-time min [<span class="u-t">ns</span>]</label><input id="tMin" type="number" min="0" step="10" value="0"></div>
+    <div class="field"><label for="tMax">Idle-time max [<span class="u-t">ns</span>]</label><input id="tMax" type="number" min="10" step="50" value="1000"></div>
     <div class="field"><label for="tN">Idle-time points</label><input id="tN" type="number" min="11" max="501" step="2" value="121"></div>
     <div class="field"><label for="rShots">Shots per point</label><input id="rShots" type="number" min="32" max="4096" step="32" value="256"></div>
     <button class="primary" id="rRun">Run Ramsey chevron</button>
@@ -381,7 +381,7 @@
     <div id="chevPlot" class="plot"></div>
     <h3>Fit a vertical cut</h3>
     <div class="row">
-      <div class="field"><label for="cutDet">Detuning for vertical cut [MHz]</label><input id="cutDet" type="number" step="0.1" value="2"></div>
+      <div class="field"><label for="cutDet">Detuning for vertical cut [<span class="u-f">MHz</span>]</label><input id="cutDet" type="number" step="0.1" value="2"></div>
       <span class="hint">Tip: click the chevron to pick a cut. Choose a detuning with at least one full fringe in the window.</span>
     </div>
     <div class="metrics" id="cutInfo"></div>
@@ -710,7 +710,7 @@ $('#fdRun').onclick = async () => {
 function renderFreq() {
   const f = state.freq;
   $('#fdEmpty').hidden = !!f; $('#fdDlRow').hidden = !f;
-  if (f) $('#fdStepHint').textContent = `Grid step ${(1e3 * (f.stop - f.start) / (f.freqs.length - 1)).toFixed(2)} MHz: the peak is within about half a step of the grid point. At these strong drives the line is about Ω_R wide, and the terms beyond the rotating-wave approximation pull it by up to about Ω_R²/(4ω_q) (≈ 15 MHz at 500 MHz and 4 GHz), so the sweep gives ω_q to a few MHz at best; Ramsey pins it down.`;
+  if (f) $('#fdStepHint').textContent = `Grid step ${(1e3 * (f.stop - f.start) / (f.freqs.length - 1)).toFixed(2)} ${UF()}: the peak is within about half a step of the grid point. At these strong drives the line is about Ω_R wide, and the terms beyond the rotating-wave approximation pull it by up to about Ω_R²/(4ω_q) (≈ 15 MHz at 500 MHz and 4 GHz), so the sweep gives ω_q to a few MHz at best; Ramsey pins it down.`;
   if (!f) { Plotly.purge('fdPlot'); Plotly.purge('cutPlot'); $('#cutFit').innerHTML = ''; $('#fdNotice').innerHTML = ''; return; }
   // Heatmap rows are time; thin very long traces for display only.
   const stride = Math.max(1, Math.ceil(f.timeList.length / 600));
@@ -719,13 +719,13 @@ function renderFreq() {
   Plotly.react('fdPlot', [
     { type: 'heatmap', x: Array.from(f.freqs), y: ty, z: rows, colorscale: 'Viridis', zmin: 0, zmax: 1, xaxis: 'x', yaxis: 'y',
       colorbar: { title: { text: 'P(|1⟩)' }, len: 0.72, y: 0.66, thickness: 18 },
-      hovertemplate: 'ωd=%{x:.6f} GHz<br>t=%{y:.2f} ns<br>P1=%{z:.3f}<extra></extra>' },
+      hovertemplate: 'ωd=%{x:.6f} GHz<br>t=%{y:.2f} ' + UT() + '<br>P1=%{z:.3f}<extra></extra>' },
     { type: 'scatter', mode: 'lines', x: Array.from(f.freqs), y: f.maxProb, xaxis: 'x', yaxis: 'y2', line: { color: C.green, width: 3 },
       hovertemplate: 'ωd=%{x:.6f} GHz<br>max P1=%{y:.3f}<extra></extra>', showlegend: false },
   ], layout('Frequency-domain simulation: time-resolved P(|1⟩) and its maximum', {
     height: 640, margin: { t: 50, b: 50, l: 65, r: 20 },
     grid: { rows: 2, columns: 1, roworder: 'top to bottom' },
-    xaxis: { title: { text: 'Drive frequency ω<sub>d</sub>/2π [GHz]' }, anchor: 'y2', gridcolor: '#eef2ef' },
+    xaxis: { title: { text: 'Drive frequency ω<sub>d</sub>/2π [GHz]' + (CU() ? ' · lab frame: 1 MHz from f₀₁ here = 1 kHz on the chip' : '') }, anchor: 'y2', gridcolor: '#eef2ef' },
     yaxis: { title: { text: tAx('Time [ns]') }, domain: [0.32, 1] },
     yaxis2: { title: { text: 'Max P(|1⟩)' }, domain: [0, 0.24], range: [-0.05, 1.05], gridcolor: '#eef2ef' },
     shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: f.peakFreq, x1: f.peakFreq, y0: 0, y1: 1, line: { color: C.red, width: 1, dash: 'dot' } }],
@@ -740,10 +740,10 @@ function renderFreq() {
   }), PLOT_CFG);
   $('#cutFit').innerHTML = fit
     ? `<div class="metrics">${metric('Peak drive frequency ω<sub>d</sub>/2π', f.peakFreq.toFixed(6) + ' GHz')}
-        ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, 'MHz'))}
-        ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ns')}</div>
-       <p class="hint"><b>Units check:</b> ${fit.fMHz.toPrecision(3)} MHz means ${fit.fMHz.toPrecision(3)} full Rabi cycles per microsecond, so one cycle
-         (|0⟩ → |1⟩ → |0⟩) takes 1000 ns ÷ ${fit.fMHz.toPrecision(3)} = ${(1e3 / fit.fMHz).toFixed(2)} ns. A π pulse is half a cycle: ${(1e3 / (2 * fit.fMHz)).toFixed(2)} ns.</p>
+        ${metric('Fitted Ω<sub>R</sub>/2π from peak trace', formatPM(fit.fMHz, fit.fMHzErr, UF()))}
+        ${metric('π pulse ≈ 1/(2·Ω<sub>R</sub>/2π)', (1e3 / (2 * fit.fMHz)).toFixed(2) + ' ' + UT())}</div>
+       <p class="hint"><b>Units check:</b> ${fit.fMHz.toPrecision(3)} ${UF()} means ${fit.fMHz.toPrecision(3)} full Rabi cycles per ${CU() ? 'millisecond' : 'microsecond'}, so one cycle
+         (|0⟩ → |1⟩ → |0⟩) takes 1000 ${UT()} ÷ ${fit.fMHz.toPrecision(3)} = ${(1e3 / fit.fMHz).toFixed(2)} ${UT()}. A π pulse is half a cycle: ${(1e3 / (2 * fit.fMHz)).toFixed(2)} ${UT()}.</p>
        <p class="hint">Off resonance the qubit oscillates <em>faster and less deeply</em>: the generalized Rabi frequency is
          √(Ω<sub>R</sub>² + Δ²) and the peak only reaches Ω<sub>R</sub>²/(Ω<sub>R</sub>² + Δ²). So this fit is only Ω<sub>R</sub> when the peak
          frequency sits right on ω<sub>q</sub>. Zoom in until the peak trace swings all the way to P(|1⟩) ≈ 1 before trusting the π-pulse time.</p>
@@ -779,8 +779,8 @@ function syncSchedule() {                                         // pulse_ui() 
     td.tFinal = tf;
   }
   const dt = t[1] - t[0];
-  $('#resHint').textContent = `Pulse schedule resolution: about ${dt.toFixed(3)} ns per sample. Square pulses take decimal start times and durations, which makes π and π/2 calibrations easier.`;
-  $('#sqStop').textContent = `Stop time: ${Math.min(tf, num('#sqStart', 5) + num('#sqDur', 20)).toFixed(3)} ns`;
+  $('#resHint').textContent = `Pulse schedule resolution: about ${dt.toFixed(3)} ${UT()} per sample. Square pulses take decimal start times and durations, which makes π and π/2 calibrations easier.`;
+  $('#sqStop').textContent = `Stop time: ${Math.min(tf, num('#sqStart', 5) + num('#sqDur', 20)).toFixed(3)} ${UT()}`;
   Plotly.react('envPlot', [
     { type: 'scatter', mode: 'lines', x: Array.from(t), y: Array.from(td.sx), name: 'Ω<sub>x</sub>(t)', line: { color: C.green, width: 2.5 } },
     { type: 'scatter', mode: 'lines', x: Array.from(t), y: Array.from(td.sy), name: 'Ω<sub>y</sub>(t)', line: { color: C.gold, width: 2.5 } },
@@ -826,7 +826,7 @@ function syncQuickPulses() {
   const fit = state.freqFit, f = state.freq;
   $('#quickPulses').hidden = !(fit && fit.fMHz > 0);
   $('#useFit').hidden = !f;
-  $('#qpNote').innerHTML = fit && fit.fMHz > 0 ? `Uses Ω<sub>R</sub>/2π = ${fmtG(fit.fMHz)} MHz from your sweep's peak trace (π = ${fmtG(500 / fit.fMHz)} ns) and drives at the sweep peak, ${f.peakFreq.toFixed(4)} GHz.${offResWarn()}` : '';
+  $('#qpNote').innerHTML = fit && fit.fMHz > 0 ? `Uses Ω<sub>R</sub>/2π = ${fmtG(fit.fMHz)} ${UF()} from your sweep's peak trace (π = ${fmtG(500 / fit.fMHz)} ${UT()}) and drives at the sweep peak, ${f.peakFreq.toFixed(4)} GHz${CU() ? ' (lab frame)' : ''}.${offResWarn()}` : '';
 }
 // The fitted rate is the on-resonance Ω_R only when the peak trace swings all the way up. Off resonance by Δ the qubit
 // oscillates faster, at √(Ω_R² + Δ²), and only reaches Ω_R²/(Ω_R² + Δ²); a π pulse from that rate is too short.
@@ -869,7 +869,7 @@ function runTD() {                                                 // run_time_d
   if (pEnd >= 0.9) {
     ckDone('flip', `P(|1⟩) = ${pEnd.toFixed(2)} when the pulse ends. Now watch it relax back toward |0⟩.`);
     if (t1 && t1.A >= 0.5 && Math.abs(t1.T1Ns - q.T1) <= 0.2 * q.T1)
-      ckDone('t1', `Your fitted T₁ = ${t1.T1Ns.toFixed(0)} ns is within 20% of the true value.`);
+      ckDone('t1', `Your fitted T₁ = ${t1.T1Ns.toFixed(0)} ${UT()} is within 20% of the true value.`);
   }
 }
 
@@ -890,7 +890,7 @@ function bloch(o) {
         // dark theme: Viridis from 0.3 up, so the earliest dots do not vanish into the background
         colorscale: window.RETRO && window.RETRO.palette ? [[0, '#31688e'], [0.17, '#26828e'], [0.33, '#1f9e89'], [0.5, '#35b779'], [0.67, '#6ece58'], [0.83, '#b5de2b'], [1, '#fde725']] : 'Cividis',
         colorbar: { title: { text: tAx('Time [ns]') }, len: 0.7, thickness: 14 } },
-      hovertemplate: 't=%{marker.color:.2f} ns<extra></extra>' },
+      hovertemplate: 't=%{marker.color:.2f} ' + UT() + '<extra></extra>' },
     { type: 'scatter3d', mode: 'text', x: [0, 0], y: [0, 0], z: [1.18, -1.18], text: ['|0⟩', '|1⟩'], textfont: { size: 16, color: '#1b2a24' }, hoverinfo: 'skip', showlegend: false },
     { type: 'scatter3d', mode: 'lines+markers', x: [0, 0], y: [0, 0], z: [0, 0], line: { color: C.red, width: 7 }, marker: { size: [0, 6], color: C.red }, hoverinfo: 'skip', showlegend: false },
   ];
@@ -932,8 +932,8 @@ function renderTD() {
     shapes: [vline], legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
   }), PLOT_CFG);
 
-  $('#tdMetrics').innerHTML = (f.t1 ? metric('Fitted T₁', formatPM(f.t1.T1Ns, f.t1.T1NsErr, 'ns') + onChip(f.t1.T1Ns, f.t1.T1NsErr, 't1')) : '')
-    + (f.rabi ? metric('Fitted Ω<sub>R</sub>/2π during the pulse', formatPM(f.rabi.fMHz, f.rabi.fMHzErr, 'MHz')) : '');
+  $('#tdMetrics').innerHTML = (f.t1 ? metric('Fitted T₁', formatPM(f.t1.T1Ns, f.t1.T1NsErr, UT()) + onChip(f.t1.T1Ns, f.t1.T1NsErr, 't1')) : '')
+    + (f.rabi ? metric('Fitted Ω<sub>R</sub>/2π during the pulse', formatPM(f.rabi.fMHz, f.rabi.fMHzErr, UF())) : '');
   $('#tdMsgs').innerHTML = (f.t1 ? '' : '<div class="note">T₁ fit unavailable for the current schedule.</div>')
     + f.messages.map(m => `<p class="hint">${m}</p>`).join('');
   $('#scrub').value = 1000; setScrub(1000);
@@ -943,7 +943,7 @@ function renderTD() {
 function setScrub(v) {
   const o = state.td.out; if (!o) return;
   const i = Math.round(v / 1000 * (o.t.length - 1)), tt = o.t[i];
-  $('#scrubVal').textContent = `t = ${tt.toFixed(2)} ns`;
+  $('#scrubVal').textContent = `t = ${tt.toFixed(2)} ${UT()}`;
   Plotly.restyle('blochPlot', { x: [[0, o.x[i]]], y: [[0, o.y[i]]], z: [[0, o.z[i]]] }, [3]);
   const sh = { 'shapes[0].x0': tt, 'shapes[0].x1': tt };
   Plotly.relayout('expPlot', sh); Plotly.relayout('p1Plot', sh);
@@ -988,8 +988,8 @@ function syncRamseyInputs() {
   const useFit = getPi2Src() === 'fit';
   $('#pi2ManualF').hidden = useFit;
   $('#pi2Info').innerHTML = useFit
-    ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, 'MHz')} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ns.${offResWarn()}`
-    : `Corresponding π duration: ${(2 * num('#pi2', 0.7)).toFixed(3)} ns.`;
+    ? `Rabi rate ${formatPM(fit.fMHz, fit.fMHzErr, UF())} from the frequency-domain fit, so π/2 = ${(1e3 / (4 * fit.fMHz)).toFixed(3)} ${UT()}.${offResWarn()}`
+    : `Corresponding π duration: ${(2 * num('#pi2', 0.7)).toFixed(3)} ${UT()}.`;
   $('#rTotal').textContent = `Total Ramsey points: ${clamp(int('#dN', 81), 11, 401) * clamp(int('#tN', 121), 11, 501)}`;
 }
 $('#rqRef').addEventListener('input', e => (e.target.dataset.touched = '1'));
@@ -1033,9 +1033,9 @@ function renderRamsey() {
     type: 'heatmap', x: Array.from(c.dets), y: Array.from(c.delays), z, colorscale: INFERNO, zmin: 0, zmax: 1,
     colorbar: { title: { text: 'P(|1⟩)' }, thickness: 18 },
     customdata: hasRef ? Array.from(c.delays, () => Array.from(c.dets, d => c.refF + 1e-3 * d)) : undefined,
-    hovertemplate: 'Δ=%{x:.3f} MHz' + (hasRef ? '<br>ωd/2π=%{customdata:.9f} GHz' : '') + '<br>τ=%{y:.1f} ns<br>P1=%{z:.3f}<extra></extra>',
-  }], layout(`Ramsey chevron, π/2 = ${c.pi2.toFixed(3)} ns`, {
-    height: 560, xaxis: { title: { text: 'Relative detuning Δ/2π [MHz]' }, showline: true, mirror: true }, yaxis: { title: { text: tAx('Idle time τ [ns]') }, showline: true, mirror: true },
+    hovertemplate: 'Δ=%{x:.3f} ' + UF() + (hasRef ? '<br>ωd/2π=%{customdata:.9f} GHz' : '') + '<br>τ=%{y:.1f} ' + UT() + '<br>P1=%{z:.3f}<extra></extra>',
+  }], layout(`Ramsey chevron, π/2 = ${c.pi2.toFixed(3)} ${UT()}`, {
+    height: 560, xaxis: { title: { text: `Relative detuning Δ/2π [${UF()}]` }, showline: true, mirror: true }, yaxis: { title: { text: tAx('Idle time τ [ns]') }, showline: true, mirror: true },
     // the cut: a dark underlay so the dashed line reads on every colour of the map
     shapes: [{ type: 'line', xref: 'x', yref: 'paper', x0: cutX, x1: cutX, y0: 0, y1: 1, line: { color: 'rgba(7,10,22,0.85)', width: 4 } },
       { type: 'line', xref: 'x', yref: 'paper', x0: cutX, x1: cutX, y0: 0, y1: 1, line: { color: '#2fe0d0', width: 2, dash: 'dash' } }],
@@ -1054,9 +1054,9 @@ function renderCut() {
   let j = 0; c.dets.forEach((d, k) => { if (Math.abs(d - want) < Math.abs(c.dets[j] - want)) j = k; });
   const det = c.dets[j], col = c.cols[j], fit = Q.fitRamsey(c.delays, col, Math.abs(det));
   Plotly.relayout('chevPlot', { 'shapes[0].x0': det, 'shapes[0].x1': det });
-  $('#cutInfo').innerHTML = metric('Selected detuning', `${det >= 0 ? '+' : ''}${det.toFixed(3)} MHz`)
-    + (isFinite(c.refF) ? metric('Corresponding ω<sub>d</sub>/2π', (c.refF + 1e-3 * det).toFixed(9) + ' GHz') : '');
-  const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(c.delays), y: Array.from(col), name: `Ramsey data (Δ = ${det >= 0 ? '+' : ''}${det.toFixed(3)} MHz)`,
+  $('#cutInfo').innerHTML = metric('Selected detuning', `${det >= 0 ? '+' : ''}${det.toFixed(3)} ${UF()}`)
+    + (isFinite(c.refF) ? metric('Corresponding ω<sub>d</sub>/2π', chipF(c.refF + 1e-3 * det).toFixed(9) + ' GHz') : '');
+  const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(c.delays), y: Array.from(col), name: `Ramsey data (Δ = ${det >= 0 ? '+' : ''}${det.toFixed(3)} ${UF()})`,
     line: { color: C.blue, width: 2.2 }, marker: { size: 4 } }];
   if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(c.delays), y: fit.fitCurve, name: 'Ramsey fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
   Plotly.react('rCutPlot', traces, layout('Ramsey trace from a vertical cut of the chevron', {
@@ -1064,13 +1064,13 @@ function renderCut() {
     legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
   }), PLOT_CFG);
   $('#rFit').innerHTML = fit
-    ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, 'ns') + onChip(fit.T2Ns, fit.T2NsErr, 't2')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, 'MHz'))
+    ? metric('Fitted T₂', formatPM(fit.T2Ns, fit.T2NsErr, UT()) + onChip(fit.T2Ns, fit.T2NsErr, 't2')) + metric('Fitted Ramsey fringe frequency', formatPM(fit.freqMHz, fit.freqMHzErr, UF()))
       + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe',
-        `${(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(6)} or ${(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(6)} GHz`) : '')
+        `${chipF(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(CU() ? 9 : 6)} or ${chipF(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(CU() ? 9 : 6)} GHz`) : '')
     : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
   if (fit && isFinite(c.refF)) {
     const err = Math.min(...[det - fit.freqMHz, det + fit.freqMHz].map(d => Math.abs(c.refF + 1e-3 * d - state.qubit.omegaQ)));
-    if (err < 1e-3) ckDone('ramsey', `One of your Ramsey estimates of ω<sub>q</sub> is within 1 MHz of the true value, and the fitted T₂ is ${fit.T2Ns.toFixed(0)} ns.`);
+    if (err < 1e-3) ckDone('ramsey', `One of your Ramsey estimates of ω<sub>q</sub> is within 1 ${UF()} of the true value, and the fitted T₂ is ${fit.T2Ns.toFixed(0)} ${UT()}.`);
   }
 }
 $('#cutDet').addEventListener('change', renderCut);
@@ -1085,8 +1085,8 @@ function renderReveal() {
   $('#revealBox').classList.toggle('on', on);
   if (!on) return;
   $('#revealMetrics').innerHTML = metric('Qubit frequency ω<sub>q</sub>/2π', q.omegaQ.toFixed(3) + ' GHz')
-    + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' MHz')
-    + metric('T₁', q.T1.toFixed(1) + ' ns') + metric('T₂', q.T2.toFixed(1) + ' ns');
+    + metric('Rabi rate Ω<sub>R</sub>/2π', (q.omegaRabi * 1e3).toFixed(2) + ' ' + UF())
+    + metric('T₁', q.T1.toFixed(1) + ' ' + UT()) + metric('T₂', q.T2.toFixed(1) + ' ' + UT());
   // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
   $('#battle').href = arenaUrl(q.T1.toFixed(1));
   $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
@@ -1137,30 +1137,48 @@ if (assigned && initial) {
 syncQuickPulses();
 
 /* ---------------- real qubits from Q-Vault (web/shared/qvault.js) ---------------- */
-// The lab clock for a real qubit. QVault.labQubit keeps f₀₁ exact and runs time TIME_SCALE (1000) times faster, so
-// 1 ns here stands for 1 µs on the chip; QVS.k is that factor in µs per lab-ns (larger only when T₁ hit the lab's cap).
-// While QVS is set, a banner says so above the experiments, time axes name both units, and fitted T₁ and T₂ are
-// converted back to µs next to the paper's value. Editing the qubit by hand (applyFree) or leaving free play clears it.
+// Real-chip units. In the drive's rotating frame the master equation this lab solves (Bloch equations with T₁ and T₂)
+// depends only on the detuning Δ, the Rabi rate Ω_R and the rates 1/T₁, 1/T₂; dividing all of them by s and multiplying
+// every time by s leaves it unchanged. So a run with T₁ = 49 ns, Ω_R/2π = 300 MHz and Δ in MHz is the same calculation as
+// a chip with T₁ = 49 µs, Ω_R/2π = 300 kHz and Δ in kHz, and for a real qubit (QVault.labQubit, s = 1000) the page shows
+// chip units: the numbers stay, ns → µs and MHz → kHz for times, rates and frequency offsets. f₀₁ itself is exact; the
+// lab keeps the counter-rotating terms, which shift the resonance by ≈ Ω_R²/(4f₀₁) (the Bloch–Siegert shift) where the
+// chip's shift is 10⁶ times smaller, and a sweep measures whichever is there. Absolute frequencies are converted with
+// chipF(). QVS.k is µs per lab-ns: 1 unless T₁ hit the lab's 10 µs cap, and then the page converts instead of relabelling.
 var QVS = null;   // var: render functions read it during start-up, before this line runs
 const g4 = v => +(+v).toPrecision(3);
-function tAx(label) { return QVS ? label.replace('[ns]', Math.abs(QVS.k - 1) < 1e-9 ? '[ns] (= µs on the real chip)' : `[ns] (× ${g4(QVS.k)} = µs on the real chip)`) : label; }
+function CU() { return !!QVS && Math.abs(QVS.k - 1) < 1e-3; }      // chip units on
+function UT() { return CU() ? 'µs' : 'ns'; }
+function UF() { return CU() ? 'kHz' : 'MHz'; }
+function chipF(ghz) { return CU() ? QVS.f01x + (ghz - QVS.f01x) / 1000 : ghz; }   // a lab frequency as the chip's
+function tAx(label) {
+  if (CU()) return label.replace('[ns]', '[µs]');
+  return QVS ? label.replace('[ns]', `[ns] (× ${g4(QVS.k)} = µs on the real chip)`) : label;
+}
 function onChip(ns, err, which) {
   if (!QVS || !isFinite(ns)) return '';
-  const paper = which === 't1' ? QVS.t1 : QVS.t2;
-  return `<span class="chipT">= ${formatPM(ns * QVS.k, isFinite(err) ? err * QVS.k : NaN, 'µs')} on the real chip${paper ? ` · the paper: ${g4(paper)} µs${which === 't2' && QVS.kind ? ' (' + QVS.kind + ')' : ''}` : ''}</span>`;
+  const paper = which === 't1' ? QVS.t1 : QVS.t2, pp = paper ? `the paper: ${g4(paper)} µs${which === 't2' && QVS.kind ? ' (' + QVS.kind + ')' : ''}` : '';
+  if (CU()) return pp ? `<span class="chipT">${pp}</span>` : '';
+  return `<span class="chipT">= ${formatPM(ns * QVS.k, isFinite(err) ? err * QVS.k : NaN, 'µs')} on the real chip${pp ? ' · ' + pp : ''}</span>`;
 }
 function tsDraw() {
+  document.querySelectorAll('.u-t').forEach(e => { e.textContent = UT(); });
+  document.querySelectorAll('.u-f').forEach(e => { e.textContent = UF(); });
   const b = $('#tsBanner'); if (!b) return;
   b.hidden = !QVS;
-  ['fT1', 'fT2'].forEach(id => { const l = document.querySelector(`label[for=${id}]`); if (l) { l.dataset.base = l.dataset.base || l.innerHTML; l.innerHTML = l.dataset.base + (QVS ? ' <small>(= µs on the chip)</small>' : ''); } });
   if (!QVS) return;
-  const k = QVS.k * 1000;
-  b.innerHTML = `<b class="big">⏱ Real qubit, clock running ${g4(k)}× faster.</b> 1 ns on every plot here = ${k === 1000 ? '1 µs' : g4(QVS.k) + ' µs'} on the real chip (${QVS.who}).
-    <br>Scaled: T₁, T₂, pulse lengths and idle times. Not scaled: the qubit frequency f₀₁ (${QVS.f01} GHz, exact). Ramsey detunings scale the other way: a 1 MHz detuning here plays the role of ${g4(1000 / k)} kHz on the chip.
-    The Rabi rate is the lab's, not the chip's. Fitted T₁ and T₂ are converted back to µs under each fit.
-    ${k !== 1000 ? `<br>The factor is ${g4(k)}, not ${QVault.TIME_SCALE}, because this qubit's T₁ is longer than the lab's 10 µs limit would allow at ${QVault.TIME_SCALE}×.` : ''}
-    <a href="#" id="tsWhy">Why scale time?</a><span id="tsWhyTxt" hidden> This lab solves the qubit's every GHz oscillation, which takes a few picoseconds per step; a real 100 µs T₁ experiment would need about 10⁸ steps per shot.
-    Running the clock ${QVault.TIME_SCALE}× faster keeps every ratio that shapes the plots (T₂/T₁, how many Rabi flips fit in T₁) while each run takes a moment. Edit any number above to leave the real-qubit clock.</span>`;
+  const why = `<a href="#" id="tsWhy">Why is this exact?</a><span id="tsWhyTxt" hidden> In the frame rotating with the drive, the master equation for a driven, decaying qubit
+    depends only on Δ, Ω<sub>R</sub>, 1/T₁ and 1/T₂. Divide all four by 1000 and multiply every time by 1000, and it is the same equation. This lab
+    therefore solves the chip's own dynamics, on a clock it can afford: every GHz oscillation is still computed, a few picoseconds per step, but over
+    µs-scale runs instead of the ms-scale ones a direct simulation would need (about 10⁸ steps per shot). The qubit frequency f₀₁ is not scaled. Only the fast
+    counter-rotating terms feel that: they shift the resonance by about Ω<sub>R</sub>²/(4f₀₁), which your sweep measures and your calibrations absorb.
+    Edit any number above to return to the lab's own units.</span>`;
+  b.innerHTML = CU()
+    ? `<b class="big">⏱ Real qubit, in real-chip units.</b> Times are in <b>µs</b>; Rabi rates, detunings and fringe frequencies are in <b>kHz</b>, read straight off the plots:
+      a T₁ you fit here compares directly with the paper's (${QVS.who}). f₀₁ = ${QVS.f01} GHz is exact. The frequency-sweep axis stays in the lab's GHz:
+      there, an offset of 1 MHz from f₀₁ stands for 1 kHz on the chip. ${why}`
+    : `<b class="big">⏱ Real qubit, clock running ${g4(QVS.k * 1000)}× faster</b> (not ${QVault.TIME_SCALE}×, because its T₁ is beyond the lab's 10 µs limit at ${QVault.TIME_SCALE}×).
+      Times here are lab ns; fitted T₁ and T₂ are converted to the chip's µs under each fit. ${why}`;
   $('#tsWhy').onclick = e => { e.preventDefault(); $('#tsWhyTxt').hidden = !$('#tsWhyTxt').hidden; };
 }
 // A published transmon runs here with its own frequency and its own T₂/T₁, on a clock 1000× faster than the real chip
@@ -1186,15 +1204,17 @@ function qvQubitLoad(r, s, offline) {
   $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2; $('#fRabi').value = rabi;
   if (getMode() === 'free') applyFree(true); else { $('#mode [data-v="free"]').click(); }
   // the mode switch above runs applyFree() without the flag, which clears the clock: set it after
-  QVS = { who, k: +r.T1_us / L.T1, t1: +r.T1_us, t2, kind: t2 ? (t2r > 0 ? 'Ramsey' : 'echo') : '', f01: g4(r.f01_GHz) }; tsDraw(); renderFreq(); renderTD(); renderRamsey();
+  QVS = { who, k: +r.T1_us / L.T1, t1: +r.T1_us, t2, kind: t2 ? (t2r > 0 ? 'Ramsey' : 'echo') : '', f01: g4(r.f01_GHz), f01x: +L.omegaQ }; tsDraw(); renderFreq(); renderTD(); renderRamsey();
   // the mode switch calls applyFree() without the flag, which hides the note: show it again after
   note.hidden = false;
   try { const u = new URL(location.href); u.searchParams.set('qv', [r.citekey, r.device_id, r.label].filter(Boolean).join('~')); history.replaceState(null, '', u); } catch (e) {}
   const f = v => +(+v).toPrecision(4);
   note.innerHTML = `<b>📚 A real qubit: ${who}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.<br>
     Its own numbers: f₀₁ = <b>${f(r.f01_GHz)} GHz</b>, T₁ = <b>${f(r.T1_us)} µs</b>${t2 ? `, T₂ (${kind}) = <b>${f(t2)} µs</b>` : ''}.
-    Loaded with f₀₁ exact and time running ${QVault.TIME_SCALE}× faster, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns here${t2 ? ` (T₂/T₁ = ${(L.T2 / L.T1).toFixed(2)}, as on the chip)` : ''}.
-    Rabi rate set to ${rabi} MHz, so the π pulse (${fmtG(500 / rabi)} ns) is ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁ here. On the real chip a 20 ns π pulse is about ${fmtG(100 * 0.02 / +r.T1_us, 1)}% of T₁; matching that on this clock would need a drive faster than the qubit itself.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
+    ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? `The page now works in the chip's units (see the banner above the experiments): T₁ = ${L.T1} µs and T₂ = ${L.T2} µs${t2 ? '' : ' (Q-Vault lists no T₂, so T₂ = 2T₁)'}.`
+      : `Time runs ${g4(+r.T1_us / L.T1 * 1000)}× faster here, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns in the lab's units.`}
+    The drive is Ω<sub>R</sub>/2π = ${rabi} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'kHz' : 'MHz'} (π pulse ${fmtG(500 / rabi)} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'µs' : 'ns'}, ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁): a gentle drive.
+    Real chips drive at ~25 MHz (20 ns π pulses), but this lab computes every GHz oscillation, and a MHz drive over a 100 µs decay would take about 10⁸ steps per shot.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
     ${offline ? '<br><i>Q-Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + QVault.sourceHTML(s, r.citekey)}`;
   ql('qvault', { level: 'qubit' });
 }
