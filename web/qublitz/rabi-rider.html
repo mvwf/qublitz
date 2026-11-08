@@ -252,7 +252,7 @@
     qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>T₁+ chips</b> each make T₁ 35 % longer, up to four times where it started, and each is named for a real fix: a Purcell filter
     on the readout line, infrared and magnetic shielding, cleaner surfaces, tantalum films and better packaging. Each closes one place
-    the qubit's energy can leak to, and together, over 25 years, fixes like these took transmon T₁ from nanoseconds to hundreds of
+    the qubit's energy can leak to, and together, since the first superconducting qubit in 1999, fixes like these took T₁ from nanoseconds to hundreds of
     microseconds. The game's 35 % per chip is for play; the real gains came one paper at a time. Red <b>T₁−</b> chips are the other
     direction, real ways T₁ gets worse: a defect drifting into resonance, a light leak, a trapped vortex, a lossy seam in the box. Each
     takes T₁ down by the same factor, to no less than half where it started; dodge them.</p>
@@ -266,7 +266,7 @@
     Measurement gates read every run and then <b>reset</b> it to |0⟩ (a π pulse conditioned on its own outcome, as labs do); green
     reset curtains start a fresh shot. Noise clouds measure the runs that touch them.</p>
   <p><b>Left out, on purpose:</b> detuning, so nothing precesses; pure dephasing (noise that scrambles a run's phase without taking
-    its energy), so the only decay is T₁; heating out of |0⟩, since the fridge is taken as cold; and readout imperfections: every measurement
+    its energy), apart from the noise clouds, which act as a sudden σz measurement, so the only decay is T₁; heating out of |0⟩, since the fridge is taken as cold; and readout imperfections: every measurement
     here is instantaneous and never wrong. The Virtual Qubit Lab adds detuning, decay during the pulses and the shot noise of a finite
     number of measurements.</p>
 </div>

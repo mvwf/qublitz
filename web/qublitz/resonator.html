@@ -592,7 +592,7 @@ const GLOSS = [
   ['Ql', 'Loaded quality factor Q<sub>l</sub>', 'The total: 1/Q<sub>l</sub> = 1/Q<sub>i</sub> + 1/Q<sub>c</sub>. It sets the measured linewidth, κ/2π = f<sub>r</sub>/Q<sub>l</sub>.'],
   ['kappa', 'Linewidth κ', 'The energy decay rate, κ = 2πf<sub>r</sub>/Q<sub>l</sub>. κ/2π is the full width at half maximum of the power response. Photons live 1/κ on average.'],
   ['critical', 'Critical coupling', 'Q<sub>i</sub> = Q<sub>c</sub>: energy is lost inside as fast as it leaks out. In reflection the resonator then absorbs every incoming photon on resonance.'],
-  ['under', 'Under-coupled', 'Q<sub>i</sub> &lt; Q<sub>c</sub>: internal loss dominates the linewidth. The resonance is a small circle that does not reach the origin.'],
+  ['under', 'Under-coupled', 'Q<sub>i</sub> &lt; Q<sub>c</sub>: internal loss dominates the linewidth. The resonance circle is small: diameter Q<sub>l</sub>/Q<sub>c</sub> &lt; ½ for a hanger, and 2Q<sub>l</sub>/Q<sub>c</sub> &lt; 1 in reflection, where it does not enclose the origin.'],
   ['over', 'Over-coupled', 'Q<sub>i</sub> &gt; Q<sub>c</sub>: the coupling dominates. Fast to measure (readout resonators) but Q<sub>i</sub> is hard to pin down.'],
   ['hanger', 'Hanger (notch) geometry', 'A resonator capacitively side-coupled to a through line. You measure S21 and see a dip. Many resonators can share one line.'],
   ['reflection', 'Reflection geometry', 'A resonator at the end of a line, measured in S11 through a circulator or directional coupler.'],
@@ -844,8 +844,11 @@ function renderLook(p) {
   const k = E.MODELS[ex.g].scale * p.Ql / p.Qc;   // diameter of the circle
   const Rg = E.regime(p.Qi, p.Qc, p.phi).key, L = [];
   if (ex.g === 'hanger') {
-    L.push(`On the IQ plane the resonance is a circle that leaves the off-resonance point (1, 0) and comes back. Its diameter is Q<sub>l</sub>/Q<sub>c</sub> = <b>${k.toFixed(3)}</b>: the share of the linewidth that comes from the coupling.`);
-    L.push(`The dip bottoms out at |S21| = 1 − Q<sub>l</sub>/Q<sub>c</sub> = Q<sub>l</sub>/Q<sub>i</sub> = <b>${(1 - k).toFixed(3)}</b> (${db(Math.max(1 - k, 1e-9)).toFixed(1)} dB). A deeper dip means a more over-coupled resonator.`);
+    L.push(`On the IQ plane the resonance is a circle that leaves the off-resonance point (1, 0) and comes back. Its diameter is Q<sub>l</sub>/|Q<sub>c</sub>| = <b>${k.toFixed(3)}</b>: the share of the linewidth that comes from the coupling${Math.abs(p.phi || 0) > 0.05 ? ' when φ = 0 (with φ ≠ 0 the coupling’s share is Q<sub>l</sub> cos φ/|Q<sub>c</sub>|)' : ''}.`);
+    const ph = p.phi || 0, m0 = Math.hypot(1 - k * Math.cos(ph), k * Math.sin(ph));
+    L.push(Math.abs(ph) > 0.05
+      ? `The dip bottoms out at |S21| = |1 − (Q<sub>l</sub>/|Q<sub>c</sub>|)e<sup>iφ</sup>| = <b>${m0.toFixed(3)}</b> (${db(Math.max(m0, 1e-9)).toFixed(1)} dB); for φ = 0 this would be 1 − Q<sub>l</sub>/Q<sub>c</sub> = Q<sub>l</sub>/Q<sub>i</sub>. A deeper dip means a more over-coupled resonator.`
+      : `The dip bottoms out at |S21| = 1 − Q<sub>l</sub>/Q<sub>c</sub> = Q<sub>l</sub>/Q<sub>i</sub> = <b>${(1 - k).toFixed(3)}</b> (${db(Math.max(1 - k, 1e-9)).toFixed(1)} dB). A deeper dip means a more over-coupled resonator.`);
   } else if (ex.g === 'reflection') {
     L.push(`The circle has diameter 2Q<sub>l</sub>/Q<sub>c</sub> = <b>${k.toFixed(3)}</b>. ${Rg === 'over' ? 'It is larger than 1, so it <b>encloses the origin</b> and the phase winds through a full 360°.' : Rg === 'under' ? 'It is smaller than 1, so it <b>does not reach the origin</b> and the phase swings and comes back.' : 'It is about 1, so it <b>passes through the origin</b>: nothing is reflected on resonance.'}`);
     L.push(`From |S11| alone you cannot tell over- from under-coupled: swapping Q<sub>i</sub> and Q<sub>c</sub> gives the same magnitude. Try it with the sliders and watch the phase.`);

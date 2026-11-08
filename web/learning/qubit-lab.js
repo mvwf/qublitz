@@ -13,7 +13,7 @@ if (window.QL) QL.learning({
     { id: 'spectroscopy', text: 'Find a qubit frequency ω<sub>q</sub> from the peak of a drive-frequency sweep, and explain why off-resonant Rabi oscillations are faster and shallower.' },
     { id: 'pi_pulse', text: 'Compute the π and π/2 pulse lengths from a fitted Rabi rate Ω<sub>R</sub>.' },
     { id: 't1', text: 'Extract the energy-relaxation time T₁ from the decay of P(|1⟩) after a π pulse.' },
-    { id: 'ramsey', text: 'Use the Ramsey fringe frequency to correct ω<sub>q</sub>, and read the coherence time T₂ from the fringe envelope (T₂ ≤ 2T₁).' },
+    { id: 'ramsey', text: 'Use the Ramsey fringe frequency to correct ω<sub>q</sub>, and read the coherence time T₂ from the fringe envelope (T₂ ≤ 2T₁). This model has no slow noise, so the Ramsey envelope gives T₂; in a real lab it gives T₂*, which is shorter, and a spin echo recovers T₂.' },
   ],
   howTo: [
     'Keep <b>Mystery qubit</b> selected (or open the link your instructor gave you). The code names your qubit.',
