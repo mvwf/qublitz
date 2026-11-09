@@ -422,7 +422,9 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
   }
 
   // ── reading type (every theme, Classic included) ────────────────────────────────────────────────────────────────
-  // 1. A reading scale: body 16 px, ledes (.sub) 17 px, card text 15 px, hints and notes 14 px.
+  // 1. A reading scale: body 16 px, ledes (.sub) 17 px, card text 15 px, hints and notes 14 px. Paragraphs and list
+  //    items are at most 75 characters wide: max-width becomes min(75ch, the page's own max-width), so a narrower
+  //    column the page chose is kept (game stages, nav and data-qt="keep" are left alone).
   // 2. A floor on what actually renders: text under 13 px is raised to 13 px, and uppercase letter-spaced labels to
   //    12 px. Figures are sized to fit, so math (sub, sup, stacked .fr / .frac fractions), SVG, canvas, Plotly charts
   //    and game stages (.stage) are skipped. Content added later is floored too (a MutationObserver, batched per
@@ -433,12 +435,22 @@ html body { font-size: 16px; }
 html .sub { font-size: 17px; line-height: 1.55; max-width: 68ch; }
 html .card { font-size: 15px; }
 html .hint, html .note { font-size: 14px; }
-html .card th { white-space: normal; }   /* with the floor, a header row may need two lines in a narrow card */`;
+html .card th { white-space: normal; }   /* with the floor, a header row may need two lines in a narrow card */
+html .ql-privacy { margin-inline: auto; }   /* centred, and capped at 75ch below: keep it centred */`;
   (doc.head || html).appendChild(typeCss);
   const QT_SKIP = 'svg,canvas,.js-plotly-plot,.stage,sub,sup,.fr,.frac,[data-qt="keep"]';
   const QT_FIELD = /^(SELECT|TEXTAREA)$/;
   const hasText = el => { for (let n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && n.nodeValue.trim()) return true; return false; };
+  const capped = new WeakSet();
+  function capLine(el) {
+    if (capped.has(el)) return;
+    capped.add(el);
+    if (el.closest('.stage,svg,nav,.qsitebar,[data-qt="keep"]')) return;
+    const mw = root.getComputedStyle(el).maxWidth;
+    el.style.setProperty('max-width', !mw || mw === 'none' ? '75ch' : `min(75ch, ${mw})`);
+  }
   function floorOne(el) {
+    if (el.nodeType === 1 && (el.tagName === 'P' || el.tagName === 'LI')) capLine(el);
     if (el.nodeType !== 1 || el.dataset.qt === 'floor' || /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|OPTION)$/.test(el.tagName)) return;
     const field = QT_FIELD.test(el.tagName) || (el.tagName === 'INPUT' && /^(text|number|search|url|email|tel|)$/.test(el.type || ''));
     if (!field && !hasText(el)) return;
