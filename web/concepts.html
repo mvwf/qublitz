@@ -43,6 +43,8 @@
   .progress{font-size:12.5px;color:var(--muted);margin-top:8px}
   .stage{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
   #svg{display:block;width:100%;height:min(66vh,600px);touch-action:none;user-select:none;-webkit-user-select:none}
+  #svg:focus-visible{outline:3px solid var(--green);outline-offset:-3px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
   @media(max-width:600px){#svg{height:440px}}
   .tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
   .tip{font-size:12.5px;color:var(--muted)}
@@ -78,7 +80,7 @@
     <div id="ask"></div>
   </div>
   <div>
-    <div class="stage"><svg id="svg" role="img" aria-label="Your concept map. Drag concepts to move them; tap one and then another to link them."></svg>
+    <div class="stage"><svg id="svg" tabindex="0" role="group" aria-label="Your concept map. Drag concepts to move them; tap one and then another to link them." aria-describedby="svgKeys"></svg>
       <div class="edgeBox" id="edgeBox" hidden></div></div>
     <div class="tools">
       <span class="lbl">New links</span><select id="relSel" aria-label="Relation for new links"></select>
@@ -88,7 +90,10 @@
       <button id="svgDl" title="Download the map as an image">⬇ Image</button>
       <button class="primary" id="share">🔗 Share my map</button>
     </div>
-    <p class="tip">Drag a concept to move it. Tap one concept, then another, to link them. Tap a link to change or delete it.</p>
+    <p class="tip" id="svgKeys">Drag a concept to move it. Tap one concept, then another, to link them. Tap a link to change or delete it.
+      With the keyboard: Tab to the map, the arrow keys step through the concepts and then the links, Enter picks a concept and then links it
+      to the next one you pick (or opens a link), Shift + arrows move a concept, Esc cancels.</p>
+    <p class="sr" id="mapLive" role="status"></p>
     <p class="msg" id="shareMsg" aria-live="polite"></p>
   </div>
 </div>
@@ -196,10 +201,11 @@
   function render() {
     const svg = $('svg'); let s = '';
     S.edges.forEach((e, i) => { const a = S.nodes.get(e.a), b = S.nodes.get(e.b); if (!a || !b) return;
-      const sel = S.selEdge === i, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const sel = S.selEdge === i || kbShow('e' + i), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       s += `<g data-e="${i}"><line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="transparent" stroke-width="18"/><line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${sel ? '#d9a521' : '#8a9bb0'}" stroke-width="${sel ? 3.5 : 2}"/>` +
         (e.r !== 'related' || sel ? `<text x="${mx}" y="${my - 5}" text-anchor="middle" font-size="11" fill="#5a6b63">${esc(REL[e.r])}</text>` : '') + '</g>'; });
     for (const n of S.nodes.values()) { const c = BY[n.id], bx = nodeBox(n), col = MODCOL[c.module], sel = S.sel === n.id;
+      if (kbShow(n.id)) s += `<rect x="${n.x - bx.w / 2 - 5}" y="${n.y - bx.h / 2 - 5}" width="${bx.w + 10}" height="${bx.h + 10}" rx="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5 3"/>`;
       s += `<g data-n="${n.id}" style="cursor:grab"><rect x="${n.x - bx.w / 2}" y="${n.y - bx.h / 2}" width="${bx.w}" height="${bx.h}" rx="15" fill="${sel ? col : '#fff'}" stroke="${col}" stroke-width="${sel ? 3 : 2}"/>` +
         `<text x="${n.x}" y="${n.y + 4.5}" text-anchor="middle" font-size="12.5" font-weight="600" fill="${sel ? '#fff' : '#1b2a24'}">${esc(c.label)}</text></g>`; }
     if (!S.nodes.size) s = `<text x="${W() / 2}" y="${H() / 2}" text-anchor="middle" font-size="14" fill="#5a6b63">Your map appears here</text>`;
@@ -209,9 +215,47 @@
   }
   // pointer: drag nodes; tap node then node to link; tap an edge to edit it
   let drag = null;
+  // keyboard: a cursor over the concepts, then the links; Enter does what a tap does (same code paths as the pointer)
+  let kb = null, kbOn = false;   // kb: a concept id, or 'e<i>' for link i
+  const kbItems = () => [...S.nodes.keys()].concat(S.edges.map((e, i) => 'e' + i).filter(k => { const e = S.edges[+k.slice(1)]; return S.nodes.has(e.a) && S.nodes.has(e.b); }));
+  function kbShow(k) { return kbOn && kb === k && document.activeElement === $('svg'); }
+  const say = t => { $('mapLive').textContent = ''; setTimeout(() => { $('mapLive').textContent = t; }, 30); };
+  const lab = k => { if (k[0] !== 'e' || S.nodes.has(k)) return BY[k].label; const e = S.edges[+k.slice(1)]; return `Link: ${BY[e.a].label} ${REL[e.r]} ${BY[e.b].label}`; };
+  function tapNode(id) {
+    const n = S.nodes.get(id);
+    if (S.sel && S.sel !== n.id) { remember(); if (link(S.sel, n.id, $('relSel').value)) ev('map_link', { level: 'tap', value: 1 }); S.sel = null; kick(); }
+    else S.sel = S.sel === n.id ? null : n.id;
+    $('edgeBox').hidden = true; S.selEdge = null; render();
+  }
+  $('svg').addEventListener('keydown', e => {
+    const items = kbItems(); if (!items.length) return;
+    let i = items.indexOf(kb);
+    const k = e.key;
+    if (e.shiftKey && /^Arrow/.test(k) && S.nodes.has(kb)) {   // nudge the concept under the cursor
+      const n = S.nodes.get(kb), hw = nodeBox(n).w / 2 + 4, d = 12;
+      n.x = Math.max(hw, Math.min(W() - hw, n.x + (k === 'ArrowLeft' ? -d : k === 'ArrowRight' ? d : 0)));
+      n.y = Math.max(16, Math.min(H() - 16, n.y + (k === 'ArrowUp' ? -d : k === 'ArrowDown' ? d : 0))); n.pin = true;
+    } else if (k === 'ArrowRight' || k === 'ArrowDown') i = (i + 1) % items.length;
+    else if (k === 'ArrowLeft' || k === 'ArrowUp') i = i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length;
+    else if (k === 'Home') i = 0;
+    else if (k === 'End') i = items.length - 1;
+    else if (k === 'Enter' || k === ' ') {
+      if (i < 0) { i = 0; }
+      else if (S.nodes.has(kb)) {
+        const from = S.sel, n0 = S.edges.length; tapNode(kb);
+        say(S.edges.length > n0 ? `Linked ${BY[from].label} ${REL[S.edges[S.edges.length - 1].r]} ${BY[kb].label}.` : S.sel ? `${BY[kb].label} picked. Move to another concept and press Enter to link them.` : 'Pick cancelled.');
+        e.preventDefault(); kbOn = true; return;
+      } else { S.selEdge = +kb.slice(1); S.sel = null; edgeBox(); render(); $('eRel').focus(); e.preventDefault(); return; }
+    } else if (k === 'Escape') { S.sel = null; S.selEdge = null; $('edgeBox').hidden = true; render(); say('Nothing picked.'); return; }
+    else return;
+    e.preventDefault(); kbOn = true; kb = items[Math.max(0, i)]; render();
+    if (!e.shiftKey) say(`${lab(kb)}${S.sel && S.nodes.has(kb) && S.sel !== kb ? `. Enter links it to ${BY[S.sel].label}` : ''}. ${items.indexOf(kb) + 1} of ${items.length}.`);
+  });
+  $('svg').addEventListener('focus', () => { if (kbOn) render(); });
+  $('svg').addEventListener('blur', () => render());
   const pt = e => { const r = $('svg').getBoundingClientRect(); return { x: (e.clientX - r.left) * W() / r.width, y: (e.clientY - r.top) * H() / r.height }; };
   $('svg').addEventListener('pointerdown', e => {
-    const g = e.target.closest('[data-n]'), ge = e.target.closest('[data-e]');
+    kbOn = false; const g = e.target.closest('[data-n]'), ge = e.target.closest('[data-e]');
     if (g) { const n = S.nodes.get(g.dataset.n), p = pt(e); drag = { n, dx: n.x - p.x, dy: n.y - p.y, moved: false, x0: e.clientX, y0: e.clientY }; n.pin = true; $('svg').setPointerCapture(e.pointerId); return; }
     if (ge) { S.selEdge = +ge.dataset.e; S.sel = null; edgeBox(); render(); return; }
     S.sel = null; S.selEdge = null; $('edgeBox').hidden = true; render();
@@ -222,9 +266,7 @@
     if (!drag) return; const n = drag.n, moved = drag.moved; drag = null;
     if (moved) return;   // stays pinned where it was dropped
     n.pin = false;
-    if (S.sel && S.sel !== n.id) { remember(); if (link(S.sel, n.id, $('relSel').value)) ev('map_link', { level: 'tap', value: 1 }); S.sel = null; kick(); }
-    else S.sel = S.sel === n.id ? null : n.id;
-    $('edgeBox').hidden = true; S.selEdge = null; render();
+    tapNode(n.id);
   });
   function edgeBox() {
     const e = S.edges[S.selEdge]; if (!e) return;
@@ -233,8 +275,9 @@
       <button id="eFlip" title="Swap the direction">⇄</button><button id="eDel">Delete link</button><button id="eDone">Done</button>`;
     $('eRel').onchange = ev2 => { remember(); e.r = ev2.target.value; render(); };
     $('eFlip').onclick = () => { remember(); [e.a, e.b] = [e.b, e.a]; edgeBox(); render(); };
-    $('eDel').onclick = () => { remember(); S.edges.splice(S.selEdge, 1); S.selEdge = null; box.hidden = true; render(); kick(); };
-    $('eDone').onclick = () => { S.selEdge = null; box.hidden = true; render(); };
+    const back = () => { if (box.contains(document.activeElement)) $('svg').focus(); };   // keep keyboard users on the map
+    $('eDel').onclick = () => { remember(); S.edges.splice(S.selEdge, 1); S.selEdge = null; back(); box.hidden = true; kb = null; render(); kick(); };
+    $('eDone').onclick = () => { S.selEdge = null; back(); box.hidden = true; render(); };
   }
 
   // ── toolbar ──
