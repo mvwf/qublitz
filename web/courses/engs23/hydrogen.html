@@ -191,7 +191,7 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
       <select id="atomSel" style="width:100%"><option value="H">Hydrogen ¹H</option><option value="D">Deuterium ²H</option><option value="T">Tritium ³H</option>
         <option value="He">Helium ion ⁴He⁺ (Z = 2)</option><option value="Li">Lithium ion ⁷Li²⁺ (Z = 3)</option><option value="mystery">Mystery atom: which one is it?</option></select></div>
     <div class="field"><label for="lam">Wavelength (vacuum) <b id="lamTxt"></b></label>
-      <input type="range" id="lamSlider" min="0" max="1000" step="1">
+      <input type="range" id="lamSlider" aria-label="Wavelength (vacuum)" min="0" max="1000" step="1">
       <div class="row"><input type="number" id="lam" step="0.001"> <span class="lbl">nm</span>
         <button id="snap" title="Tune exactly onto the nearest allowed line">Snap to line</button></div></div>
     <div class="field"><label for="det">Fine detuning <b id="detTxt"></b></label><input type="range" id="det" min="-100" max="100" step="0.1" value="0"></div>

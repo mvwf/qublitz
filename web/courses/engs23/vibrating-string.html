@@ -104,7 +104,7 @@
   <canvas id="fretboard" data-retro-ink height="150"></canvas>
   <div class="row tight" style="margin-top:6px">
     <label class="lbl" style="min-width:fit-content">Detune</label>
-    <input id="detune" type="range" min="-50" max="50" step="1" value="0" style="flex:1;max-width:340px">
+    <input id="detune" aria-label="Detune" type="range" min="-50" max="50" step="1" value="0" style="flex:1;max-width:340px">
     <span class="val" id="detv" style="min-width:120px">0 cents · in tune</span>
     <button id="retune">Reset tuning</button>
     <span class="muted" style="font-size:12px">Tuning is dialed in — nudge to go flat or sharp.</span>
@@ -122,7 +122,7 @@
   <h2>Initial shape (plucked, released from rest)</h2>
   <div class="row tight" id="plkRow">
     <label class="lbl" style="min-width:74px">Bump position</label>
-    <input id="pr" type="range" min="0.05" max="0.95" step="0.01" value="0.5" style="flex:1;max-width:360px">
+    <input id="pr" aria-label="Bump position" type="range" min="0.05" max="0.95" step="0.01" value="0.5" style="flex:1;max-width:360px">
     <span class="val" id="pv">0.50</span>
   </div>
   <div class="row tight">
@@ -132,7 +132,7 @@
     <button data-pre="clear">Clear</button>
     <span style="width:14px"></span>
     <label class="lbl" style="min-width:fit-content">Pure mode</label>
-    <select id="puremode" style="font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:7px"></select>
+    <select id="puremode" aria-label="Pure mode" style="font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:7px"></select>
     <button id="puremodeset" class="primary">Set</button>
     <span class="muted" style="font-size:12px">a single standing wave</span>
   </div>
@@ -153,17 +153,17 @@
     </div>
     <div class="row tight">
       <label class="lbl">Animation speed</label>
-      <input id="speed" type="range" min="0.05" max="1.2" step="0.01" value="0.3" style="flex:1">
+      <input id="speed" aria-label="Animation speed" type="range" min="0.05" max="1.2" step="0.01" value="0.3" style="flex:1">
     </div>
     <div class="row tight">
       <label class="lbl">Amp gain</label>
-      <input id="gain" type="range" min="-40" max="40" step="0.5" value="0" style="flex:1">
+      <input id="gain" aria-label="Amp gain" type="range" min="-40" max="40" step="0.5" value="0" style="flex:1">
       <span class="val" id="gdb" style="min-width:48px">0 dB</span>
       <span class="muted" style="font-size:12px">attenuate ← 0 dB → overdrive</span>
     </div>
     <div class="row tight">
       <label class="lbl">Pickup position</label>
-      <input id="pk" type="range" min="0.02" max="0.5" step="0.005" value="0.09" style="flex:1">
+      <input id="pk" aria-label="Pickup position" type="range" min="0.02" max="0.5" step="0.005" value="0.09" style="flex:1">
       <span class="val" id="pkv" style="min-width:210px">0.090 L from the bridge · x = 0.910 L</span>
     </div>
     <p class="legend" style="margin-top:2px">The ticks on each string are the nodes of the harmonics it carries (the bars below), small
