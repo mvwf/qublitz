@@ -182,7 +182,14 @@
     for (let i = 0; i < s.N; i++) { const p = s.re[i] * s.re[i] + s.im[i] * s.im[i]; if (p > (tol || 1e-9)) { let k = ''; for (let q = 0; q < s.n; q++) k += (i >> q) & 1; out.push({ i, ket: k, re: s.re[i], im: s.im[i], p }); } }
     return out;
   }
-  function rng(seed) { let x = (seed >>> 0) || 0x9e3779b9; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+  // xorshift32, seeded through a multiplicative hash and warmed up: a raw small seed (1, 2, 3, ...) would make the first
+  // draws tiny, so every first measurement would come out 1 whatever its probability.
+  function rng(seed) {
+    let x = (Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b) >>> 0) || 0x9e3779b9;
+    const next = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+    for (let i = 0; i < 8; i++) next();
+    return next;
+  }
 
   // ---- classical codes (Girvin §2) ----
   const binom = (n, k) => { let r = 1; for (let j = 1; j <= k; j++) r = r * (n - k + j) / j; return r; };

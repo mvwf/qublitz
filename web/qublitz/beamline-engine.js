@@ -15,7 +15,7 @@
  *   mirror (/ or \)  turns the beam by 90°. In the game the pulse is otherwise unchanged. A real reflection adds
  *                    optical phase (π for a metal mirror), and so does every extra wavelength of path; the game
  *                    takes those path phases as calibrated out, so only the laser and phase plates set φ.
- *   phase plate      delays the drive by a quarter period: φ → φ + 90°, so an x rotation becomes a y rotation.
+ *   phase plate      shifts the drive phase by a quarter period: φ → φ + 90°, so an x rotation becomes a y rotation.
  *   attenuator       −6 dB: halves the field amplitude Ω, so the same pulse length carries half the area θ.
  *
  * Simplifications, stated on the page too: the beam does not lose strength or spread as it travels or passes a
@@ -166,7 +166,7 @@
       lasers: [{ x: 0, y: 2, dir: 0 }], qubits: [{ x: 5, y: 2, start: '|0⟩', target: '|+⟩' }],
       inv: { atten: 1, phase: 1 }, par: { pieces: 2, fires: 1 },
       solution: [{ x: 2, y: 2, type: 'atten' }, { x: 3, y: 2, type: 'phase' }],
-      brief: 'Same P(1) = ½, different state: |+⟩. A <b>phase plate</b> delays the drive by a quarter period. Which axis does the qubit turn about then?',
+      brief: 'Same P(1) = ½, different state: |+⟩. A <b>phase plate</b> shifts the drive phase by a quarter period. Which axis does the qubit turn about then?',
       learn: 'The drive phase sets the rotation axis: phase 0 turns about x, a quarter period later about y. A π/2 pulse about y takes |0⟩ to |+⟩, while about x it gave |−i⟩. Same P(1), different relative phase.' },
     { id: 'spectator', title: 'Leave it alone', w: 7, h: 4,
       lasers: [{ x: 0, y: 1, dir: 0 }],

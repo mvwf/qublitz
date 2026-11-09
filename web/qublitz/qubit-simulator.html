@@ -212,7 +212,8 @@
 
 <div class="card depthCard" data-depth="engineer+">
   <h2>🔧 Teaching numbers and real numbers</h2>
-  <p>This lab's qubits are built to be quick to simulate, so a few numbers are far from a real transmon. Know which, before you compare:</p>
+  <p>This lab's <b>practice</b> qubits are built to be quick to simulate, so a few numbers are far from a real transmon. Know which, before you compare.
+    A mystery or assigned code loads a real transmon from Q-Vault instead, in chip units and with the paper's own T₂, so this table does not apply to it:</p>
   <table class="realT">
     <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons (live from Q-Vault)</th><th>why the lab differs</th></tr>
     <tr><td>frequency ω<sub>q</sub>/2π</td><td>4–6 GHz</td><td>a few GHz<br><span data-qv-real="transmon.f01"></span></td><td>the same: the lab's band is chosen to match</td></tr>
@@ -1230,9 +1231,11 @@ function tsDraw() {
   if (!QVS) return;
   const why = `<a href="#" id="tsWhy">Why is this exact?</a><span id="tsWhyTxt" hidden> In the frame rotating with the drive, the master equation for a driven, decaying qubit
     depends only on Δ, Ω<sub>R</sub>, 1/T₁ and 1/T₂. Divide all four by 1000 and multiply every time by 1000, and it is the same equation. This lab
-    therefore solves the chip's own dynamics, on a clock it can afford: every GHz oscillation is still computed, a few picoseconds per step, but over
+    therefore solves the chip's own rotating-frame dynamics, on a clock it can afford: every GHz oscillation is still computed, a few picoseconds per step, but over
     µs-scale runs instead of the ms-scale ones a direct simulation would need (about 10⁸ steps per shot). The qubit frequency f₀₁ is not scaled. Only the fast
-    counter-rotating terms feel that: they shift the resonance by about Ω<sub>R</sub>²/(4f₀₁), which your sweep measures and your calibrations absorb.
+    counter-rotating terms feel that: they shift the resonance by about Ω<sub>R</sub>²/(4f₀₁) (the Bloch–Siegert shift), and because f₀₁ is not scaled this
+    shift reads 1000× larger in chip units than the real chip's (kHz here where the chip has Hz). Treat it as a lab artefact that your calibrations absorb; it does
+    not touch T₁, T₂, Ω<sub>R</sub> or the detuning, which is why the rest is exact.
     Edit any number above to return to the lab's own units.</span>`;
   b.innerHTML = QVS.mystery
     ? `<b class="big">⏱ A real qubit, in real-chip units.</b> Times are in <b>µs</b>; Rabi rates, detunings and fringe frequencies are in <b>kHz</b>, so the T₁ and T₂ you fit

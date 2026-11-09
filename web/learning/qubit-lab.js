@@ -51,6 +51,6 @@ if (window.QL) QL.learning({
       q: 'A mystery qubit has T₁ = 150 ns and no extra (pure) dephasing. What envelope decay time T₂ should the Ramsey fit give?',
       choices: ['75 ns', '150 ns', '300 ns', 'Any value: T₂ is unrelated to T₁'],
       answer: 2,
-      explain: 'Energy relaxation alone destroys the coherence at half its rate, so T₂ ≤ 2T₁, with T₂ = 2T₁ = 300 ns when there is no pure dephasing (the model the mystery qubits use). In Free play you can set T₂ lower to add pure dephasing.' },
+      explain: 'Energy relaxation alone destroys the coherence at half its rate, so T₂ ≤ 2T₁, with T₂ = 2T₁ = 300 ns when there is no pure dephasing (the model the practice qubits use; a real qubit loaded from Q-Vault keeps the paper's own T₂). In Free play you can set T₂ lower to add pure dephasing.' },
   ],
 });

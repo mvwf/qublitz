@@ -464,6 +464,14 @@ function predict(host, itemId, opts = {}) {
   return api;
 }
 const ck = { done:new Set(), started:false };
+// Why a published chain cannot be loaded into the five rows: a stage or value the paper does not state, or an attenuator
+// on a stage the rows do not have (room temperature, the 100 mK cold plate, the sample holder).
+function qvWhyNot(c) {
+  if (c.bad) return '<small title="The paper does not state the stage or the attenuation of every attenuator">?</small>';
+  const extra = [...new Set(c.parts.map(p => p.stage).filter(st => !['50K', '4K', 'still', 'mxc'].includes(st)))];
+  const names = extra.map(st => STAGE_SHORT[st] || st).join(', ');
+  return `<small title="It has an attenuator at ${names}, a stage the rows above do not include">${extra.map(st => STAGE_SHORT[st] || st).join('/')}</small>`;
+}
 // Two predict-then-check questions, one after the other: the bare line, then 60 dB on the 4 K plate.
 let pq = predict('#pqFridge', 'room', { then:'Locked in. Now press <b>No attenuators</b> (or set every attenuator to 0 dB) and read n<sub>eff</sub> at the MXC.', onDone:()=>nextPq() });
 let pqStage = pq.open ? 'room' : null;
@@ -534,7 +542,7 @@ function qvRender(){
       const s = QVS.src[c.citekey], url = QV.doiURL(s);
       return `<tr class="${n < mine ? 'better' : ''}"><td>${url ? `<a href="${url}" target="_blank" rel="noopener">${QV.cite(s, c.citekey)}</a>` : QV.cite(s, c.citekey)}</td><td>${c.role.replace('_', ' ')}${c.base_mK ? `<br><small>base ${c.base_mK} mK</small>` : ''}</td>
         <td>${c.parts.map(p => `${STAGE_SHORT[p.stage] || p.stage} ${p.dB}${p.count > 1 ? '×' + p.count : ''}`).join(' · ')}</td><td>${c.total} dB</td><td><b>${sci(n)}</b></td>
-        <td>${c.mappable ? `<button data-qv="${i}" title="Load this wiring into the rows above">Load</button>` : '<small title="It has an attenuator on the 100 mK cold plate, which the rows above do not include">CP</small>'}</td></tr>`; }).join('')}</tbody></table></div>
+        <td>${c.mappable ? `<button data-qv="${i}" title="Load this wiring into the rows above">Load</button>` : qvWhyNot(c)}</td></tr>`; }).join('')}</tbody></table></div>
     <p class="hint">Stage temperatures are this page's (cold plate 100 mK, mixing chamber at the paper's stated base temperature when given). Only
       attenuators are counted; filters, isolators and cable loss are not. ${QV.NOTE} Data locations are on each paper's Q-Vault page.</p>`;
 }

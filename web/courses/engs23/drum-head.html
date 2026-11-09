@@ -1068,7 +1068,7 @@ if (window.QUBLITZ_STANDALONE) {
   /* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ----------
      Each check reads the page's own state (drum-engine.js). Nodal circle of (2,0): r = j01/j02 a = 2.4048/5.5201 a = 0.436 a.
      A centre strike projects only onto n = 0 (100 % at r = 0, 89 % at r = 0.04 a with the 0.08 a mallet); at r ≥ 0.8 a
-     the n = 0 row keeps about 7 %. Drum partials 1, 1.593, 2.136, 2.295 … ν10 are Bessel-zero ratios, not integers. */
+     the n = 0 row keeps about 5 to 6 %. Drum partials 1, 1.593, 2.136, 2.295 … ν10 are Bessel-zero ratios, not integers. */
   const chSel=(...want)=> src==='modes' && sel.length===want.length && want.every(([m,n],i)=>sel[i][0]===m&&sel[i][1]===n);
   const chN0=()=>{ if(src!=='strike'||!strikeAt) return 0; const sh=energyShares(); let s=0; modes.forEach((md,i)=>{ if(md.n===0) s+=sh[i]; }); return s; };
   let chHeardDrum=false, chHeardHarm=false;
@@ -1086,7 +1086,7 @@ if (window.QUBLITZ_STANDALONE) {
       hint:'A centre blow is the same at every angle, so it cannot excite modes with nodal diameters (n ≥ 1). Use View → top to aim; within about 0.04 a of the centre works.',
       check:()=> chN0()>=0.85 },
     { id:'rim', text:'Now strike <b>near the rim</b> (r ≥ 0.8 a): watch the energy spread into the n ≥ 1 tiles.',
-      hint:'Off centre, the blow has a cos nθ part for every n, so modes with nodal diameters ring too. Near the rim the n = 0 row keeps only about 7 %.',
+      hint:'Off centre, the blow has a cos nθ part for every n, so modes with nodal diameters ring too. Near the rim the n = 0 row keeps only about 5 to 6 %.',
       check:()=> src==='strike' && strikeAt && strikeAt.rho>=0.8 && chN0()<0.15 },
     { id:'inharmonic', text:'After a strike, press <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b>. Which one has a clear pitch?',
       hint:'The drum rings at 1, 1.59, 2.14, 2.30, … ν<sub>10</sub>: Bessel-zero ratios, not whole numbers, so it sounds like a thud. Re-tuned to 1, 2, 3, … it sounds like a pitched note.',

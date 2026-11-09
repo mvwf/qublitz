@@ -25,7 +25,7 @@ import plotly.graph_objects as go
 def _bloch_sphere_section():
     exp = slider(r'$<\sigma_z>$', -1.0 ,1.0 , 1.0, 0.01)
     phi = slider(r'$\phi$ (rad)', 0.0,2*np.pi, 0.0, 0.01)
-    rho = (exp-1)*np.pi/2
+    rho = np.arccos(np.clip(exp, -1.0, 1.0))  # polar angle: <sigma_z> = cos(theta)
     #s = gates.rz(rho)*gates.rx(phi)*basis(2,0)
     u, v = np.mgrid[0:2*np.pi:20j, np.pi:0:10j]
     x_sphere = np.cos(u) * np.sin(v)
@@ -135,8 +135,9 @@ def _resonator_drive_sweep_section():
     x=1
 ))
 
-    phig = np.arctan((5/kappa)*((wd-chi)))
-    phie = np.arctan((5/kappa)*((wd+chi)))
+    # A Lorentzian response of linewidth kappa (FWHM) has phase arctan(2 (omega - omega_0) / kappa).
+    phig = np.arctan((2/kappa)*((wd-chi)))
+    phie = np.arctan((2/kappa)*((wd+chi)))
     fig_phase = go.Figure(data=[
     go.Scatter(x=wd, y=phig, mode = 'lines', name = '|g>', marker = dict(color = 'blue')),
     go.Scatter(x=wd, y=phie, mode = 'lines', name = '|e>', marker = dict(color = 'red'))])
@@ -152,7 +153,7 @@ def _resonator_drive_sweep_section():
                 mode = 'markers',
                name='Phase at ωd=ωr')
     # add annotation
-    fig_phase.update_layout(title='Phase of Resonator Output',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='Φ/π (rad)',
+    fig_phase.update_layout(title='Phase of Resonator Output',xaxis_title='(ωd-ωr)/2π (GHz)',yaxis_title='phase Φ (rad)',
                             legend=dict(
     orientation="h",
     yanchor="bottom",
@@ -237,11 +238,12 @@ def main():
     ''')
     header('Quantum Mechanics in Practice: Experimental Setup')
     markdown('''
-    In quantum mechanics, measurement typically collapses the qubit's state.
-    To minimize this disturbance, a **quantum non-demolition** approach is preferred.
-    A resonator helps perform a QND measurement by coupling indirectly to the qubit,
-    allowing the qubit state to influence the properties of the resonator without
-    directly collapsing the qubit state immediately.
+    A measurement projects the qubit onto one of the eigenstates of what is measured. A
+    **quantum non-demolition (QND)** measurement of $\\sigma_z$ still projects the qubit onto
+    $|0\\rangle$ or $|1\\rangle$, but it leaves that outcome undisturbed, so measuring again gives
+    the same answer and the qubit is not kicked out of its computational states. Dispersive readout
+    through a resonator is QND in this sense: the qubit state shifts the resonator frequency, the
+    resonator is probed, and the qubit's $\\sigma_z$ commutes with the interaction.
 
 
     We can use a cavity with an infinite, discrete number of photons (energy levels) like the one shown below
@@ -260,24 +262,26 @@ def main():
     image("images/Zurich_Cavity.png",caption = "Quantum Technology & Computing. IBM Research - Zurich, Quantum technology & computing. (2023). https://www.zurich.ibm.com/st/quantum/index.html" )
 
     markdown('''
-            This resonator, coupled to the qubit with a Josephson Junction, can read out the qubit's state if we time
-            evolve the whole system. We can show a schematic of the equivalent circuit with the qubit in black, 
-            resonator in light blue, and the Josephson Junction in red:''')
+            This resonator, coupled capacitively to the qubit, can read out the qubit's state if we time
+            evolve the whole system. The Josephson junction is the qubit's nonlinear inductor, not the coupler. The
+            schematic of the equivalent circuit shows the qubit in black, the resonator in light blue, and the
+            Josephson junction in red:''')
     
     image("images/QRC.png",caption = "Kerman, Andrew. (2013). Quantum information processing using quasiclassical electromagnetic interactions between qubits and electrical resonators. New Journal of Physics. 15. 10.1088/1367-2630/15/12/123011.")
 
     markdown('''
-            This circuit is used to map the discrete infinite energy levels of a resonator to the lowest two energy levels of a Qubit, or a
-            **Two Level System (TLS)**. Since the both the Qubit and the Resonator
-            has multiple energy storing elements (Capacitance and Inductance), we can think of them
-            as harmonic oscillators with a cosine potential:
+            This circuit couples the evenly spaced ladder of resonator levels to the lowest two levels of the qubit, which
+            we treat as a **two-level system**. Both store energy in a capacitance and an inductance, so both are
+            oscillators. The resonator's inductor is linear, giving a quadratic potential and evenly spaced levels; the
+            qubit's Josephson junction gives a cosine potential in the superconducting phase instead:
              ''')
     
     image("images/cospotential.png",caption = "Aerts, Diederik & Beltran, Lester. (2020). Quantum Structure in Cognition: Human Language as a Boson Gas of Entangled Words. Foundations of Science. 25. 10.1007/s10699-019-09633-4. ")
 
     markdown(''' 
-    In the measurement of Superconducting Qubits, the oscillator is actually anharmonic (commonly referred to as Morse), which means that the potential
-    is not perfectly quadratic and the discrete energy levels are not evenly spaced. The potential is similar to a damped spring with some separation **x** and energy levels $T_n$:
+    Because the cosine is not a parabola, the qubit is an anharmonic oscillator: its levels are not evenly spaced, and
+    that is what lets us address the lowest two alone. The picture below is the textbook example of an anharmonic
+    potential (a molecular bond) with unevenly spaced levels; the transmon's cosine well behaves the same way near its bottom:
 ''')
     
     image("images/anharmonic.png",caption = "Jang, S. (2023). Harmonic Oscillator and Vibrational Spectroscopy. In S. J. Jang (Ed.), Quantum Mechanics for Chemistry. Springer International Publishing. https://doi.org/10.1007/978-3-031-30218-3_3")
@@ -295,7 +299,8 @@ def main():
              These terms are described using the raising and lowering operators for a qubit:
              ''')
     
-    latex(r'\sigma_+ = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix} \text{, and } \sigma_- = \begin{bmatrix}0 & 0 \\ 1 & 0 \end{bmatrix}')
+    markdown(r'With $\ket{0} = [1, 0]^T$ the ground state, the raising operator $\sigma_+ = \ket{1}\bra{0}$ takes the qubit from ground to excited and $\sigma_- = \ket{0}\bra{1}$ brings it back:')
+    latex(r'\sigma_+ = \begin{bmatrix} 0 & 0 \\ 1 & 0 \end{bmatrix} \text{, and } \sigma_- = \begin{bmatrix}0 & 1 \\ 0 & 0 \end{bmatrix}')
 
     markdown(r'The raising ($a^{\dagger}$) and lowering ($a$) operators for a resonator with **N** possible levels are as follows:')
 
@@ -388,7 +393,8 @@ def main():
 
     markdown('Starting off, we have Hamiltonian terms which describe the dynamics of the qubit and resonator by themselves:')
 
-    latex(r'H_q = \hbar\omega_q\frac{\sigma_z}{2}\text{ , and } H_r = \hbar\omega_ra^{\dagger}{a}')
+    markdown(r'The minus sign puts the ground state $\ket{0} = [1,0]^T$ (where $\sigma_z = +1$) at the lower energy $-\hbar\omega_q/2$:')
+    latex(r'H_q = -\hbar\omega_q\frac{\sigma_z}{2}\text{ , and } H_r = \hbar\omega_ra^{\dagger}{a}')
 
     markdown(r'''Where $\omega_q$ and $\omega_r$ are the frequencies which the qubit and the resonator are built to oscillate at.
              Next, we have a term which we call the "Jaynes-Cummings Hamiltonian". This term describes

@@ -1032,14 +1032,15 @@ function sweepScore(cls, dcls, nErr) {
 }
 function rate(o) { return o.n ? o.fail / o.n : 0; }
 function verdictText() {
-  const sw = G.sweep, you = rate(sw.you), p = sw.p;
-  return sw.you.n < 5 ? '' : you < p ? `Your logical failure rate, ${(100 * you).toFixed(1)}% per round, is below the bare-qubit rate p = ${(100 * p).toFixed(1)}%: encoding helped.` :
-    `Your logical failure rate, ${(100 * you).toFixed(1)}% per round, is above p = ${(100 * p).toFixed(1)}%: at this noise level the encoded qubit did worse than a bare one. Try a lower p or a bigger code.`;
+  // A bare qubit under X-and-Z noise fails with 1 - (1 - p)^2, not p: compare with the same noise model the rounds use.
+  const sw = G.sweep, you = rate(sw.you), p = sw.p, bare = Q.bareRate(p, sw.noise, 1);
+  return sw.you.n < 5 ? '' : you < bare ? `Your logical failure rate, ${(100 * you).toFixed(1)}% per round, is below the bare-qubit rate ${(100 * bare).toFixed(1)}% (p = ${(100 * p).toFixed(1)}% under this noise): encoding helped.` :
+    `Your logical failure rate, ${(100 * you).toFixed(1)}% per round, is above the bare-qubit rate ${(100 * bare).toFixed(1)}%: at this noise level the encoded qubit did worse than a bare one. Try a lower p or a bigger code.`;
 }
 function drawStats() {
   const sw = G.sweep; if (!sw) return;
   $('stats').innerHTML = [['Rounds (incl. quiet)', sw.you.n], ['Score', sw.score], ['Your logical failures', `${sw.you.fail} (${(100 * rate(sw.you)).toFixed(1)}%)`],
-    ['Decoder on the same rounds', `${sw.dec.fail} (${(100 * rate(sw.dec)).toFixed(1)}%)`], ['Bare qubit fails with', `p = ${(100 * sw.p).toFixed(1)}%`], ['Quiet / hidden rounds', `${sw.quiet} / ${sw.hidden}`]]
+    ['Decoder on the same rounds', `${sw.dec.fail} (${(100 * rate(sw.dec)).toFixed(1)}%)`], ['Bare qubit fails with', `${(100 * Q.bareRate(sw.p, sw.noise, 1)).toFixed(1)}% (p = ${(100 * sw.p).toFixed(1)}%)`], ['Quiet / hidden rounds', `${sw.quiet} / ${sw.hidden}`]]
     .map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
   $('statNote').innerHTML = `Quiet rounds had no lit lamps and needed no work. Hidden rounds were undetectable logical errors (weight ≥ d), which no decoder can stop. ${verdictText()}`;
 }
