@@ -480,20 +480,26 @@ html .card th { white-space: normal; }   /* with the floor, a header row may nee
   const TOUCH = !!(root.matchMedia && root.matchMedia('(pointer: coarse)').matches);
   const touchCss = doc.createElement('style'); touchCss.id = 'retro-touch-css';
   touchCss.textContent = `
+/* 24 px minimum targets on every screen (WCAG 2.2 AA) for the shared chrome. Heights only: a min-width on every button
+   would replace flex's min-width:auto and squeeze tab rows (Resonator's) below their text. */
+html .qsitebar a, html a.back, html a#back, html a.gd-entry { display: inline-flex; align-items: center; min-height: 24px; }
+html summary, html select, html input[type=range], html .ql-ch-foot button { min-height: 24px; }
+html summary { box-sizing: border-box; }
 @media (pointer: coarse) {
   button, .btn, select, input[type=number], input[type=text], input[type=search], input[type=url] { min-height: 40px; }
   .seg button, .tab, .chip { min-height: 40px; }
   input[type=range] { min-height: 32px; }
   input[type=checkbox], input[type=radio] { width: 24px; height: 24px; vertical-align: middle; }
-  .qsitebar a, a.back, a#back { display: inline-block; padding: 8px 0; }   /* text links that stand alone get a finger-sized target */
-  .rt-theme { height: 36px; }
+  /* the same chrome, the theme button and "More" get 40 px on touch screens (text links that stand alone included) */
+  html .qsitebar a, html a.back, html a#back, html a.gd-entry, html .qv-real a, html summary, html .ql-depth select, html .rt-more { min-height: 40px; }
+  html .rt-theme { min-height: 40px; min-width: 40px; justify-content: center; }
   button { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .pad button, .ctrl button, .stagebtn { touch-action: none; }   /* hold-to-drive buttons: a slight drift must not turn into a scroll */
   .js-plotly-plot .plotly .modebar-btn { padding: 6px 4px; }
 }
 .rt-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .rt-more { display: inline-block; margin: 0 0 10px; font: 600 13px Helvetica, Arial, sans-serif; background: none; border: 0;
-  padding: 6px 0; color: inherit; text-decoration: underline; cursor: pointer; min-height: 0; }
+  padding: 6px 0; color: inherit; text-decoration: underline; cursor: pointer; min-height: 24px; }
 .rt-more[hidden] { display: none; }`;
   (doc.head || html).appendChild(touchCss);
   if (TOUCH) {
