@@ -123,7 +123,7 @@
     </div>
     <div class="row tight">
       <label class="lbl">Slow motion</label>
-      <input id="speed" type="range" min="0.02" max="1" step="0.01" value="0.15" style="flex:1">
+      <input id="speed" aria-label="Slow motion" type="range" min="0.02" max="1" step="0.01" value="0.15" style="flex:1">
       <span class="val" id="speedv" style="min-width:150px">0.15 T₁₀ per second</span>
     </div>
     <div class="row tight" id="strikeRow">
@@ -135,10 +135,10 @@
     </div>
     <div class="row tight">
       <label class="lbl">Pickup at <span class="mvar">r</span></label>
-      <input id="pkr" type="range" min="0" max="0.95" step="0.01" value="0" style="width:110px">
+      <input id="pkr" aria-label="Pickup at r" type="range" min="0" max="0.95" step="0.01" value="0" style="width:110px">
       <span class="val" id="pkrv" style="min-width:44px">0.00 a</span>
       <label class="lbl">θ</label>
-      <input id="pkt" type="range" min="0" max="360" step="1" value="0" style="width:110px">
+      <input id="pkt" aria-label="Pickup at θ" type="range" min="0" max="360" step="1" value="0" style="width:110px">
       <span class="val" id="pktv" style="min-width:34px">0°</span>
       <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:3px 5px">
         <option value="pos" selected>senses position</option><option value="vel">senses velocity</option></select>
@@ -181,7 +181,7 @@
     <div class="row tight">
       <button id="sync">Start them together (t = 0)</button>
       <label class="lbl">Window</label>
-      <input id="win" type="range" min="1" max="8" step="0.5" value="3" style="width:140px">
+      <input id="win" aria-label="Window" type="range" min="1" max="8" step="0.5" value="3" style="width:140px">
       <span class="val" id="winv" style="min-width:60px">3 T₁₀</span>
     </div>
     <div class="row tight" style="margin-top:6px">

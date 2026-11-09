@@ -92,7 +92,7 @@ fundamental has turned its phase once. With that fixed, the contrast between the
   <h2>Controls</h2>
   <div class="row">
     <label class="lbl">Initial shape u(x,0)</label>
-    <select id="preset">
+    <select id="preset" aria-label="Initial shape u(x,0)">
       <option value="gauss" selected>Localized bump (Gaussian)</option>
       <option value="pluck">Plucked triangle</option>
       <option value="step">Box / top hat</option>
@@ -107,7 +107,7 @@ fundamental has turned its phase once. With that fixed, the contrast between the
       <input id="x0" type="range" min="0.1" max="0.9" step="0.01" value="0.35" style="width:110px">
       <span class="val" id="x0Lbl" style="min-width:34px">0.35</span></label>
     <label class="lbl">Modes N</label>
-    <input id="nmodes" type="range" min="2" max="48" step="1" value="30">
+    <input id="nmodes" aria-label="Modes N" type="range" min="2" max="48" step="1" value="30">
     <span class="val" id="nmodesLbl">30</span>
     <span class="spacer"></span>
     <button id="play" class="primary">&#9658; Play</button>
@@ -116,13 +116,13 @@ fundamental has turned its phase once. With that fixed, the contrast between the
   </div>
   <div class="row">
     <label class="lbl">Time&nbsp; (units of the n = 1 rate)</label>
-    <input id="time" type="range" min="0" max="1.25" step="0.0005" value="0" style="width:360px">
+    <input id="time" aria-label="Time (units of the n = 1 rate)" type="range" min="0" max="1.25" step="0.0005" value="0" style="width:360px">
     <span class="val" id="timeLbl" style="min-width:70px">0.000</span>
     <label class="lbl">Speed</label>
-    <input id="speed" type="range" min="0.05" max="2" step="0.05" value="0.5">
+    <input id="speed" aria-label="Speed" type="range" min="0.05" max="2" step="0.05" value="0.5">
     <span class="val" id="speedLbl">0.50</span>
     <label class="lbl">Schr&ouml;dinger rate</label>
-    <input id="schrate" type="range" min="0.1" max="1" step="0.05" value="0.3">
+    <input id="schrate" aria-label="Schrödinger rate" type="range" min="0.1" max="1" step="0.05" value="0.3">
     <span class="val" id="schrateLbl">0.30</span>
   </div>
   <p class="note">The clock is shared, with one deliberate twist. Schr&ouml;dinger phases spin as n&sup2;, far faster than the
