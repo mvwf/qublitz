@@ -189,6 +189,10 @@
   #lab { --valw: 12.5em; }
   @media (max-width: 520px) { .row { grid-template-columns: minmax(60px, 30%) minmax(0, 1fr) var(--valw, 9em); } #lab { --valw: 10.5em; } .item .acc { grid-template-columns: minmax(0,1fr) 9em; } }
   .tag { font-size: 11px; font-weight: 600; color: var(--flag); white-space: nowrap; }
+  /* 24 px targets (WCAG 2.2 AA): the focusable bar rows, the commit links and the back link; 40 px for the back link on touch screens */
+  .row, .item .acc { min-height: 24px; }
+  td a, header.top nav a { display: inline-flex; align-items: center; min-height: 24px; }
+  @media (pointer: coarse) { header.top nav a { min-height: 40px; } }
 
   .items { display: grid; gap: 10px; }
   .item { border-top: 1px solid var(--grid); padding-top: 8px; }
