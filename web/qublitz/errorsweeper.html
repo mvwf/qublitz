@@ -6,6 +6,11 @@
 <script src="../shared/retro-fonts.js"></script>
 <script src="../shared/retro.js"></script>
 <title>ErrorSweeper — quantum error correction as a puzzle</title>
+<meta name="description" content="Quantum error correction as a deduction game: you never look at the data qubits, only at check qubits (ancillas) that light up when an odd number of their neighbours has an error.">
+<meta property="og:title" content="ErrorSweeper — quantum error correction as a puzzle">
+<meta property="og:description" content="Quantum error correction as a deduction game: you never look at the data qubits, only at check qubits (ancillas) that light up when an odd number of their neighbours has an error.">
+<meta property="og:type" content="website">
+<link rel="icon" href="../shared/favicon.svg" type="image/svg+xml">
 <script src="../vendor/plotly-2.35.2.min.js"></script>
 <style>
   :root{
@@ -141,7 +146,9 @@
   .courseBar button[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 2px rgba(0,105,62,.25);font-weight:600}
   .courseBar button[aria-pressed="true"] .chN{background:var(--green);color:#fff}
   .courseBar button.seen .chN::after{content:"✓"} .courseBar button.seen .chN{font-size:0} .courseBar button.seen .chN::after{font-size:11.5px}
-  .chap h3{margin:0 0 6px;font-size:16px} .chap p{margin:6px 0;font-size:14px;max-width:880px}
+  .chap h3,.chap h2.chT{margin:0 0 6px;font-size:16px}
+  /* the chapter title is an h2 for the heading outline, styled as the h3 it replaced (not as a retro card title) */
+  html.retro .card h2.chT{font-family:inherit;font-weight:700;font-size:16px;letter-spacing:normal;line-height:inherit;text-transform:none;color:var(--r-ink);text-shadow:none;animation:none} .chap p{margin:6px 0;font-size:14px;max-width:880px}
   .chNav{margin-top:10px;display:flex;gap:8px;align-items:center}.chNav .whyDots{flex:1;display:flex;gap:5px}.chNav .whyDots i{width:9px;height:9px;border-radius:50%;background:var(--line)}.chNav .whyDots i.on{background:var(--green)}
   .bitRow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
   .bitT{min-width:44px;height:48px;font-size:19px;font-weight:700;font-family:ui-monospace,Menlo,monospace;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
@@ -198,7 +205,7 @@
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page" role="main">
 <script src="../shared/sitebar.js"></script>
 <script src="../shared/outreach-config.js"></script>
 <script src="../learning/manifest.js"></script>
@@ -2202,7 +2209,7 @@ const CLS_STEPS = [
 ];
 function clsShow() {
   const st = CLS_STEPS[CLS.step];
-  $('ch1Body').innerHTML = `<h3>${CLS.step + 1}. ${st.t}</h3>` + st.draw();
+  $('ch1Body').innerHTML = `<h2 class="chT">${CLS.step + 1}. ${st.t}</h2>` + st.draw();
   $('ch1Nav').innerHTML = `<button id="clsBack" ${CLS.step ? '' : 'disabled'}>◀ Back</button><span class="whyDots">${CLS_STEPS.map((s, k) => `<i class="${k <= CLS.step ? 'on' : ''}"></i>`).join('')}</span>` +
     (CLS.step < CLS_STEPS.length - 1 ? `<button class="primary" id="clsNext">Next ▶</button>` : `<button class="primary" data-goch="2">Chapter 2: why qubits are harder ▶</button>`);
   if (st.after) st.after();

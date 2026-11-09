@@ -8,6 +8,10 @@
 <meta name="robots" content="noindex">
 <title>Qublitz Usage &amp; Feedback</title>
 <meta name="description" content="Anonymous usage counts and question results for the Qublitz demos, and what we changed because of them.">
+<meta property="og:title" content="Qublitz Usage &amp; Feedback">
+<meta property="og:description" content="Anonymous usage counts and question results for the Qublitz demos, and what we changed because of them.">
+<meta property="og:type" content="website">
+<link rel="icon" href="../shared/favicon.svg" type="image/svg+xml">
 <style>
   :root {
     color-scheme: light;
@@ -99,8 +103,8 @@
     font-weight: 800; letter-spacing: .08em; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
   body.is-demo .demo-stamp { display: block; }
 
-  main { transition: opacity .15s; }
-  main.loading { opacity: .5; }
+  #main { transition: opacity .15s; }
+  #main.loading { opacity: .5; }
   .grid { display: grid; gap: 14px; grid-template-columns: repeat(12, minmax(0, 1fr)); margin: 12px 0 18px; }
   .card { grid-column: span 12; background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px 12px; min-width: 0; }
   .card.half { grid-column: span 6; }
@@ -298,6 +302,7 @@
   </div>
 </header>
 
+<main>
 <div class="wrap">
   <div class="tabs" role="tablist" aria-label="Views" id="tabs">
     <button type="button" role="tab" id="tab-main" aria-controls="main" aria-selected="true">Dashboard</button>
@@ -318,7 +323,7 @@
   <div id="banner"></div>
 </div>
 
-<main class="wrap" id="main" hidden role="tabpanel" aria-labelledby="tab-main">
+<section class="wrap" id="main" hidden role="tabpanel" aria-labelledby="tab-main">
   <section aria-labelledby="kpi-h">
     <h2 class="sr" id="kpi-h">Headline numbers</h2>
     <div class="kpis" id="kpis"></div>
@@ -426,7 +431,7 @@
       <div class="tscroll" id="codegames"></div>
     </section>
   </div>
-</main>
+</section>
 
 <section class="wrap" id="report" hidden role="tabpanel" aria-labelledby="tab-report">
   <div class="card controls" role="group" aria-label="Report options">
@@ -484,6 +489,7 @@
     </section>
   </div>
 </section>
+</main>
 
 <div class="wrap">
   <footer>

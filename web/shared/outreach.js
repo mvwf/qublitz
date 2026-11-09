@@ -374,9 +374,9 @@
   const css = doc.createElement('style');
   css.textContent = `
 .ql-panel{border:1px solid #d8e2dc;border-radius:10px;background:#f5f9f6;color:#1b2a24;padding:12px 16px;margin:10px 0;font:14px/1.5 Helvetica,"Helvetica Neue",Arial,sans-serif}
-.ql-panel h3{margin:0 0 4px;font-size:15px;color:#00693e}.ql-panel .ql-tag{color:#5a6b63;margin:0 0 8px}
+.ql-panel .ql-h{margin:0 0 4px;font-size:15px;font-weight:700;text-transform:none;letter-spacing:normal;color:#00693e}.ql-panel .ql-tag{color:#5a6b63;margin:0 0 8px}
 .ql-panel .ql-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 22px}
-.ql-panel h4{margin:6px 0 2px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:#5a6b63}
+.ql-panel .ql-sh{margin:6px 0 2px;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5a6b63}
 .ql-panel ul,.ql-panel ol{margin:0;padding-left:20px}.ql-panel li{margin:2px 0}
 .ql-panel .ql-fun{margin:8px 0 0;color:#5a6b63}
 .ql-btn{font:600 13.5px Helvetica,Arial,sans-serif;border:1px solid #00693e;background:#00693e;color:#fff;border-radius:7px;padding:7px 14px;cursor:pointer}
@@ -395,7 +395,7 @@
 .ql-note{font-size:12px;color:#5a6b63}
 .ql-offer{position:fixed;right:16px;bottom:16px;z-index:99998;background:#fff;color:#1b2a24;border:1px solid #00693e;border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.2);font:14px Helvetica,Arial,sans-serif;max-width:320px}
 .ql-offer .ql-row{margin-top:8px}
-.ql-privacy{font:12px/1.5 Helvetica,Arial,sans-serif;color:#5a6b63;text-align:center;margin:24px 12px 10px}
+.ql-privacy{font:12px/1.5 Helvetica,Arial,sans-serif;color:#5a6b63;text-align:center;margin:24px 12px 10px}.qfund .ql-privacy{margin:6px 0 0}
 .ql-privacy button{font:inherit;color:#00693e;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .ql-ch{position:fixed;left:14px;bottom:14px;z-index:99990;max-width:min(340px,calc(100vw - 28px));background:#fff;color:#1b2a24;border:1px solid #00693e;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.18);font:13.5px/1.45 Helvetica,"Helvetica Neue",Arial,sans-serif}
 .ql-ch>button.ql-ch-head{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;width:100%;padding:8px 12px;cursor:pointer;font-weight:700;color:#00693e}
@@ -437,13 +437,23 @@
     // entries are strings, or { text, depth } shown only at matching depths
     const pickT = x => (typeof x === 'string' ? x : x && depthMatch(x.depth, curDepth) ? x.text : null);
     const list = (items, ordered) => { const l = el(ordered ? 'ol' : 'ul'); (items || []).map(pickT).filter(Boolean).forEach(t => l.append(el('li', { html: t }))); return l; };
+    // the panel's heading sits one level below the heading before it (h1 -> h2), never deeper than h3; subheads one below
+    const at = o._swap && panelBox && panelBox.isConnected ? panelBox : host;
+    const inHost = at === host && !o.replace;
+    let prev = 0;
+    for (const h of doc.querySelectorAll('h1,h2,h3,h4,h5,h6')) {
+      if (panelBox && panelBox.contains(h)) continue;
+      const pos = at.compareDocumentPosition(h); // 2 = preceding, 16 = contained by
+      if (((pos & 2) && !h.contains(at)) || (inHost && (pos & 16))) prev = +h.tagName[1];
+    }
+    const hl = Math.min(Math.max(prev + 1, 2), 3);
     const box = el('section', { class: 'ql-panel', 'aria-label': 'What you will learn and how to play' },
-      el('h3', {}, o.title || spec.title || 'What you will learn'),
+      el('h' + hl, { class: 'ql-h' }, o.title || spec.title || 'What you will learn'),
       spec.tagline ? el('p', { class: 'ql-tag', html: spec.tagline }) : null,
       el('div', { class: 'ql-cols' },
-        el('div', {}, el('h4', {}, 'You will learn to'), list((spec.objectives || []).filter(x => depthMatch(x.depth, curDepth)).map(x => x.text))),
-        spec.howTo ? el('div', {}, el('h4', {}, 'How to play'), list(spec.howTo, true)) : null,
-        spec.goals ? el('div', {}, el('h4', {}, 'Goals'), list(spec.goals)) : null),
+        el('div', {}, el('h' + (hl + 1), { class: 'ql-sh' }, 'You will learn to'), list((spec.objectives || []).filter(x => depthMatch(x.depth, curDepth)).map(x => x.text))),
+        spec.howTo ? el('div', {}, el('h' + (hl + 1), { class: 'ql-sh' }, 'How to play'), list(spec.howTo, true)) : null,
+        spec.goals ? el('div', {}, el('h' + (hl + 1), { class: 'ql-sh' }, 'Goals'), list(spec.goals)) : null),
       spec.fun ? el('p', { class: 'ql-fun', html: '<b>Why it is fun:</b> ' + spec.fun.charAt(0).toUpperCase() + spec.fun.slice(1) }) : null,
       o.noDebrief ? null : el('div', { class: 'ql-row', style: 'margin-top:8px;justify-content:flex-start' },
         el('button', { class: 'ql-btn', type: 'button', onclick: () => showQuiz() }, 'Debrief: what did you learn? (1 min) ▸')));
@@ -586,7 +596,10 @@
         el('button', { type: 'button', onclick: () => { optOut(!optedOut()); draw(); } }, optedOut() ? 'Opt back in' : 'Opt out'),
         ' · ', el('a', { href: kitBase + 'privacy.html' }, 'Privacy'));
     };
-    draw(); doc.body.append(p);
+    draw();
+    // inside a landmark: the page's footer (the site bar's funding footer, or the hub's own), else a footer of its own
+    const foot = doc.querySelector('footer.qfund') || Array.from(doc.querySelectorAll('body > footer')).pop();
+    if (foot) foot.append(p); else doc.body.append(el('footer', {}, p));
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
@@ -706,7 +719,8 @@
               get game() { return game; }, get spec() { return spec; },
               _clean: { redact, cleanEvent, cleanQuiz } };
 
-  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', privacyNote); else privacyNote();
+  // after the site bar has added its footer (it does so on DOMContentLoaded, or on a 0 ms timer)
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', privacyNote); else setTimeout(privacyNote, 0);
   // Counted once per page load, after the page's own learning file has had a chance to set the id.
   // Arrivals from another activity (?from=beamline) are counted by source, so the dashboard can show which
   // activities send people on to the Virtual Qubit Lab.

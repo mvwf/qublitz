@@ -3,6 +3,11 @@
 <script src="../../shared/retro-fonts.js"></script>
 <script src="../../shared/retro.js"></script>
 <title>Spectrogram Explorer — STFT of a Recording</title>
+<meta name="description" content="Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws magnitude in decibels on an inferno color scale, frequency versus time.">
+<meta property="og:title" content="Spectrogram Explorer — STFT of a Recording">
+<meta property="og:description" content="Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws magnitude in decibels on an inferno color scale, frequency versus time.">
+<meta property="og:type" content="website">
+<link rel="icon" href="../../shared/favicon.svg" type="image/svg+xml">
 <style>
   :root{
     color-scheme: light;
@@ -60,6 +65,7 @@
 <script src="../../learning/manifest.js"></script>
 <script src="../../shared/outreach.js"></script>
 <script src="../../learning/spectrogram.js"></script>
+<main>
 <a id="back" href="../../index.html#engs23" style="display:inline-block;margin:0 0 10px;font:13px Helvetica,Arial,sans-serif;color:#5a6b63;text-decoration:none">← All demos</a>
 <h1>Spectrogram Explorer</h1>
 <p class="sub" id="intro">Load a recording (mp3, wav, m4a, ogg) and the page computes a short-time Fourier transform and draws
@@ -187,6 +193,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
 <p class="dl" id="offlineHint"><a href="spectrogram-offline.html" download="engs23-spectrogram.html">Download this explorer</a>
   as a single HTML file that runs offline in any browser. Offline, the bundled gong, your own files and the
   microphone all work; the archive.org recordings need an internet connection.</p>
+</main>
 
 <script>
 // scripts/build_standalone.py sets QUBLITZ_STANDALONE in the single-file download. That copy
