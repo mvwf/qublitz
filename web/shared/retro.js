@@ -482,6 +482,39 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
   }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', foldIntro); else foldIntro();
 
+  // ── sideways-scrolling boxes reachable by keyboard (every theme) ─────────────────────────────────────────────────
+  // A box with overflow-x auto/scroll that is wider inside than out, with nothing focusable in it, cannot be scrolled
+  // from the keyboard. Such a box gets tabindex="0" (marked data-rt-scroll, so it is taken away again when the box no
+  // longer overflows); a tabindex the page set itself is left alone. Rescanned on load, on resize and when elements
+  // are added (tables filled after load; text-only updates do not count), at most once per 300 ms.
+  const FOCUSABLE = 'a[href],button,input,select,textarea,iframe,summary,[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex="-1"])';
+  function scanScrollers() {
+    const body = doc.body; if (!body) return;
+    for (const el of body.getElementsByTagName('*')) {
+      const ours = el.hasAttribute('data-rt-scroll');
+      if (!ours && el.hasAttribute('tabindex')) continue;
+      let need = false;
+      if (el.scrollWidth > el.clientWidth + 1) {
+        const ox = root.getComputedStyle(el).overflowX;
+        need = (ox === 'auto' || ox === 'scroll') && !el.querySelector(FOCUSABLE);
+      }
+      if (need && !ours) { el.setAttribute('tabindex', '0'); el.setAttribute('data-rt-scroll', ''); }
+      else if (!need && ours) { el.removeAttribute('tabindex'); el.removeAttribute('data-rt-scroll'); }
+    }
+  }
+  let scanTimer = 0, scanLast = 0;
+  const scanSoon = () => {
+    if (scanTimer) return;
+    scanTimer = setTimeout(() => { scanTimer = 0; scanLast = Date.now(); scanScrollers(); }, Math.max(0, 300 - (Date.now() - scanLast)));
+  };
+  const startScan = () => {
+    scanSoon();
+    if (root.MutationObserver && doc.body) new MutationObserver(ms => { if (ms.some(m => [...m.addedNodes].some(n => n.nodeType === 1))) scanSoon(); }).observe(doc.body, { childList: true, subtree: true });
+  };
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', startScan); else startScan();
+  root.addEventListener('load', scanSoon);
+  root.addEventListener('resize', scanSoon);
+
   // ── the theme switch: a button in the site bar (as in Q-Vault) that opens a menu of every theme ─────────────────
   const SW = {   // swatches for the menu: background, accent, title colour
     arena: ['#070a16', '#2fe0d0', '#f5b73c'], synthwave: ['#12051f', '#ff4fd8', '#42d6ff'], phosphor: ['#030a05', '#39ff7a', '#e8ff6a'],
