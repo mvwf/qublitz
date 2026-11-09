@@ -890,10 +890,21 @@ if (window.QUBLITZ_STANDALONE) {
   $('listenPairHarm').addEventListener('click',()=>{ playPair(2); qlNote('sound',{level:'pair-harmonic'}); });
 
   // ---------- animation ----------
+  // While playing, only the panels on screen (or within 120 px of it) are redrawn each frame; a panel that comes back
+  // into view is drawn at once, so it is never stale. Paused redraws still use drawAll().
+  const PANELS={drum:drawDrum, tiles:drawTiles, race:drawRace, traces:drawTraces, scope:drawScope, pfft:drawPFFT, ladder:drawLadder, amps:drawAmps};
+  const onScreen=new Set(Object.keys(PANELS));
+  if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(es=>es.forEach(e=>{ const id=e.target.id;
+      if(!e.isIntersecting){ onScreen.delete(id); return; }
+      if(!onScreen.has(id)){ onScreen.add(id); if(playing) PANELS[id](); } }), {rootMargin:'120px 0px'});
+    Object.keys(PANELS).forEach(id=>io.observe($(id)));
+  }
+  function drawVisible(){ for(const id of onScreen) PANELS[id](); }
   function frame(ts){
     if(!playing){ lastTS=null; return; }
     if(lastTS!=null) clock+=Math.min(0.1,(ts-lastTS)/1000)*speed;
-    lastTS=ts; drawAll(); requestAnimationFrame(frame);
+    lastTS=ts; drawVisible(); requestAnimationFrame(frame);
   }
   function setPlaying(p){ playing=p; $('play').textContent=p?'❚❚ Pause':'▶ Play'; if(p){ lastTS=null; requestAnimationFrame(frame); } else drawAll(); live.redraw(); }
 
