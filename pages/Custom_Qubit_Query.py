@@ -396,13 +396,17 @@ def run_time_domain(omega_q_GHz, omega_rabi_GHz, T1_ns, omega_d_GHz,
 
     time_array = np.linspace(0.0, float(t_final_ns), n_steps)
     wd = float(omega_d_GHz)
-    exp_y_rot = -(
+    # Rotating frame of the drive for H0 = +omega sigma_z/2: x_r = x cos + y sin, y_r = -x sin + y cos. The Bloch plot
+    # draws -z so that |0> sits at the top, and swaps the two components (x_plot = y_r, y_plot = x_r) so that the whole
+    # map is a proper rotation (det +1, right-handed) and a sigma_x pulse turns about the plotted x axis. The old form,
+    # (-y_r, -x_r, -z), was a reflection and mirrored every trajectory.
+    exp_y_rot = (
         exp_values[0] * np.cos(2 * np.pi * wd * time_array)
         + exp_values[1] * np.sin(2 * np.pi * wd * time_array)
     )
     exp_x_rot = (
-        exp_values[0] * np.sin(2 * np.pi * wd * time_array)
-        - exp_values[1] * np.cos(2 * np.pi * wd * time_array)
+        -exp_values[0] * np.sin(2 * np.pi * wd * time_array)
+        + exp_values[1] * np.cos(2 * np.pi * wd * time_array)
     )
 
     return {

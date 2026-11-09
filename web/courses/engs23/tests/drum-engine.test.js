@@ -125,6 +125,28 @@ const modes = D.buildModes(6, 5);
     close(D.displacement(modes, st, 0.5, 0.3, 0.37 + T), D.displacement(modes, st, 0.5, 0.3, 0.37), 1e-12));
 }
 
+// ---- (1,0) + (1,1) is quasi-periodic: the page's "Hear two modes" buttons and the "Does it ever repeat?" step ----
+{
+  const r = modes.find(m => m.m === 1 && m.n === 1).ratio;        // k_11/k_10 = 1.59334…
+  // The sum cos(2πt) + cos(2πrt) is back at its t = 0 value at t = p T_10 only if p·r is a whole number.
+  // Within 100 fundamental periods the (1,1) crest misses every grid line by at least 0.006 of a cycle, and the
+  // closest approaches are the fractions the page lists: 3/2, 8/5, 43/27, 51/32, 94/59.
+  let miss = 1, record = [], best = 1;
+  for (let p = 1; p <= 100; p++) {
+    const d = Math.abs(p * r - Math.round(p * r)); miss = Math.min(miss, d);
+    if (d < best) { best = d; record.push(`${Math.round(p * r)}/${p}`); }
+  }
+  check('(1,1) never re-aligns with the T_10 grid in 100 periods (closest miss ≥ 0.006 cycle)', miss > 0.006, `min miss ${miss.toFixed(4)} cycles`);
+  check('best fractions for k_11/k_10 are 2/1, 3/2, 8/5, 43/27, 51/32, 94/59 …', record.slice(0, 6).join(' ') === '2/1 3/2 8/5 43/27 51/32 94/59', record.join(' '));
+  const two = t => Math.cos(2 * Math.PI * t) + Math.cos(2 * Math.PI * 2 * t);
+  check('retuned to 1 : 2 the pair repeats exactly every T_10', [1, 2, 3, 7].every(p => close(two(p + 0.37), two(0.37), 1e-12)));
+  // the engine's two-mode displacement agrees: no integer time within 100 T_10 returns the head to its start
+  const st = D.emptyState(modes); st[0].Ac = 1; st[modes.find(m => m.m === 1 && m.n === 1).index].Ac = 1;
+  const z0 = D.displacement(modes, st, 0.5, 0.3, 0);
+  let back = 1e9; for (let p = 1; p <= 100; p++) back = Math.min(back, Math.abs(D.displacement(modes, st, 0.5, 0.3, p) - z0));
+  check('two-mode head (1,0)+(1,1) is not back in place at any whole T_10 up to 100', back > 1e-4, back.toExponential(2));
+}
+
 // ---- physical frequency ----
 {
   const md = modes[0], f = D.frequencyHz(md, 0.25, 4000, 0.25);

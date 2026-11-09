@@ -92,11 +92,14 @@
   }
   const Phi = x => 0.5 * erfc(-x / Math.SQRT2);   // standard normal CDF
 
-  // The discriminator: unit vector u from the |0⟩ blob to the |1⟩ blob, and the threshold halfway (projected).
+  // The discriminator: unit vector u from the |0⟩ blob to the |1⟩ blob, and the threshold halfway (projected), moved by
+  // p.thrSigma noise widths toward the |1⟩ blob (negative: toward |0⟩). The midpoint is only optimal for two equal Gaussians;
+  // with T₁ decay (records of |1⟩ slide toward |0⟩) or a thermal population the best line sits elsewhere (bestThreshold).
   function discriminator(p) {
     const m0 = record(p, 0), m1 = record(p, 1, Infinity), d = C.sub(m1, m0), L = C.abs(d) || 1e-300;
     const u = C.scale(d, 1 / L), proj = z => z[0] * u[0] + z[1] * u[1];
-    return { m0, m1, u, sep: L, thr: (proj(m0) + proj(m1)) / 2, proj };
+    const mid = (proj(m0) + proj(m1)) / 2, shift = (p.thrSigma || 0) * sigma(p);
+    return { m0, m1, u, sep: L, thr: mid + shift, mid, shift, proj };
   }
 
   // Everything the page reports, exact (no sampling).
@@ -120,12 +123,25 @@
     const a0 = pointer(p, 0), a1 = pointer(p, 1), r = rates(p);
     const gd = Math.abs(2 * r.x * C.mul(a0, C.conj(a1))[1]);   // measurement-induced dephasing, rad/µs
     return {
-      sigma: s, snr: D.sep / s, sep: D.sep, m0: D.m0, m1: D.m1, u: D.u, thr: D.thr,
+      sigma: s, snr: D.sep / s, sep: D.sep, m0: D.m0, m1: D.m1, u: D.u, thr: D.thr, mid: D.mid, thrSigma: p.thrSigma || 0,
       eGauss: (e01 + e10g) / 2, pDecay: pdec, p10, p01, F: 1 - (p10 + p01) / 2,
       n0: photons(p, 0), n1: photons(p, 1), a0, a1, gammaD: gd, tRing: 2 / r.k,
       snrSteady: 2 * Math.sqrt(Math.max(1e-9, p.eta) * r.k * p.tau) * C.abs(C.sub(a1, a0)),
       overCrit: p.ncrit > 0 && Math.max(photons(p, 0), photons(p, 1)) > p.ncrit,
     };
+  }
+
+  // The threshold position (in noise widths from the midpoint) that maximizes F, by a golden-section search bracketed
+  // on [lo, hi]; F(thrSigma) is unimodal for two Gaussian blobs plus the decay tail. Returns { thrSigma, F }.
+  function bestThreshold(p, lo = -4, hi = 4) {
+    const F = s => analyze(Object.assign({}, p, { thrSigma: s })).F, g = (Math.sqrt(5) - 1) / 2;
+    let a = lo, b = hi, c = b - g * (b - a), d = a + g * (b - a), fc = F(c), fd = F(d);
+    for (let i = 0; i < 40; i++) {
+      if (fc > fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = F(c); }
+      else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = F(d); }
+    }
+    const s = (a + b) / 2;
+    return { thrSigma: s, F: F(s) };
   }
 
   // F against integration time τ, for the "best listening time" plot
@@ -159,7 +175,7 @@
     return { chi: g * g * alpha / (Delta * d2), ncrit: Delta * Delta / (4 * g * g) };
   }
 
-  const api = { DEFAULTS, CIRCUIT, C, rates, pointer, photons, photonsAt, segment, record, trajectory, sigma, erfc, Phi, discriminator, analyze, fidelityCurve, bestTau, shots, transmonChi };
+  const api = { DEFAULTS, CIRCUIT, C, rates, pointer, photons, photonsAt, segment, record, trajectory, sigma, erfc, Phi, discriminator, analyze, bestThreshold, fidelityCurve, bestTau, shots, transmonChi };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ReadoutEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

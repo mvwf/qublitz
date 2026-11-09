@@ -183,11 +183,20 @@
       <input id="win" type="range" min="1" max="8" step="0.5" value="3" style="width:140px">
       <span class="val" id="winv" style="min-width:60px">3 T₁₀</span>
     </div>
+    <div class="row tight" style="margin-top:6px">
+      <label class="lbl">Hear two modes</label>
+      <button id="listenPair" class="sound" title="(1,0) and (1,1) at the drum's own ratio k₁₁/k₁₀ = 1.593">♪ (1,0) + (1,1), ratio 1 : 1.593</button>
+      <button id="listenPairHarm" title="The same two partials moved to the string's 1 : 2">♪ The same two, retuned to 1 : 2</button>
+      <span class="val" id="pairv" style="min-width:0;text-align:left"></span>
+    </div>
     <p class="legend">Each drum is one normal mode, started at <span class="mvar">t</span> = 0 at the height set by its amplitude bar. The dial turns once per
       oscillation, so a mode with ν<sub><span class="mvar">mn</span></sub> = 1.59 ν<sub>10</sub> turns 1.59 times while the fundamental turns once. Below, the time
       factor cos(2πν<sub><span class="mvar">mn</span></sub><span class="mvar">t</span>) of each mode over the last few fundamental periods T₁₀ = 1/ν<sub>10</sub>; dots mark each
       mode's crests. On a string, harmonic <span class="mvar">n</span> makes exactly <span class="mvar">n</span> oscillations per T₁, so every harmonic is back at a crest on every
-      grid line and the string repeats each period. Here only the fundamental is.</p>
+      grid line and the string repeats each period. Here only the fundamental is. <b>Hear two modes</b> plays exactly the pair
+      drawn in the first two traces, (1,0) and (1,1), as a steady two-partial tone at the drum's ratio 1 : 1.593, and then the same
+      two partials retuned to the string's 1 : 2. At 1 : 2 the sum repeats every T₁₀ and the ear fuses it into one note an octave
+      rich; at 1 : 1.593 it never repeats (the crest dots drift) and you hear two pitches that do not settle, a beating roughness.</p>
   </div>
 
   <div class="card" id="scopeCard">
@@ -272,7 +281,8 @@
     <li>Press <b>Lowest four</b>. The first dial is the fundamental (1,0). How many turns has the (1,1) dial made when the fundamental
       has made exactly one? Check it against <span class="mvar">k</span><sub>11</sub>/<span class="mvar">k</span><sub>10</sub> in the table.</li>
     <li>Press <b>Start them together</b> and watch the traces. Do the four modes ever all reach a crest at the same instant again?
-      What would have to be true of the ratios for that to happen?</li>
+      What would have to be true of the ratios for that to happen? Then press <b>♪ (1,0) + (1,1)</b> and <b>♪ retuned to 1 : 2</b>
+      under the traces: which pair sounds like one note, and which never settles?</li>
     <li>Select (2,0) alone, turn on <b>sand</b> in the <b>Top</b> view, and measure the radius of the nodal circle. Boas predicts
       <span class="mvar">r</span> = <span class="mvar">a k</span><sub>10</sub>/<span class="mvar">k</span><sub>20</sub>. Why is that the right radius?</li>
     <li>Switch to <b>Mallet strike</b> and strike the exact centre. Which tiles light up, and why can a centre strike never excite
@@ -677,7 +687,7 @@ if (window.QUBLITZ_STANDALONE) {
     const v=D.waveSpeed(phys.T,phys.s), f10=D.frequencyHz(modes[0],phys.a,phys.T,phys.s);
     $('pav').textContent=(phys.a*100).toFixed(1)+' cm'; $('pTv').textContent=phys.T+' N/m'; $('psv').textContent=phys.s.toFixed(2)+' kg/m²';
     $('vOut').textContent=v.toFixed(1)+' m/s'; $('f10Out').textContent=f10.toFixed(1)+' Hz';
-    fillTable();
+    fillTable(); pairLabel();
   }
 
   // ---------- pickup ----------
@@ -851,6 +861,25 @@ if (window.QUBLITZ_STANDALONE) {
   function harmonicPartials(){
     return drumPartials().sort((a,b)=>a.ratio-b.ratio).map((p,j)=>({ratio:j+1, amp:p.amp}));
   }
+  // Two equal partials, ν10 and r2·ν10, as a steady 3 s tone: the sum cos(2πν10 t) + cos(2π r2 ν10 t) repeats with
+  // period T10 only when r2 is a whole number. At the drum's r2 = k11/k10 = 1.593 it is quasi-periodic (two pitches
+  // that never fuse, with a beating roughness); retuned to r2 = 2 it is periodic and heard as one note.
+  function playPair(r2){
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    const f10=f10Hz(), sr=actx.sampleRate, dur=3.0, N=Math.floor(sr*dur);
+    const buf=actx.createBuffer(1,N,sr), x=buf.getChannelData(0);
+    [1,r2].forEach(r=>{ const f=r*f10; if(f>=sr*0.45) return; const w=2*Math.PI*f/sr, dk=Math.exp(-1/(2.4*sr)); let e=0.15;
+      for(let i=0;i<N;i++){ x[i]+=e*Math.cos(w*i); e*=dk; } });
+    const att=Math.floor(0.01*sr), rel=Math.floor(0.15*sr);
+    for(let i=0;i<N;i++){ if(i<att) x[i]*=i/att; if(i>N-rel) x[i]*=(N-i)/rel; }
+    if(voice) try{ voice.stop(); }catch(e){}
+    voice=actx.createBufferSource(); voice.buffer=buf; voice.connect(live.input(actx)); voice.start();
+  }
+  function pairLabel(){ const f10=f10Hz(), r=modeAt(1,1).ratio;
+    $('pairv').textContent='ν₁₀ = '+f10.toFixed(0)+' Hz with '+(r*f10).toFixed(0)+' Hz (drum) or '+(2*f10).toFixed(0)+' Hz (1 : 2)'; }
+  $('listenPair').addEventListener('click',()=>{ playPair(modeAt(1,1).ratio); qlNote('sound',{level:'pair-drum'}); });
+  $('listenPairHarm').addEventListener('click',()=>{ playPair(2); qlNote('sound',{level:'pair-harmonic'}); });
 
   // ---------- animation ----------
   function frame(ts){
@@ -1056,7 +1085,8 @@ if (window.QUBLITZ_STANDALONE) {
       setup:{sel:[[1,0],[1,1]],view:'3d',play:false}, cover:[],
       ask:'Release (1,0) and (1,1) together from rest. Is there a time when the head is back in exactly its starting shape?',
       choices:['Yes, after one fundamental period','Yes, after two fundamental periods','Not in any time you could watch','Yes, after 1.593 periods'], answer:2,
-      explain:'The head is back where it started only when both modes have made whole numbers of oscillations: t = p T<sub>10</sub> = q T<sub>11</sub>, which needs k<sub>11</sub>/k<sub>10</sub> = 1.59334… = q/p. Its best fractions, 3/2, 8/5, 43/27, 51/32, 94/59 …, all miss, by less each time, so the shape never quite comes back: the motion is quasi-periodic. A string\'s ratios are whole numbers, so it repeats every T<sub>1</sub>. Press Play and watch the traces: the crest dots of (1,1) drift across the T<sub>10</sub> grid lines.' },
+      explain:'The head is back where it started only when both modes have made whole numbers of oscillations: t = p T<sub>10</sub> = q T<sub>11</sub>, which needs k<sub>11</sub>/k<sub>10</sub> = 1.59334… = q/p. Its best fractions, 3/2, 8/5, 43/27, 51/32, 94/59 …, all miss, by less each time, so the shape never quite comes back: the motion is quasi-periodic. A string\'s ratios are whole numbers, so it repeats every T<sub>1</sub>. Press Play and watch the traces: the crest dots of (1,1) drift across the T<sub>10</sub> grid lines.',
+      try:'Then hear it: under the traces, press <b>♪ (1,0) + (1,1)</b> and then <b>♪ retuned to 1 : 2</b>. The 1 : 2 pair repeats every T<sub>10</sub> and fuses into one note; the drum pair never repeats and stays two pitches.' },
   ];
   function startGuided(){ QLK.event('mode',{level:'guided'});
     PageKit.guided({ steps:GUIDED, apply:applyState, before:document.querySelector('.wrap'), key:'drum-head', ...qlGuided(GUIDED, 'drum-head', {3:'strike',4:'inharm'}) }); }
@@ -1068,7 +1098,7 @@ if (window.QUBLITZ_STANDALONE) {
   /* ---------- challenges: the page's goals as a live checklist (QL.challenges, web/shared/outreach.js) ----------
      Each check reads the page's own state (drum-engine.js). Nodal circle of (2,0): r = j01/j02 a = 2.4048/5.5201 a = 0.436 a.
      A centre strike projects only onto n = 0 (100 % at r = 0, 89 % at r = 0.04 a with the 0.08 a mallet); at r ≥ 0.8 a
-     the n = 0 row keeps about 7 %. Drum partials 1, 1.593, 2.136, 2.295 … ν10 are Bessel-zero ratios, not integers. */
+     the n = 0 row keeps about 5 to 6 %. Drum partials 1, 1.593, 2.136, 2.295 … ν10 are Bessel-zero ratios, not integers. */
   const chSel=(...want)=> src==='modes' && sel.length===want.length && want.every(([m,n],i)=>sel[i][0]===m&&sel[i][1]===n);
   const chN0=()=>{ if(src!=='strike'||!strikeAt) return 0; const sh=energyShares(); let s=0; modes.forEach((md,i)=>{ if(md.n===0) s+=sh[i]; }); return s; };
   let chHeardDrum=false, chHeardHarm=false;
@@ -1086,7 +1116,7 @@ if (window.QUBLITZ_STANDALONE) {
       hint:'A centre blow is the same at every angle, so it cannot excite modes with nodal diameters (n ≥ 1). Use View → top to aim; within about 0.04 a of the centre works.',
       check:()=> chN0()>=0.85 },
     { id:'rim', text:'Now strike <b>near the rim</b> (r ≥ 0.8 a): watch the energy spread into the n ≥ 1 tiles.',
-      hint:'Off centre, the blow has a cos nθ part for every n, so modes with nodal diameters ring too. Near the rim the n = 0 row keeps only about 7 %.',
+      hint:'Off centre, the blow has a cos nθ part for every n, so modes with nodal diameters ring too. Near the rim the n = 0 row keeps only about 5 to 6 %.',
       check:()=> src==='strike' && strikeAt && strikeAt.rho>=0.8 && chN0()<0.15 },
     { id:'inharmonic', text:'After a strike, press <b>♪ Drum</b> and then <b>♪ Same partials, made harmonic</b>. Which one has a clear pitch?',
       hint:'The drum rings at 1, 1.59, 2.14, 2.30, … ν<sub>10</sub>: Bessel-zero ratios, not whole numbers, so it sounds like a thud. Re-tuned to 1, 2, 3, … it sounds like a pitched note.',

@@ -417,7 +417,11 @@ st.latex(r"C \frac{dT}{dt} = P_{\mathrm{abs}} - G\left(T - T_{\mathrm{bath}}\rig
 st.latex(r"T(t)=T_{\mathrm{bath}}+\frac{P_{\mathrm{abs}}}{G}\left(1-e^{-t/\tau_{\mathrm{th}}}\right), \qquad \tau_{\mathrm{th}}=\frac{C}{G}")
 
 st.write(
-    "This is meant as a back-of-the-envelope engineering estimate, not a substitute for a calibrated in situ measurement."
+    "This is meant as a back-of-the-envelope engineering estimate, not a substitute for a calibrated in situ measurement. "
+    "It treats $C$ and $G$ as constants, but below a few kelvin both change by orders of magnitude with temperature "
+    "(phonon heat capacity goes as $T^3$, electronic as $T$, and conductances follow power laws), so enter the values "
+    "for the temperature range you care about, typically near the final temperature, and read a rise of many kelvin "
+    "from a millikelvin bath as an order-of-magnitude guide only."
 )
 
 # Status
@@ -467,7 +471,8 @@ st.plotly_chart(fig, use_container_width=True)
 if reachable:
     st.success(
         f"Under the current assumptions, a {deltaT_goal_K:.3g} K rise is reachable. "
-        f"Estimated burst duration: {fmt_eng(t_req_s, 's')}, corresponding to about {fmt_eng(n_pulses_req, '')} pulses."
+        f"Estimated burst duration: {fmt_eng(t_req_s, 's')}"
+        + (f", corresponding to about {fmt_eng(n_pulses_req, '')} pulses." if mode != "CW" else ".")
     )
 else:
     st.warning(

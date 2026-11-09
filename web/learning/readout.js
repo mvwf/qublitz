@@ -17,6 +17,7 @@ if (window.QL) QL.learning({
   ],
   howTo: [
     'Drag <b>Photons</b> and <b>Listening time</b> and watch the two clouds of dots in the IQ plane and the readout fidelity at the top.',
+    'Drag the <b>Decision line</b> slider above the plots: the two error rates in the headline trade against each other, and the ★ marks the line that gives the best fidelity (not the midpoint once T₁ decay matters).',
     { text: 'Change <b>χ</b> and <b>κ</b>: the lower left plot shows the two resonances the qubit chooses between.', depth: 'student+' },
     { text: 'Open <b>Real-world extras</b> for amplifier efficiency, T₁, leftover heat and the drive frequency; the lower right plot finds the best listening time.', depth: 'engineer+' },
     'Press <b>📚 Load a real qubit’s readout</b> to try a published device from Q-Vault.',

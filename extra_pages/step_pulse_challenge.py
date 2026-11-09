@@ -126,7 +126,7 @@ def main():
     plot_lw = 3 # plot linewidth
     fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_x_vec, mode='lines', name='σ_x', line=dict(width=plot_lw)))
     fig_sigma.add_trace(go.Scatter(x=tlist, y=st.session_state.sigma_y_vec, mode='lines', name='σ_y', line=dict(width=plot_lw)))
-    fig_sigma.update_layout(title='Time-Dependent Amplotudes of Ω_0 (Ω_x(t) and Ω_x(t)) ', xaxis_title='Time (ns)', yaxis_title='Amplitude', xaxis=dict(range=[0, t_final]), yaxis=dict(range=[-1.05, 1.05]))
+    fig_sigma.update_layout(title='Time-Dependent Amplitudes of Ω_0 (Ω_x(t) and Ω_y(t)) ', xaxis_title='Time (ns)', yaxis_title='Amplitude', xaxis=dict(range=[0, t_final]), yaxis=dict(range=[-1.05, 1.05]))
         
     st.plotly_chart(fig_sigma)
         

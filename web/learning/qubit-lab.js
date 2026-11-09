@@ -19,8 +19,9 @@ if (window.QL) QL.learning({
     'Keep <b>Mystery qubit</b> selected (or open the link your instructor gave you). The code names your qubit.',
     '<b>Frequency Domain</b> tab: press <b>Run frequency sweep</b>. The green curve peaks at ω<sub>d</sub> ≈ ω<sub>q</sub>. Press <b>Zoom in on the peak</b> until the trace below swings all the way to P(|1⟩) ≈ 1, and note the fitted Rabi rate and π-pulse time.',
     '<b>Time Domain</b> tab: press <b>Use sweep peak</b>, then <b>+ π pulse</b>. Watch the Bloch vector flip from |0⟩ to |1⟩ and decay back. The red dotted curve is the T₁ fit.',
+    { text: '<b>Pulse-duration sweep</b> (bottom of the Time Domain tab): the Rabi calibration a lab runs. Fit it at the sweep peak, then move ω<sub>d</sub> by a few <span class="u-f">MHz</span> and run again: the fitted Ω stays, |Δ| appears, the oscillation gets faster and the contrast drops below 1.', depth: 'student+' },
     '<b>Ramsey Sequence</b> tab: choose <b>Fitted Rabi rate</b> for the π/2 length and press <b>Run Ramsey chevron</b>. Click the chevron to pick a vertical cut and read the fringe frequency and T₂.',
-    'Check yourself with <b>Reveal parameters</b> at the bottom of the Ramsey tab (hidden on links your instructor assigned), or try <b>Free play</b> to set the qubit yourself.',
+    'Check yourself with <b>Reveal parameters</b> at the bottom of the Ramsey tab (hidden on links your instructor assigned), or try <b>Free play</b> to set the qubit yourself. There, lowering T₂ below 2T₁ adds pure dephasing: the page shows T<sub>φ</sub> from 1/T₂ = 1/(2T₁) + 1/T<sub>φ</sub>, and the Ramsey cut draws the T₁-only envelope e<sup>−τ/2T₁</sup> next to the fitted one.',
   ],
   goals: [
     'Tick all four items in the lab checklist: find the resonance, flip the qubit with a π pulse, measure T₁ within 20%, and pin ω<sub>q</sub> to within 1 MHz with Ramsey.',
@@ -51,6 +52,6 @@ if (window.QL) QL.learning({
       q: 'A mystery qubit has T₁ = 150 ns and no extra (pure) dephasing. What envelope decay time T₂ should the Ramsey fit give?',
       choices: ['75 ns', '150 ns', '300 ns', 'Any value: T₂ is unrelated to T₁'],
       answer: 2,
-      explain: 'Energy relaxation alone destroys the coherence at half its rate, so T₂ ≤ 2T₁, with T₂ = 2T₁ = 300 ns when there is no pure dephasing (the model the mystery qubits use). In Free play you can set T₂ lower to add pure dephasing.' },
+      explain: 'Energy relaxation alone destroys the coherence at half its rate, so T₂ ≤ 2T₁, with T₂ = 2T₁ = 300 ns when there is no pure dephasing (the model the practice qubits use; a real qubit loaded from Q-Vault keeps the paper\'s own T₂). In Free play you can set T₂ lower to add pure dephasing.' },
   ],
 });

@@ -199,7 +199,7 @@ def main():
     # plot petermann factor color map
     fig1 = go.Figure()
 
-    # plasma where instability ≥ 0
+    # colour (plasma) where instability <= 0, the stable region
     fig1.add_trace(go.Heatmap(
         x=x1,
         y=y1,
@@ -217,7 +217,7 @@ def main():
         )
     ))
 
-    # grayscale where instability < 0
+    # grayscale where instability > 0
     fig1.add_trace(go.Heatmap(
         x=x1,
         y=y1,

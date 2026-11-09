@@ -108,7 +108,7 @@ def main():
         target_channel = "σ_x"
         amp = 1.0
         start = 0.0
-        stop = (1 * 10**9)/(omega_rabi * 10**6) # Half the period of the Rabi oscillation
+        stop = (1 * 10**9)/(2 * omega_rabi * 10**6) # A pi pulse lasts half a Rabi period, 1/(2 f_Rabi)
         
         pulse_vector = st.session_state.sigma_x_vec
         updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)
@@ -195,7 +195,7 @@ def main():
         target_channel = "σ_y"
         amp = 1.0
         start = 0.0
-        stop = int((1 * 10**9)/(50 * 10**6)) # Half the period of the Rabi oscillation
+        stop = int((1 * 10**9)/(2 * 50 * 10**6)) # A pi pulse lasts half a Rabi period, 1/(2 f_Rabi)
         
         pulse_vector = st.session_state.sigma_y_vec
         updated_pulse_vector = add_square(pulse_vector, amp, start, stop, n_steps, t_final)

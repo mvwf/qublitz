@@ -36,7 +36,7 @@
     { id: 't1', label: 'T₁ (energy relaxation)', module: 4, def: 'How long an excited qubit takes to lose its energy and fall back to |0⟩.' },
     { id: 't2', label: 'T₂ (dephasing)', module: 4, depth: 'student+', def: 'How long a superposition keeps a definite phase; at most 2T₁.' },
     { id: 'decoherence', label: 'Decoherence', module: 4, def: 'The loss of quantum behaviour as a system leaks information to its surroundings.' },
-    { id: 'ramsey', label: 'Ramsey experiment', module: 4, depth: 'student+', def: 'Two π/2 pulses with a wait between them: the fringes measure detuning and T₂.' },
+    { id: 'ramsey', label: 'Ramsey experiment', module: 4, depth: 'student+', def: 'Two π/2 pulses with a wait between them: the fringes measure detuning and T₂* (free-induction decay); an echo gives T₂.' },
     // 5 · The hardware
     { id: 'superconductivity', label: 'Superconductivity', module: 5, def: 'Below a critical temperature some metals carry current with no resistance.' },
     { id: 'josephson', label: 'Josephson junction', module: 5, def: 'Two superconductors separated by a thin insulator: a lossless, nonlinear circuit element.' },

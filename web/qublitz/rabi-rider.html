@@ -619,11 +619,21 @@ const LAB_PRESET = {
 const LAB_FOR = { flight: 'pi', pi: 'pi', gates: 'pi', exam: 'pi', equator: 'half', collapse: 'half', born: 'p14',
   photon: 't1', ensemble: 't1', jumps: 't1', upgrade: 't1' };
 if (window.QL && QL.toLab) QL.toLab($('#labTry'), LAB_PRESET.t1[0]);
+// The hand-off line: the game's angular Rabi rate Ω (rad/s) as the lab's Ω_R/2π, computed from the engine constant and the
+// preset's own Rabi rate (the second number of free=ωq,Ω_R[MHz],T1,T2), so the two never drift apart.
+function handoffLine(q) {
+  const m = /free=[^,&]+,([^,&]+)/.exec(q), labMHz = m ? +m[1] : NaN;
+  if (!isFinite(labMHz) || !(labMHz > 0)) return '';
+  const w = E.P.OMEGA, hz = w / (2 * Math.PI), piGame = Math.PI / w, piLab = 500 / labMHz, ratio = labMHz * 1e6 / hz;
+  const ex = Math.floor(Math.log10(ratio)), mant = ratio / Math.pow(10, ex);
+  const sup = String(ex).replace(/\d/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
+  return ` Hand-off: the game's Ω = ${w} rad/s is Ω/2π = ${+hz.toPrecision(3)} Hz (a π pulse takes ${piGame.toFixed(2)} s); on the chip Ω<sub>R</sub>/2π = ${labMHz} MHz (π in ${+piLab.toPrecision(3)} ns), ${mant.toFixed(1)} × 10${sup} times faster.`;
+}
 function syncLab() {
   const [q, what] = LAB_PRESET[current ? LAB_FOR[current.id] || 'pi' : 't1'];
   if (window.QL && QL.labLink) $('#labTry').href = QL.labLink(q);
   else $('#labTry').href = (window.QUBLITZ_STANDALONE ? SITE + 'qublitz/' : '') + 'qubit-simulator.html?' + q;
-  $('#labWhat').innerHTML = 'In the lab: ' + what;
+  $('#labWhat').innerHTML = 'In the lab: ' + what + handoffLine(q);
 }
 function handle(ev) {
   for (const e of ev) {

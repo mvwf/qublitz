@@ -166,7 +166,7 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
   <h2>Radial probability r² |R<sub>nl</sub>|²</h2>
   <div id="radialPlot" class="plot" style="height:260px"></div>
   <p class="hint">The chance of finding the electron between <i>r</i> and <i>r</i> + d<i>r</i>. It has <i>n</i> − <i>l</i> − 1
-  zeros (radial nodes) and its mean is ⟨<i>r</i>⟩ = (<i>a</i>/2)[3<i>n</i>² − <i>l</i>(<i>l</i>+1)] (dashed line).</p>
+  interior zeros (radial nodes) and its mean is ⟨<i>r</i>⟩ = (<i>a</i>/2)[3<i>n</i>² − <i>l</i>(<i>l</i>+1)] (dashed line).</p>
 </div>
 
 <!-- ───────── spectroscopy ───────── -->
@@ -284,7 +284,7 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
     <p class="note">The levels are shown evenly spaced by <i>n</i>, not to energy scale. The jumps themselves are instantaneous; they are
     drawn slowed so you can follow them. Lifetimes and branching ratios are the page's own gross-structure values (no fine
     structure), which agree with the tabulated ones (Wiese &amp; Fuhr 2009) to better than 0.1%. The 2s atoms are free, in zero field:
-    a weak electric field mixes 2s with 2p and empties it in nanoseconds (quenching), and collisions do the same in a dense gas.
+    a modest electric field (a few hundred V/cm) mixes 2s with 2p and empties it within tens of nanoseconds (quenching), and collisions do the same in a dense gas.
     The 2s two-photon decay shares its energy between the two photons in a continuous spectrum, so it adds no line.</p></details>
 </div>
 
@@ -427,7 +427,7 @@ const infernoRGB = INFERNO.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2
 const inferno = x => { x = Math.max(0, Math.min(1, x)) * (infernoRGB.length - 1); const i = Math.min(infernoRGB.length - 2, Math.floor(x)), f = x - i;
   return infernoRGB[i].map((c, k) => c + (infernoRGB[i + 1][k] - c) * f); };
 const fmtTime = s => !isFinite(s) ? 'stable' : s >= 1e-3 ? (s >= 1 ? s.toFixed(2) + ' s' : (s * 1e3).toFixed(1) + ' ms') : s >= 1e-6 ? (s * 1e6).toFixed(2) + ' µs' : (s * 1e9).toFixed(s < 1e-8 ? 3 : 1) + ' ns';
-const fmtHz = f => f >= 1e9 ? (f / 1e9).toPrecision(3) + ' GHz' : f >= 1e6 ? (f / 1e6).toPrecision(3) + ' MHz' : (f / 1e3).toPrecision(3) + ' kHz';
+const fmtHz = f => f >= 1e9 ? (f / 1e9).toPrecision(3) + ' GHz' : f >= 1e6 ? (f / 1e6).toPrecision(3) + ' MHz' : f >= 1e3 ? (f / 1e3).toPrecision(3) + ' kHz' : f.toPrecision(3) + ' Hz';
 const fmtNm = m => (m * 1e9).toFixed(m * 1e9 < 200 ? 3 : 2) + ' nm';
 const ev = (name, data) => { try { window.QL && QL.event(name, data); } catch (e) { /* counting is optional */ } };
 

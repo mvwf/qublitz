@@ -11,6 +11,8 @@
  *   1/Ql = 1/Qi + cos φ / |Qc|   (the "diameter correction": only Re(1/Qc) is a loss channel)
  * Units: frequency in GHz, τ in ns, so 2π f τ is in radians.
  *
+ * TLS loss (tlsQi): 1/Qi = (1/Q_TLS0) tanh(hf/2k_BT)/(1 + n̄/n_c)^β + 1/Q_other (McRae et al. 2020, Burnett et al. 2018).
+ *
  * Fitting: Levenberg–Marquardt with central-difference Jacobians whose steps are calibrated per
  * parameter, covariance s²(JᵀJ)⁻¹ with s² = SSR/(N − p), and derived quantities propagated through
  * the full covariance.
@@ -84,6 +86,39 @@
   /** Inverse of photonNumber: the power [dBm] at the device that gives n photons. */
   function powerForPhotons(model, n, frGHz, Ql, Qc) {
     return 10 * Math.log10(n / photonNumber(model, 0, frGHz, Ql, Qc));
+  }
+
+  /* ---- two-level-system (TLS) loss against photon number and temperature.
+   * The standard phenomenological model (Gao 2008; Pappas et al. 2011; Burnett et al., npj Quantum Inf. 4, 54 (2018);
+   * McRae et al., Rev. Sci. Instrum. 91, 091101 (2020), Eq. 10), in the generalised-saturation form of the latter two:
+   *
+   *   1/Qi(n̄, T) = (1/Q_TLS0) · tanh(h f / 2 k_B T) / (1 + n̄/n_c)^β  +  1/Q_other,      Q_TLS0 = 1/(F tan δ⁰_TLS).
+   *
+   * Q_TLS0 is the TLS-limited Q at zero power and zero temperature (F the filling factor of the lossy dielectric,
+   * tan δ⁰ its intrinsic loss tangent). The tanh is the population difference between the two TLS levels at thermal
+   * equilibrium: a TLS absorbs only when it sits in its ground state, so as k_B T grows past h f/2 the defects are
+   * thermally excited, absorb and emit equally and stop removing energy. n_c is the photon number at which the
+   * TLSs saturate (each absorbs one photon and must relax before the next); β = 0.5 is the textbook result for a
+   * uniform TLS distribution with no interactions, and measured devices give β ≈ 0.1–0.5. Q_other collects every
+   * power-independent channel (quasiparticles, radiation, package, vortices) and is taken as constant here: n_c in
+   * fact grows with T (TLS relaxation speeds up) and quasiparticle loss sets in above ~T_c/10, neither of which is
+   * modelled. Units: frGHz in GHz, TK in kelvin.
+   */
+  const H_PLANCK = 6.62607015e-34;   // J·s
+  const K_B = 1.380649e-23;          // J/K
+  /** tanh(h f / 2 k_B T): the TLS thermal population factor. 1 at T → 0, tanh(1) ≈ 0.762 where h f = 2 k_B T, → 0 at high T. */
+  function tlsThermal(frGHz, TK) { return Math.tanh(H_PLANCK * frGHz * 1e9 / (2 * K_B * TK)); }
+  /** The temperature [K] at which h f = 2 k_B T, where the tanh factor is tanh(1) ≈ 0.76. */
+  function tlsCrossoverT(frGHz) { return H_PLANCK * frGHz * 1e9 / (2 * K_B); }
+  /** 1/Q_TLS(n̄, T) alone: (1/Qtls0) · tanh(hf/2kT) / (1 + n̄/nc)^β. P = { Qtls0, nc, beta }. */
+  function tlsLoss(n, TK, frGHz, P) {
+    if (!(n >= 0) || !(TK >= 0) || !(frGHz > 0) || !(P.Qtls0 > 0) || !(P.nc > 0) || !(P.beta > 0)) return NaN;
+    return tlsThermal(frGHz, TK) / (P.Qtls0 * Math.pow(1 + n / P.nc, P.beta));
+  }
+  /** Qi(n̄, T) = 1 / (1/Q_TLS(n̄, T) + 1/Qother). P = { Qtls0, Qother, nc, beta }; Qother may be Infinity. */
+  function tlsQi(n, TK, frGHz, P) {
+    const l = tlsLoss(n, TK, frGHz, P);
+    return 1 / (l + 1 / P.Qother);
   }
 
   /* ------------------------------------------------------------- linear algebra */
@@ -694,6 +729,8 @@
         for (let j = 0; j < m; j++) { out[j] = y.re[j] - data.re[j]; out[m + j] = yi[j] - data.im[j]; }
         return out;
       }
+      // A phase residual is taken on the circle, so neither the data's nor the model's 2π branch matters.
+      if (target === 'phase') return Array.from(y.re, (x, j) => { const d = x - data.y[j]; return Math.atan2(Math.sin(d), Math.cos(d)); });
       return Array.from(y.re, (x, j) => x - data.y[j]);
     };
     const fit = levmar(resid, p0, { fixed: names.map(nm => !!fixed[nm]) });
@@ -717,7 +754,7 @@
     return {
       params: best, sigma, derived: der, cov: fit.cov, names,
       rms: Math.sqrt(ss / r.length), converged: fit.converged, message: fit.message, iters: fit.iters, notes,
-      curve: ff => project(target, evaluate(F.ast, ff, best)),
+      curve: ff => { const v = project(target, evaluate(F.ast, ff, best)); return target === 'phase' ? { ...v, re: unwrap(v.re) } : v; },
       python: pythonScript(F, target, best, fixed),
     };
   }
@@ -858,6 +895,7 @@
 
   const api = {
     MODELS, TARGETS, LEVELS, loadedQ, internalQ, sweep, regime, photonNumber, powerForPhotons,
+    tlsThermal, tlsCrossoverT, tlsLoss, tlsQi,
     levmar, propagate, guess, fitResonator, circleFit, unwrap,
     parse, evaluate, toPython, fitFormula, pythonScript, FormulaError, RESERVED,
     parseTable, parseTouchstone, practice, rng, circleResid,

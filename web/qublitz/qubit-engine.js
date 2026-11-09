@@ -419,6 +419,90 @@
       phi, C, fitCurve: Array.from(delays, t => ramseyModel(t, res.popt)), ok: true };
   }
 
+  /* ---------------- pulse-duration sweep (Rabi calibration) ---------------- */
+
+  /**
+   * The Rabi calibration as a lab runs it: prepare |0⟩, play a square pulse of length t at amplitude amp·Ω_R and
+   * drive frequency ωd, measure P(|1⟩), repeat for each t. Because every pulse starts from |0⟩ at t = 0 and is
+   * measured the moment it ends, P(|1⟩) after a pulse of length t equals P(|1⟩) at time t under a drive that
+   * stays on, so the whole sweep is one lab-frame solve (no RWA) sampled at the requested durations.
+   * @returns {{t:Float64Array,p1:Float64Array}} noiseless P(|1⟩) for each duration in linspace(0, tMax, nDur)
+   */
+  function rabiDurationSweep({ omegaQ, omegaRabi, omegaD, amp = 1, tMax, nDur, T1 = 0, T2 = 0 }) {
+    const n = Math.max(2, nDur | 0), envI = new Float64Array(n).fill(Math.max(-1, Math.min(1, amp)));
+    const r = solve({ omegaQ, omegaRabi, tFinal: tMax, nSteps: n, omegaD, envI, envQ: null, T1, T2 });
+    return { t: r.t, p1: r.p1 };
+  }
+
+  /**
+   * The Rabi formula with decay, as fitted to a duration sweep. With Ω the drive strength (2π·fMHz·10⁻³ rad/ns),
+   * Δ = ωd − ωq the detuning and Ω_R = √(Ω² + Δ²) the generalized Rabi frequency,
+   *     P(|1⟩)(t) = (Ω²/Ω_R²) · ½ [1 − e^{−t/τ} cos(Ω_R t)]
+   * which is (Ω²/Ω_R²) sin²(Ω_R t/2) without decay: the oscillation speeds up to Ω_R off resonance and its
+   * contrast drops to Ω²/Ω_R². The decay closes the oscillation onto its midpoint, as Torrey's solution of the
+   * Bloch equations does for a strong drive, where on resonance τ = 2/(1/T₁ + 1/T₂) (rabiDecayTime).
+   */
+  function rabiFormula(t, fMHz, dMHz, tauNs) {
+    const f2 = fMHz * fMHz, r2 = f2 + dMHz * dMHz;
+    if (!(r2 > 0)) return 0;
+    const wR = TAU * 1e-3 * Math.sqrt(r2), env = tauNs > 0 ? Math.exp(-t / tauNs) : 1;
+    return (f2 / r2) * 0.5 * (1 - env * Math.cos(wR * t));
+  }
+  /** Decay time of a strongly driven, resonant Rabi oscillation (Torrey): 2/(1/T₁ + 1/T₂). */
+  function rabiDecayTime(T1, T2) { return 2 / (1 / T1 + 1 / T2); }
+  /** Pure-dephasing time from 1/T₂ = 1/(2T₁) + 1/Tφ; Infinity when T₂ = 2T₁ (no pure dephasing). */
+  function dephasingTime(T1, T2) {
+    const g = 1 / T2 - 1 / (2 * T1);
+    return g > 1e-12 / T1 ? 1 / g : Infinity;
+  }
+
+  // fit parameters [fR MHz (generalized Rabi frequency), c (contrast Ω²/Ω_R²), τ ns]: better conditioned than (Ω, Δ)
+  const rabiFormulaModel = (t, [fR, c, tau]) => c * 0.5 * (1 - Math.exp(-t / tau) * Math.cos(TAU * fR * 1e-3 * t));
+
+  /**
+   * Fit a duration sweep with the Rabi formula and return the drive strength Ω/2π and the detuning |Δ|/2π it
+   * implies (the formula is even in Δ, so the sign is not determined). Internally the fit runs in
+   * (Ω_R/2π, contrast, τ); Ω = Ω_R√c and |Δ| = Ω_R√(1 − c), with first-order error propagation.
+   * @returns {{fMHz:number,fMHzErr:?number,dMHz:number,dMHzErr:?number,fRMHz:number,fRMHzErr:?number,
+   *            contrast:number,contrastErr:?number,tauNs:number,tauNsErr:?number,fitCurve:number[],ok:true}|null}
+   */
+  function fitRabiFormula(ts, ys) {
+    if (ts.length < 10) return null;
+    const dt = median(diff(ts));
+    if (!(dt > 0)) return null;
+    const f = dominantFreq(ts, ys), span = ts[ts.length - 1] - ts[0];
+    const f0 = f != null ? Math.max(1e3 * f, 0.01) : 1e3 / span;
+    const fMax = Math.min(5e4, 1e3 * 0.25 / dt);
+    const c0 = Math.min(1, Math.max(0.05, max(ys)));
+    const lower = [0, 0.005, dt], upper = [fMax, 1, 1e7];
+    // A least-squares fit only converges from within about ±1/(2·span) of the right Ω_R (further out, a flat line
+    // beats an anti-phased oscillation) and from a decay time of the right order, so score a grid of Ω_R (step
+    // 1/(4·span)) × τ (¼, ½, 1, 3 × span) at fixed contrast first and refine from the best cells and the FFT guess.
+    const gstep = 1e3 / (4 * span), taus = [0.25, 0.5, 1, 3].map(k => Math.max(k * span, dt)), cells = [];
+    for (const tau of taus) for (let fg = gstep; fg < fMax; fg += gstep) {
+      let ssr = 0;
+      for (let i = 0; i < ts.length; i++) { const d = ys[i] - rabiFormulaModel(ts[i], [fg, c0, tau]); ssr += d * d; }
+      cells.push([ssr, fg, tau]);
+    }
+    cells.sort((a, b) => a[0] - b[0]);
+    const starts = [[f0, taus[2]]].concat(cells.slice(0, 5).map(c => [c[1], c[2]]));
+    let res = null;
+    for (const [fg, tau] of starts) {
+      const fit = curveFit(rabiFormulaModel, ts, ys, [Math.min(upper[0], fg), c0, tau], lower, upper, 600);
+      if (fit && (!res || fit.ssr < res.ssr * (1 - 1e-9))) res = fit;
+    }
+    if (!res) return null;
+    const [fR, c, tau] = res.popt, [eR, eC, eT] = res.perr;
+    const sc = Math.sqrt(c), sd = Math.sqrt(Math.max(0, 1 - c));
+    const fMHz = fR * sc, dMHz = fR * sd;
+    const err = (sv, dsv, e1, e2) => (isFinite(e1) && isFinite(e2) ? Math.hypot(sv * e1, dsv * e2) : NaN);
+    const fErr = err(sc, fR / (2 * Math.max(sc, 1e-9)), eR, eC);
+    const dErr = sd > 1e-6 ? err(sd, fR / (2 * sd), eR, eC) : NaN;    // on resonance |Δ| sits at its bound: no error bar
+    return { fMHz, fMHzErr: finiteOrNull(fErr), dMHz, dMHzErr: finiteOrNull(dErr), fRMHz: fR, fRMHzErr: finiteOrNull(eR),
+      contrast: c, contrastErr: finiteOrNull(eC), tauNs: tau, tauNsErr: finiteOrNull(eT),
+      fitCurve: Array.from(ts, t => rabiFormulaModel(t, res.popt)), ok: true };
+  }
+
   /** _active_segments(): [start, end] index runs where |env| > threshold. */
   function activeSegments(env, threshold = 1e-8) {
     const segs = [];
@@ -506,6 +590,7 @@
     ramseyP1, ramseyChevron,
     rngFrom, binomial, sampleShots, randomCode, qubitFromCode, codeFor, QUBIT_RANGES,
     curveFit, fitRabi, fitT1, fitRamsey, activeSegments, analyzeTimeDomainFits,
+    rabiDurationSweep, rabiFormula, fitRabiFormula, rabiDecayTime, dephasingTime,
     linspace, median,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

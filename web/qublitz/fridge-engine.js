@@ -12,6 +12,18 @@
  *   drive power drops by each stage's attenuation; the cable insertion loss is
  *   applied to the drive at the MXC only, not to the noise.
  * Frequencies are in GHz, temperatures in K, powers in dBm.
+ *
+ * What the noise does to a qubit (added for the page's "consequence" panel):
+ *   a qubit in equilibrium with n̄ photons at its own frequency has the same temperature,
+ *   T_eff = hf / (kB ln(1 + 1/n̄)), and its excited-state population is the two-level
+ *   Boltzmann result P_exc = 1/(exp(hf/kB T) + 1) = n̄ / (1 + 2n̄). (The Boltzmann ratio
+ *   P_exc/P_ground = exp(−hf/kB T) is n̄ / (1 + n̄), which is also the ratio of the
+ *   photon-induced up and down rates n̄γ and (n̄ + 1)γ.)
+ *   Readout line: n̄ thermal photons in a resonator of linewidth κ with dispersive shift ±χ
+ *   dephase the qubit at Γφ = n̄ κ (2χ)² / (κ² + (2χ)²) for n̄ ≪ 1 (Clerk & Utami, PRA 75,
+ *   042302 (2007); in this form in Yan et al., Nat. Commun. 7, 12964 (2016)). The full
+ *   Clerk–Utami expression Γφ = (κ/2) Re[√((1 + 2iχ/κ)² + 8iχn̄/κ) − 1] is kept for checking.
+ *   κ and χ are angular rates (rad/s); Γφ is then in 1/s and Tφ = 1/Γφ.
  */
 (function (root) {
   'use strict';
@@ -52,6 +64,28 @@
     return { nEff, TEff };
   }
 
+  /** Excited-state population of a two-level system in equilibrium with n̄ photons
+   *  at its frequency: 1/(exp(hf/kBT) + 1) with exp(hf/kBT) = 1 + 1/n̄, i.e. n̄/(1 + 2n̄). */
+  const qubitExcitedPopulation = n => n / (1 + 2 * n);
+
+  /** Boltzmann ratio P_exc / P_ground = exp(−hf/kBT) = n̄/(1 + n̄). */
+  const qubitBoltzmannRatio = n => n / (1 + n);
+
+  /** Photon-shot-noise dephasing rate [1/s] for n̄ ≪ 1: n̄ κ (2χ)² / (κ² + (2χ)²).
+   *  kappa, chi are angular rates [rad/s]; χ is the dispersive shift (resonator at ω_r ± χ). */
+  function photonDephasingRate(n, kappa, chi) {
+    const c2 = (2 * chi) ** 2;
+    return n * kappa * c2 / (kappa * kappa + c2);
+  }
+
+  /** The full Clerk–Utami rate (κ/2) Re[√((1 + 2iχ/κ)² + 8iχn̄/κ) − 1], valid for any n̄. */
+  function photonDephasingRateExact(n, kappa, chi) {
+    const u = 2 * chi / kappa;
+    const re = 1 - u * u, im = 2 * u + 4 * u * n;     // (1 + iu)² + 4iu·n̄
+    const r = Math.hypot(re, im);
+    return kappa / 2 * (Math.sqrt((r + re) / 2) - 1);  // Re √z = √((|z| + Re z)/2)
+  }
+
   /** 10·log10(n_room / n_eff), with n_eff floored at 1e-30 as in the page. */
   function noiseReductionDB(nRoom, nEff) {
     return 10 * Math.log10(nRoom / Math.max(nEff, 1e-30));
@@ -85,7 +119,8 @@
   }
 
   const api = { kB, h, thermalN, nToTeff, propagateChain, noiseReductionDB, dBmToW, WTodBm,
-    drivePowers, photonFlux, formatTemp, linspace };
+    drivePowers, photonFlux, formatTemp, linspace,
+    qubitExcitedPopulation, qubitBoltzmannRatio, photonDephasingRate, photonDephasingRateExact };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.FridgeEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
