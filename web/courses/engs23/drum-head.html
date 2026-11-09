@@ -52,6 +52,7 @@
   button.primary:hover{background:var(--green2);color:#fff}
   button.sound{background:var(--accent);color:#fff;border-color:var(--accent)}
   button.sound:hover{background:#a93a24;color:#fff}
+  .vh{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
   .seg button{border:none;border-radius:0;padding:5px 10px}
   .seg button:not(:last-child){border-right:1px solid var(--line)}
@@ -120,7 +121,8 @@
       <label class="lbl"><input type="checkbox" id="sand"> sand</label>
     </div>
     <div class="srcBanner sup" id="srcBanner" role="status" aria-live="polite"></div>
-    <canvas id="drum" role="img" aria-label="Drum head: your superposition" height="380"></canvas>
+    <canvas id="drum" role="group" tabindex="0" aria-label="Drum head: your superposition" aria-describedby="drumKeys" height="380"></canvas>
+    <span class="vh" id="drumKeys">Drag, or in the 3D view use the arrow keys, to turn the drum (Shift for bigger steps).</span>
     <div class="row">
       <button id="play" class="primary">❚❚ Pause</button>
       <button id="reset">Reset to t = 0</button>
@@ -159,7 +161,8 @@
   <div class="card" id="tilesCard">
     <div class="flexcap"><h2 style="margin:0" id="tilesTitle">Normal modes, seen from above: click to build your superposition</h2>
       <span class="pill" id="selPill">4 selected</span></div>
-    <canvas id="tiles" role="img" aria-label="Normal modes, seen from above: click to build your superposition" data-retro-ink height="380"></canvas>
+    <canvas id="tiles" role="group" tabindex="0" aria-label="Normal modes, seen from above: click to build your superposition" aria-describedby="tilesKeys" data-retro-ink height="380"></canvas>
+    <span class="vh" id="tilesKeys">Arrow keys move between the tiles (m across, n down); Enter or Space adds or removes that mode.</span>
     <div class="row tight">
       <button id="selLowest">Lowest four</button>
       <button id="selFig">Figure 6.1</button>
@@ -169,7 +172,9 @@
     </div>
     <div class="flexcap" style="margin-top:4px"><span class="muted" style="font-size:12.5px">Amplitude of each selected mode — drag the bars</span>
       <span><span class="pill" id="ampRead">hover a bar</span> <button id="ampReset" title="Set every selected mode back to +1">All +1</button></span></div>
-    <canvas id="amps" role="img" aria-label="Amplitude of each selected mode: drag the bars" data-retro-ink height="120" style="margin-top:6px;cursor:ns-resize"></canvas>
+    <canvas id="amps" role="group" tabindex="0" aria-label="Amplitude of each selected mode: drag the bars" aria-describedby="ampsKeys" data-retro-ink height="120" style="margin-top:6px;cursor:ns-resize"></canvas>
+    <span class="vh" id="ampsKeys">Left and Right arrows choose a bar; Up and Down change it by 0.05 (Shift: 0.25); Home sets −1, End +1, 0 sets zero.</span>
+    <span class="vh" id="kbLive" aria-live="polite"></span>
     <p class="legend" id="tilesLegend">Laid out as Boas's Figure 6.1: <span class="mvar">m</span> across, <span class="mvar">n</span> down. Each tile is
       <span class="mvar">J<sub>n</sub></span>(<span class="mvar">k<sub>mn</sub>r</span>/<span class="mvar">a</span>) cos <span class="mvar">n</span>θ, drawn still at a crest
       (each one would oscillate at its own frequency; the drum and the panel below show that motion). It has <span class="mvar">n</span> nodal diameters and <span class="mvar">m</span> − 1 nodal circles inside the rim. The number is
@@ -559,7 +564,7 @@ if (window.QUBLITZ_STANDALONE) {
   const tmp3=[0,0,0];
 
   // ---------- mode tiles (Figure 6.1 layout) ----------
-  let tileGeo=null;
+  let tileGeo=null, tileCur={m:1,n:0};   // tileCur: the keyboard cursor
   const TILEPX=64, tileField=new Map();
   function tileBase(md){ let F=tileField.get(md.index);
     if(!F){ F=new Float32Array(TILEPX*TILEPX);
@@ -600,6 +605,8 @@ if (window.QUBLITZ_STANDALONE) {
         g.fillText('('+m+','+n+')  '+(100*sh).toFixed(sh<0.1?1:0)+'%', x0+S/2, y0+S+12);
         if(sh>0.0005){ g.fillStyle='rgba(27,42,36,0.75)'; g.fillRect(x0, y0+S+15, S*Math.min(1,Math.sqrt(sh)), 3); } }
       else g.fillText('('+m+','+n+')  '+md.ratio.toFixed(3), x0+S/2, y0+S+12);
+      if(m===tileCur.m && n===tileCur.n && document.activeElement===$('tiles')){   // keyboard cursor, only while focused
+        g.strokeStyle='#1b2a24'; g.lineWidth=2; g.setLineDash([4,3]); g.strokeRect(x0-5,y0-5,S+10,S+24); g.setLineDash([]); }
     }
     if(shares){ let shown=0; for(let n=0;n<TILE_N;n++) for(let m=1;m<=TILE_M;m++) shown+=shares[modeAt(m,n).index];
       $('selPill').textContent=(100*shown).toFixed(0)+'% of the energy shown';
@@ -808,7 +815,7 @@ if (window.QUBLITZ_STANDALONE) {
         return {f:c.md.ratio*f10, label:'('+c.md.m+','+c.md.n+')', color: src==='modes'&&si>=0? SCOL[si] : '#7fa8c9'}; }); }});
 
   // ---------- amplitude bars for the selected modes (like the string's Fourier bars) ----------
-  let ampGeo=null;
+  let ampGeo=null, ampCur=0;   // ampCur: the bar the keyboard edits
   function drawAmps(){
     const {w,h,g}=AM; g.clearRect(0,0,w,h); ampGeo=null;
     if(!sel.length){ g.fillStyle='#8a9a92'; g.font='12px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillText('Select modes to set their amplitudes', w/2, h/2); return; }
@@ -823,6 +830,8 @@ if (window.QUBLITZ_STANDALONE) {
       g.textAlign='center'; g.font='11px Helvetica,Arial,sans-serif'; g.fillText('('+m+','+nn+')', x, h-4);
       g.fillStyle='#1b2a24'; g.font='bold 10.5px Helvetica,Arial,sans-serif'; g.fillText((a>0?'+':a<0?'−':'')+Math.abs(a).toFixed(2), x, a>=0? mid-a*half-4 : mid-a*half+12); });
     g.globalAlpha=1;
+    if(document.activeElement===$('amps')){ const x=L+cw*(Math.min(ampCur,n-1)+0.5);   // keyboard cursor, only while focused
+      g.strokeStyle='#1b2a24'; g.lineWidth=2; g.setLineDash([4,3]); g.strokeRect(x-Math.max(bw,40)/2-5, 2, Math.max(bw,40)+10, h-4); g.setLineDash([]); }
     if(src!=='modes'){ g.fillStyle='#5a6b63'; g.font='12px Helvetica,Arial,sans-serif'; g.textAlign='center'; g.fillText('Drag a bar to switch back to Selected modes', (L+w)/2, top+12); }
   }
   function ampAt(e){
@@ -832,12 +841,29 @@ if (window.QUBLITZ_STANDALONE) {
     return {k,v};
   }
   let ampDrag=false;
-  function ampEdit(e){ const h=ampAt(e); if(!h) return; const [m,n]=sel[h.k]; amps[''+m+n]=h.v;
+  // set bar k to v (clamped to ±1 in steps of 0.05): the one path for pointer and keyboard
+  function setAmp(k,v){ if(k<0||k>=sel.length) return; const [m,n]=sel[k];
+    amps[''+m+n]=Math.max(-1,Math.min(1,Math.round(v*20)/20)); ampCur=k;
     if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); }
     refreshScale(); if(!playing) drawAll(); else drawAmps(); }
+  function ampEdit(e){ const h=ampAt(e); if(!h) return; setAmp(h.k,h.v); }
+  const ampText=k=>'('+sel[k].join(',')+'): '+ampOf(...sel[k]).toFixed(2);
+  $('amps').addEventListener('keydown',e=>{
+    if(!sel.length || e.altKey || e.ctrlKey || e.metaKey) return;
+    let k=Math.min(ampCur,sel.length-1); const a=ampOf(...sel[k]), st=e.shiftKey?0.25:0.05;
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ k=Math.max(0,Math.min(sel.length-1,k+(e.key==='ArrowRight'?1:-1))); ampCur=k; drawAmps(); }
+    else if(e.key==='ArrowUp') setAmp(k,a+st);
+    else if(e.key==='ArrowDown') setAmp(k,a-st);
+    else if(e.key==='Home') setAmp(k,-1);
+    else if(e.key==='End') setAmp(k,1);
+    else if(e.key==='0') setAmp(k,0);
+    else return;
+    e.preventDefault(); $('ampRead').textContent=ampText(k); $('kbLive').textContent='Mode '+ampText(k);
+  });
+  ['focus','blur'].forEach(t=>$('amps').addEventListener(t,()=>drawAmps()));
   $('amps').addEventListener('pointerdown',e=>{ ampDrag=true; $('amps').setPointerCapture(e.pointerId); ampEdit(e); });
   $('amps').addEventListener('pointermove',e=>{ if(ampDrag) ampEdit(e);
-    else { const h=ampAt(e); $('ampRead').textContent= h? '('+sel[h.k].join(',')+'): '+ampOf(...sel[h.k]).toFixed(2) : 'hover a bar'; } });
+    else { const h=ampAt(e); $('ampRead').textContent= h? ampText(h.k) : 'hover a bar'; } });
   ['pointerup','pointercancel'].forEach(t=>$('amps').addEventListener(t,()=>{ ampDrag=false; }));
   $('ampReset').addEventListener('click',()=>{ sel.forEach(([m,n])=>{ amps[''+m+n]=1; }); refreshScale(); drawAll(); });
 
@@ -909,7 +935,9 @@ if (window.QUBLITZ_STANDALONE) {
   function setPlaying(p){ playing=p; $('play').textContent=p?'❚❚ Pause':'▶ Play'; if(p){ lastTS=null; requestAnimationFrame(frame); } else drawAll(); live.redraw(); }
 
   // ---------- controls ----------
-  function setSeg(id,attr,val){ document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset[attr]===val)); }
+  function setSeg(id,attr,val){ document.querySelectorAll('#'+id+' button').forEach(b=>{ const on=b.dataset[attr]===val;
+    b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); }); }
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.classList.contains('on')));
   function srcUI(){
     const hit = src==='strike', B=$('srcBanner');
     B.className='srcBanner '+(hit?'hit':'sup');
@@ -972,18 +1000,41 @@ if (window.QUBLITZ_STANDALONE) {
     if(!tileGeo) return; const r=$('tiles').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=tileGeo;
     const m=Math.floor((x-G.padL)/(G.cw+G.gap))+1, n=Math.floor((y-G.padT)/(G.chh+G.gap));
     if(m<1||m>TILE_M||n<0||n>=TILE_N) return;
+    tileCur={m,n}; toggleTile(m,n);
+  });
+  // add or remove mode (m,n): the one path for pointer and keyboard
+  function toggleTile(m,n){
     const i=sel.findIndex(([a,b])=>a===m&&b===n);
     if(src!=='modes') setSel([[m,n]]);
     else if(i>=0) setSel(sel.filter((_,k)=>k!==i));
     else setSel(sel.length>=MAXSEL? sel.slice(1).concat([[m,n]]) : sel.concat([[m,n]]));
+  }
+  function tileText(m,n){ const md=modeAt(m,n), on=src==='modes' && sel.some(([a,b])=>a===m&&b===n);
+    return 'Mode ('+m+','+n+'), '+md.ratio.toFixed(3)+' ν₁₀, '+(src==='strike'? (100*energyShares()[md.index]).toFixed(1)+'% of the strike energy'
+      : (on?'selected':'not selected')+', '+sel.length+' of '+MAXSEL+' selected'); }
+  $('tiles').addEventListener('keydown',e=>{
+    if(e.altKey || e.ctrlKey || e.metaKey) return;
+    let {m,n}=tileCur;
+    if(e.key==='ArrowLeft') m=Math.max(1,m-1); else if(e.key==='ArrowRight') m=Math.min(TILE_M,m+1);
+    else if(e.key==='ArrowUp') n=Math.max(0,n-1); else if(e.key==='ArrowDown') n=Math.min(TILE_N-1,n+1);
+    else if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleTile(m,n); $('kbLive').textContent=tileText(m,n); return; }
+    else return;
+    e.preventDefault(); tileCur={m,n}; drawTiles(); $('kbLive').textContent=tileText(m,n);
   });
+  ['focus','blur'].forEach(t=>$('tiles').addEventListener(t,()=>drawTiles()));
 
   // drag to turn (3D), click to strike
   let drag=null;
   $('drum').addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,az:cam.az,el:cam.el,moved:false}; $('drum').setPointerCapture(e.pointerId); });
   $('drum').addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
     if(Math.abs(dx)+Math.abs(dy)>4) drag.moved=true;
-    if(drag.moved && view==='3d'){ cam.az=drag.az-dx*0.01; cam.el=Math.max(0.2,Math.min(1.5,drag.el+dy*0.01)); if(!playing) drawAll(); } });
+    if(drag.moved && view==='3d') orbit(drag.az-dx*0.01, drag.el+dy*0.01); });
+  // turn the 3D view: the one path for pointer and keyboard (arrows act like a drag in that direction)
+  function orbit(az,el){ cam.az=az; cam.el=Math.max(0.2,Math.min(1.5,el)); if(!playing) drawAll(); }
+  $('drum').addEventListener('keydown',e=>{
+    if(view!=='3d' || e.altKey || e.ctrlKey || e.metaKey) return;
+    const s=e.shiftKey?0.4:0.1, d={ArrowLeft:[s,0],ArrowRight:[-s,0],ArrowUp:[0,-s],ArrowDown:[0,s]}[e.key];
+    if(!d) return; e.preventDefault(); orbit(cam.az+d[0], cam.el+d[1]); });
   $('drum').addEventListener('pointerup',e=>{
     const d=drag; drag=null; if(!d || d.moved || !lastDrumCam) return;
     const r=$('drum').getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top, C=lastDrumCam;
