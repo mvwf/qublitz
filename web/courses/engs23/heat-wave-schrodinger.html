@@ -142,7 +142,7 @@ fundamental has turned its phase once. With that fixed, the contrast between the
     <button id="clearDraw">Clear</button>
     <span class="note" style="margin:0">Drag on the strip to sketch the shared starting shape. Ends pin to the walls.</span>
   </div>
-  <canvas id="draw" role="img" aria-label="Draw u(x,0): the shared starting shape" data-retro-ink style="height:104px"></canvas>
+  <canvas id="draw" role="img" aria-label="Draw u(x,0): the shared starting shape. Without a mouse, pick a shape from the Initial shape menu above or edit the Fourier bars below." data-retro-ink style="height:104px"></canvas>
 </div>
 
 <div class="card">
@@ -150,14 +150,17 @@ fundamental has turned its phase once. With that fixed, the contrast between the
   <div class="barwrap">
     <div>
       <div class="barlab">Re c<sub>n</sub> &mdash; the real starting shape, used by all three equations</div>
-      <canvas id="barsRe" role="img" aria-label="Fourier components: Re cn, the real starting shape" data-retro-ink style="height:120px"></canvas>
+      <canvas id="barsRe" tabindex="0" role="group" aria-label="Fourier components: Re cn, the real starting shape" aria-describedby="barsKeys" data-retro-ink style="height:120px"></canvas>
     </div>
     <div>
       <div class="barlab">Im c<sub>n</sub> &mdash; an imaginary part of &Psi;(x,0), Schr&ouml;dinger only</div>
-      <canvas id="barsIm" role="img" aria-label="Fourier components: Im cn, Schrödinger only" data-retro-ink style="height:120px"></canvas>
+      <canvas id="barsIm" tabindex="0" role="group" aria-label="Fourier components: Im cn, Schrödinger only" aria-describedby="barsKeys" data-retro-ink style="height:120px"></canvas>
     </div>
   </div>
-  <p class="note" style="margin-top:8px">Drag a bar up or down to set that mode. Heat and wave are real equations, so they
+  <p class="note" id="barsKeys" style="margin-top:8px">Drag a bar up or down to set that mode (keyboard: focus a chart, Left/Right pick the bar,
+  Up/Down set it, Shift for bigger steps, 0 zeroes it).</p>
+  <p id="barsLive" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0"></p>
+  <p class="note" style="margin-top:4px">Heat and wave are real equations, so they
   use only Re&thinsp;c<sub>n</sub>, the real shape &Sigma; Re&thinsp;c<sub>n</sub>&phi;<sub>n</sub>(x). Schr&ouml;dinger carries the full complex
   amplitude c<sub>n</sub> = Re + i&thinsp;Im; its size |c<sub>n</sub>| is how much of mode n there is, and its phase matters only relative to
   the other modes. A real &Psi;(x,0) always has &lang;p&rang; = 0, so it spreads symmetrically; to move, a packet needs complex c<sub>n</sub>
@@ -394,7 +397,7 @@ $("clearDraw").addEventListener("click",()=>{ drawnShape.fill(0); $("preset").va
 /* ---------- Fourier-component bar editor ---------- */
 const VMAX=1.0;
 let barGeoRe=null, barGeoIm=null, barDrag=null;
-function drawBarPanel(cv, arr, color){
+function drawBarPanel(cv, arr, color, sel){
   const {ctx,W,H}=fit(cv,120); ctx.clearRect(0,0,W,H);
   const m={l:24,r:8,t:8,b:16}, pw=W-m.l-m.r, ph=H-m.t-m.b, yMid=m.t+ph/2;
   const NB=Math.min(Nmax,16), bw=(pw/NB)*0.62;
@@ -405,17 +408,24 @@ function drawBarPanel(cv, arr, color){
   ctx.textAlign="center"; ctx.textBaseline="top";
   for(let n=1;n<=NB;n++){ const x=m.l+(n-0.5)*pw/NB; let v=arr[n]||0; v=Math.max(-VMAX,Math.min(VMAX,v));
     const hgt=v*(ph*0.46)/VMAX; ctx.fillStyle=color; ctx.fillRect(x-bw/2, yMid, bw, -hgt);
+    if(n===sel){ ctx.strokeStyle="#c99a2e"; ctx.lineWidth=2; ctx.strokeRect(x-pw/NB/2+1, m.t+1, pw/NB-2, ph-2); }
     ctx.fillStyle="#5a6b63"; ctx.fillText(n, x, m.t+ph+3); }
   return {m,pw,ph,yMid,NB};
 }
-function drawBars(){ barGeoRe=drawBarPanel($("barsRe"), cRe, "#12855a"); barGeoIm=drawBarPanel($("barsIm"), cIm, "#2d6fb3"); }
+const barSel={re:1, im:1};   // bar picked from the keyboard; outlined only while that chart has focus
+function drawBars(){ const f=document.activeElement;
+  barGeoRe=drawBarPanel($("barsRe"), cRe, "#12855a", f===$("barsRe")?barSel.re:0);
+  barGeoIm=drawBarPanel($("barsIm"), cIm, "#2d6fb3", f===$("barsIm")?barSel.im:0); }
 function barHit(cv,geo,e){ const r=cv.getBoundingClientRect();
   const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
   const g=geo; let n=Math.floor((cx-g.m.l)/(g.pw/g.NB))+1; n=Math.max(1,Math.min(g.NB,n));
   let v=(g.yMid-cy)/((g.ph*0.46)/VMAX); v=Math.max(-VMAX,Math.min(VMAX,v)); return {n,v}; }
 function barEdit(which,e){ e.preventDefault();
   const cv=which==="re"?$("barsRe"):$("barsIm"), geo=which==="re"?barGeoRe:barGeoIm; if(!geo) return;
-  const {n,v}=barHit(cv,geo,e); resizeC();
+  const {n,v}=barHit(cv,geo,e); barSel[which]=n; barSet(which,n,v);
+}
+// One write path for pointer and keyboard: set c_n, switch to the custom preset, redraw everything from t = 0.
+function barSet(which,n,v){ resizeC();
   if(which==="re") cRe[n]=v; else cIm[n]=v;
   $("preset").value="custom"; recomputeScales();
   for(let j=0;j<NX;j++) drawnShape[j]=u0[j];
@@ -430,6 +440,20 @@ function barEdit(which,e){ e.preventDefault();
   re.addEventListener("touchmove",e=>{ if(barDrag) barEdit(barDrag,e); },{passive:false});
   im.addEventListener("touchmove",e=>{ if(barDrag) barEdit(barDrag,e); },{passive:false});
   window.addEventListener("touchend",()=>{ barDrag=null; });
+  const say=(w,n)=>{ const v=(w==="re"?cRe:cIm)[n]||0;
+    $("barsLive").textContent=(w==="re"?"Re":"Im")+" c"+n+" = "+v.toFixed(2); };
+  const keys=w=>e=>{ const NB=Math.min(Nmax,16), arr=w==="re"?cRe:cIm; let n=Math.min(barSel[w],NB);
+    const step=e.shiftKey?0.2:0.05, cur=Math.max(-VMAX,Math.min(VMAX,arr[n]||0));
+    if(e.key==="ArrowLeft"||e.key==="ArrowRight"){ n=Math.max(1,Math.min(NB,n+(e.key==="ArrowLeft"?-1:1))); barSel[w]=n; drawBars(); say(w,n); }
+    else if(e.key==="ArrowUp"||e.key==="ArrowDown"){
+      const v=Math.round((cur+(e.key==="ArrowUp"?step:-step))*100)/100;
+      barSel[w]=n; barSet(w,n,Math.max(-VMAX,Math.min(VMAX,v))); say(w,n); }
+    else if(e.key==="0"||e.key==="Home"||e.key==="End"||e.key==="Delete"||e.key==="Backspace"){ barSel[w]=n; barSet(w,n,0); say(w,n); }
+    else return;
+    e.preventDefault(); };
+  for(const [w,cv] of [["re",re],["im",im]]){ cv.addEventListener("keydown",keys(w));
+    cv.addEventListener("focus",()=>{ drawBars(); say(w,Math.min(barSel[w],Math.min(Nmax,16))); });
+    cv.addEventListener("blur",drawBars); }
 })();
 
 /* ---------- shareable state: ?s=preset&N=&t=&r=&x0= (or re=/im= for edited bars) ---------- */
