@@ -196,7 +196,7 @@ def main():
     \end{bmatrix}''')
     latex(r'''\text{Where } |0\rangle = \begin{bmatrix} 1 \\ 0 \end{bmatrix} \text{ and } |1\rangle = \begin{bmatrix} 0 \\ 1 \end{bmatrix}''') # basis vectors
 
-    markdown('''where $\\alpha$ and $\\beta$ are complex numbers that describe the probability amplitudes of the qubit being in the ground or excited state. The sum of the squares of these amplitudes must equal 1:''')
+    markdown('''where $\\alpha$ and $\\beta$ are complex numbers that describe the probability amplitudes of the qubit being in the ground or excited state. The squared moduli of these amplitudes must add up to 1:''')
 
     latex(r'|\alpha|^2 + |\beta|^2 = 1')
 
@@ -217,7 +217,7 @@ def main():
     latex(r'\braket{\sigma_z} = \bra{\psi}\sigma_z\ket{\psi} = \begin{bmatrix} \alpha^* & \beta^*\end{bmatrix}\begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}\begin{bmatrix} \alpha \\ \beta \end{bmatrix} = \alpha^*\alpha-\beta^*\beta')
 
     markdown('''
-    Using a phase $\\phi = \\arctan{\\frac{\\braket{\\sigma_y}}{\\braket{\\sigma_x}}}$ and $\\braket{\\sigma_z}$, we can visualize any qubit state on the bloch sphere:)
+    Using a phase $\\phi = \\operatorname{atan2}(\\braket{\\sigma_y}, \\braket{\\sigma_x})$ (the two-argument arctangent, which keeps the quadrant) and $\\braket{\\sigma_z}$, we can visualize any qubit state on the Bloch sphere:
     ''')
 
 
@@ -246,7 +246,7 @@ def main():
     resonator is probed, and the qubit's $\\sigma_z$ commutes with the interaction.
 
 
-    We can use a cavity with an infinite, discrete number of photons (energy levels) like the one shown below
+    We can use a cavity with an infinite ladder of discrete photon-number levels like the one shown below
     as a resonator:
     ''')
     # BR-2 — this is the exact concept QuBlitz's MEASURE action dramatizes:
@@ -289,7 +289,7 @@ def main():
     markdown(''' 
     Because the superconducting qubit has infinite discrete energies, we must take some extra measures to keep the qubit is kept in the first two energy levels, which we can call
     $\\ket{0}$ and $\\ket{1}$. The anharmonicity in a Qubit actually makes it easier to isolate these two energy levels, and tuning certain parameters will
-    reduce the probability of the Qubit transitioning to a state with two (or more) photons, $\\ket{2}$. There are also optimally shaped pulses, such as **Gaussian** or **DRAG (Derivative Removal by Adiabatic Gate)** pulses, which help reduce transitions to higher energy levels. 
+    reduce the probability of the qubit leaking to its second excited state $\\ket{2}$ (the transmon is not a two-level system). There are also optimally shaped pulses, such as **Gaussian** or **DRAG (Derivative Removal by Adiabatic Gate)** pulses, which help reduce transitions to higher energy levels. 
     These shaped pulses minimize the off-resonant driving that can excite the qubit to unwanted energy levels.
 ''')
     
@@ -406,8 +406,8 @@ def main():
     markdown(''' Where g is the coupling strength between the qubit and the resonator.
              We also have a drive term which can be described as follows:''')
 
-    latex(r'\text{For a resonator, } H_{dr} = \hbar\epsilon(a^{\dagger}e^{-i\omega_dt}+ae^{i\omega_dt})')
-    latex(r'\text{For a qubit, } H_{dq} = \hbar\epsilon(\sigma_+e^{-i\omega_qt}+\sigma_-e^{i\omega_qt})')
+    latex(r'\text{For a resonator, } H_{dr} = \hbar(\epsilon\, a^{\dagger}e^{-i\omega_dt}+\epsilon^{*} a\, e^{i\omega_dt})')
+    latex(r'\text{For a qubit, } H_{dq} = \hbar(\epsilon\,\sigma_+e^{-i\omega_dt}+\epsilon^{*}\sigma_-e^{i\omega_dt}) \quad (\omega_d = \omega_q \text{ on resonance})')
     latex(r'\text{Where } \epsilon = I+iQ')
 
     markdown(r'''

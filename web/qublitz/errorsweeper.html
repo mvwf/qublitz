@@ -2181,7 +2181,7 @@ const CLS_STEPS = [
     } },
   { t: 'Parity checks point at the culprit', draw: () => {
       const b = CLS.rep3, s1 = b[0] ^ b[1], s2 = b[1] ^ b[2], key = `${s1}${s2}`, who = { '00': 'nobody', '10': 'bit 1', '11': 'bit 2', '01': 'bit 3' }[key];
-      return `<p>A majority vote reads every copy. For qubits that will be fatal (reading a qubit destroys it), so here is another way to find the bad
+      return `<p>A majority vote reads every copy. For qubits that will be fatal (reading a data qubit collapses its superposition), so here is another way to find the bad
         copy: ask only <b>parity questions</b>. “Do bits 1 and 2 agree?” and “do bits 2 and 3 agree?” Tap a bit to flip it.</p>
         <div class="bitRow">${tile(b[0], b[0], b[0] ? 'hit' : '', 'data-r3="0"')}${lampC(s1, 'b₁ ⊕ b₂')}${tile(b[1], b[1], b[1] ? 'hit' : '', 'data-r3="1"')}${lampC(s2, 'b₂ ⊕ b₃')}${tile(b[2], b[2], b[2] ? 'hit' : '', 'data-r3="2"')}</div>
         <table class="synT"><tr><th>lamps</th><th>00</th><th>10</th><th>11</th><th>01</th></tr><tr><th>flip</th>${['00', '10', '11', '01'].map(k => `<td class="${k === key ? 'cur' : ''}">${{ '00': 'none', '10': 'bit 1', '11': 'bit 2', '01': 'bit 3' }[k]}</td>`).join('')}</tr></table>
