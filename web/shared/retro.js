@@ -77,7 +77,7 @@
     const PIX = p.plain ? HELV : PIX0, BODY = p.plain ? HELV : BODY0;
     return `${FONTS}
 html.retro{color-scheme:dark;
-  --green:${p.accent};--green2:${p.accent2};--ink:${p.ink};--muted:${p.dim};--line:${p.line};--panel:${p.panel2};
+  --green:${p.accent};--on-green:${p.onAccent};--green2:${p.accent2};--ink:${p.ink};--muted:${p.dim};--line:${p.line};--panel:${p.panel2};
   --night:${p.bg};--accent:${p.red};--blue:${p.blue};--gold:${p.gold};--int:${p.red};--ext:${p.blue};--heat:${p.red};--wave:${p.blue};--sch:${p.accent};
   --cx:#ff5fa8;--cy:#40e6b4;--cz:#8fb0ff;--dx:#ff5fa8;--dy:#40e6b4;--dz:#8fb0ff;
   --r-bg:${p.bg};--r-panel:${p.panel};--r-panel2:${p.panel2};--r-line:${p.line};--r-line-hi:${p.lineHi};--r-ink:${p.ink};
