@@ -80,6 +80,12 @@
   .hint b{color:var(--green)}
   .muted{color:var(--muted)}
   .flexcap{display:flex;justify-content:space-between;align-items:baseline}
+  @media(max-width:480px){   /* phones: let a header's pill drop under the title instead of widening the page */
+    .flexcap{flex-wrap:wrap;column-gap:8px}
+    .flexcap>.pill{max-width:100%;flex-wrap:wrap}
+    .pill select{max-width:100%;min-width:0}
+  }
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .tag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px}
   .tag.full{background:#e3f3ea;color:var(--green)}
   .tag.odd{background:#fdeae4;color:var(--accent)}
@@ -108,7 +114,7 @@
 <div class="card" id="fbCard" style="margin-bottom:16px">
   <div class="flexcap"><h2 style="margin:0">Fretboard — click a string to fret it</h2>
     <span class="pill" id="selPill">6th · E₂ · open</span></div>
-  <canvas id="fretboard" role="img" aria-label="Fretboard: click a string to fret it" data-retro-ink height="150"></canvas>
+  <canvas id="fretboard" tabindex="0" role="group" aria-label="Fretboard: click a string to fret it, or use the arrow keys to move along the strings and frets, then Enter or Space to fret (fret 0 opens or mutes the string)" aria-describedby="fbHelp" data-retro-ink height="150"></canvas>
   <div class="row tight" style="margin-top:6px">
     <label class="lbl" style="min-width:fit-content">Detune</label>
     <input id="detune" aria-label="Detune" type="range" min="-50" max="50" step="1" value="0" style="flex:1;max-width:340px">
@@ -116,7 +122,7 @@
     <button id="retune">Reset tuning</button>
     <span class="muted" style="font-size:12px">Tuning is dialed in — nudge to go flat or sharp.</span>
   </div>
-  <p class="legend" style="margin:6px 0 0">Click a fret to play that string; click the gutter to open or mute it (×).
+  <p class="legend" id="fbHelp" style="margin:6px 0 0">Click a fret to play that string; click the gutter to open or mute it (×).
     Fret several strings and they all vibrate and sound together. Low E is the bottom row, as in tab.</p>
   <div class="row tight" id="visRow" style="margin-top:6px">
     <span class="muted" style="font-size:12px">Isolate in the plots:</span>
@@ -150,7 +156,7 @@
   <div class="card">
     <div class="flexcap"><h2 style="margin:0">String — <span class="mvar">y</span>(<span class="mvar">x</span>, <span class="mvar">t</span>)</h2>
       <span class="pill" id="timePill">t = 0.00 periods</span></div>
-    <canvas id="string" role="img" aria-label="String: y(x, t)" data-retro-ink height="260"></canvas>
+    <canvas id="string" role="img" aria-label="String: y(x, t). Drag on it to draw a starting shape, or use the initial-shape buttons and the mode bars" data-retro-ink height="260"></canvas>
     <div class="row">
       <button id="play" class="primary">▶ Play</button>
       <button id="reset">Reset to t = 0</button>
@@ -181,7 +187,8 @@
   <div class="card" id="barsCard">
     <div class="flexcap"><h2 style="margin:0">Fourier modes of the string — drag the bars</h2>
       <span class="pill">displacement a<sub>n</sub></span></div>
-    <canvas id="bars" role="img" aria-label="Fourier modes of the string: drag the bars" data-retro-ink height="260"></canvas>
+    <canvas id="bars" tabindex="0" role="group" aria-label="Fourier modes of the string: drag the bars, or use Left and Right to choose a mode, Up and Down to change it (Shift for bigger steps), Home or 0 to zero it" data-retro-ink height="260"></canvas>
+    <span class="sr-only" id="kbLive" aria-live="polite"></span>
     <div class="row tight" style="margin-top:4px"><span class="pill" id="barRead">hover a bar to read a<sub>n</sub></span>
       <span style="flex:1"></span><button id="dlCoeffs">Download a<sub>n</sub> (CSV)</button></div>
     <p class="legend">How much of each mode <span class="mvar">n</span> (numbered along the bottom) is in the string's shape: the
@@ -195,7 +202,7 @@
   <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
   <div class="card" id="scopeCard">
     <div class="flexcap"><h2 style="margin:0">Pickup signal — this is what you hear</h2>
-      <span class="pill" style="display:inline-flex;gap:6px;align-items:center">coil senses
+      <span class="pill" style="display:inline-flex;gap:0 6px;align-items:center">coil senses
         <select id="sense" aria-label="What the pickup senses" style="font:inherit;font-size:12px;border:1px solid #d8e2dc;border-radius:6px;padding:1px 4px">
           <option value="vel" selected>velocity (magnetic coil)</option><option value="pos">position</option></select></span></div>
     <p class="cap">Each string's contribution (its colour) and the clipped output <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>) you hear (dark), in volts. Raise the <b>Amp gain</b> (dB) to drive it into the ±4.5 V rail.</p>
@@ -306,6 +313,11 @@ if (window.QUBLITZ_STANDALONE) {
   let modes = [];                      // [{kL, shape:[...], norm, ratio}]
   let f1 = 220;                        // fundamental Hz
   let playing=false, clock=0, lastTS=null, speed=0.3;
+  let kbBar=0, fbCur={i:0,fr:0};      // keyboard cursors on the bars and the fretboard (drawn only while focused)
+  let kbUsed=false;                   // last input was a key (so a mouse click never shows the cursor)
+  window.addEventListener('keydown',()=>{ kbUsed=true; },true); window.addEventListener('mousedown',()=>{ kbUsed=false; },true);
+  window.addEventListener('touchstart',()=>{ kbUsed=false; },{capture:true,passive:true});
+  const kbFocus=el=> kbUsed && document.activeElement===el;
   let shapeTag='mode1';                // what set the shape: a preset name, 'mode<n>', or 'custom' (bars / drawing)
 
   // ---------- eigenbasis (depends only on BC) ----------
@@ -662,6 +674,9 @@ if (window.QUBLITZ_STANDALONE) {
       bx.fillStyle='#9bb0a6'; bx.font='10px -apple-system,sans-serif'; bx.textAlign='center';
       bx.fillText(k+1, x+bw/2, h-7);
     }
+    if(kbFocus(bc) && kbBar<n){   // keyboard cursor, only while focused
+      const x=padx+kbBar*(bw+gap); bx.save(); bx.strokeStyle='#1b2a24'; bx.lineWidth=1.5; bx.setLineDash([4,3]);
+      bx.strokeRect(x-1.5, padt-6, bw+3, h-padb-padt+20); bx.restore(); }
   }
 
   function drawAll(){ renderStatic(); if(!playing){ clock=0; } drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateChord(); updateTimePill(); }
@@ -762,9 +777,9 @@ if (window.QUBLITZ_STANDALONE) {
     const k=Math.floor((cx-padx)/(bw+gap)); return (k>=0&&k<n)?k:-1; }
   function barVal(e){ const r=bc.getBoundingClientRect(); const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
     const padb=22, padt=10, zero=r.height-padb, mid=(zero+padt)/2, scale=(zero-padt)/2/2.6; return (mid-cy)/scale; }
-  function startBar(e){ e.preventDefault(); if(playing) pause(); clock=0; dragBar=barAt(e); if(dragBar<0) return; moveBar(e); }
-  function moveBar(e){ if(dragBar<0) return; e.preventDefault();
-    let v=barVal(e); if(!isFinite(v)) v=0; coeffs[dragBar]=Math.max(-2.6,Math.min(2.6,v)); shapeTag='custom';
+  function startBar(e){ e.preventDefault(); if(playing) pause(); clock=0; dragBar=barAt(e); if(dragBar<0) return; kbBar=dragBar; moveBar(e); }
+  function moveBar(e){ if(dragBar<0) return; e.preventDefault(); setBar(dragBar, barVal(e)); }
+  function setBar(k,v){ if(!isFinite(v)) v=0; coeffs[k]=Math.max(-2.6,Math.min(2.6,v)); shapeTag='custom';
     drawStrings(); drawBars(); drawScope(); drawSpectrum(); updateTimePill(); }
   function endBar(){ dragBar=-1; }
   // Numeric readout for the bar under the pointer (or being dragged), and a CSV of all a_n.
@@ -778,6 +793,21 @@ if (window.QUBLITZ_STANDALONE) {
     const text='n,a_n,f_n_Hz\n'+modes.map((m,k)=>`${k+1},${coeffs[k]},${isFinite(f1)?(f1*m.ratio).toFixed(3):''}`).join('\n');
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'})); a.download='string_modes.csv'; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
+  // keyboard: same path as a drag (pause, t = 0, setBar)
+  const say=t=>{ const el=document.getElementById('kbLive'); if(el) el.textContent=t; };
+  const barText=k=>{ const pl=playedList(), f=pl.length?f1of(pl[0]):NaN;
+    return `mode ${k+1}: a ${k+1} = ${coeffs[k].toFixed(2)}`+(isFinite(f)?`, ${(f*modes[k].ratio).toFixed(0)} hertz`:''); };
+  bc.addEventListener('keydown',e=>{ if(bc.closest('.gd-cover')||!modes.length) return;
+    const n=modes.length, step=e.shiftKey?0.5:0.05; let k=Math.min(kbBar,n-1), v=null;
+    if(e.key==='ArrowLeft') k=Math.max(0,k-1); else if(e.key==='ArrowRight') k=Math.min(n-1,k+1);
+    else if(e.key==='ArrowUp') v=coeffs[k]+step; else if(e.key==='ArrowDown') v=coeffs[k]-step;
+    else if(e.key==='Home'||e.key==='0'||e.key==='Delete'||e.key==='Backspace') v=0;
+    else return;
+    e.preventDefault(); kbBar=k;
+    if(v!=null){ if(playing) pause(); clock=0; setBar(k, Math.round(v*100)/100); } else drawBars();
+    showBar(k); say(barText(k)); });
+  bc.addEventListener('focus',()=>{ drawBars(); showBar(Math.min(kbBar,modes.length-1)); });
+  bc.addEventListener('blur',drawBars);
   bc.addEventListener('mousedown',startBar); window.addEventListener('mousemove',moveBar); window.addEventListener('mouseup',endBar);
   bc.addEventListener('touchstart',startBar,{passive:false}); bc.addEventListener('touchmove',moveBar,{passive:false}); bc.addEventListener('touchend',endBar);
 
@@ -849,15 +879,34 @@ if (window.QUBLITZ_STANDALONE) {
       else { const cx=(g.xpix(fr-1)+g.xpix(fr))/2; fbx.fillStyle='#00693e'; fbx.beginPath(); fbx.arc(cx,yy,7.5,0,7); fbx.fill();
         fbx.strokeStyle='#fff'; fbx.lineWidth=2; fbx.stroke(); }
     }
+    if(kbFocus(fb)){   // keyboard cursor
+      const yy=g.rowY(fbCur.i), x0= fbCur.fr===0 ? g.left-32 : g.xpix(fbCur.fr-1), x1= fbCur.fr===0 ? g.left-12 : g.xpix(fbCur.fr);
+      fbx.save(); fbx.strokeStyle='#f2c14e'; fbx.lineWidth=2; fbx.setLineDash([3,2]);
+      fbx.strokeRect(x0+1, yy-g.rowH/2+1, x1-x0-2, g.rowH-2); fbx.restore(); }
   }
 
   function fbPick(e){ e.preventDefault(); const g=fbGeom(); const r=fb.getBoundingClientRect();
     const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
     const row=Math.max(0,Math.min(5,Math.floor((cy-g.top)/g.rowH))), i=5-row;   // rows run high e (top) .. low E (bottom)
-    if(cx<g.left){ played[i]=(played[i]==null)?0:null; }                 // gutter toggles mute / open
-    else { let fr=NFRET; for(let n=1;n<=NFRET;n++){ if(cx<=g.xpix(n)){ fr=n; break; } } played[i]=fr; }
+    let fr=0; if(cx>=g.left){ fr=NFRET; for(let n=1;n<=NFRET;n++){ if(cx<=g.xpix(n)){ fr=n; break; } } }
+    fbCur={i,fr}; fretAt(i,fr);
+  }
+  function fretAt(i,fr){   // fr = 0 is the gutter: toggles mute / open; otherwise fret that string
+    if(fr===0){ played[i]=(played[i]==null)?0:null; } else played[i]=fr;
     clock=0; if(playing) pause(); updateChord(); drawFretboard(); drawStrings(); drawScope(); drawSpectrum();
   }
+  const fbText=()=>{ const {i,fr}=fbCur, nm=STRINGS[i].lab.split(' · ')[1], p=played[i];
+    const st= p==null ? 'muted' : p===0 ? 'open' : 'fretted at '+p;
+    return `string ${nm}, ${fr===0?'open or mute':'fret '+fr}; now ${st}`; };
+  fb.addEventListener('keydown',e=>{ let {i,fr}=fbCur;
+    if(e.key==='ArrowUp') i=Math.min(5,i+1); else if(e.key==='ArrowDown') i=Math.max(0,i-1);   // high e is the top row
+    else if(e.key==='ArrowLeft') fr=Math.max(0,fr-1); else if(e.key==='ArrowRight') fr=Math.min(NFRET,fr+1);
+    else if(e.key==='Home') fr=0; else if(e.key==='End') fr=NFRET;
+    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fretAt(i,fr); say(fbText()); return; }
+    else return;
+    e.preventDefault(); fbCur={i,fr}; drawFretboard(); say(fbText()); });
+  fb.addEventListener('focus',()=>{ const p=played[fbCur.i]; if(p) fbCur.fr=p; drawFretboard(); });
+  fb.addEventListener('blur',()=>drawFretboard());
   fb.addEventListener('mousedown',fbPick); fb.addEventListener('touchstart',fbPick,{passive:false});
   document.getElementById('detune').addEventListener('input',e=>{ cents=+e.target.value;
     document.getElementById('detv').textContent = cents===0?'0 cents · in tune'
