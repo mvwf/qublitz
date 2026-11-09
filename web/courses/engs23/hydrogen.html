@@ -131,7 +131,7 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
       <span class="seg" id="arrowSeg"><button data-v="laser" aria-pressed="true" title="The photon the laser drives: one arrow up from where the atoms start">Laser photon</button><button data-v="decay" aria-pressed="false" title="The photons the selected level can emit as it decays">Decays of the selected level</button></span>
       <label class="lbl"><input type="checkbox" id="zoomLevels"> zoom on n ≥ 2</label>
     </div>
-    <canvas id="levels" data-retro-ink aria-label="Energy-level diagram of hydrogen, n = 1 to 7, columns s, p, d, f"></canvas>
+    <canvas id="levels" role="img" data-retro-ink aria-label="Energy-level diagram of hydrogen, n = 1 to 7, columns s, p, d, f"></canvas>
     <p class="hint" id="levelsHint"></p>
   </div>
   <div class="card">
@@ -147,8 +147,8 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
       <span class="seg" id="segView"><button data-v="cloud" aria-pressed="true">3D cloud</button><button data-v="surface" aria-pressed="false">3D surface</button><button data-v="slice" aria-pressed="false">Slice</button></span>
       <button id="spin" aria-pressed="false" title="Turn the 3D view slowly about the z axis">⟳ Spin</button>
     </div>
-    <div id="orb3d" aria-label="3D view of the selected state; drag to rotate, scroll to zoom"></div>
-    <canvas id="orbital" hidden aria-label="Probability density of the selected state in the x–z plane"></canvas>
+    <div id="orb3d" role="figure" aria-label="3D view of the selected state; drag to rotate, scroll to zoom"></div>
+    <canvas id="orbital" role="img" hidden aria-label="Probability density of the selected state in the x–z plane"></canvas>
     <div class="row" style="justify-content:space-between">
       <label class="lbl" id="logWrap" hidden><input type="checkbox" id="logScale"> log colour scale</label>
       <span class="lbl" id="scaleTxt"></span>
@@ -224,7 +224,7 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
     <button data-p="two">2π pulse<small>up and back</small></button><button data-p="flop">Leave it on<small>Rabi flopping</small></button></div>
   <div class="grid2">
     <div id="pulsePlot" class="plot"></div>
-    <div id="blochSphere" class="plot" aria-label="Bloch-sphere trajectory of the driven atom; drag to rotate"></div>
+    <div id="blochSphere" class="plot" role="figure" aria-label="Bloch-sphere trajectory of the driven atom; drag to rotate"></div>
   </div>
   <div class="readout" id="pulseReadout"></div>
   <div class="row"><a id="toLab" class="btn primary" href="../../qublitz/qubit-simulator.html" target="_blank" rel="noopener">Try the same pulse on a qubit in the Virtual Qubit Lab ↗</a></div>
@@ -252,8 +252,8 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
   <div class="row"><span class="lbl">2 · Release</span><button class="primary" id="dbDrop1">Drop 1 atom</button><button class="primary" id="dbDrop100">Drop 100 atoms</button>
     <button id="dbSkip">Skip to the end ⏭</button><span class="lbl">Speed</span><span class="seg" id="dbSpeed"><button data-v="0" aria-pressed="false">Slow</button><button data-v="1" aria-pressed="true">Normal</button><button data-v="2" aria-pressed="false">Fast</button></span>
     <button id="dbClear">Clear</button></div>
-  <canvas id="decayBoard" data-retro-ink aria-label="Decay board: levels as shelves, atoms as balls falling from the excited state to 1s, and slots that count each decay route. The table below lists the same counts."></canvas>
-  <canvas id="dbStrip" class="strip" aria-label="Emission spectrum of the photons the atoms have emitted so far: bright lines at their wavelengths, ultraviolet on the left, visible in the middle, infrared on the right"></canvas>
+  <canvas id="decayBoard" role="img" data-retro-ink aria-label="Decay board: levels as shelves, atoms as balls falling from the excited state to 1s, and slots that count each decay route. The table below lists the same counts."></canvas>
+  <canvas id="dbStrip" role="img" class="strip" aria-label="Emission spectrum of the photons the atoms have emitted so far: bright lines at their wavelengths, ultraviolet on the left, visible in the middle, infrared on the right"></canvas>
   <p class="stripCap" id="dbStripCap">What a spectrometer would record: each line is one transition, brighter and taller for more photons. Only the middle band is visible to the eye.</p>
   <div class="readout" id="dbReadout"></div>
   <table id="dbTable" aria-label="Decay routes: predicted and observed"></table>
@@ -297,8 +297,8 @@ Schrödinger solution and the free-space rate of spontaneous emission; the sourc
   <div class="row dlExp"><span class="lbl">Experiment</span><span class="seg" id="dlPreset"></span></div>
   <div class="row"><span class="seg" id="dlView"><button data-v="mc" aria-pressed="true">🎲 Monte Carlo atoms</button><button data-v="p" aria-pressed="false">📊 Probabilities</button></span>
     <button class="primary" id="dlRun">Run ▶</button><span class="lbl">Speed</span><span class="seg" id="dlSpeed"><button data-v="0.5" aria-pressed="false">Slow</button><button data-v="1" aria-pressed="true">Normal</button><button data-v="3" aria-pressed="false">Fast</button></span></div>
-  <canvas id="driveBoard" data-retro-ink aria-label="Drive and decay board: levels as shelves, the laser as a double arrow between two levels, atoms as dots. The plot and readouts below give the same populations."></canvas>
-  <canvas id="dlStrip" class="strip" aria-label="Emission spectrum of the photons emitted so far in this experiment"></canvas>
+  <canvas id="driveBoard" role="img" data-retro-ink aria-label="Drive and decay board: levels as shelves, the laser as a double arrow between two levels, atoms as dots. The plot and readouts below give the same populations."></canvas>
+  <canvas id="dlStrip" role="img" class="strip" aria-label="Emission spectrum of the photons emitted so far in this experiment"></canvas>
   <p class="stripCap">The light the atoms give off, as a spectrometer would record it. Photons sent back into the laser beam (stimulated emission) are not included.</p>
   <div class="readout" id="dlReadout"></div>
   <p class="hint" id="dlNote"></p>

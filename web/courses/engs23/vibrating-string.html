@@ -101,7 +101,7 @@
 <div class="card" id="fbCard" style="margin-bottom:16px">
   <div class="flexcap"><h2 style="margin:0">Fretboard — click a string to fret it</h2>
     <span class="pill" id="selPill">6th · E₂ · open</span></div>
-  <canvas id="fretboard" data-retro-ink height="150"></canvas>
+  <canvas id="fretboard" role="img" aria-label="Fretboard: click a string to fret it" data-retro-ink height="150"></canvas>
   <div class="row tight" style="margin-top:6px">
     <label class="lbl" style="min-width:fit-content">Detune</label>
     <input id="detune" type="range" min="-50" max="50" step="1" value="0" style="flex:1;max-width:340px">
@@ -143,7 +143,7 @@
   <div class="card">
     <div class="flexcap"><h2 style="margin:0">String — <span class="mvar">y</span>(<span class="mvar">x</span>, <span class="mvar">t</span>)</h2>
       <span class="pill" id="timePill">t = 0.00 periods</span></div>
-    <canvas id="string" data-retro-ink height="260"></canvas>
+    <canvas id="string" role="img" aria-label="String: y(x, t)" data-retro-ink height="260"></canvas>
     <div class="row">
       <button id="play" class="primary">▶ Play</button>
       <button id="reset">Reset to t = 0</button>
@@ -174,7 +174,7 @@
   <div class="card" id="barsCard">
     <div class="flexcap"><h2 style="margin:0">Fourier modes of the string — drag the bars</h2>
       <span class="pill">displacement a<sub>n</sub></span></div>
-    <canvas id="bars" data-retro-ink height="260"></canvas>
+    <canvas id="bars" role="img" aria-label="Fourier modes of the string: drag the bars" data-retro-ink height="260"></canvas>
     <div class="row tight" style="margin-top:4px"><span class="pill" id="barRead">hover a bar to read a<sub>n</sub></span>
       <span style="flex:1"></span><button id="dlCoeffs">Download a<sub>n</sub> (CSV)</button></div>
     <p class="legend">How much of each mode <span class="mvar">n</span> (numbered along the bottom) is in the string's shape: the
@@ -193,7 +193,7 @@
           <option value="vel" selected>velocity (magnetic coil)</option><option value="pos">position</option></select></span></div>
     <p class="cap">Each string's contribution (its colour) and the clipped output <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>) you hear (dark), in volts. Raise the <b>Amp gain</b> (dB) to drive it into the ±4.5 V rail.</p>
     <div id="scopePlot" style="width:100%;height:220px"></div>
-    <canvas id="scope" data-retro-ink height="200" style="display:none"></canvas>
+    <canvas id="scope" role="img" aria-label="Pickup signal: this is what you hear" data-retro-ink height="200" style="display:none"></canvas>
     <p class="legend">A magnetic pickup's voltage is the induced EMF, −dΦ/dt, so it follows the string's <b>velocity</b> at the coil,
       not its position. Differentiating in time multiplies mode <span class="mvar">n</span> by its frequency, so higher harmonics
       come out <span class="mvar">n</span> times stronger than in the position picture: that is why an electric guitar sounds bright.
@@ -206,7 +206,7 @@
       <span class="pill">frequency components</span></div>
     <p class="cap">Each string's own pickup FFT (its colour) plus the FFT of the superimposed, clipped output (bold). Raw spectra.</p>
     <div id="fftPlot" style="width:100%;height:220px"></div>
-    <canvas id="spectrum" data-retro-ink height="200" style="display:none"></canvas>
+    <canvas id="spectrum" role="img" aria-label="FFT of the pickup signal" data-retro-ink height="200" style="display:none"></canvas>
     <p class="legend">Each string's FFT is one trace, with the superimposed total overlaid. Click a name in the legend to
       isolate a string. When clean the per-string spectra add to the total; turn the gain up and the total grows extra
       harmonics the strings never had — clipping manufactures frequencies, which is how a guitar amp makes distortion.
@@ -217,8 +217,8 @@
   <div class="card" id="liveCard" style="grid-column:1/-1">
     <div class="flexcap"><h2 style="margin:0">Live spectrogram of the pickup</h2>
       <span class="pill">inferno: dark = quiet, yellow = loud</span></div>
-    <canvas id="lspec" data-retro-ink height="230"></canvas>
-    <canvas id="lline" data-retro-ink height="170" class="subcanvas"></canvas>
+    <canvas id="lspec" role="img" aria-label="Live spectrogram of the pickup" data-retro-ink height="230"></canvas>
+    <canvas id="lline" role="img" aria-label="Instantaneous spectrum of the pickup" data-retro-ink height="170" class="subcanvas"></canvas>
     <p class="legend">The same short-time FFT as the Spectrogram Explorer. Without sound it runs silently on the amp's output
       <span class="mvar">V</span><sub>out</sub>(<span class="mvar">t</span>), so it changes as you fret, pluck or turn the gain; press ♪ Listen and it
       shows the sound as you hear it (the last 8192 samples per column). Each harmonic is a horizontal line at <span class="mvar">n</span>·f₁, evenly spaced, and the
