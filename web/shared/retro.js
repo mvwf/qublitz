@@ -155,8 +155,8 @@ html.retro .qv-real{background:${p.accent}14;border-color:${p.line}}
 html.retro .qv-real a{color:${p.accent}}
 /* the outreach kit: learning panel, question dialogs, offer toast, privacy line */
 html.retro .ql-panel{background:${p.panel};border-color:${p.line};color:${p.ink};font-family:${BODY}}
-html.retro .ql-panel h3{font-family:${PIX};font-weight:400;font-size:11px;line-height:1.6;color:${p.gold}}
-html.retro .ql-panel h4,html.retro .ql-panel .ql-tag,html.retro .ql-panel .ql-fun,html.retro .ql-note{color:${p.dim}}
+html.retro .ql-panel .ql-h{font-family:${PIX};font-weight:400;font-size:11px;line-height:1.6;color:${p.gold};text-transform:none;letter-spacing:normal;text-shadow:none;animation:none}
+html.retro .ql-panel .ql-sh,html.retro .ql-panel .ql-tag,html.retro .ql-panel .ql-fun,html.retro .ql-note{color:${p.dim}}
 html.retro .ql-btn{font-family:${BODY};background:${p.accent};border-color:${p.accent};color:${p.onAccent}}
 html.retro .ql-btn.ql-ghost{background:transparent;color:${p.accent}}
 html.retro .ql-veil{background:rgba(2,4,10,.72)}

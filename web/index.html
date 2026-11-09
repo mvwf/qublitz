@@ -7,6 +7,10 @@
 <script src="shared/retro.js"></script>
 <title>Fitzlab Interactive Demos</title>
 <meta name="description" content="Interactive demos from Fitzlab research and Dartmouth engineering courses.">
+<meta property="og:title" content="Fitzlab Interactive Demos">
+<meta property="og:description" content="Interactive demos from Fitzlab research and Dartmouth engineering courses.">
+<meta property="og:type" content="website">
+<link rel="icon" href="shared/favicon.svg" type="image/svg+xml">
 <style>
   :root{
     color-scheme: light;
@@ -155,7 +159,7 @@
   .howto summary span{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
   .howto p{font-size:13.5px;margin:8px 0;max-width:900px}
   .howto .paths{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px 22px;margin:6px 0}
-  .howto h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 2px}
+  .howto h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 2px}
   .howto ol{margin:0;padding-left:20px;font-size:13.5px}.howto li{margin:2px 0}
   .howto .note{color:var(--muted);font-size:12.5px}
   .howto code{background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
@@ -208,14 +212,14 @@
 </nav>
 
 <div class="wrap"><div class="explore" id="explore" aria-live="polite"></div></div>
-<div class="wrap">
+<section class="wrap" aria-labelledby="outreachSum">
   <details class="howto" id="outreach" open>
-    <summary>Using these demos for outreach <span>a suggested path, and how each activity works</span></summary>
+    <summary id="outreachSum">Using these demos for outreach <span>a suggested path, and how each activity works</span></summary>
     <p>Every activity opens with a short panel: what you will learn, how to play, and what counts as done. Many ask short questions
       along the way, inside the game, and each one ends with a <b>1-minute debrief</b>: any remaining questions, with the answer and a
       short explanation shown right away, and two quick ratings: how fun it was and how much you learned. Work in pairs and say your prediction out loud before you press anything.</p>
     <div class="paths">
-      <div><h3>Quantum: learn a qubit by playing</h3>
+      <div><h2>Quantum: learn a qubit by playing</h2>
         <ol>
           <li><a href="qublitz/qubit-copter.html">Qubit Copter</a>: turn a qubit about x, y and z on the Bloch sphere.</li>
           <li><a href="qublitz/rabi-rider.html">Rabi Rider</a>: drive many runs toward |1⟩ while T₁ decay knocks them back.</li>
@@ -224,7 +228,7 @@
           <li><a id="hubLab" href="qublitz/qubit-simulator.html">Virtual Qubit Lab</a>: finish by running your own pulse sequences on a simulated qubit.</li>
           <li><a href="qublitz/errorsweeper.html">ErrorSweeper</a>: then protect qubits from errors you cannot see, the way quantum error correction does.</li>
         </ol></div>
-      <div><h3>Waves and sound: ENGS 23</h3>
+      <div><h2>Waves and sound: ENGS 23</h2>
         <ol>
           <li><a href="courses/engs23/vibrating-string.html">The Vibrating String</a>: harmonics, a guitar pickup and distortion.</li>
           <li><a href="courses/engs23/drum-head.html">The Drum Head</a>: why a drum is not a string.</li>
@@ -238,7 +242,7 @@
     <p class="note">Running a session? Add <code>?event=NAME</code> to the link you hand out (letters, digits and hyphens), and the
       anonymous usage counts and answers from that session can be grouped together. No names or accounts are involved.</p>
   </details>
-</div>
+</section>
 <div class="wrap">
   <section class="qvhub" id="qvault" aria-labelledby="qvH">
     <h2 id="qvH">📚 Qublitz + Q-Vault: real numbers in every lab</h2>
