@@ -136,7 +136,7 @@ fundamental has turned its phase once. With that fixed, the contrast between the
     <button id="clearDraw">Clear</button>
     <span class="note" style="margin:0">Drag on the strip to sketch the shared starting shape. Ends pin to the walls.</span>
   </div>
-  <canvas id="draw" data-retro-ink style="height:104px"></canvas>
+  <canvas id="draw" role="img" aria-label="Draw u(x,0): the shared starting shape" data-retro-ink style="height:104px"></canvas>
 </div>
 
 <div class="card">
@@ -144,11 +144,11 @@ fundamental has turned its phase once. With that fixed, the contrast between the
   <div class="barwrap">
     <div>
       <div class="barlab">Re c<sub>n</sub> &mdash; the real starting shape, used by all three equations</div>
-      <canvas id="barsRe" data-retro-ink style="height:120px"></canvas>
+      <canvas id="barsRe" role="img" aria-label="Fourier components: Re cn, the real starting shape" data-retro-ink style="height:120px"></canvas>
     </div>
     <div>
       <div class="barlab">Im c<sub>n</sub> &mdash; an imaginary part of &Psi;(x,0), Schr&ouml;dinger only</div>
-      <canvas id="barsIm" data-retro-ink style="height:120px"></canvas>
+      <canvas id="barsIm" role="img" aria-label="Fourier components: Im cn, Schrödinger only" data-retro-ink style="height:120px"></canvas>
     </div>
   </div>
   <p class="note" style="margin-top:8px">Drag a bar up or down to set that mode. Heat and wave are real equations, so they
@@ -165,21 +165,21 @@ fundamental has turned its phase once. With that fixed, the contrast between the
   <div class="pan heat">
     <h3>Heat</h3>
     <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>n</i><sup>2</sup><i>t</i></sup> &nbsp; diffusion, decay</div>
-    <canvas id="cHeat" data-retro-ink></canvas>
+    <canvas id="cHeat" role="img" aria-label="Heat: u(x,t) and the initial shape" data-retro-ink></canvas>
     <div class="legend"><span><i class="sw" style="background:var(--heat)"></i>u(x,t)</span><span><i class="sw" style="background:var(--muted)"></i>initial</span></div>
     <div class="mini" id="mHeat"></div>
   </div>
   <div class="pan wave">
     <h3>Wave</h3>
     <div class="tag"><i>T</i><sub><i>n</i></sub> = cos(2&pi;<i>n</i>&thinsp;<i>t</i>) &nbsp; vibration, reforms</div>
-    <canvas id="cWave" data-retro-ink></canvas>
+    <canvas id="cWave" role="img" aria-label="Wave: y(x,t) and the initial shape" data-retro-ink></canvas>
     <div class="legend"><span><i class="sw" style="background:var(--wave)"></i>y(x,t)</span><span><i class="sw" style="background:var(--muted)"></i>initial</span></div>
     <div class="mini" id="mWave"></div>
   </div>
   <div class="pan sch">
     <h3>Schr&ouml;dinger</h3>
     <div class="tag"><i>T</i><sub><i>n</i></sub> = <i>e</i><sup>&minus;<i>i</i>&thinsp;2&pi;<i>n</i><sup>2</sup><i>rt</i></sup> &nbsp; disperse, revive</div>
-    <canvas id="cSch" data-retro-ink></canvas>
+    <canvas id="cSch" role="img" aria-label="Schrödinger: Re Ψ, Im Ψ and |Ψ|²" data-retro-ink></canvas>
     <div class="legend"><span><i class="sw" style="background:var(--wave)"></i>Re&Psi;</span><span><i class="sw" style="background:var(--heat)"></i>Im&Psi;</span><span><i class="sw" style="background:var(--sch)"></i>|&Psi;|&sup2;</span></div>
     <div class="mini" id="mSch"></div>
     <p class="mini" style="margin-top:4px">Two modes beat at their energy <i>difference</i>. A qubit is the two-level version:

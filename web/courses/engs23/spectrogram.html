@@ -131,8 +131,8 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
 <div class="card" id="specCard">
   <h2>Spectrogram</h2>
   <div class="stagewrap">
-    <canvas id="spec"></canvas>
-    <canvas id="overlay"></canvas>
+    <canvas id="spec" role="img" aria-label="Spectrogram"></canvas>
+    <canvas id="overlay" aria-hidden="true"></canvas>
   </div>
   <div class="status" id="status">Select a recording to begin.</div>
 </div>
@@ -181,7 +181,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
 
 <div class="card" id="lineCard">
   <h2>Instantaneous spectrum — the live FFT window</h2>
-  <canvas id="line" data-retro-ink></canvas>
+  <canvas id="line" role="img" aria-label="Instantaneous spectrum: the live FFT window" data-retro-ink></canvas>
   <div class="status" id="lstatus">The current FFT frame: live from the microphone, or tracking the playhead while a file plays.</div>
 </div>
 
