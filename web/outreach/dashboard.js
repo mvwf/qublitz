@@ -251,7 +251,7 @@
   }
 
   function barRows(items, opt) {   // items: {label, frac, val, tag, tip:[head, rows]}
-    return h('div', { class: 'rows' + (opt && opt.wrap ? ' wrap' : ''), role: 'list' }, items.map(it => {
+    return h('div', { class: 'rows' + (opt && opt.wrap ? ' wrap' : ''), role: 'list', 'data-qt': 'keep' }, items.map(it => {   // bar charts keep their designed 12.5 px labels (retro.js type floor)
       const r = h('div', { class: 'row', role: 'listitem', tabindex: '0', 'aria-label': it.aria },
         h('span', { class: 'lab', text: it.label, title: it.label }),
         h('div', { class: 'track', 'aria-hidden': 'true' },

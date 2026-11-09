@@ -105,9 +105,9 @@ html.retro .sub b,html.retro .hint b{color:${p.ink}}
 html.retro h2,html.retro h3{color:${p.ink}}
 html.retro .card{background:${p.panel};border:1px solid ${p.line};border-radius:12px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-family:${PIX};font-weight:400;font-size:9.5px;
-  letter-spacing:.08em;line-height:1.6;color:${p.accent};text-shadow:0 0 10px ${p.accent}55}
-@media (max-width:640px){html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:${p.plain ? 12 : 10.5}px}}
+/* card headings: the body font (the pixel font at 9.5-11 px was hard to read), uppercase and letter-spaced like the original */
+html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-family:${BODY};font-weight:700;font-size:14px;
+  letter-spacing:.07em;text-transform:uppercase;line-height:1.45;color:${p.accent};text-shadow:0 0 10px ${p.accent}55}
 html.retro button,html.retro .btn{font-family:${BODY};background:rgba(255,255,255,.035);color:${p.ink};border:1px solid ${p.lineHi};border-radius:8px}
 /* hover glow, except on buttons that are already a bright fill (gold Start/Fire, held pads, pressed chips) */
 html.retro button:not(.go):not(.fire):not(.on):not([aria-pressed="true"]):not([aria-selected="true"]):not(.primary):hover,html.retro .btn:not(.primary):hover{border-color:${p.accent};color:${p.accent};box-shadow:0 0 0 1px ${p.accent}33,0 0 14px ${p.accent}33}
@@ -155,7 +155,7 @@ html.retro .qv-real{background:${p.accent}14;border-color:${p.line}}
 html.retro .qv-real a{color:${p.accent}}
 /* the outreach kit: learning panel, question dialogs, offer toast, privacy line */
 html.retro .ql-panel{background:${p.panel};border-color:${p.line};color:${p.ink};font-family:${BODY}}
-html.retro .ql-panel .ql-h{font-family:${PIX};font-weight:400;font-size:11px;line-height:1.6;color:${p.gold};text-transform:none;letter-spacing:normal;text-shadow:none;animation:none}
+html.retro .ql-panel .ql-h{font-family:${BODY};font-weight:700;font-size:16px;line-height:1.45;color:${p.gold};text-transform:none;letter-spacing:normal;text-shadow:none;animation:none}
 html.retro .ql-panel .ql-sh,html.retro .ql-panel .ql-tag,html.retro .ql-panel .ql-fun,html.retro .ql-note{color:${p.dim}}
 html.retro .ql-btn{font-family:${BODY};background:${p.accent};border-color:${p.accent};color:${p.onAccent}}
 html.retro .ql-btn.ql-ghost{background:transparent;color:${p.accent}}
@@ -177,7 +177,7 @@ html.retro .ql-ch li.done .ql-ck{background:${p.green};border-color:${p.green}} 
 html.retro .ql-ch .ql-hint{background:${p.gold}22;color:${p.ink}} html.retro .ql-ch .ql-ch-foot{color:${p.dim}} html.retro .ql-ch .ql-ch-foot button{color:${p.accent}}
 /* PageKit guided tours */
 html.retro .gd-panel{background:${p.panel};border-color:${p.accent};box-shadow:0 0 22px ${p.accent}22}
-html.retro .gd-head b{font-family:${PIX};font-weight:400;font-size:9.5px;color:${p.accent}}
+html.retro .gd-head b{font-family:${BODY};font-weight:700;font-size:14px;color:${p.accent}}
 html.retro .gd-choices button,html.retro .gd-panel .gd-btn{background:transparent;color:${p.ink};border-color:${p.lineHi}}
 html.retro .gd-choices button[aria-pressed=true],html.retro .gd-choices button.right{background:${p.green}22;border-color:${p.green}}
 html.retro .gd-choices button.wrong{background:${p.red}22;border-color:${p.red}}
@@ -202,7 +202,7 @@ ${p.plain ? `html.retro body::before{display:none}
 html.retro *{text-shadow:none!important}
 html.retro body{background:${p.bg}}
 html.retro h1{font-weight:700;font-size:24px;letter-spacing:.01em;line-height:1.3;margin:4px 0 2px}
-html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${p.dim}}
+html.retro .card h2,html.retro .card>h2,html.retro .card>summary>h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${p.dim}}
 html.retro .overlay h2{font-weight:700} html.retro .card{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
 html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primary{box-shadow:none}` : ''}`;
   }
@@ -421,6 +421,56 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
     }
   }
 
+  // ── reading type (every theme, Classic included) ────────────────────────────────────────────────────────────────
+  // 1. A reading scale: body 16 px, ledes (.sub) 17 px, card text 15 px, hints and notes 14 px.
+  // 2. A floor on what actually renders: text under 13 px is raised to 13 px, and uppercase letter-spaced labels to
+  //    12 px. Figures are sized to fit, so math (sub, sup, stacked .fr / .frac fractions), SVG, canvas, Plotly charts
+  //    and game stages (.stage) are skipped. Content added later is floored too (a MutationObserver, batched per
+  //    frame). Opt out per element, or for a whole subtree, with data-qt="keep". Floored elements get data-qt="floor".
+  const typeCss = doc.createElement('style'); typeCss.id = 'retro-type-css';
+  typeCss.textContent = `
+html body { font-size: 16px; }
+html .sub { font-size: 17px; line-height: 1.55; max-width: 68ch; }
+html .card { font-size: 15px; }
+html .hint, html .note { font-size: 14px; }
+html .card th { white-space: normal; }   /* with the floor, a header row may need two lines in a narrow card */`;
+  (doc.head || html).appendChild(typeCss);
+  const QT_SKIP = 'svg,canvas,.js-plotly-plot,.stage,sub,sup,.fr,.frac,[data-qt="keep"]';
+  const QT_FIELD = /^(SELECT|TEXTAREA)$/;
+  const hasText = el => { for (let n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && n.nodeValue.trim()) return true; return false; };
+  function floorOne(el) {
+    if (el.nodeType !== 1 || el.dataset.qt === 'floor' || /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|OPTION)$/.test(el.tagName)) return;
+    const field = QT_FIELD.test(el.tagName) || (el.tagName === 'INPUT' && /^(text|number|search|url|email|tel|)$/.test(el.type || ''));
+    if (!field && !hasText(el)) return;
+    if (el.closest(QT_SKIP)) return;
+    const s = root.getComputedStyle(el), px = parseFloat(s.fontSize);
+    if (!(px > 0)) return;
+    const min = s.textTransform === 'uppercase' && parseFloat(s.letterSpacing) > 0 ? 12 : 13;
+    if (px < min - 0.01) { el.style.setProperty('font-size', min + 'px', 'important'); el.dataset.qt = 'floor'; }
+  }
+  function floorTree(rootEl) {
+    if (!rootEl || rootEl.nodeType !== 1) return;
+    floorOne(rootEl);
+    for (const el of rootEl.querySelectorAll('*')) floorOne(el);
+  }
+  const floorAll = () => { if (doc.body) floorTree(doc.body); };
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', floorAll); else floorAll();
+  root.addEventListener('load', floorAll);
+  let qtTimer = 0;
+  root.addEventListener('resize', () => { clearTimeout(qtTimer); qtTimer = setTimeout(floorAll, 250); });
+  try {
+    // new elements are checked with their subtree; a live readout whose text changes is checked once, not every frame
+    const queued = new Set(), seen = new WeakSet(); let qtFrame = 0;
+    const flush = () => { qtFrame = 0; for (const n of queued) if (n.isConnected) floorTree(n); queued.clear(); };
+    new MutationObserver(ms => {
+      for (const m of ms) for (const n of m.addedNodes) {
+        if (n.nodeType === 1) queued.add(n);
+        else if (n.nodeType === 3 && !seen.has(m.target)) { seen.add(m.target); queued.add(m.target); }
+      }
+      if (queued.size && !qtFrame) qtFrame = (root.requestAnimationFrame || setTimeout)(flush);
+    }).observe(html, { childList: true, subtree: true });
+  } catch (e) { /* old browser: the load-time pass is enough */ }
+
   // ── phones and tablets (every theme, Classic included) ──────────────────────────────────────────────────────────
   // 1. Finger-sized controls on touch screens (pointer: coarse): 40 px buttons and fields, taller sliders, bigger boxes.
   // 2. Plotly charts: drag-to-zoom would swallow the swipe that scrolls the page, so on touch screens 2D charts start in
@@ -525,20 +575,20 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
   ui.textContent = `
 .rt-wrap{position:relative;display:inline-flex}
 .rt-theme{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;cursor:pointer;
-  font:600 12px ${cur && !cur.plain ? BODY0 : HELV};border:1px solid ${c.lineHi};background:transparent;color:${c.dim};white-space:nowrap}
+  font:600 13px ${cur && !cur.plain ? BODY0 : HELV};border:1px solid ${c.lineHi};background:transparent;color:${c.dim};white-space:nowrap}
 .rt-theme:hover,.rt-theme[aria-expanded="true"]{color:${c.accent};border-color:${c.accent}}
 .rt-theme svg{width:14px;height:14px;flex:none}
 .rt-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:100000;min-width:250px;padding:6px;border-radius:12px;
   background:${c.bg2};border:1px solid ${c.lineHi};box-shadow:0 14px 40px rgba(0,0,0,.35);font:13px ${HELV}}
 .rt-menu[hidden]{display:none}
-.rt-menu p{margin:4px 8px 6px;font-size:11.5px;color:${c.dim}}
+.rt-menu p{margin:4px 8px 6px;font-size:13px;color:${c.dim}}
 .rt-wrap .rt-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:7px 8px;border:0!important;border-radius:8px;
   background:transparent!important;color:${c.ink}!important;cursor:pointer;font:inherit;box-shadow:none!important}
 .rt-wrap .rt-menu button:hover,.rt-wrap .rt-menu button:focus-visible{background:${c.line}!important;outline:none}
 .rt-menu button[aria-checked="true"]{font-weight:700}
 .rt-menu button[aria-checked="true"]::after{content:"✓";margin-left:auto;color:${c.accent}}
 .rt-menu .sw{display:inline-flex;flex:none;width:34px;height:20px;border-radius:5px;overflow:hidden;border:1px solid ${c.lineHi}}
-.rt-menu .sw i{flex:1} .rt-menu small{display:block;font-size:11px;color:${c.dim};font-weight:400}
+.rt-menu .sw i{flex:1} .rt-menu small{display:block;font-size:13px;color:${c.dim};font-weight:400}
 @media (max-width:560px){.rt-theme .rt-name{display:none}}`;
   (doc.head || html).appendChild(ui);
 
