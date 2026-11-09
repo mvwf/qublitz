@@ -68,6 +68,10 @@
   .out .bar{grid-column:1/-1;height:7px;border-radius:4px;background:var(--panel);overflow:hidden;border:1px solid var(--line)}
   .out .bar i{display:block;height:100%;background:var(--c);transition:width .15s}
   .mxc .out .teff b{color:var(--accent)}
+  .qb{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 14px;margin:6px 0 8px}
+  .qb div span{display:block;font-size:11px;color:var(--muted)} .qb div b{font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .qb div small{display:block;font-size:11.5px;color:var(--muted)}
+  #qubitCard .row input[type=number]{width:90px}
   @media(max-width:640px){
     .fridge{grid-template-columns:minmax(0,1fr) 92px}
     .fridge>.hdr.o{display:none}
@@ -147,6 +151,17 @@
       attenuator to 0 dB if that stage has none.</p>
   </div>
 
+  <div class="card" id="qubitCard">
+    <h2>What the qubit feels <span style="text-transform:none;letter-spacing:0;font-weight:400">· from n̄ at the MXC, at <span class="val" id="frefLbl2"></span></span></h2>
+    <div class="qb" id="qubitOut"></div>
+    <div class="row" style="margin:4px 0 2px">
+      <span class="lbl">Readout resonator:</span>
+      <div class="field"><label for="chi">χ/2π [MHz]</label><input id="chi" type="number" min="0.01" max="50" step="0.1" value="0.5"></div>
+      <div class="field"><label for="kappa">κ/2π [MHz]</label><input id="kappa" type="number" min="0.01" max="100" step="0.1" value="1"></div>
+    </div>
+    <p class="hint" id="qubitNote" style="margin-bottom:0"></p>
+  </div>
+
   <div class="card plots">
     <div class="tabs" role="tablist" id="plotTabs"></div>
     <div class="row" style="margin:0 0 4px"><label class="chk"><input type="checkbox" id="logY"> Log scale</label>
@@ -185,6 +200,23 @@
     <div class="eq"><i>n̄</i><sub>eff</sub>(<i>f</i>) = <span class="frac"><span>1</span><span>exp(<i>hf</i> / <i>k</i><sub>B</sub><i>T</i><sub>eff</sub>) − 1</span></span></div>
     <p>and the <b>noise reduction versus room temperature</b> is
       10 log<sub>10</sub>(<i>n̄</i><sub>room</sub>(<i>f</i>) / <i>n̄</i><sub>eff</sub>(<i>f</i>)).</p>
+    <p><b>What the qubit feels.</b> If the thermal photons on the line at the qubit's frequency are what set its temperature,
+      the qubit equilibrates to the line: <i>T</i><sub>eff</sub> = <i>hf</i> / (<i>k</i><sub>B</sub> ln(1 + 1/<i>n̄</i>)), and a
+      two-level system at that temperature has excited-state population</p>
+    <div class="eq"><i>P</i><sub>exc</sub> = <span class="frac"><span>1</span><span>exp(<i>hf</i> / <i>k</i><sub>B</sub><i>T</i><sub>eff</sub>) + 1</span></span>
+      = <span class="frac"><span><i>n̄</i></span><span>1 + 2<i>n̄</i></span></span>,&emsp;
+      <span class="frac"><span><i>P</i><sub>exc</sub></span><span><i>P</i><sub>ground</sub></span></span> = e<sup>−<i>hf</i>/<i>k</i><sub>B</sub><i>T</i><sub>eff</sub></sup>
+      = <span class="frac"><span><i>n̄</i></span><span>1 + <i>n̄</i></span></span></div>
+    <p>(the ratio is also the ratio of the photon-driven up and down rates, <i>n̄</i>γ and (<i>n̄</i> + 1)γ). On the <b>readout
+      line</b>, the same <i>n̄</i> photons sit in the readout resonator (linewidth κ, dispersive shift ±χ) and each one that passes
+      through carries away which-state information, so the qubit dephases at</p>
+    <div class="eq">Γ<sub>φ</sub> = <i>n̄</i> κ <span class="frac"><span>(2χ)²</span><span>κ² + (2χ)²</span></span>&emsp;(<i>n̄</i> ≪ 1),&emsp;
+      <i>T</i><sub>φ</sub> = 1/Γ<sub>φ</sub></div>
+    <p>with κ and χ as angular rates (2π × the values in MHz). This is the small-<i>n̄</i> limit of A. A. Clerk and D. W. Utami,
+      <i>Phys. Rev. A</i> <b>75</b>, 042302 (2007), Γ<sub>φ</sub> = (κ/2) Re[√((1 + 2<i>i</i>χ/κ)² + 8<i>i</i>χ<i>n̄</i>/κ) − 1],
+      in the form used by F. Yan et al., <i>Nat. Commun.</i> <b>7</b>, 12964 (2016). For χ ≫ κ every photon dephases,
+      Γ<sub>φ</sub> → <i>n̄</i>κ; for χ ≪ κ, Γ<sub>φ</sub> → 4χ²<i>n̄</i>/κ. The page quotes the full expression when <i>n̄</i> is not small.
+      The drive line and the readout line are two different cables; the panel applies this page's one chain to both roles in turn.</p>
     <p>The drive power at each stage is the generator power minus the attenuation so far, and the cable insertion loss is
       taken off at the MXC. In this model the cable loss is applied only to the drive, and attenuation does not depend on
       frequency. A real lossy cable also attenuates the noise and re-emits at its own temperature, so the noise shown is a slight overestimate. The drive photon flux is <i>P</i>/<i>hf</i>.</p>
@@ -243,7 +275,7 @@ const STAGES = [
 ];
 // Dark theme: a set that stays distinct for every kind of colour vision (checked deutan/protan/tritan), all ≥5.6:1.
 if (window.RETRO && window.RETRO.palette) ['#ff5a72','#ffa83c','#eaf0ff','#8b7dff','#2fe0d0'].forEach((c, i) => { STAGES[i].c = c; });
-const DEFAULTS = { T:STAGES.map(s=>s.T), A:STAGES.map(s=>s.A), fMin:3, fMax:6, fRef:5, nPts:200, pIn:-60, cable:15 };
+const DEFAULTS = { T:STAGES.map(s=>s.T), A:STAGES.map(s=>s.A), fMin:3, fMax:6, fRef:5, nPts:200, pIn:-60, cable:15, chi:0.5, kappa:1 };
 
 const PRESETS = [
   { id:'typical', label:'Typical line (20/20/20 dB)', A:[0,0,20,20,20] },
@@ -288,7 +320,8 @@ function readState(){
   let fMax = num('#fMax', 1, 20, 6), warn = '';
   if (fMax <= fMin) { fMax = fMin + 0.1; warn = 'f_max must be greater than f_min, so it is set to f_min + 0.1 GHz.'; }
   return { T, A, fMin, fMax, warn, fRef:+$('#fRef').value, nPts:+$('#nPts').value,
-           pIn:num('#pIn', -200, 30, -60), cable:num('#cable', 0, 60, 15) };
+           pIn:num('#pIn', -200, 30, -60), cable:num('#cable', 0, 60, 15),
+           chi:num('#chi', 0.01, 50, 0.5), kappa:num('#kappa', 0.01, 100, 1) };
 }
 function writeState(st){
   STAGES.forEach((s,i)=>{
@@ -297,6 +330,7 @@ function writeState(st){
   });
   $('#fMin').value = st.fMin; $('#fMax').value = st.fMax; $('#nPts').value = st.nPts;
   $('#pIn').value = st.pIn; $('#cable').value = st.cable;
+  $('#chi').value = st.chi ?? DEFAULTS.chi; $('#kappa').value = st.kappa ?? DEFAULTS.kappa;
   syncRef(st.fRef);
 }
 function syncRef(want){
@@ -306,7 +340,7 @@ function syncRef(want){
 }
 function toQuery(st){
   const q = new URLSearchParams({ T:st.T.join(','), A:st.A.join(','), f:`${st.fMin},${st.fMax},${st.fRef}`,
-    n:st.nPts, p:st.pIn, c:st.cable });
+    n:st.nPts, p:st.pIn, c:st.cable, x:st.chi, k:st.kappa });
   return '?' + q.toString();
 }
 function fromQuery(){
@@ -314,7 +348,7 @@ function fromQuery(){
   const list = (k, n) => { const v = (q.get(k)||'').split(',').map(Number); return v.length===n && v.every(Number.isFinite) ? v : null; };
   const T = list('T',5), A = list('A',5), f = list('f',3);
   if (T) st.T = T; if (A) st.A = A; if (f) [st.fMin, st.fMax, st.fRef] = f;
-  for (const [k,key] of [['n','nPts'],['p','pIn'],['c','cable']]) { const v = parseFloat(q.get(k)); if (Number.isFinite(v)) st[key] = v; }
+  for (const [k,key] of [['n','nPts'],['p','pIn'],['c','cable'],['x','chi'],['k','kappa']]) { const v = parseFloat(q.get(k)); if (Number.isFinite(v)) st[key] = v; }
   return st;
 }
 
@@ -392,6 +426,8 @@ function render(){
     about <b>${sci(mx.perUs)}</b> drive photons per µs at ${st.fRef.toFixed(2)} GHz, against a thermal background of
     n<sub>eff</sub> = <b>${sci(mx.n)}</b> photons per mode, about ${sci(mx.n)} photons per second in each hertz of bandwidth.</p>`;
 
+  qubitRender(st, mx);
+
   $('#table').innerHTML = `<thead><tr><th>Stage</th><th>T<sub>stage</sub></th><th>Atten [dB]</th><th>n<sub>eff</sub></th>
     <th>T<sub>eff</sub></th><th>Below room [dB]</th><th>Drive [dBm]</th><th>Drive photons/µs</th></tr></thead><tbody>` +
     model.at.map((a,i)=>`<tr><td>${STAGES[i].name}</td><td>${F.formatTemp(st.T[i])}</td><td>${st.A[i].toFixed(1)}</td>
@@ -401,6 +437,27 @@ function render(){
   drawPlot();
   ckCheck(st);
   try { history.replaceState(null, '', toQuery(st) + location.hash); } catch (e) {}   // can throw for file:// pages
+}
+
+/* ---------- what the qubit feels: n̄ at the MXC → P_exc, T_eff, and readout-line dephasing (fridge-engine.js) ---------- */
+const pct = x => !Number.isFinite(x) ? '—' : x >= 0.1 ? `${(100 * x).toFixed(1)} %` : x >= 1e-4 ? `${(100 * x).toPrecision(3)} %` : `${sci(100 * x)} %`;
+const usStr = t => !Number.isFinite(t) ? '—' : t >= 1e6 ? `${sci(t / 1e6)} s` : t >= 1e3 ? `${sci(t / 1e3)} ms` : t >= 1 ? `${sci(t)} µs` : `${sci(t * 1e3)} ns`;
+function qubitRender(st, mx){
+  const n = mx.n, f = st.fRef;
+  const kappa = 2 * Math.PI * st.kappa * 1e6, chi = 2 * Math.PI * st.chi * 1e6;     // MHz → rad/s
+  const Pexc = F.qubitExcitedPopulation(n), ratio = F.qubitBoltzmannRatio(n);
+  const G = F.photonDephasingRate(n, kappa, chi), Gx = F.photonDephasingRateExact(n, kappa, chi);
+  const Tphi = 1e6 / G, Tphix = 1e6 / Gx;
+  $('#frefLbl2').textContent = `${f.toFixed(2)} GHz`;
+  $('#qubitOut').innerHTML = `
+    <div><span>Qubit at ${f.toFixed(2)} GHz on this line</span><b>T<sub>eff</sub> = ${tempStr(mx.T)}</b><small>plate is at ${F.formatTemp(st.T[4])}</small></div>
+    <div><span>Excited-state population</span><b>P<sub>exc</sub> = ${pct(Pexc)}</b><small>n̄/(1 + 2n̄); P<sub>exc</sub>/P<sub>g</sub> = n̄/(1 + n̄) = ${sci(ratio)}</small></div>
+    <div><span>If this were the readout line</span><b>T<sub>φ</sub> = ${usStr(Tphi)}</b><small>Γ<sub>φ</sub> = n̄κ(2χ)²/(κ² + (2χ)²) = ${sci(G)} /s</small></div>`;
+  const over = n >= 0.05 ? ` At n̄ = ${sci(n)} the small-n̄ form is off: the full Clerk–Utami expression gives T<sub>φ</sub> = ${usStr(Tphix)}.` : '';
+  $('#qubitNote').innerHTML = `Assumes the line's thermal photons at the qubit frequency set the qubit's temperature (T<sub>eff</sub> = hf / k<sub>B</sub> ln(1 + 1/n̄)), and,
+    for the readout line, that the same n̄ fills a resonator of linewidth κ with dispersive shift ±χ: photon shot noise dephasing, valid for n̄ ≪ 1
+    (Clerk &amp; Utami 2007; Yan et al. 2016).${over} At the 0.01-photon challenge threshold a 5 GHz qubit is at ${tempStr(F.nToTeff(0.01, 5))} with
+    P<sub>exc</sub> = ${pct(F.qubitExcitedPopulation(0.01))}. Formulas and sources are under <i>Math used in this page</i>.`;
 }
 
 /* ---------- challenges and usage events (web/shared/outreach.js) ---------- */
@@ -413,7 +470,7 @@ const CK = [
   { id:'warm_60', ok:(st,n,std)=>std(4) && st.A.reduce((a,b)=>a+b,0) >= 60 && n > 10,
     msg:n=>`${sci(n)} photons remain. An attenuator re-emits thermal noise at its own plate temperature, so whatever the last attenuator emits is what arrives.` },
   { id:'cold_line', ok:(st,n,std)=>std(4) && st.A.reduce((a,b)=>a+b,0) <= 60 && st.A[4] <= 30 && n < 0.01,
-    msg:n=>`${sci(n)} photons at the MXC. Each attenuator needs enough dB to bring the noise from the plate above down to near its own plate's level, and the coldest plates do the final cleanup. The 30 dB cap stands in for heat: the power an attenuator absorbs heats its plate, and the MXC has only microwatts of cooling power. This page tracks noise, not heat.` },
+    msg:n=>`${sci(n)} photons at the MXC: a 5 GHz qubit in equilibrium with them sits at ${F.formatTemp(F.nToTeff(n, 5))} with P<sub>exc</sub> = ${pct(F.qubitExcitedPopulation(n))} (see <i>What the qubit feels</i>). Each attenuator needs enough dB to bring the noise from the plate above down to near its own plate's level, and the coldest plates do the final cleanup. The 30 dB cap stands in for heat: the power an attenuator absorbs heats its plate, and the MXC has only microwatts of cooling power. This page tracks noise, not heat.` },
   { id:'warm_mxc', ok:(st,n,std)=>std(4, true) && st.T[4] >= 0.1 && st.A[4] >= 10,
     msg:(n,st)=>`At ${F.formatTemp(st.T[4])} the MXC attenuator emits n̄ ≈ ${sci(F.thermalN(st.T[4], 5))} photons of its own, so n<sub>eff</sub> ≈ ${sci(n)}: the line can be no quieter than the plate its last attenuator sits on, as long as the noise arriving from above is hotter than that plate.` },
 ];

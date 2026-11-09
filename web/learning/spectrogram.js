@@ -58,7 +58,7 @@ if (window.QL) QL.learning({
       q: 'The gong\'s strongest partials sit near 258 and 711 Hz, with fainter ones near 108, 318 and 436 Hz. What does that tell you?',
       choices: ['It is inharmonic: the ratios are not whole numbers, as for a plate\'s 2-D modes', 'It is a harmonic series with a 108 Hz fundamental', 'The window is too short to resolve it', 'The recording is aliased'],
       answer: 0,
-      explain: '711/258 ≈ 2.76, and 258/108 ≈ 2.39 and 318/108 ≈ 2.94, are not a harmonic series. A plate, like a drum head, has modes from a 2-D eigenvalue problem whose frequencies are not whole multiples of each other.' },
+      explain: '711/258 ≈ 2.76, and 258/108 ≈ 2.39 and 318/108 ≈ 2.94, are not a harmonic series. A plate, like a drum head, has modes from a 2-D eigenvalue problem whose frequencies are not whole multiples of each other: the drum\'s own ratios are Bessel-zero ratios, 1.593, 2.136, 2.295, …, the same kind of number.' },
     { id: 'doppler-v', objective: 'doppler',
       q: 'A plane’s propeller tone sits at 95.3 Hz while it approaches and 68.9 Hz after it has passed. How fast is it flying? (c = 343 m/s)',
       choices: ['About 55 m/s', 'About 26 m/s', 'About 160 m/s', 'You cannot tell without the distance'],

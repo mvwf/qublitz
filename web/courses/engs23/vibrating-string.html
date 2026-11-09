@@ -161,6 +161,14 @@
       <span class="val" id="gdb" style="min-width:48px">0 dB</span>
       <span class="muted" style="font-size:12px">attenuate ← 0 dB → overdrive</span>
     </div>
+    <div class="row tight">
+      <label class="lbl">Pickup position</label>
+      <input id="pk" type="range" min="0.02" max="0.5" step="0.005" value="0.09" style="flex:1">
+      <span class="val" id="pkv" style="min-width:210px">0.090 L from the bridge · x = 0.910 L</span>
+    </div>
+    <p class="legend" style="margin-top:2px">The ticks on each string are the nodes of the harmonics it carries (the bars below), small
+      and grey; the harmonics that have a node under the dashed pickup line turn red, and those are the ones the pickup cannot hear.
+      Predict which bar goes hollow before you slide: mode <span class="mvar">n</span> has nodes at <span class="mvar">j</span>/<span class="mvar">n</span> of the vibrating length.</p>
   </div>
 
   <div class="card" id="barsCard">
@@ -171,7 +179,10 @@
       <span style="flex:1"></span><button id="dlCoeffs">Download a<sub>n</sub> (CSV)</button></div>
     <p class="legend">How much of each mode <span class="mvar">n</span> (numbered along the bottom) is in the string's shape: the
       Fourier sine coefficient <span class="mvar">a<sub>n</sub></span> = 2∫<sub>0</sub><sup>1</sup> <span class="mvar">y</span>(ξ,0) sin(<span class="mvar">n</span>πξ) dξ, in units
-      of the plucked height. Bar height is the true amplitude (taller = louder); the motion is the sum of these modes.</p>
+      of the plucked height. Bar height is the true amplitude (taller = louder); the motion is the sum of these modes. The solid part
+      of each bar is what the pickup reads, <span class="mvar">a<sub>n</sub></span>|sin(<span class="mvar">n</span>π<span class="mvar">x</span><sub>p</sub>)|,
+      with the rest hollow; a bar marked ✕ is on the string but has a node at the pickup, so it is missing from the sound and the FFT (the
+      velocity coil also multiplies each mode by <span class="mvar">n</span>, not shown here).</p>
   </div>
 
   <!-- Row 2: the pickup signal (left) and its FFT (right), same size -->
@@ -271,7 +282,8 @@ if (window.QUBLITZ_STANDALONE) {
   const VREF=1.80;                        // pickup sensitivity: volts per unit modal amplitude (normal pluck ~0.8 V peak)
   const VCLIP=4.5;                        // amplifier soft-clip rail (volts)
   const AMP_MAX=2.6;                      // full-scale amplitude for the mode bars
-  const pickupPos=0.09;   // fixed, realistic bridge pickup: ~1.7 in from the bridge on a 25.5 in scale (fraction of full scale)
+  let pickupPos=0.09;     // pickup position as a fraction of the full scale length, measured from the bridge (slider 0.02 to 0.5);
+                          // the default is a realistic bridge pickup, ~1.7 in from the bridge on a 25.5 in scale
   const FREF=82.41;                 // reference pitch (low-E open) that sets the visual animation rate
   // one colour per string (E A D G B e). Dark theme: a neon set checked for every kind of colour vision (worst ΔE 10.4).
   const SCOL=window.RETRO&&window.RETRO.palette?['#2fe0d0','#5fb4ff','#ff5a72','#8b7dff','#ffa83c','#f5f07a']:['#00693e','#1f7ab0','#c84b31','#8a5cc4','#a86f00','#0f766e'];
@@ -415,7 +427,16 @@ if (window.QUBLITZ_STANDALONE) {
     // nut (far left, full scale) and bridge (right) frame the whole string; pickup is a fixed spot near the bridge
     sx.save(); sx.strokeStyle='#cfdbd4'; sx.lineWidth=1; sx.setLineDash([2,3]);
     sx.beginPath(); sx.moveTo(Xnut,4); sx.lineTo(Xnut,h-4); sx.stroke(); sx.restore();
-    const Xp=Xb-pickupPos*plotW;                      // pickup: fixed distance from the shared bridge
+    const Xp=Xb-pickupPos*plotW;                      // pickup: a set distance from the shared bridge
+    // nodes of the harmonics each string carries: grey ticks, red for the harmonics with a node under the pickup
+    // grey: the harmonics worth showing (≥ 2 % of the largest); red: every harmonic on the string (|a_n| > 1e-4, as for the ✕ on the
+    // bars) that has a node under the pickup, however faint, so the silent mode is always marked
+    pl.forEach((i,idx)=>{ const mid=bandH*(idx+0.5), half=bandH/2-7, Xl=Xb-lenFrac(i)*plotW, u=pickupU(i), shown=new Set(shownModes()), quiet=[];
+      modes.forEach((md,k)=>{ const a=coeffs[k]||0; if(Math.abs(a)<=1e-4) return; const silent=Math.abs(shapeAt(k,u))<SILENT; if(!silent && !shown.has(k)) return; if(silent) quiet.push(k+1);
+        sx.strokeStyle= silent ? '#c84b31' : 'rgba(155,176,166,0.75)'; sx.lineWidth= silent ? 1.5 : 1; const t= silent ? 5 : 3;
+        sx.beginPath(); modeNodes(k).forEach(z=>{ const X=Xl+(Xb-Xl)*z; sx.moveTo(X,mid-t); sx.lineTo(X,mid+t); }); sx.stroke(); });
+      if(quiet.length){ sx.fillStyle='#c84b31'; sx.font='10px -apple-system,sans-serif'; sx.textAlign='left';
+        sx.fillText('n = '+quiet.join(', ')+' silent', Xp+5, mid+half-1); } });
     sx.save(); sx.strokeStyle='rgba(200,75,49,0.6)'; sx.lineWidth=1.5; sx.setLineDash([4,4]);
     sx.beginPath(); sx.moveTo(Xp,2); sx.lineTo(Xp,h-2); sx.stroke(); sx.restore();
     sx.font='10px -apple-system,sans-serif';
@@ -434,6 +455,14 @@ if (window.QUBLITZ_STANDALONE) {
   // The pickup reads the string's POSITION at its location: y(x_pickup,t), summed over played strings.
   // The pickup sits a fixed distance from the bridge, so each string is sampled at 1 - d/L_i.
   function pickupU(i){ return Math.max(0,Math.min(1, 1 - pickupPos/lenFrac(i))); }
+  const SILENT=0.1;   // |mode shape at the pickup| below this counts as "on a node" (for sin(nπu): within 0.032/n of a node)
+  // Harmonics worth marking: the modes the shape actually contains (at least 2 % of the largest coefficient).
+  function shownModes(){ const top=Math.max(1e-9,...coeffs.map(Math.abs)); const out=[]; coeffs.forEach((a,k)=>{ if(k<modes.length && Math.abs(a)>=0.02*top && Math.abs(a)>1e-4) out.push(k); }); return out; }
+  // Interior nodes of mode k as fractions of the vibrating length, from the sign changes of its sampled shape (any boundary condition).
+  function modeNodes(k){ const md=modes[k]; if(md.nodes) return md.nodes; const sh=md.shape, out=[];
+    for(let q=1;q<M;q++){ const a=sh[q]; if(Math.abs(a)<1e-9){ out.push(xi[q]); continue; }
+      const b=sh[q+1]; if(q+1<M && Math.abs(b)>=1e-9 && a*b<0) out.push(xi[q]+(xi[q+1]-xi[q])*a/(a-b)); }
+    md.nodes=out; return out; }
   // Mode shape at position u: sin for a fixed left end (DD, DN), cos for a free one (NN, ND), as in buildBasis().
   const shapeAt=(k,u)=>{ const t=bcL+bcR; return (t==='NN'||t==='ND') ? Math.cos(modes[k].kL*u) : Math.sin(modes[k].kL*u); };
   // Velocity coil: d/dt of each mode, normalized by 2π·VEL_NORM·f1, so mode k scales by ratio/VEL_NORM. The coil's
@@ -608,11 +637,20 @@ if (window.QUBLITZ_STANDALONE) {
     const n=modes.length, gap=4, bw=(w-2*padx-(n-1)*gap)/n;
     const scale=(zero-padt)/2/AMP_MAX;        // same full-scale amplitude as the FFT panel
     bx.strokeStyle='#dbe6e0'; bx.beginPath(); bx.moveTo(padx,mid); bx.lineTo(w-padx,mid); bx.stroke();
+    const si=(visList()[0] ?? playedList()[0]); const u= si==null ? null : pickupU(si);   // pickup weight for the first drawn string
     for(let k=0;k<n;k++){
       const x=padx+k*(bw+gap); const a=coeffs[k]; const bh=a*scale;
-      bx.fillStyle = a>=0 ? '#12855a' : '#c84b31';
-      bx.fillRect(x, mid-Math.max(bh,0), bw, Math.abs(bh)||0.6);
-      if(bh<0) bx.fillRect(x, mid, bw, -bh);
+      const wgt= u==null ? 1 : Math.abs(shapeAt(k,u));
+      const col= a>=0 ? '#12855a' : '#c84b31';
+      // the whole amplitude a_n as an outline, and what the pickup reads, a_n·|shape at the pickup|, filled
+      bx.strokeStyle=col; bx.lineWidth=1; bx.globalAlpha=0.55;
+      if(Math.abs(bh)>1) bx.strokeRect(x+0.5, bh>=0 ? mid-bh : mid, bw-1, Math.abs(bh));
+      bx.globalAlpha=1; bx.fillStyle=col;
+      const hh=bh*wgt;
+      bx.fillRect(x, mid-Math.max(hh,0), bw, Math.abs(hh)||0.6);
+      if(hh<0) bx.fillRect(x, mid, bw, -hh);
+      if(u!=null && Math.abs(a)>1e-4 && wgt<SILENT){ bx.fillStyle='#c84b31'; bx.font='bold 11px -apple-system,sans-serif'; bx.textAlign='center';
+        bx.fillText('✕', x+bw/2, (bh>=0 ? mid-Math.abs(bh) : mid+Math.abs(bh)+9) - 3); }
       bx.fillStyle='#9bb0a6'; bx.font='10px -apple-system,sans-serif'; bx.textAlign='center';
       bx.fillText(k+1, x+bw/2, h-7);
     }
@@ -744,6 +782,10 @@ if (window.QUBLITZ_STANDALONE) {
   document.getElementById('reset').addEventListener('click',()=>{ clock=0; pause(); drawStrings(); updateTimePill(); });
   document.getElementById('sound').addEventListener('click',()=>{ listen(); qlNote('sound'); });
   document.getElementById('speed').addEventListener('input',e=>{ speed=+e.target.value; });
+  function pickupLabel(){ document.getElementById('pk').value=pickupPos;
+    document.getElementById('pkv').textContent=pickupPos.toFixed(3)+' L from the bridge · x = '+(1-pickupPos).toFixed(3)+' L'; }
+  document.getElementById('pk').addEventListener('input',e=>{ pickupPos=+e.target.value; pickupLabel(); drawAll(); });
+  document.getElementById('pk').addEventListener('change',()=>{ qlNote('mode',{level:'pickup'}); });
   document.getElementById('sense').addEventListener('change',e=>{ drawAll(); qlNote('mode',{level:e.target.value}); });
   document.getElementById('gain').addEventListener('input',e=>{ gainDb=+e.target.value;
     document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; drawScope(); drawSpectrum(); });
@@ -836,7 +878,7 @@ if (window.QUBLITZ_STANDALONE) {
     if(scv) scv.style.display='block'; if(spv) spv.style.display='block'; }
   /* ---------- shareable state ----------
      ?fr=0,x,x,x,x,x (fret per string, low E first; x = muted) &shape=triangle&p=0.5 (or mode<n>, or a=<coefficients>)
-     &c=<cents>&g=<gain dB>&sense=vel|pos */
+     &c=<cents>&g=<gain dB>&sense=vel|pos&pk=<pickup position from the bridge, 0.02 to 0.5> */
   const SHAPES=['gauss','triangle','square','clear'];
   function shareQuery(){
     const q=new URLSearchParams();
@@ -846,6 +888,7 @@ if (window.QUBLITZ_STANDALONE) {
     if(cents) q.set('c',cents);
     if(gainDb) q.set('g',gainDb);
     if(!senseVel()) q.set('sense','pos');
+    if(Math.abs(pickupPos-0.09)>1e-9) q.set('pk',pickupPos);
     return q.toString();
   }
   function readQuery(){
@@ -858,6 +901,7 @@ if (window.QUBLITZ_STANDALONE) {
     const c=P.num('c',-50,50); if(c!=null) st.c=Math.round(c);
     const g=P.num('g',-40,40); if(g!=null) st.g=g;
     const sense=P.str('sense',['vel','pos']); if(sense) st.sense=sense;
+    const pk=P.num('pk',0.02,0.5); if(pk!=null) st.pk=pk;
     return st;
   }
   // Apply any subset of the shareable fields and redraw everything.
@@ -869,6 +913,7 @@ if (window.QUBLITZ_STANDALONE) {
     if(st.g!=null){ gainDb=st.g; document.getElementById('gain').value=gainDb;
       document.getElementById('gdb').textContent=(gainDb>0?'+':'')+gainDb.toFixed(Math.abs(gainDb)<10?1:0)+' dB'; }
     if(st.sense) document.getElementById('sense').value=st.sense;
+    if(st.pk!=null){ pickupPos=st.pk; pickupLabel(); }
     if(st.p!=null){ pluckPos=st.p; document.getElementById('pr').value=pluckPos; document.getElementById('pv').textContent=pluckPos.toFixed(2); }
     if(st.a){ coeffs=new Array(modes.length).fill(0); st.a.forEach((v,k)=>{ if(k<coeffs.length) coeffs[k]=v; }); shapeTag='custom'; }
     else if(st.shape && /^mode/.test(st.shape)){ const n=+st.shape.slice(4); pmSel.value=n;
@@ -916,11 +961,12 @@ if (window.QUBLITZ_STANDALONE) {
       choices:['2, 4, 6, …','3, 6, 9, …','5, 10, 15, …','None'], answer:1,
       explain:'sin(nπ/3) = 0 for n = 3, 6, 9, …, the modes with a node at a third. Because the slider gives 0.33 rather than exactly ⅓, a<sub>3</sub> is small but not zero: |sin(0.99π)| ≈ 0.03. Guitarists use this: picking near the bridge (small p) keeps many harmonics and sounds bright, picking near the middle sounds round.' },
     { title:'What the pickup cannot hear',
-      setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0,sense:'vel'}, cover:['#fftCard'],
+      setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0,sense:'vel',pk:0.09}, cover:['#fftCard'],
       intro:'The pickup coil sits 9 % of the scale length from the bridge, and it reads the string only at that one point. Mode n contributes in proportion to sin(nπx) at the coil.',
       ask:'Which harmonic number n is (nearly) silent in the pickup, even though the string carries it?',
       answer:11, tol:0, unit:'',
-      explain:'At x = 0.91 of the open string, sin(11π × 0.91) = sin(10.01π) ≈ 0.03: the coil sits almost exactly on a node of mode 11 (1/11 ≈ 0.091). The 11th harmonic, at 11 × 82.4 ≈ 906 Hz, is missing from the FFT. The 2nd, 4th, … are missing too, but for a different reason: the middle pluck never put them on the string.' },
+      explain:'At x = 0.91 of the open string, sin(11π × 0.91) = sin(10.01π) ≈ 0.03: the coil sits almost exactly on a node of mode 11 (1/11 ≈ 0.091). The 11th harmonic, at 11 × 82.4 ≈ 906 Hz, is missing from the FFT. The 2nd, 4th, … are missing too, but for a different reason: the middle pluck never put them on the string.',
+      try:'Test it: the red ticks on the string are the nodes of mode 11, and bar 11 is marked ✕. Now predict, then slide <b>Pickup position</b> to 0.200 L (x = 0.8 L = 4/5): which bars hollow out? Then try 0.330 L.' },
     { title:'The 12th fret',
       setup:{fr:OPEN_E,shape:'triangle',p:0.5,g:0}, reveal:{fr:[12,null,null,null,null,null]}, cover:[],
       ask:'The open low E sounds at 82.4 Hz. Fret it at the 12th fret. What fundamental frequency do you expect?',
@@ -963,6 +1009,9 @@ if (window.QUBLITZ_STANDALONE) {
     { id:'no-third', text:'Make a pluck with <b>no 3rd harmonic</b>: slide the pluck position until bar 3 vanishes.',
       hint:'Mode 3 has nodes at ⅓ and ⅔ of the string. Pluck there: sin(3π·⅓) = 0. Try 0.33.',
       check:()=> chPluck() && chA(1)>0 && chA(3)<0.01*chA(1) && chA(2)>0.05*chA(1) },
+    { id:'pickup-node', text:'Set <b>Pure mode → 3</b>, then slide the <b>Pickup position</b> onto one of its nodes: bar 3 hollows out and ♪ Listen goes nearly silent.',
+      hint:'Mode 3 has nodes at ⅓ and ⅔ of the vibrating length. The slider measures from the bridge, so 0.330 L puts the coil at x = 0.67 L ≈ ⅔: sin(3π × 0.67) ≈ 0.03.',
+      check:()=>{ const pl=playedList(), k=coeffs.findIndex(a=>Math.abs(a)>1e-6); return shapeTag==='mode3' && pl.length>0 && k>=0 && Math.abs(shapeAt(k,pickupU(pl[0])))<SILENT; } },
     { id:'clip', text:'Set a pure <b>mode 1</b>, then turn the <b>amp gain</b> up until the FFT shows a <b>3rd harmonic</b>.',
       hint:'Pick “mode 1” and press Set, then drag the gain far right. The amp clips the top and bottom of the sine equally (tanh), so it adds odd harmonics 3f, 5f, … that the string never had.',
       check:()=> shapeTag==='mode1' && gainDb>10 && chThirdRatio()>0.05 },

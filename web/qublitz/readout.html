@@ -148,7 +148,10 @@
     <div id="warn"></div>
   </div>
   <div class="card">
-    <div class="key"><span><i style="background:var(--s0)"></i>prepared in |0⟩</span><span><i style="background:var(--s1)"></i>prepared in |1⟩</span><span>— decision line</span></div>
+    <div class="key"><span><i style="background:var(--s0)"></i>prepared in |0⟩</span><span><i style="background:var(--s1)"></i>prepared in |1⟩</span><span>— decision line</span><span>★ best line</span></div>
+    <div class="sl" style="margin:2px 0 6px"><label for="thrR"><span>Decision line <small>drag it: left of the line reads "0", right reads "1"</small></span><span class="val" id="thrV"></span></label>
+      <input type="range" id="thrR" min="-3" max="3" step="0.05" value="0" aria-label="Decision line position, in noise widths from the midpoint between the two clouds"></div>
+    <p class="hint" id="thrHint" style="margin:0 0 8px"></p>
     <div class="plots">
       <div id="pIQ" class="plot iq" role="img" aria-label="IQ plane: each dot is one measurement"></div>
       <div><div id="pHist" class="plot" role="img" aria-label="Histogram of the measurements along the line joining the two clouds"></div></div>
@@ -230,7 +233,7 @@
   const LOG = { nR: 'nbar', tR: 'tau', cR: 'chi', kR: 'kappa', eR: 'eta', t1R: 'T1' };
   function toSliders() {
     for (const [id, k] of Object.entries(LOG)) $('#' + id).value = Math.log10(p[k]);
-    $('#pR').value = p.pexc; $('#dR').value = p.delta / p.chi;
+    $('#pR').value = p.pexc; $('#dR').value = p.delta / p.chi; $('#thrR').value = p.thrSigma || 0;
   }
   function labels() {
     $('#nV').textContent = g3(p.nbar) + (p.nbar === 1 ? ' photon' : ' photons');
@@ -247,8 +250,11 @@
   $('#pR').addEventListener('input', e => { p.pexc = +e.target.value; drawSoon(); });
   $('#dR').addEventListener('input', e => { const v = +e.target.value; p.delta = Math.abs(v) < 0.04 ? 0 : v * p.chi; drawSoon(); });
   $('#pathC').addEventListener('change', drawSoon);
+  // the decision line, in noise widths σ from the midpoint (positive: toward the |1⟩ cloud); the engine's analyze() and shots() both honour it
+  $('#thrR').addEventListener('input', e => { const v = +e.target.value; p.thrSigma = Math.abs(v) < 0.03 ? 0 : v; drawSoon(); });
+  $('#thrHint').addEventListener('click', e => { const b = e.target.closest('#thrBest'); if (!b) return; p.thrSigma = +(+b.dataset.s).toFixed(2); $('#thrR').value = p.thrSigma; draw(); });
   $('#newShots').addEventListener('click', () => { seed++; draw(); });
-  $('#resetB').addEventListener('click', () => { Object.assign(p, E.DEFAULTS); qvDev = null; $('#qvNote').hidden = true; toSliders(); draw(); });
+  $('#resetB').addEventListener('click', () => { Object.assign(p, E.DEFAULTS); p.thrSigma = 0; qvDev = null; $('#qvNote').hidden = true; toSliders(); draw(); });
   $('#linkB').addEventListener('click', e => K.copyLink(e.target, 'qublitz/readout.html', query()));
   function query() {
     const q = new URLSearchParams({ chi: g3(p.chi), kappa: g3(p.kappa), n: g3(p.nbar), tau: g3(p.tau) });
@@ -257,6 +263,7 @@
     if (p.pexc) q.set('pexc', g3(p.pexc));
     if (p.delta) q.set('d', g3(p.delta));
     if (p.ncrit !== E.DEFAULTS.ncrit) q.set('ncrit', g3(p.ncrit));
+    if (p.thrSigma) q.set('thr', g3(p.thrSigma));
     if (qvDev) q.set('qv', [qvDev.citekey, qvDev.device, qvDev.label].filter(Boolean).join('~'));
     return q.toString();
   }
@@ -275,6 +282,14 @@
     // headline
     $('#Fbig').innerHTML = `${pct(A.F)} <small>readout fidelity</small>`;
     $('#Fsub').innerHTML = `|0⟩ misread as 1: <b>${pct(A.p10)}</b> · |1⟩ misread as 0: <b>${pct(A.p01)}</b>`;
+    // the decision line and the best one (bestThreshold: a golden-section search on F)
+    const sT = p.thrSigma || 0, best = E.bestThreshold(p), sBest = Math.abs(best.thrSigma) < 0.02 ? 0 : best.thrSigma;
+    $('#thrV').textContent = sT === 0 ? 'midpoint' : `${sT > 0 ? '+' : '−'}${g3(Math.abs(sT))} σ toward |${sT > 0 ? 1 : 0}⟩`;
+    $('#thrHint').innerHTML = `Moving the line trades one error for the other: toward |1⟩ fewer |0⟩ shots cross it but more |1⟩ shots are left behind. `
+      + (sBest === 0 ? `Here the best line is the midpoint${sT !== 0 ? ` (F = ${pct(best.F)} there, ${pct(A.F)} where you put it)` : ''}: the two clouds are alike.`
+        : `The best line (★) is <b>${g3(Math.abs(sBest))} σ toward |${sBest > 0 ? 1 : 0}⟩</b> with F = ${pct(best.F)}${Math.abs(sT - sBest) > 0.03 ? ` (${pct(A.F)} where you put it)` : ''}: `
+          + (sBest < 0 ? 'qubits that decay during the readout leave records between the clouds, and the line moves toward |0⟩ to claim them.' : 'the clouds are not alike, so the midpoint is not the best split.')
+          + ` <button type="button" id="thrBest" data-s="${sBest}" style="padding:2px 8px;min-height:24px;font-size:12px">Use the best line</button>`);
     const st = [
       ['Separation / noise (SNR)', g3(A.snr)],
       ['Photons in |0⟩ / |1⟩', `${g3(A.n0)} / ${g3(A.n1)}`],
@@ -289,8 +304,8 @@
     const S = E.shots(p, NSHOT, seed), sig = A.sigma;
     const pick = prep => { const x = [], y = []; S.pts.forEach(q => { if (q[2] === prep) { x.push(q[0]); y.push(q[1]); } }); return { x, y }; };
     const s0 = pick(0), s1 = pick(1);
-    // decision line: through the midpoint, perpendicular to u
-    const mid = [(A.m0[0] + A.m1[0]) / 2, (A.m0[1] + A.m1[1]) / 2], v = [-A.u[1], A.u[0]];
+    // decision line: through the point u·thr on the separation axis (the midpoint when thrSigma = 0), perpendicular to u
+    const mid = [A.u[0] * A.thr, A.u[1] * A.thr], v = [-A.u[1], A.u[0]];
     const allx = s0.x.concat(s1.x), ally = s0.y.concat(s1.y);
     const span = Math.max(...allx.map(Math.abs), ...ally.map(Math.abs), Math.hypot(...A.a0), Math.hypot(...A.a1), 0.1) * 1.08;
     const traces = [
@@ -313,8 +328,9 @@
     // histogram along the separation, in units of the noise σ, with the threshold at 0
     const proj = q => ((q[0] * A.u[0] + q[1] * A.u[1]) - A.thr) / sig;
     const h0 = [], h1 = []; S.pts.forEach(q => (q[2] ? h1 : h0).push(proj(q)));
-    const x0 = ((A.m0[0] * A.u[0] + A.m0[1] * A.u[1]) - A.thr) / sig, x1 = -x0;
-    const lo = Math.min(x0 - 4, ...h0, ...h1), hi = Math.max(x1 + 4, ...h0, ...h1), bw = (hi - lo) / 50;
+    const x0 = ((A.m0[0] * A.u[0] + A.m0[1] * A.u[1]) - A.thr) / sig, x1 = ((A.m1[0] * A.u[0] + A.m1[1] * A.u[1]) - A.thr) / sig;
+    const xBest = sBest - sT;                                   // the best line, measured from the one in use
+    const lo = Math.min(x0 - 4, xBest - 0.5, ...h0, ...h1), hi = Math.max(x1 + 4, xBest + 0.5, ...h0, ...h1), bw = (hi - lo) / 50;
     const gx = [], g0 = [], g1 = []; for (let i = 0; i <= 200; i++) { const x = lo + (hi - lo) * i / 200; gx.push(x); g0.push(NSHOT * bw * Math.exp(-0.5 * (x - x0) ** 2) / Math.sqrt(2 * Math.PI)); g1.push(NSHOT * bw * Math.exp(-0.5 * (x - x1) ** 2) / Math.sqrt(2 * Math.PI)); }
     const ymax = Math.max(...g0) * 1.4;
     Plotly.react('pHist', [
@@ -323,6 +339,7 @@
       { x: gx, y: g0, mode: 'lines', line: { color: c0, width: 1.5 }, hoverinfo: 'skip' },
       { x: gx, y: g1, mode: 'lines', line: { color: c1, width: 1.5 }, hoverinfo: 'skip' },
       { x: [0, 0], y: [0, ymax], mode: 'lines', line: { color: css('--ink') || '#1b2a24', width: 1.5, dash: 'dash' }, hoverinfo: 'skip' },
+      { x: [xBest], y: [0.93 * ymax], mode: 'markers', marker: { size: 13, symbol: 'star', color: css('--gold') || '#d9a521' }, hovertemplate: `best line: F = ${pct(best.F)}<extra></extra>` },
     ], base('distance from the line (noise widths σ)', 'shots', { barmode: 'overlay', title: { text: 'Left of the line → "0", right → "1"', font: { size: 12 } }, yaxis: { title: { text: 'shots' }, range: [0, Math.max(ymax, 1)] } }), CFG);
 
     // resonator response: photons against drive frequency, for each qubit state
@@ -361,6 +378,7 @@
     if (at('engineer+') && A.pDecay > 0.01) L.push(`${pct(A.pDecay)} of qubits in |1⟩ decay while you listen: see the red dots that trail toward the blue cloud.`);
     if (at('engineer+') && p.pexc > 0) L.push(`A leftover ${g3(p.pexc)}% excited population puts a small red cluster inside the blue cloud (and vice versa): no readout can fix a wrong start.`);
     if (at('engineer+') && Math.abs(p.delta) > 0.1 * p.chi) L.push('Off the midpoint, one state holds more photons than the other, and the separation shrinks: the midpoint is the usual choice.');
+    if (Math.abs(p.thrSigma || 0) >= 0.5) L.push(`The decision line is ${g3(Math.abs(p.thrSigma))} σ toward |${p.thrSigma > 0 ? 1 : 0}⟩: P(${p.thrSigma > 0 ? '1|0' : '0|1'}) fell to ${pct(p.thrSigma > 0 ? A.p10 : A.p01)} and P(${p.thrSigma > 0 ? '0|1' : '1|0'}) rose to ${pct(p.thrSigma > 0 ? A.p01 : A.p10)}. The fidelity counts both.`);
     $('#look').innerHTML = L.map(s => `<li>${s}</li>`).join('');
   }
 
@@ -444,6 +462,9 @@
     { id: 'best', depth: 'engineer+', text: 'Open <b>Real-world extras</b>, set T₁ to 10 µs or less, and find the listening time that gives the best fidelity (the ★).',
       hint: 'Too short and the clouds overlap; too long and qubits in |1⟩ decay while you listen. Put your τ within a hair of the ★ on the lower right plot.',
       check: () => p.T1 <= 10 && F() >= E.bestTau(p, 0.02, 20).F - 0.002 },
+    { id: 'line', depth: 'engineer+', text: 'With T₁ at 10 µs or less, drag the <b>decision line</b> to the best position (★). Which way did it have to move, and why?',
+      hint: 'Qubits that decay while you listen leave records between the two clouds. Claiming them for "1" means moving the line toward the |0⟩ cloud; the two error rates in the headline tell you the trade.',
+      check: () => { const b = E.bestThreshold(p); return p.T1 <= 10 && Math.abs(b.thrSigma) > 0.2 && Math.abs((p.thrSigma || 0) - b.thrSigma) < 0.1; } },
     { id: 'drive', depth: 'engineer+', text: 'Move the drive onto the |1⟩ resonance (f<sub>d</sub> − f<sub>r</sub> = +χ). Do the clouds get closer or farther apart?',
       hint: 'Slide the drive frequency to +1χ. |1⟩ now fills with photons, but |0⟩ barely responds, and the separation shrinks compared with the midpoint.',
       check: () => Math.abs(p.delta / p.chi - 1) < 0.06 },
@@ -455,7 +476,7 @@
   const q = K.params(), sp = q.raw;
   const set = (k, key, lo, hi) => { const v = q.num(k, lo, hi); if (v != null) p[key] = v; };
   set('chi', 'chi', 0.02, 10); set('kappa', 'kappa', 0.05, 50); set('n', 'nbar', 0.1, 100); set('tau', 'tau', 0.02, 20);
-  set('eta', 'eta', 0.01, 1); set('t1', 'T1', 0.1, 3000); set('pexc', 'pexc', 0, 15); set('d', 'delta', -30, 30); set('ncrit', 'ncrit', 0, 1e6);
+  set('eta', 'eta', 0.01, 1); set('t1', 'T1', 0.1, 3000); set('pexc', 'pexc', 0, 15); set('d', 'delta', -30, 30); set('ncrit', 'ncrit', 0, 1e6); set('thr', 'thrSigma', -3, 3);
   toSliders(); circDraw(); draw();
   if (window.QL && QL.onDepth) QL.onDepth(() => { draw(); setTimeout(() => window.dispatchEvent(new Event('resize')), 30); });
   qvFrom(sp);

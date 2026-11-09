@@ -14,6 +14,7 @@ if (window.QL) QL.learning({
     { id: 'coupling', text: 'Tell under-, critically and over-coupled resonators apart by the depth of the dip and the IQ circle.' },
     { id: 'reflection', text: 'Explain why a critically coupled resonator in reflection absorbs every photon on resonance.' },
     { id: 'extract', text: 'Judge when Q<sub>i</sub> can be measured well, and why it gets hard when Q<sub>i</sub> ≫ Q<sub>c</sub>.' },
+    { id: 'tls', text: 'Explain why Q<sub>i</sub> rises with drive power and with temperature (two-level systems saturate or thermalise), and why loss is quoted at one photon.' },
   ],
   howTo: [
     'Start in <b>Explore</b>: move the <b>Q<sub>i</sub></b> and <b>Q<sub>c</sub></b> sliders or click a preset, and watch the magnitude, phase and IQ plots.',
@@ -58,5 +59,10 @@ if (window.QL) QL.learning({
       choices: ['1 %', '10 ×', '50 %', 'Nothing at all, exactly'],
       answer: 0,
       explain: 'Q<sub>l</sub> goes from 9.90 × 10<sup>3</sup> to 9.99 × 10<sup>3</sup>: the coupling loss dominates, so a tenfold change in internal loss barely moves the curve. That is why Q<sub>i</sub> ≫ Q<sub>c</sub> gives large error bars on Q<sub>i</sub>; to measure losses, design near critical coupling.' },
+    { id: 'tls-power', objective: 'tls',
+      q: 'A resonator shows Q<sub>i</sub> = 3 × 10<sup>6</sup> at a million photons but 8 × 10<sup>5</sup> at one photon. Which value should a materials paper headline, and why?',
+      choices: ['8 × 10<sup>5</sup>: at one photon the two-level-system defects are unsaturated, which is the regime a qubit lives in', '3 × 10<sup>6</sup>: more photons give a cleaner measurement, so it is the more accurate number', 'Their average', 'Either: Q<sub>i</sub> is a property of the material and cannot depend on power'],
+      answer: 0,
+      explain: 'Two-level systems absorb a photon and must relax before absorbing another, so at high power they saturate and the TLS loss falls as (1 + ⟨n⟩/n<sub>c</sub>)<sup>−β</sup>; warming them has a similar effect through the thermal factor tanh(hf/2k<sub>B</sub>T). The high-power Q<sub>i</sub> is real but flatters the material; a qubit holds at most one excitation, so the single-photon, base-temperature value is the one that predicts its lifetime.' },
   ],
 });

@@ -122,6 +122,12 @@
   .plot{width:100%;height:250px}
   .plot.iq{height:510px}
   @media(max-width:760px){.plot.iq{height:340px}}
+  .tlsgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px 16px;align-items:start}
+  @media(max-width:860px){.tlsgrid{grid-template-columns:1fr}}
+  .tlsgrid .qrow{margin:6px 0 0}
+  .tlsgrid .qrow label{font-weight:500}
+  .tlsplots{display:grid;grid-template-columns:1fr;gap:6px}
+  .tlsplots .plot{height:255px}
   .look{margin:0;padding-left:18px;font-size:13.5px}
   .look li{margin:3px 0}
   svg.schem{width:100%;height:auto;display:block;margin:6px 0 2px}
@@ -270,8 +276,49 @@
     <div id="photonOut" class="stats" style="margin-top:10px"></div>
     <p class="hint">Mean photon number on resonance, from the Q's above and the power at the device, after all the fridge attenuation
       (see the <a href="fridge-noise.html">Fridge Noise Explorer</a>). Resonator loss is usually quoted at about one photon,
-      where two-level-system defects matter most. With an asymmetry φ, only cos φ/|Q<sub>c</sub>| of the coupling carries energy
+      where two-level-system defects matter most (the next panel shows how much). With an asymmetry φ, only cos φ/|Q<sub>c</sub>| of the coupling carries energy
       into the resonator, and that effective coupling is what is used here.</p>
+  </details>
+  <details class="card" id="tlsCard">
+    <summary><h2>Two-level-system loss: Q<sub>i</sub> against power and temperature</h2></summary>
+    <p class="hint" style="margin-top:0"><span class="term" data-term="TLS">Two-level systems</span> are atomic-scale defects in oxides and interfaces whose level splitting happens to be
+      near <i>hf</i>; each one absorbs a photon and must relax before it can absorb another. At high power there are far more photons than
+      defects, so the TLS <b>saturate</b> and the loss falls as (1 + ⟨n⟩/n<sub>c</sub>)<sup>−β</sup>; at high temperature the defects are
+      <b>thermally excited</b>, absorb and emit equally, and the loss falls with the population difference tanh(<i>hf</i>/2k<sub>B</sub>T).
+      Qubits hold at most one excitation and sit at the cold, <span class="term" data-term="photon">single-photon</span> end where this loss is largest, which is why
+      Q<sub>i</sub> is quoted at ⟨n⟩ ≈ 1 and base temperature: a Q<sub>i</sub> measured at high power flatters the material.</p>
+    <div class="eq"><span class="frac"><span>1</span><span><i>Q</i><sub>i</sub>(⟨n⟩, T)</span></span> =
+      <span class="frac"><span>1</span><span><i>Q</i><sub>TLS,0</sub></span></span> ·
+      <span class="frac"><span>tanh(<i>hf</i> / 2<i>k</i><sub>B</sub><i>T</i>)</span><span>(1 + ⟨n⟩/<i>n</i><sub>c</sub>)<sup>β</sup></span></span> +
+      <span class="frac"><span>1</span><span><i>Q</i><sub>other</sub></span></span>, &emsp; <i>Q</i><sub>TLS,0</sub> = <span class="frac"><span>1</span><span><i>F</i> tan <i>δ</i><sup>0</sup><sub>TLS</sub></span></span></div>
+    <p class="hint">The form used in McRae et al. (2020) and Burnett et al. (2018): Q<sub>TLS,0</sub> is the TLS limit at zero power and
+      temperature (filling factor F times the intrinsic loss tangent), n<sub>c</sub> the photon number that saturates the defects, β = ½ for
+      the simplest non-interacting TLS bath (measured devices give 0.1 to 0.5), and Q<sub>other</sub> everything power-independent
+      (quasiparticles, radiation, package). ⟨n⟩ comes from the photon card above and f from f<sub>r</sub>; Q<sub>other</sub> and n<sub>c</sub>
+      are held constant in T here, so the warm end of the T plot is optimistic (quasiparticle loss appears above about T<sub>c</sub>/10).</p>
+    <div class="tlsgrid">
+      <div>
+        <div class="qrow"><label for="tlsQ0Num">Q<sub>TLS,0</sub> <small>TLS limit, cold and dark</small></label>
+          <input type="text" id="tlsQ0Num" inputmode="decimal" aria-label="TLS-limited Q at zero power and temperature">
+          <input type="range" id="tlsQ0R" min="4" max="8" step="0.01" aria-label="TLS-limited Q (log scale)"></div>
+        <div class="qrow"><label for="tlsQoNum">Q<sub>other</sub> <small>power-independent loss</small></label>
+          <input type="text" id="tlsQoNum" inputmode="decimal" aria-label="Other, power-independent Q">
+          <input type="range" id="tlsQoR" min="4" max="9" step="0.01" aria-label="Other Q (log scale)"></div>
+        <div class="qrow"><label for="tlsNcNum">n<sub>c</sub> <small>saturation photon number</small></label>
+          <input type="text" id="tlsNcNum" inputmode="decimal" aria-label="Critical photon number">
+          <input type="range" id="tlsNcR" min="-2" max="4" step="0.01" aria-label="Critical photon number (log scale)"></div>
+        <div class="qrow"><label for="tlsBetaR">β <small>saturation exponent</small></label>
+          <span class="val" id="tlsBetaVal" style="text-align:right"></span>
+          <input type="range" id="tlsBetaR" min="0.1" max="1" step="0.01" aria-label="Saturation exponent beta"></div>
+        <div class="qrow"><label for="tlsTR">Temperature T <small>of the chip</small></label>
+          <span class="val" id="tlsTVal" style="text-align:right"></span>
+          <input type="range" id="tlsTR" min="-2" max="0" step="0.01" aria-label="Temperature (log scale, 10 mK to 1 K)"></div>
+        <div class="presets" id="tlsPresets" style="margin-top:10px"></div>
+        <div class="stats" id="tlsStats" style="margin-top:10px;grid-template-columns:1fr"></div>
+        <div class="row" style="margin:8px 0 0"><button id="tlsUse" title="Set the Qi slider above to the value this model gives at the current power and temperature">Use this Qᵢ in the sliders above</button></div>
+      </div>
+      <div class="tlsplots"><div id="pTlsN" class="plot"></div><div id="pTlsT" class="plot"></div></div>
+    </div>
   </details>
   <div class="row" style="margin-top:0"><button id="exCopy">Copy link to this setup</button><button id="exReset">Reset</button></div>
 </div>
@@ -902,6 +949,91 @@ function renderPhotons() {
   const n = E.photonNumber(ex.g, P, p.fr, p.Ql, qcEff), p1 = E.powerForPhotons(ex.g, 1, p.fr, p.Ql, qcEff);
   $('#photonOut').innerHTML = `<div class="stat tot"><span>Mean photon number ⟨n⟩</span><b>${sci(n, 3)}</b></div>
     <div class="stat"><span>Power for ⟨n⟩ = 1</span><b>${p1.toFixed(1)} dBm</b></div>`;
+  renderTls();
+}
+
+/* ---------- two-level-system loss (E.tlsQi): Qi against photon number and temperature ---------- */
+// 1/Qi = (1/Qtls0) tanh(hf/2kT)/(1 + n/nc)^β + 1/Qother. n is the photon card's ⟨n⟩, f the lab's fr.
+const TLS_DEFAULT = { Qtls0: 1e6, Qother: 1e7, nc: 1, beta: 0.5, T: 0.02 };
+const tls = Object.assign({}, TLS_DEFAULT);
+const TLS_PRESETS = [
+  { label: 'Typical CPW on silicon', p: { Qtls0: 1e6, Qother: 1e7, nc: 1, beta: 0.5 }, tip: 'Single-photon Qi ≈ 10⁶, saturating by a factor ~10' },
+  { label: 'Lossy amorphous oxide', p: { Qtls0: 2e4, Qother: 1e7, nc: 10, beta: 0.4 }, tip: 'TLS-dominated: a tan δ of a few 10⁻⁵ with F ≈ 1' },
+  { label: 'TLS fixed, other loss dominates', p: { Qtls0: 5e6, Qother: 5e5, nc: 1, beta: 0.5 }, tip: 'Power and temperature barely matter: the resonator is not TLS-limited' },
+];
+$('#tlsPresets').innerHTML = TLS_PRESETS.map((p, i) => `<button data-i="${i}" title="${p.tip}">${p.label}</button>`).join('');
+$('#tlsPresets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; Object.assign(tls, TLS_PRESETS[+b.dataset.i].p); syncTls(); });
+const tlsParams = () => ({ Qtls0: tls.Qtls0, Qother: tls.Qother, nc: tls.nc, beta: tls.beta });
+function currentPhotons() {
+  const p = exParams(), qcEff = p.Qc / Math.max(Math.cos(p.phi), 1e-6);
+  return E.photonNumber(ex.g, +$('#pIn').value, p.fr, p.Ql, qcEff);
+}
+for (const [num, rng, key, lo, hi] of [['#tlsQ0Num', '#tlsQ0R', 'Qtls0', 1e3, 1e10], ['#tlsQoNum', '#tlsQoR', 'Qother', 1e3, 1e12], ['#tlsNcNum', '#tlsNcR', 'nc', 1e-4, 1e8]]) {
+  $(rng).addEventListener('input', e => { tls[key] = Math.pow(10, +e.target.value); syncTls('slider'); });
+  $(num).addEventListener('change', e => { const v = parseNum(e.target.value);
+    if (v >= lo && v <= hi) { tls[key] = v; syncTls(); } else { e.target.value = sci(tls[key]); toast(`Enter a value between ${sci(lo)} and ${sci(hi)}`); } });
+}
+$('#tlsBetaR').addEventListener('input', e => { tls.beta = +e.target.value; syncTls('slider'); });
+$('#tlsTR').addEventListener('input', e => { tls.T = Math.pow(10, +e.target.value); syncTls('slider'); });
+$('#tlsCard').addEventListener('toggle', () => { if ($('#tlsCard').open) { syncTls(); requestAnimationFrame(() => ['pTlsN', 'pTlsT'].forEach(id => { const el = document.getElementById(id); if (el.data) Plotly.Plots.resize(el); })); } });
+$('#tlsUse').addEventListener('click', () => {
+  const q = E.tlsQi(currentPhotons(), tls.T, ex.fr, tlsParams());
+  if (!(q >= 10)) return;
+  ex.qi = Math.min(1e10, q); syncEx();
+  toast(`Qi set to ${sci(q, 3)}; ⟨n⟩ changes a little with Ql, so the model's Qi moves too`);
+});
+const tempStr = T => T >= 1 ? `${+T.toPrecision(3)} K` : `${+(1e3 * T).toPrecision(3)} mK`;
+function syncTls(from) {
+  const act = document.activeElement;
+  for (const [rng, key] of [['#tlsQ0R', 'Qtls0'], ['#tlsQoR', 'Qother'], ['#tlsNcR', 'nc']]) if (from !== 'slider' || act !== $(rng)) $(rng).value = Math.log10(tls[key]);
+  if (from !== 'slider' || act !== $('#tlsTR')) $('#tlsTR').value = Math.log10(tls.T);
+  $('#tlsBetaR').value = tls.beta;
+  $('#tlsQ0Num').value = sci(tls.Qtls0, 3); $('#tlsQoNum').value = sci(tls.Qother, 3); $('#tlsNcNum').value = sci(tls.nc, 3);
+  $('#tlsBetaVal').textContent = tls.beta.toFixed(2); $('#tlsTVal').textContent = tempStr(tls.T);
+  renderTls();
+}
+function renderTls() {
+  if (!$('#tlsCard').open) return;
+  const P = tlsParams(), f = ex.fr, T = tls.T, n = currentPhotons(), Tx = E.tlsCrossoverT(f);
+  const Pt = Object.assign({}, P, { Qother: Infinity });   // the TLS channel alone
+  const qNow = E.tlsQi(n, T, f, P), q1 = E.tlsQi(1, T, f, P), q0 = E.tlsQi(0, 1e-9, f, P);
+  $('#tlsStats').innerHTML = `<div class="stat int"><span>Q<sub>i</sub> at ⟨n⟩ = ${sci(n, 2)}, T = ${tempStr(T)}</span><b>${sci(qNow, 3)}</b><small>what this resonator would show now</small></div>
+    <div class="stat int"><span>Q<sub>i</sub> at ⟨n⟩ = 1, T = ${tempStr(T)}</span><b>${sci(q1, 3)}</b><small>the single-photon value papers quote</small></div>
+    <div class="stat"><span>Floor and ceiling</span><b>${sci(q0, 2)} → ${sci(P.Qother, 2)}</b><small>Q<sub>TLS,0</sub> ∥ Q<sub>other</sub> when cold and dark; Q<sub>other</sub> once the TLS are saturated</small></div>
+    <div class="stat"><span>Thermal factor tanh(hf/2k<sub>B</sub>T)</span><b>${E.tlsThermal(f, T).toFixed(3)}</b><small>hf = 2k<sub>B</sub>T at ${tempStr(Tx)} for ${+f.toPrecision(4)} GHz</small></div>`;
+
+  const base = { font: PLOT_FONT, paper_bgcolor: '#fff', plot_bgcolor: '#fff', hovermode: 'closest', margin: { l: 56, r: 10, t: 26, b: 42 }, showlegend: true,
+    legend: { x: 0.02, y: 0.98, xanchor: 'left', yanchor: 'top', bgcolor: 'rgba(255,255,255,.75)', font: { size: 10.5 } } };
+  // y range follows the Qi curve (the dashed TLS-only curve may leave the frame: that is the point of Q_other)
+  const yax = ys => { const lo = Math.log10(Math.min(...ys)), hi = Math.log10(Math.max(...ys)); return Object.assign({ type: 'log', title: { text: 'Q<sub>i</sub>', standoff: 2 }, exponentformat: 'power', range: [lo - 0.15 * (hi - lo) - 0.08, hi + 0.15 * (hi - lo) + 0.08] }, AX); };
+  const pow10 = e => e === 0 ? '1' : `10<sup>${e}</sup>`;
+  const tot = { color: C.green, width: 2.6 }, tlsLn = { color: C.int, width: 1.5, dash: 'dash' }, othLn = { color: C.muted, width: 1.3, dash: 'dot' };
+  const mark = { size: 11, color: C.gold, line: { color: '#1b2a24', width: 1.5 } };
+  // Qi against photon number at the chosen T, with the lab's current ⟨n⟩ marked
+  const lo = Math.min(1e-2, n), hi = Math.max(1e6, n);
+  const ns = Array.from({ length: 161 }, (_, j) => lo * Math.pow(hi / lo, j / 160)), qN = ns.map(v => E.tlsQi(v, T, f, P));
+  const eLo = Math.floor(Math.log10(lo)), eHi = Math.ceil(Math.log10(hi)), stepN = eHi - eLo > 8 ? 2 : 1, tvN = [];
+  for (let e = eLo; e <= eHi; e += stepN) tvN.push(e);
+  Plotly.react('pTlsN', [
+    { x: ns, y: ns.map(v => E.tlsQi(v, T, f, Pt)), mode: 'lines', line: tlsLn, name: 'TLS alone', hovertemplate: '⟨n⟩ = %{x:.3g}<br>Q<sub>TLS</sub> = %{y:.3s}<extra></extra>' },
+    { x: [lo, hi], y: [P.Qother, P.Qother], mode: 'lines', line: othLn, name: 'Q<sub>other</sub>', hoverinfo: 'skip' },
+    { x: ns, y: qN, mode: 'lines', line: tot, name: 'Q<sub>i</sub>', hovertemplate: '⟨n⟩ = %{x:.3g}<br>Q<sub>i</sub> = %{y:.3s}<extra></extra>' },
+    { x: [n], y: [qNow], mode: 'markers', marker: mark, name: 'this lab’s ⟨n⟩', hovertemplate: `⟨n⟩ = ${sci(n, 3)} from the photon card<br>Q<sub>i</sub> = ${sci(qNow, 3)}<extra></extra>` },
+  ], Object.assign({}, base, { title: { text: `Q<sub>i</sub> against photon number at T = ${tempStr(T)}`, font: { size: 13 }, x: 0.01, xanchor: 'left' },
+    xaxis: Object.assign({ type: 'log', title: { text: 'mean photon number ⟨n⟩', standoff: 4 }, tickvals: tvN.map(e => Math.pow(10, e)), ticktext: tvN.map(pow10), range: [Math.log10(lo), Math.log10(hi)] }, AX), yaxis: yax(qN),
+    shapes: [{ type: 'line', x0: Math.log10(P.nc), x1: Math.log10(P.nc), y0: 0, y1: 1, yref: 'paper', line: { color: '#b9c6bf', width: 1, dash: 'dot' } }],
+    annotations: [{ x: Math.log10(P.nc), y: 0.02, yref: 'paper', text: 'n<sub>c</sub>', showarrow: false, xanchor: 'left', font: { size: 11, color: C.muted } }] }), CFG);
+  // Qi against temperature at the lab's current ⟨n⟩, with hf = 2kT marked
+  const Ts = Array.from({ length: 121 }, (_, j) => 0.01 * Math.pow(100, j / 120)), qT = Ts.map(t => E.tlsQi(n, t, f, P));
+  Plotly.react('pTlsT', [
+    { x: Ts, y: Ts.map(t => E.tlsQi(n, t, f, Pt)), mode: 'lines', line: tlsLn, name: 'TLS alone', hovertemplate: 'T = %{x:.3g} K<br>Q<sub>TLS</sub> = %{y:.3s}<extra></extra>' },
+    { x: [0.01, 1], y: [P.Qother, P.Qother], mode: 'lines', line: othLn, name: 'Q<sub>other</sub>', hoverinfo: 'skip' },
+    { x: Ts, y: qT, mode: 'lines', line: tot, name: 'Q<sub>i</sub>', hovertemplate: 'T = %{x:.3g} K<br>Q<sub>i</sub> = %{y:.3s}<extra></extra>' },
+    { x: [T], y: [qNow], mode: 'markers', marker: mark, name: 'chosen T', hovertemplate: `T = ${tempStr(T)}<br>Q<sub>i</sub> = ${sci(qNow, 3)}<extra></extra>` },
+  ], Object.assign({}, base, { title: { text: `Q<sub>i</sub> against temperature at ⟨n⟩ = ${sci(n, 2)}`, font: { size: 13 }, x: 0.01, xanchor: 'left' },
+    xaxis: Object.assign({ type: 'log', title: { text: 'temperature [K]', standoff: 4 }, range: [-2, 0], tickvals: [0.01, 0.03, 0.1, 0.3, 1], ticktext: ['10 mK', '30 mK', '100 mK', '300 mK', '1 K'] }, AX), yaxis: yax(qT),
+    shapes: Tx > 0.01 && Tx < 1 ? [{ type: 'line', x0: Math.log10(Tx), x1: Math.log10(Tx), y0: 0, y1: 1, yref: 'paper', line: { color: '#b9c6bf', width: 1, dash: 'dot' } }] : [],
+    annotations: Tx > 0.01 && Tx < 1 ? [{ x: Math.log10(Tx), y: 0.02, yref: 'paper', text: 'hf = 2k<sub>B</sub>T', showarrow: false, xanchor: 'left', font: { size: 11, color: C.muted } }] : [] }), CFG);
 }
 
 /* ---------- guided predictions for the Explore tab ---------- */
@@ -1380,7 +1512,13 @@ function plotFit(R) {
   if (R.kind === 'builtin' || R.target === 'complex') {
     const S = R.kind === 'builtin' ? R.curve(fd) : (() => { const v = R.curve(Float64Array.from(fd, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(fd.length) }; })();
     curveC = S;
+    const Sd = R.kind === 'builtin' ? R.curve(c.f) : (() => { const v = R.curve(Float64Array.from(c.f, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(n) }; })();
     if (c.re) {
+      // each point coloured by its distance from the fitted curve, in units of the rms residual: structure here means a wrong model
+      const dist = Array.from(c.re, (v, j) => Math.hypot(v - Sd.re[j], c.im[j] - Sd.im[j]));
+      const rms = Math.sqrt(dist.reduce((a, d) => a + d * d, 0) / n) || 1;
+      const iqMk = { size: 5, color: dist.map(d => d / rms), cmin: 0, cmax: 3, colorscale: [[0, C.data], [0.4, C.gold], [1, C.int]], opacity: 0.9,
+        showscale: true, colorbar: { thickness: 7, len: 0.55, y: 0.5, x: 1.0, xpad: 2, tickfont: { size: 9.5 }, title: { text: '|data − fit| / rms', side: 'right', font: { size: 10 } }, outlinewidth: 0 } };
       const ph = E.unwrap(Array.from(c.re, (x, j) => Math.atan2(c.im[j], x)));
       const phF = E.unwrap(Array.from(S.re, (x, j) => Math.atan2(S.im[j], x)));
       const shift = 2 * Math.PI * Math.round((ph[0] - phF[0]) / (2 * Math.PI));
@@ -1388,14 +1526,14 @@ function plotFit(R) {
       Plotly.react('rPh', [{ x: xf, y: Array.from(ph, v => v * 180 / Math.PI), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: '%{x:.7f} GHz<br>%{y:.1f}°<extra>data</extra>' },
         { x: xd, y: Array.from(phF, v => (v + shift) * 180 / Math.PI), mode: 'lines', line: fitLn, name: 'fit', hovertemplate: '%{y:.1f}°<extra>fit</extra>' }],
       lay('phase in degrees', 'frequency [GHz]', { showlegend: false }), CFG);
-      Plotly.react('rIQ', [{ x: Array.from(c.re), y: Array.from(c.im), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: 'Re %{x:.3f}, Im %{y:.3f}<extra>data</extra>' },
+      Plotly.react('rIQ', [{ x: Array.from(c.re), y: Array.from(c.im), mode: 'markers', marker: iqMk, name: 'data', customdata: dist,
+        hovertemplate: 'Re %{x:.3f}, Im %{y:.3f}<br>|data − fit| = %{customdata:.2e} (%{marker.color:.1f} rms)<extra>data</extra>' },
         { x: Array.from(S.re), y: Array.from(S.im), mode: 'lines', line: fitLn, name: 'fit', hoverinfo: 'skip' }],
-      lay('IQ plane', 'Re S', { yaxis: Object.assign({ title: { text: 'Im S', standoff: 2 }, scaleanchor: 'x', scaleratio: 1 }, AX) }), CFG);
+      lay('IQ plane, coloured by |data − fit|', 'Re S', { margin: { l: 58, r: 60, t: 26, b: 42 }, yaxis: Object.assign({ title: { text: 'Im S', standoff: 2 }, scaleanchor: 'x', scaleratio: 1 }, AX) }), CFG);
     } else { $('#rPh').hidden = true; $('#rIQ').hidden = true; }
     const magF = Array.from(S.re, (x, j) => db(Math.hypot(x, S.im[j])));
     Plotly.react('rMag', [{ x: xf, y: Array.from(c.mag, db), mode: 'markers', marker: dataMk, name: 'data', hovertemplate: '%{x:.7f} GHz<br>%{y:.2f} dB<extra>data</extra>' },
       { x: xd, y: magF, mode: 'lines', line: fitLn, name: 'fit', hovertemplate: '%{y:.2f} dB<extra>fit</extra>' }], lay('|S| in dB: data and fit', c.re ? '' : 'frequency [GHz]'), CFG);
-    const Sd = R.kind === 'builtin' ? R.curve(c.f) : (() => { const v = R.curve(Float64Array.from(c.f, x => x * R.u)); return { re: v.re, im: v.im || new Float64Array(n) }; })();
     resid = c.re ? [{ x: xf, y: Array.from(c.re, (v, j) => v - Sd.re[j]), mode: 'markers', marker: { size: 4, color: C.ext }, name: 'Re' },
       { x: xf, y: Array.from(c.im, (v, j) => v - Sd.im[j]), mode: 'markers', marker: { size: 4, color: C.gold }, name: 'Im' }]
       : [{ x: xf, y: Array.from(c.mag, (v, j) => v - Math.hypot(Sd.re[j], Sd.im[j])), mode: 'markers', marker: { size: 4, color: C.ext }, name: '|S|' }];
@@ -1546,6 +1684,7 @@ async function qvFrom() {
   const ph = q.num('phi', -60, 60); if (ph != null) ex.phi = ph * Math.PI / 180;
   if (q.has('env')) ex.env = true;
   syncEx();
+  syncTls();
   qvFrom();
   const h = location.hash.slice(1);
   showTab(TABS.includes(h) ? h : q.has('seed') ? 'fit' : 'explore');

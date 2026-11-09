@@ -161,6 +161,7 @@
       <div class="field"><label for="shotsF">Shots</label><input id="shotsF" type="number" min="32" max="4096" step="32" value="256" style="width:100px"></div>
     </div>
     <p class="hint">Ω<sub>R</sub>/2π = 25 MHz gives a 20 ns π pulse (π = 1/(2Ω<sub>R</sub>)), typical of a real transmon. T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
+    <p class="hint" id="freeDeph" aria-live="polite" style="font-size:13px"></p>
     <div class="qvq">
       <button id="qvQubitBtn" title="Published transmons from Q-Vault, the MARQUIS database">📚 Load a real qubit from Q-Vault</button>
       <div id="qvQubitPick"></div>
@@ -342,6 +343,27 @@
     <div class="eq"><i>P</i><sub>1,T1</sub>(<i>t</i>) ≈ <i>C</i> + <i>A</i> e<sup>−<i>t</i>/<i>T</i><sub>1</sub></sup></div>
     <div class="row"><button id="tdDl">Download time-domain CSV</button></div>
   </div>
+
+  <div class="card" style="margin-top:14px" id="durCard">
+    <h2>Pulse-duration sweep: the Rabi calibration</h2>
+    <p class="hint">What a lab runs to calibrate its π pulse: prepare |0⟩, play a square σ<sub>x</sub> pulse of length <i>t</i> at the amplitude and ω<sub>d</sub> set above,
+      measure, and repeat for many <i>t</i>. Fitting the Rabi formula to the result gives the drive strength Ω and the detuning Δ = ω<sub>d</sub> − ω<sub>q</sub> separately:
+      off resonance the oscillation speeds up to Ω<sub>R</sub> = √(Ω² + Δ²) while its contrast falls to Ω²/Ω<sub>R</sub>², so a pulse can no longer reach |1⟩.
+      Run it at the sweep peak, then move ω<sub>d</sub> a little and run again.</p>
+    <div class="eq"><i>P</i>(|1⟩)(<i>t</i>) = (Ω²/Ω<sub><i>R</i></sub>²) · ½[1 − e<sup>−<i>t</i>/τ</sup> cos(Ω<sub><i>R</i></sub><i>t</i>)]
+      &nbsp;=&nbsp; (Ω²/Ω<sub><i>R</i></sub>²) sin²(Ω<sub><i>R</i></sub><i>t</i>/2) without decay, &nbsp; Ω<sub><i>R</i></sub> = √(Ω² + Δ²)</div>
+    <div class="row">
+      <div class="field"><label for="durMax">Longest pulse [<span class="u-t">ns</span>]</label><input id="durMax" type="number" min="1" max="2000" step="1" value="25"></div>
+      <div class="field"><label for="durN">Number of durations</label><input id="durN" type="number" min="20" max="2001" step="1" value="126"></div>
+      <button class="primary" id="durRun">Run duration sweep</button>
+      <span class="hint" id="durUses"></span>
+    </div>
+    <div id="durNotice"></div>
+    <div id="durPlot" class="plot"></div>
+    <div class="metrics" id="durMetrics"></div>
+    <div id="durMsgs"></div>
+    <div class="row" id="durDlRow" hidden><button id="durDl">Download duration-sweep CSV</button></div>
+  </div>
 </section>
 
 <!-- ======================= RAMSEY ======================= -->
@@ -420,6 +442,7 @@ const state = {
   qubit: null,
   freq: null, freqFit: null,
   td: { tFinal: 200, sx: null, sy: null, history: [], out: null, fits: null },
+  dur: null,
   chev: null,
 };
 
@@ -627,10 +650,10 @@ function useQubit(q) {
   else if (q.code !== 'FREE' && QVS) { QVS = null; tsDraw(); }
   // _clear_results_and_pulses()
   state.freq = null; state.freqFit = null; state.chev = null;
-  state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null;
+  state.td.sx = state.td.sy = null; state.td.history = []; state.td.out = null; state.td.fits = null; state.dur = null;
   $('#reveal').checked = false;
   ckReset();
-  renderFreq(); syncSchedule(); renderTD(); renderRamsey(); renderReveal(); syncRamseyInputs();
+  renderFreq(); syncSchedule(); renderTD(); renderDur(); renderRamsey(); renderReveal(); syncRamseyInputs();
 }
 $('#newQubit').onclick = () => { setQubit(Q.randomCode()); ql('reset', { level: 'new_qubit' }); };
 $('#useCode').onclick = () => { const v = $('#codeIn').value.trim(); if (v) { setQubit(v); $('#codeIn').value = ''; ql('reset', { level: 'code' }); } };
@@ -651,10 +674,19 @@ const getMode = segmented('#mode', m => {
   if (m === 'free') applyFree();
   if (m === 'mystery' && state.qubit && state.qubit.code === 'FREE') setQubit(Q.randomCode());
 });
+// Live dephasing budget for the free-play fields: 1/T₂ = 1/(2T₁) + 1/Tφ, so Tφ = 1/(1/T₂ − 1/(2T₁)), ∞ when T₂ = 2T₁.
+function freeDephase() {
+  const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1), Tphi = Q.dephasingTime(T1, T2), u = UT();
+  $('#freeDeph').innerHTML = `Dephasing budget: 1/T₂ = 1/(2T₁) + 1/T<sub>φ</sub> → 1/${fmtG(T2, 4)} = 1/${fmtG(2 * T1, 4)} + 1/T<sub>φ</sub>, so
+    <b>T<sub>φ</sub> = ${Tphi === Infinity ? '∞' : fmtG(Tphi, 4) + ' ' + u}</b>${Tphi === Infinity ? ' (T₂ = 2T₁: energy relaxation alone, no pure dephasing)'
+    : ` (pure dephasing at 1/T<sub>φ</sub> = ${fmtG(1e3 / Tphi, 3)} per 1000 ${u}, on top of 1/(2T₁) = ${fmtG(1e3 / (2 * T1), 3)})`}.
+    On the Ramsey tab the fitted envelope e<sup>−τ/T₂</sup> is drawn next to the T₁-only envelope e<sup>−τ/2T₁</sup>: the gap between them is T<sub>φ</sub>.`;
+}
+['#fT1', '#fT2'].forEach(id => $(id).addEventListener('input', freeDephase));
 function applyFree(fromQV) {
   if (!fromQV) { QVS = null; tsDraw(); $('#qvQubitNote').hidden = true; try { const u = new URL(location.href); ['qv', 'f01', 't1', 't2', 't2kind'].forEach(k => u.searchParams.delete(k)); history.replaceState(null, '', u); } catch (e) {} }
   const T1 = clamp(num('#fT1', 150), 1, 1e4), T2 = clamp(num('#fT2', 2 * T1), 1, 2 * T1);
-  $('#fT2').value = T2;
+  $('#fT2').value = T2; freeDephase();
   useQubit({ code: 'FREE', omegaQ: clamp(num('#fWq', 5), 1, 10), omegaRabi: clamp(num('#fRabi', 25), 1, 1000) / 1000, T1, T2 });
   // a slow drive needs a longer sweep trace to show a few Rabi cycles (3 cycles, at most 500 ns)
   const needT = Math.min(500, Math.ceil(3e3 / clamp(num('#fRabi', 25), 1, 1000)));
@@ -879,6 +911,7 @@ $('#shots').addEventListener('change', scheduleRun);
 
 function syncQuickPulses() {
   const fit = state.freqFit, f = state.freq;
+  durSuggest();
   $('#quickPulses').hidden = !(fit && fit.fMHz > 0);
   $('#useFit').hidden = !f;
   $('#qpNote').innerHTML = fit && fit.fMHz > 0 ? `Uses Ω<sub>R</sub>/2π = ${fmtG(fit.fMHz)} ${UF()} from your sweep's peak trace (π = ${fmtG(500 / fit.fMHz)} ${UT()}) and drives at the sweep peak, ${f.peakFreq.toFixed(4)} GHz${CU() ? ' (lab frame)' : ''}.${offResWarn()}` : '';
@@ -1026,6 +1059,72 @@ $('#tdDl').onclick = () => {
     Array.from(o.t, (t, i) => [t, o.x[i], o.y[i], o.z[i], o.p1[i]].concat(f.t1 ? [fit[i]] : [])));
 };
 
+/* --- pulse-duration sweep: P(|1⟩) after a square σx pulse of length t, swept in t, fitted with the Rabi formula --- */
+// Default range: about six Rabi periods with 20 samples per period, from the sweep's fitted rate (or the free-play
+// qubit's own rate); a mystery qubit's hidden rate is never used. Fields the visitor has edited are left alone.
+function durSuggest() {
+  const fit = state.freqFit, q = state.qubit;
+  const f = fit && fit.fMHz > 0 ? fit.fMHz : q && q.code === 'FREE' ? q.omegaRabi * 1e3 : null;
+  if (!f) return;
+  const period = 1e3 / f, tMax = clamp(Math.ceil(6 * period), 5, 2000), nDur = clamp(Math.round(tMax / (period / 20)) + 1, 20, 2001);
+  if (!$('#durMax').dataset.touched) $('#durMax').value = tMax;
+  if (!$('#durN').dataset.touched) $('#durN').value = nDur;
+}
+['#durMax', '#durN'].forEach(id => $(id).addEventListener('input', e => (e.target.dataset.touched = '1')));
+$('#durRun').onclick = () => {
+  const q = state.qubit, wd = num('#tdWd', 5), amp = +$('#amp').value, ns = shots();
+  const tMax = clamp(num('#durMax', 25), 1, 2000), nDur = clamp(int('#durN', 126), 20, 2001);
+  if (Math.abs(amp) < 0.05) { $('#durNotice').innerHTML = '<div class="note warn">The amplitude slider is at zero: no drive, no Rabi oscillation.</div>'; return; }
+  $('#durNotice').innerHTML = '';
+  const r = Q.rabiDurationSweep({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, omegaD: wd, amp, tMax, nDur, T1: q.T1, T2: q.T2 });
+  const meas = Q.sampleShots(r.p1, ns);
+  state.dur = { t: r.t, p1: r.p1, meas, fit: Q.fitRabiFormula(Array.from(r.t), Array.from(meas)), wd, amp, shots: ns };
+  ckRun('duration');
+  renderDur();
+};
+function renderDur() {
+  const d = state.dur, q = state.qubit;
+  durSuggest();
+  $('#durUses').innerHTML = `Uses ω<sub>d</sub>/2π = ${num('#tdWd', 5).toFixed(6)} GHz and amplitude ${(+$('#amp').value).toFixed(2)} from above, ${shots()} shots per duration.`;
+  $('#durDlRow').hidden = !d;
+  if (!d) { Plotly.purge('durPlot'); $('#durMetrics').innerHTML = ''; $('#durMsgs').innerHTML = ''; return; }
+  const t = Array.from(d.t), fit = d.fit;
+  const traces = [
+    { type: 'scatter', mode: 'markers', x: t, y: Array.from(d.meas), name: `Measured P(|1⟩) after a pulse of length t (${d.shots} shots)`, marker: { color: C.blue, size: 5 } },
+    { type: 'scatter', mode: 'lines', x: t, y: Array.from(d.p1), name: 'Exact P(|1⟩)', line: { color: C.muted, width: 1 } },
+  ];
+  if (fit) traces.push({ type: 'scatter', mode: 'lines', x: t, y: fit.fitCurve, name: 'Rabi-formula fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
+  Plotly.react('durPlot', traces, layout(`Pulse-duration sweep at ωd = ${d.wd.toFixed(6)} GHz, amplitude ${d.amp.toFixed(2)}`, {
+    height: 400, xaxis: { title: { text: tAx('Pulse duration t [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩) when the pulse ends' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
+    legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
+  }), PLOT_CFG);
+  if (!fit) { $('#durMetrics').innerHTML = ''; $('#durMsgs').innerHTML = '<div class="note">The Rabi formula could not be fitted to this sweep. Try a longer sweep with more durations.</div>'; return; }
+  const dt = t[1] - t[0], fMax = Math.min(5e4, 1e3 * 0.25 / dt), under = fit.fRMHz > 0.98 * fMax;
+  const bs = fit.fMHz * fit.fMHz / (4 * q.omegaQ * 1e3);              // Bloch–Siegert shift Ω²/(4ωq), as a frequency in the lab's MHz
+  $('#durMetrics').innerHTML = metric('Drive strength Ω/2π (fit)', formatPM(fit.fMHz, fit.fMHzErr, UF()))
+    + metric('Detuning |Δ|/2π = |ω<sub>d</sub> − ω<sub>q</sub>| (fit)', formatPM(fit.dMHz, fit.dMHzErr, UF()))
+    + metric('Ω<sub>R</sub>/2π = √(Ω² + Δ²): the oscillation seen', formatPM(fit.fRMHz, fit.fRMHzErr, UF()))
+    + metric('Contrast Ω²/Ω<sub>R</sub>²', formatPM(fit.contrast, fit.contrastErr, '', 3))
+    + metric('Decay τ', formatPM(fit.tauNs, fit.tauNsErr, UT()))
+    + metric('π pulse on resonance, 1/(2·Ω/2π)', (500 / fit.fMHz).toFixed(3) + ' ' + UT());
+  const M = [];
+  if (under) M.push(`<div class="note warn">The fitted Ω<sub>R</sub> sits at the limit this sampling can resolve (${fmtG(fMax)} ${UF()}): the durations are too far apart. Use more of them or a shorter sweep.</div>`);
+  if (fit.contrast < 0.9) M.push(`<p class="hint"><b>Only ${(100 * fit.contrast).toFixed(0)}% contrast:</b> at this ω<sub>d</sub> the drive is off resonance by about ${fmtG(fit.dMHz)} ${UF()} (the formula is even in Δ, so the sign is not known),
+    the qubit turns about a tilted axis and no pulse length reaches |1⟩. Move ω<sub>d</sub> by that much in either direction and run again: the oscillation slows to Ω and the contrast returns.</p>`);
+  else M.push(`<p class="hint">Contrast ${(100 * fit.contrast).toFixed(1)}%: the drive is close to resonance, so the oscillation runs at Ω itself and a ${(500 / fit.fMHz).toFixed(2)} ${UT()} pulse is a π pulse.
+    Near resonance the fitted |Δ| is uncertain, because it comes from the little contrast that is missing: treat anything within its error bar${fit.dMHzErr ? ` (± ${fmtG(fit.dMHzErr, 2)} ${UF()})` : ''} as zero.${bs > 0.5
+      ? ` A few ${UF()} of it are real, though: the Bloch–Siegert shift Ω²/(4ω<sub>q</sub>) ≈ ${fmtG(bs, 2)} ${UF()} of the counter-rotating terms this lab keeps.` : ''}</p>`);
+  if (fit.contrast < 0.9) M.push(`<p class="hint">Off resonance the oscillation is <em>faster</em> (Ω<sub>R</sub>/2π = ${fmtG(fit.fRMHz)} ${UF()}) than the drive strength (Ω/2π = ${fmtG(fit.fMHz)} ${UF()}): a Rabi rate read off a detuned sweep gives a π pulse that is too short.</p>`);
+  const tor = Q.rabiDecayTime(q.T1, q.T2);
+  if ($('#reveal').checked) M.push(`<p class="hint">Set values: Ω·|amp|/2π = ${fmtG(q.omegaRabi * 1e3 * Math.abs(d.amp))} ${UF()}, Δ/2π = ${fmtG((d.wd - q.omegaQ) * 1e3, 4)} ${UF()}; on resonance the oscillation decays at Torrey's rate (1/T₁ + 1/T₂)/2, so τ = 2/(1/T₁ + 1/T₂) = ${fmtG(tor)} ${UT()}.</p>`);
+  $('#durMsgs').innerHTML = M.join('');
+}
+$('#durDl').onclick = () => {
+  const d = state.dur; if (!d) return;
+  downloadCSV('pulse_duration_sweep.csv', ['duration_ns', 'p1_meas', 'p1_exact', 'rabi_formula_fit'],
+    Array.from(d.t, (t, i) => [t, d.meas[i], d.p1[i], d.fit ? d.fit.fitCurve[i] : NaN]));
+};
+
 /* =======================================================================
    RAMSEY
    ======================================================================= */
@@ -1114,6 +1213,19 @@ function renderCut() {
   const traces = [{ type: 'scatter', mode: 'lines+markers', x: Array.from(c.delays), y: Array.from(col), name: `Ramsey data (Δ = ${det >= 0 ? '+' : ''}${det.toFixed(3)} ${UF()})`,
     line: { color: C.blue, width: 2.2 }, marker: { size: 4 } }];
   if (fit) traces.push({ type: 'scatter', mode: 'lines', x: Array.from(c.delays), y: fit.fitCurve, name: 'Ramsey fit', line: { color: C.red, width: 2.5, dash: 'dash' } });
+  // Free play (T₁ is the student's own setting): the fitted envelope C ± A e^{−τ/T₂} next to the T₁-only envelope
+  // C ± A e^{−τ/2T₁}, the widest a Ramsey decay can be. The gap between them is pure dephasing, 1/Tφ = 1/T₂ − 1/(2T₁).
+  const free = state.qubit && state.qubit.code === 'FREE';
+  let tphiFit = null;
+  if (fit && free) {
+    const tau = Array.from(c.delays), A = Math.abs(fit.A), T1 = state.qubit.T1;
+    tphiFit = Q.dephasingTime(T1, fit.T2Ns);
+    const env = (T, sgn) => tau.map(x => fit.C + sgn * A * Math.exp(-x / T));
+    traces.push({ type: 'scatter', mode: 'lines', x: tau, y: env(fit.T2Ns, 1), name: `fitted envelope e^(−τ/T₂), T₂ = ${fit.T2Ns.toFixed(0)} ${UT()}`, line: { color: C.red, width: 1.2 } },
+      { type: 'scatter', mode: 'lines', x: tau, y: env(fit.T2Ns, -1), showlegend: false, hoverinfo: 'skip', line: { color: C.red, width: 1.2 } },
+      { type: 'scatter', mode: 'lines', x: tau, y: env(2 * T1, 1), name: `T₁-only envelope e^(−τ/2T₁), 2T₁ = ${(2 * T1).toFixed(0)} ${UT()}`, line: { color: C.muted, width: 1.6, dash: 'dot' } },
+      { type: 'scatter', mode: 'lines', x: tau, y: env(2 * T1, -1), showlegend: false, hoverinfo: 'skip', line: { color: C.muted, width: 1.6, dash: 'dot' } });
+  }
   Plotly.react('rCutPlot', traces, layout('Ramsey trace from a vertical cut of the chevron', {
     height: 400, xaxis: { title: { text: tAx('Idle time τ [ns]') }, gridcolor: '#eef2ef' }, yaxis: { title: { text: 'P(|1⟩)' }, range: [-0.05, 1.05], gridcolor: '#eef2ef' },
     legend: { orientation: 'h', y: 0.98, yanchor: 'top', x: 0.99, xanchor: 'right', bgcolor: window.RETRO && window.RETRO.palette ? 'rgba(7,10,22,0.72)' : 'rgba(255,255,255,0.85)' },
@@ -1123,6 +1235,10 @@ function renderCut() {
       + (isFinite(c.refF) ? metric('So ω<sub>q</sub>/2π is ω<sub>d</sub> ± fringe' + labFrame(),
         `${chipF(c.refF + 1e-3 * (det - fit.freqMHz)).toFixed(CU() ? 9 : 6)} or ${chipF(c.refF + 1e-3 * (det + fit.freqMHz)).toFixed(CU() ? 9 : 6)} GHz`) : '')
     : '<div class="note">Ramsey fit unavailable for this vertical cut.</div>';
+  if (fit && free) {
+    const T1 = state.qubit.T1, tphiSet = Q.dephasingTime(T1, state.qubit.T2), fmtT = v => (v === Infinity ? '∞' : fmtG(v) + ' ' + UT());
+    $('#rFit').innerHTML += metric('Pure dephasing T<sub>φ</sub> from the fit: 1/(1/T₂ − 1/2T₁)', fmtT(tphiFit) + `<span class="chipT">set: T<sub>φ</sub> = ${fmtT(tphiSet)}${tphiFit === Infinity && tphiSet !== Infinity ? ' (the fitted T₂ came out ≥ 2T₁ within the noise)' : ''}</span>`);
+  }
   if (fit && isFinite(c.refF)) {
     const err = Math.min(...[det - fit.freqMHz, det + fit.freqMHz].map(d => Math.abs(c.refF + 1e-3 * d - state.qubit.omegaQ)));
     if (err < 1e-3) ckDone('ramsey', `One of your Ramsey estimates of ω<sub>q</sub> is within 1 ${UF()} of the true value, and the fitted T₂ is ${fit.T2Ns.toFixed(0)} ${UT()}.`);
@@ -1153,6 +1269,7 @@ function renderReveal() {
 $('#reveal').addEventListener('change', () => { renderReveal(); if ($('#reveal').checked) ql('hint', { level: 'reveal' }); });
 
 /* ---------------- boot ---------------- */
+freeDephase();
 let initial = null, assigned = false, free = null, dTok = null, classicQ = false;
 try { const sp = new URL(location.href).searchParams; initial = sp.get('qubit'); assigned = sp.get('assigned') === '1'; free = sp.get('free'); dTok = sp.get('d'); classicQ = sp.get('classic') === '1'; } catch (e) {}
 // an instructor link without a device token was made before real qubits: keep its practice qubit so the old key matches

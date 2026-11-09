@@ -1052,8 +1052,8 @@ audio.addEventListener("timeupdate", () => { chHeard = Math.max(chHeard, audio.c
 audio.addEventListener("loadstart", () => { chHeard = 0; });
 setInterval(() => { if (live.on && document.visibilityState === 'visible') chMicMs += 500; }, 500);
 if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
-  { id: 'gong', text: 'Press <b>▶ Play</b> on the gong and watch the playhead cross its partials.',
-    hint: 'The gong loads first. Press ▶ Play and let it ring for a couple of seconds.',
+  { id: 'gong', text: 'Press <b>▶ Play</b> on the gong and watch the playhead cross its partials. Its two loudest lines are at 258 and 711 Hz: is their ratio a whole number?',
+    hint: 'The gong loads first. Press ▶ Play and let it ring for a couple of seconds. 711/258 = 2.76, not 2 or 3: a 2-D surface, like the <a href="drum-head.html">drum head</a> with its Bessel-zero ratios 1.593, 2.136, 2.295 …, has no harmonic series.',
     check: () => chRec('gong') && chHeard > 1.5 },
   { id: 'two-tones', text: 'Load <b>Test: two tones</b> (1000 + 1050 Hz) and pick a <b>Window</b> that shows <i>two</i> lines.',
     hint: 'Bins are f<sub>s</sub>/N apart. With f<sub>s</sub> = 44 100 Hz you need bins much finer than 50 Hz: try a bigger window.',
@@ -1079,11 +1079,11 @@ if (window.QL && QL.challenges && !PageKit.wantsGuided()) QL.challenges([
 const GUIDED=[
   { title:"A gong is not a string",
     setup:{rec:"gong",N:8192,scale:"lin",fmax:1500,dr:80}, cover:["#specCard","#lineCard"],
-    intro:"A guitar string's partials are a harmonic series: f, 2f, 3f, … The gong is a struck metal plate, a 2-D surface.",
-    ask:"Are the gong's partials whole-number multiples of its lowest one?",
-    choices:["Yes, a harmonic series","No, the ratios are not integers"], answer:1,
-    explain:"The two strongest partials sit near 258 and 711 Hz, a ratio of 2.76, with fainter lines near 108, 318, 436 and 533 Hz (ratios to 108 Hz of 2.39, 2.94, 4.04 and 4.93). None of these is a whole-number multiple of another. A plate's modes are set by a 2-D eigenvalue problem, whose eigenvalues are not integer multiples of each other, which is why a gong sounds clangorous rather than pitched. Notice also that the 258 Hz partial gets <i>louder</i> for a moment after the strike.",
-    try:"Press ▶ Play to hear it." },
+    intro:"A guitar string's partials are a harmonic series f, 2f, 3f, …, so any two of them are in a whole-number ratio. The gong is a struck metal plate, a 2-D surface. Its two loudest partials, measured on this spectrogram, are at 258 Hz and 711 Hz. Hint: on the <a href=\"drum-head.html\">drum head</a>, the other 2-D surface on this site, the mode frequencies are ratios of Bessel zeros, ν<sub>mn</sub>/ν<sub>10</sub> = k<sub>mn</sub>/k<sub>10</sub> = 1.593, 2.136, 2.295, 2.653, 2.918 …, and none is a whole number.",
+    ask:"What is the ratio of the gong's two loudest partials, 711 Hz ÷ 258 Hz? If the gong were a string it would come out as a whole number.",
+    answer:2.76, tol:0.1, unit:"",
+    explain:"711/258 = 2.76: not 2 and not 3, so these two partials are not harmonics of one fundamental, and the fainter lines near 108, 318, 436 and 533 Hz (2.39, 2.94, 4.04 and 4.93 times 108 Hz) do not fit a harmonic series either. The gong is a 2-D eigenvalue problem, like the <a href=\"drum-head.html\">drum head</a>, whose Bessel-zero ratios 1.593, 2.136, 2.295, … are the same kind of number: the eigenvalues of a 2-D surface are not whole multiples of each other, which is why a gong and a drum sound clangorous rather than pitched. (A circular plate is stiff rather than a membrane, so its ratios differ from the drum's, but they are no closer to whole numbers.) Notice also that the 258 Hz partial gets <i>louder</i> for a moment after the strike.",
+    try:"Press ▶ Play to hear it, and find the two bright lines at 258 and 711 Hz." },
   { title:"Two tones 50 Hz apart",
     setup:{rec:"tones",N:512,scale:"lin",fmax:2000,dr:80}, reveal:{N:4096}, cover:["#specCard","#lineCard"],
     intro:"The signal is 1000 Hz plus 1050 Hz, sampled at 44.1 kHz. A window of N samples gives frequency bins f<sub>s</sub>/N apart, and the Hann window smears each line over about ±2 bins.",

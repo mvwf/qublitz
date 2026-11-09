@@ -37,6 +37,33 @@ const at = (model, p, f) => { const s = R.sweep(model, p, new Float64Array([f]))
   check('powerForPhotons inverts photonNumber', close(R.photonNumber('reflection', R.powerForPhotons('reflection', 1, 6, 1e5, 1e5), 6, 1e5, 1e5), 1, 1e-9));
 }
 
+// ---- TLS loss: 1/Qi = (1/Qtls0) tanh(hf/2kT)/(1 + n/nc)^β + 1/Qother
+{
+  const h = 6.62607015e-34, kB = 1.380649e-23;
+  const P = { Qtls0: 1e6, Qother: 4e6, nc: 3, beta: 0.4 };
+  const par = 1 / (1 / P.Qtls0 + 1 / P.Qother);
+  check('TLS: n → 0, T → 0 gives Qtls0 ∥ Qother', close(R.tlsQi(0, 1e-9, 5, P), par, 1e-12) && close(R.tlsQi(0, 0, 5, P), par, 1e-12), R.tlsQi(0, 0, 5, P).toFixed(1));
+  check('TLS: n ≫ nc gives Qother', close(R.tlsQi(1e15, 0.02, 5, P), P.Qother, 1e-5));
+  check('TLS: T ≫ hf/k gives Qother', close(R.tlsQi(0, 1e6, 5, P), P.Qother, 1e-5));
+  const Ts = R.tlsCrossoverT(5);
+  check('TLS: crossover hf = 2kT at 5 GHz is 120 mK', close(Ts, h * 5e9 / (2 * kB), 1e-12) && Math.abs(Ts - 0.12) < 1e-3, `${(1e3 * Ts).toFixed(2)} mK`);
+  check('TLS: thermal factor is tanh(1) at hf = 2kT', close(R.tlsThermal(5, Ts), Math.tanh(1), 1e-12) && close(R.tlsThermal(5, Ts), 0.7616, 1e-4));
+  check('TLS: at hf = 2kT and n = 0 the TLS loss is tanh(1)/Qtls0', close(R.tlsLoss(0, Ts, 5, P), Math.tanh(1) / P.Qtls0, 1e-12));
+  check('TLS: at n = nc and T → 0 the TLS loss is 2^−β/Qtls0', close(R.tlsLoss(P.nc, 1e-9, 5, P), Math.pow(2, -P.beta) / P.Qtls0, 1e-12));
+  // high-power slope on log-log: d ln(1/Q_TLS)/d ln n → −β for nc ≪ n, with Qother out of the way
+  const Pinf = Object.assign({}, P, { Qother: Infinity });
+  const slope = (Math.log(R.tlsQi(1e8, 0.01, 5, Pinf)) - Math.log(R.tlsQi(1e7, 0.01, 5, Pinf))) / Math.log(10);
+  check('TLS: Qi ∝ n^β well above nc', close(slope, P.beta, 1e-6), slope.toFixed(6));
+  // monotonic in both n and T; frequency enters only through hf/2kT
+  let mono = true, last = 0;
+  for (let e = -3; e <= 7; e += 0.25) { const q = R.tlsQi(Math.pow(10, e), 0.05, 5, P); if (q <= last) mono = false; last = q; }
+  last = 0;
+  for (let e = -2; e <= 0.5; e += 0.1) { const q = R.tlsQi(1, Math.pow(10, e), 5, P); if (q <= last) mono = false; last = q; }
+  check('TLS: Qi rises monotonically with n and with T', mono);
+  check('TLS: f and T enter only as f/T', close(R.tlsQi(2, 0.1, 5, P), R.tlsQi(2, 0.2, 10, P), 1e-12));
+  check('TLS: refuses nonsense (negative n, zero nc)', Number.isNaN(R.tlsQi(-1, 0.1, 5, P)) && Number.isNaN(R.tlsLoss(1, 0.1, 5, { Qtls0: 1e6, nc: 0, beta: 0.5 })));
+}
+
 // ---- fits: recover the truth from practice data, and the 1σ ranges cover it about 68% of the time
 {
   let n = 0, bad = 0;

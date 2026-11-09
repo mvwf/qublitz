@@ -105,5 +105,67 @@ for (const f of ref.fits) {
   check('Ramsey experiment matches the full Bloch solve', worst < 0.005, `max |ΔP1| ${worst.toFixed(4)}`);
 }
 
+// --- Pulse-duration sweep (Rabi calibration) and the Rabi-formula fit.
+{
+  const q = { omegaQ: 5.0, omegaRabi: 0.3, T1: 150, T2: 300 };
+  // P(|1⟩) after a square pulse of length t is P(|1⟩) at time t under a drive that stays on: check against an explicit
+  // 20 ns pulse (500 bins of 0.04 ns) followed by idle time. The output grid (step 30/749 ns) does not fall on the pulse
+  // end, but with the drive off P(|1⟩) decays as e^{−t/T₁} exactly, so the first idle sample is corrected back to 20 ns.
+  const tf = 30, n = 750, env = new Float64Array(n);
+  for (let i = 0; i < 500; i++) env[i] = 1;                                  // on for t < 20 ns
+  const pulse = Q.solve({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, tFinal: tf, nSteps: n, omegaD: q.omegaQ, envI: env, T1: q.T1, T2: q.T2 });
+  const i500 = 500, atEnd = pulse.p1[i500] * Math.exp((pulse.t[i500] - 20) / q.T1);
+  const sw = Q.rabiDurationSweep({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, omegaD: q.omegaQ, amp: 1, tMax: 25, nDur: 126, T1: q.T1, T2: q.T2 });
+  check('duration sweep: P1 after a 20 ns pulse equals P1(t = 20 ns) under a continuous drive',
+    pulse.t[i500] > 20 && Math.abs(sw.t[100] - 20) < 1e-9 && Math.abs(atEnd - sw.p1[100]) < 1e-6,
+    `${atEnd.toFixed(7)} vs ${sw.p1[100].toFixed(7)}`);
+
+  // the Rabi formula without decay is (Ω²/Ω_R²)·sin²(Ω_R t/2)
+  let worst = 0;
+  for (const [f, d, t] of [[300, 0, 1.7], [300, 200, 2.3], [25, 10, 37], [120, 90, 4.4]]) {
+    const wR = 2 * Math.PI * 1e-3 * Math.hypot(f, d), ref = (f * f / (f * f + d * d)) * Math.sin(wR * t / 2) ** 2;
+    worst = Math.max(worst, Math.abs(Q.rabiFormula(t, f, d, Infinity) - ref));
+  }
+  check('Rabi formula: (Ω²/Ω_R²) sin²(Ω_R t/2) without decay', worst < 1e-12, `max err ${worst.toExponential(1)}`);
+
+  // the fit recovers the drive strength and the detuning from engine-simulated sweeps, on and off resonance. The engine
+  // keeps the counter-rotating terms, so |Δ| carries the Bloch–Siegert shift ≈ Ω_R²/(4ω_q) ≈ 4.5 MHz here.
+  const rng = Q.rngFrom(11);
+  for (const [dMHz, amp, tMax, nDur] of [[0, 1, 25, 126], [200, 1, 25, 126], [-120, 1, 25, 126], [0, 0.5, 40, 201]]) {
+    const r = Q.rabiDurationSweep({ omegaQ: q.omegaQ, omegaRabi: q.omegaRabi, omegaD: q.omegaQ + dMHz * 1e-3, amp, tMax, nDur, T1: q.T1, T2: q.T2 });
+    const want = 1e3 * q.omegaRabi * amp, fit = Q.fitRabiFormula(Array.from(r.t), Array.from(r.p1));
+    check(`Rabi-formula fit (noiseless), Δ = ${dMHz} MHz, amp ${amp}: Ω/2π within 2%, |Δ| within 8 MHz`,
+      fit && Math.abs(fit.fMHz - want) < 0.02 * want && Math.abs(fit.dMHz - Math.abs(dMHz)) < 8,
+      fit && `Ω/2π ${fit.fMHz.toFixed(1)} (${want}) · |Δ| ${fit.dMHz.toFixed(1)} (${Math.abs(dMHz)}) · contrast ${fit.contrast.toFixed(3)}`);
+    // near resonance the contrast is ≈ 1 and |Δ| = Ω_R√(1 − c) is ill-conditioned (±1% in c is ±13 MHz here), so the
+    // on-resonance tolerance is wider; off resonance |Δ| is well determined.
+    const noisy = Q.fitRabiFormula(Array.from(r.t), Array.from(Q.sampleShots(r.p1, 256, rng))), dTol = dMHz === 0 ? 20 : 12;
+    check(`Rabi-formula fit (256 shots), Δ = ${dMHz} MHz, amp ${amp}: Ω/2π within 2%, |Δ| within ${dTol} MHz`,
+      noisy && Math.abs(noisy.fMHz - want) < 0.02 * want && Math.abs(noisy.dMHz - Math.abs(dMHz)) < dTol,
+      noisy && `Ω/2π ${noisy.fMHz.toFixed(1)} ± ${noisy.fMHzErr == null ? '?' : noisy.fMHzErr.toFixed(1)} · |Δ| ${noisy.dMHz.toFixed(1)} ± ${noisy.dMHzErr == null ? '?' : noisy.dMHzErr.toFixed(1)}`);
+  }
+  // on resonance the oscillation decays at Torrey's rate (1/T₁ + 1/T₂)/2, with and without pure dephasing
+  for (const [T1, T2, tMax] of [[150, 300, 400], [150, 100, 400], [150, 60, 600]]) {
+    const r = Q.rabiDurationSweep({ omegaQ: 5, omegaRabi: 0.025, omegaD: 5, amp: 1, tMax, nDur: tMax + 1, T1, T2 });
+    const fit = Q.fitRabiFormula(Array.from(r.t), Array.from(r.p1)), want = Q.rabiDecayTime(T1, T2);
+    check(`Rabi decay time at T₁ = ${T1}, T₂ = ${T2}: τ = 2/(1/T₁ + 1/T₂) = ${want.toFixed(1)} ns within 2%`,
+      fit && Math.abs(fit.tauNs - want) < 0.02 * want && Math.abs(fit.fMHz - 25) < 0.5, fit && `τ ${fit.tauNs.toFixed(1)}, Ω/2π ${fit.fMHz.toFixed(2)}`);
+  }
+}
+
+// --- Dephasing decomposition 1/T₂ = 1/(2T₁) + 1/Tφ, and the Ramsey envelope that shows it.
+{
+  check('Tφ = ∞ when T₂ = 2T₁', Q.dephasingTime(150, 300) === Infinity);
+  check('Tφ = 150 ns for T₁ = 150, T₂ = 100 (1/100 − 1/300 = 1/150)', Math.abs(Q.dephasingTime(150, 100) - 150) < 1e-9, Q.dephasingTime(150, 100).toFixed(3));
+  const T1 = 150, T2 = 100, Tphi = Q.dephasingTime(T1, T2);
+  check('identity 1/T₂ = 1/(2T₁) + 1/Tφ', Math.abs(1 / T2 - (1 / (2 * T1) + 1 / Tphi)) < 1e-15);
+  // a Ramsey experiment on that qubit: the fitted envelope is T₂ (not 2T₁), so the T₁-only envelope e^{−τ/2T₁} lies above it
+  const delays = Q.linspace(0, 500, 251), pi2 = 1 / (4 * 0.3);
+  const col = Q.ramseyExperiment({ delays, driveFreqs: [5.0 + 4e-3], pi2Ns: pi2, omegaQ: 5.0, omegaRabi: 0.3, T1, T2 })[0];
+  const fit = Q.fitRamsey(Array.from(delays), Array.from(col), 4);
+  check('Ramsey fit returns the set T₂ (= 100 ns) with pure dephasing present', fit && Math.abs(fit.T2Ns - T2) < 0.03 * T2, fit && `T₂ fit ${fit.T2Ns.toFixed(1)} ns, fringe ${fit.freqMHz.toFixed(3)} MHz`);
+  check('... and the T₁-only envelope e^{−τ/2T₁} is wider than the fitted one', fit && Math.exp(-300 / (2 * T1)) > Math.exp(-300 / fit.T2Ns));
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

@@ -95,5 +95,26 @@ check('Φ(1.96) ≈ 0.975', close(R.Phi(1.96), 0.9750021, 1e-6));
   check('κ = 2χ in the defaults', close(R.DEFAULTS.kappa, 2 * R.DEFAULTS.chi, 1e-12));
 }
 
+// ---- movable decision threshold (p.thrSigma: noise widths from the midpoint, toward |1⟩)
+{
+  const base = R.analyze(P()), same = R.analyze(P({ thrSigma: 0 }));
+  check('thrSigma = 0 is the midpoint line (unchanged F, P(1|0), P(0|1))', same.F === base.F && same.p10 === base.p10 && same.p01 === base.p01);
+  const sh = R.analyze(P({ thrSigma: 0.7, T1: Infinity }));
+  check('threshold moves by thrSigma·σ', close(sh.thr - sh.mid, 0.7 * sh.sigma, 1e-12));
+  check('no T₁: P(1|0) = ½erfc((SNR/2 + s)/√2) at s = 0.7', close(sh.p10, 0.5 * R.erfc((sh.snr / 2 + 0.7) / Math.SQRT2), 1e-9));
+  check('no T₁: P(0|1) = ½erfc((SNR/2 − s)/√2) at s = 0.7', close(sh.p01, 0.5 * R.erfc((sh.snr / 2 - 0.7) / Math.SQRT2), 1e-9));
+  const m = R.analyze(P({ thrSigma: -0.5, T1: Infinity })), pl = R.analyze(P({ thrSigma: 0.5, T1: Infinity }));
+  check('the two error rates swap under s → −s (equal blobs)', close(m.p10, pl.p01, 1e-12) && close(m.p01, pl.p10, 1e-12));
+  const b0 = R.bestThreshold(P({ T1: Infinity, pexc: 0 }));
+  check('equal Gaussian blobs: the best line is the midpoint', Math.abs(b0.thrSigma) < 1e-3, `s* = ${b0.thrSigma.toExponential(1)}`);
+  const q = P({ T1: 3, tau: 0.6, nbar: 3 }), bq = R.bestThreshold(q), mid = R.analyze(q);
+  check('with T₁ decay the best line moves toward |0⟩ and beats the midpoint', bq.thrSigma < -0.3 && bq.F > mid.F + 1e-4, `s* = ${bq.thrSigma.toFixed(2)}σ, F ${bq.F.toFixed(4)} vs ${mid.F.toFixed(4)} at the midpoint`);
+  check('... and no other scanned line does better', [-2, -1.5, -0.5, 0, 0.5].every(s => R.analyze(Object.assign({}, q, { thrSigma: s })).F <= bq.F + 1e-9));
+  const r = P({ thrSigma: -0.8, T1: 3, nbar: 1.2, tau: 0.5 }), e = R.analyze(r), n = 40000, s2 = R.shots(r, n, 7), se = v => 3.5 * Math.sqrt(v * (1 - v) / n);
+  check('shots use the moved line: P(1|0) matches', Math.abs(s2.wrong[0] / n - e.p10) < se(e.p10), `${(s2.wrong[0] / n).toFixed(4)} vs ${e.p10.toFixed(4)}`);
+  check('shots use the moved line: P(0|1) matches', Math.abs(s2.wrong[1] / n - e.p01) < se(e.p01), `${(s2.wrong[1] / n).toFixed(4)} vs ${e.p01.toFixed(4)}`);
+  check('shots report the moved threshold', s2.thr === e.thr);
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nAll readout engine checks passed.');
 process.exit(failures ? 1 : 0);
