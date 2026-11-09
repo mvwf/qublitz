@@ -38,6 +38,8 @@
     user-select:none;-webkit-user-select:none;min-height:340px}
   @media(min-width:901px){.stage{min-height:600px}}
   #board{display:block;width:100%;touch-action:manipulation;cursor:pointer}
+  #board:focus-visible{outline:3px solid #ffd166;outline-offset:-3px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
   .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;color:#c7d3e6;font-size:13px;border-bottom:1px solid rgba(160,190,230,.15)}
   .bar b{color:#fff}
   .bar .goal{color:#ffd166}
@@ -142,7 +144,9 @@
   <div class="stage" id="stage">
     <div class="bar"><span id="barTitle"><b>Beamline</b></span><span class="goal" id="barGoal"></span><span class="sp"></span><span id="barPar"></span>
       <button id="toMenuTop" title="Levels (Esc)">Levels</button></div>
-    <canvas id="board" aria-label="The board: lasers, mirrors and pieces, and a Bloch sphere for each qubit with its gold target"></canvas>
+    <canvas id="board" tabindex="0" role="group" aria-label="The board: lasers, mirrors and pieces, and a Bloch sphere for each qubit with its gold target" aria-describedby="boardKeys"></canvas>
+    <p class="sr" id="boardKeys">Arrow keys move a square cursor; Enter or Space acts on that square as a click does: place the chosen piece, flip a mirror, pick a piece up, or describe a qubit.</p>
+    <p class="sr" id="boardLive" role="status"></p>
 
     <div class="overlay" id="menu">
       <h2>Beamline<small>ROUTE THE PULSE · SET THE PHASE · CHOOSE THE AREA</small></h2>
@@ -157,7 +161,8 @@
       <h2 id="briefTitle"></h2>
       <p id="briefText"></p>
       <div class="legend" id="briefLegend"></div>
-      <p class="best">Pick a piece on the right, then click an empty square to place it. Click a mirror to flip it (a second click removes it); click any other piece to remove it. <kbd>F</kbd> fires, <kbd>U</kbd> undoes.</p>
+      <p class="best">Pick a piece on the right, then click an empty square to place it. Click a mirror to flip it (a second click removes it); click any other piece to remove it. <kbd>F</kbd> fires, <kbd>U</kbd> undoes.
+        Keyboard: Tab to the board, arrows move the cursor, <kbd>Enter</kbd> clicks.</p>
       <div class="row"><button class="go" id="briefGo">Start ▶</button><button id="briefBack">Levels</button></div>
     </div>
 
@@ -174,7 +179,7 @@
       </div>
       <p class="best" id="wonBest"></p>
     </div>
-    <div class="note fade" id="note"></div>
+    <div class="note fade" id="note" aria-live="polite"></div>
     <div class="predict" id="predict" hidden role="group" aria-label="Predict before you fire"></div>
   </div>
 
@@ -583,6 +588,11 @@ function draw(now) {
   for (const p of placed) drawPiece(p, false);
   for (const [i, L] of level.lasers.entries()) drawLaser(L, i);
   level.qubits.forEach((q, i) => drawQubit(q, i, now));
+  if (kbOn && document.activeElement === cv) {   // the keyboard cursor
+    kx = Math.min(kx, level.w - 1); ky = Math.min(ky, level.h - 1);
+    g.strokeStyle = '#ffd166'; g.lineWidth = 2.5; g.setLineDash([6, 4]);
+    g.strokeRect(OX + kx * CELL + 3, OY + ky * CELL + 3, CELL - 6, CELL - 6); g.setLineDash([]);
+  }
   requestAnimationFrame(draw);
 }
 // Draw a beam path up to k cells (fractional). Width by area, colour by phase.
@@ -701,6 +711,25 @@ function note(html, secs = 3.5) {
   const n = $('#note'); n.innerHTML = html; n.classList.remove('fade');
   clearTimeout(noteTimer); noteTimer = setTimeout(() => n.classList.add('fade'), secs * 1000);
 }
+// keyboard: a square cursor; Enter/Space does what a click on that square does (the same clickCell)
+let kx = 0, ky = 0, kbOn = false;
+function cellText(x, y) {
+  const occ = occupiedBy(x, y), p = placed.find(q => q.x === x && q.y === y), f = (level.fixed || []).find(q => q.x === x && q.y === y);
+  const what = occ === 'wall' ? 'wall' : occ === 'laser' ? 'laser' : occ === 'qubit' ? qubitText(level.qubits.findIndex(q => q.x === x && q.y === y)).replace(/<\/?b>/g, '')
+    : f ? `fixed ${E.PIECES[f.type].label.toLowerCase()}${f.o ? ' ' + f.o : ''}` : p ? `your ${E.PIECES[p.type].label.toLowerCase()}${p.o ? ' ' + p.o : ''}` : 'empty';
+  return `Column ${x + 1}, row ${y + 1}: ${what}`;
+}
+function sayCell() { const t = cellText(kx, ky); $('#boardLive').textContent = ''; setTimeout(() => { $('#boardLive').textContent = t; }, 30); }
+cv.addEventListener('keydown', e => {
+  if (!level || !$('#menu').hidden || !$('#brief').hidden || !$('#won').hidden || predicting) return;
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (d) { kx = Math.max(0, Math.min(level.w - 1, kx + d[0])); ky = Math.max(0, Math.min(level.h - 1, ky + d[1])); }
+  else if (e.key === 'Home') { kx = 0; } else if (e.key === 'End') { kx = level.w - 1; }
+  else if (e.key === 'Enter' || e.key === ' ') { clickCell(kx, ky); }
+  else return;
+  e.preventDefault(); e.stopPropagation(); kbOn = true; sayCell();
+});
+cv.addEventListener('pointerdown', () => { kbOn = false; });
 cv.addEventListener('click', e => {
   if (!level || !$('#menu').hidden || !$('#brief').hidden || !$('#won').hidden) return;
   const b = cv.getBoundingClientRect(), x = Math.floor((e.clientX - b.left - OX) / CELL), y = Math.floor((e.clientY - b.top - OY) / CELL);
