@@ -1040,8 +1040,10 @@ function renderTD() {
 
 /* --- time scrubber: moves the Bloch arrow and the dotted cursor on both traces --- */
 function setScrub(v) {
-  const o = state.td.out; if (!o) return;
-  const i = Math.round(v / 1000 * (o.t.length - 1)), tt = o.t[i];
+  const o = state.td.out; if (!o || !o.t || !o.t.length) return;
+  // the run can be replaced mid-play (a pulse added or the schedule cleared): clamp to the run that is there now
+  const i = Math.max(0, Math.min(o.t.length - 1, Math.round((Number.isFinite(+v) ? +v : 1000) / 1000 * (o.t.length - 1)))), tt = o.t[i];
+  if (!Number.isFinite(tt)) return;
   $('#scrubVal').textContent = `t = ${tt.toFixed(2)} ${UT()}`;
   Plotly.restyle('blochPlot', { x: [[0, o.x[i]]], y: [[0, o.y[i]]], z: [[0, o.z[i]]] }, [3]);
   const sh = { 'shapes[0].x0': tt, 'shapes[0].x1': tt };
