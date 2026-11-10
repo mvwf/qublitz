@@ -78,7 +78,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
   <h2>Source</h2>
   <div class="row">
     <label class="lbl" for="fileSel">Recordings</label>
-    <select id="fileSel" style="min-width:340px"></select>
+    <select id="fileSel" style="min-width:min(340px,100%)"></select>
   </div>
   <div class="row">
     <label class="lbl">Add your own</label>
@@ -101,7 +101,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
     <span class="spacer"></span>
     <button id="btnPlay" class="sound" disabled>▶ Play</button>
     <span class="val" id="timeLbl">0.00 / 0.00 s</span>
-    <span class="hint">Click the plot to seek.</span>
+    <span class="hint">Click the plot to seek (or focus it and use the arrow keys).</span>
   </div>
 </div>
 
@@ -137,7 +137,7 @@ watch the spectrum scroll past. Everything runs locally in the browser and nothi
 <div class="card" id="specCard">
   <h2>Spectrogram</h2>
   <div class="stagewrap">
-    <canvas id="spec" role="img" aria-label="Spectrogram"></canvas>
+    <canvas id="spec" tabindex="0" role="slider" aria-label="Spectrogram: playhead, click or use the arrow keys to seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="no recording loaded"></canvas>
     <canvas id="overlay" aria-hidden="true"></canvas>
   </div>
   <div class="status" id="status">Select a recording to begin.</div>
@@ -524,6 +524,8 @@ function drawPlayhead(){
   octx.strokeStyle="rgba(255,255,255,0.9)"; octx.lineWidth=1.5*dpr;
   octx.beginPath(); octx.moveTo(x,m.t); octx.lineTo(x,m.t+ph); octx.stroke();
   $("timeLbl").textContent=audio.currentTime.toFixed(2)+" / "+duration.toFixed(2)+" s";
+  specCv.setAttribute("aria-valuemax",duration.toFixed(2)); specCv.setAttribute("aria-valuenow",audio.currentTime.toFixed(2));
+  specCv.setAttribute("aria-valuetext",audio.currentTime.toFixed(2)+" of "+duration.toFixed(2)+" seconds");
 }
 function raf(){ if(!audio.paused){ drawPlayhead(); updateFileSpectrum(); requestAnimationFrame(raf); } }
 
@@ -770,8 +772,16 @@ specCv.addEventListener("click", e=>{
   const rect=specCv.getBoundingClientRect();
   const x=(e.clientX-rect.left)*(specCv.width/rect.width);
   const m={l:MARG.l*dpr,r:MARG.r*dpr}; const pw=specCv.width-m.l-m.r;
-  let frac=(x-m.l)/pw; frac=Math.max(0,Math.min(1,frac));
-  audio.currentTime=frac*duration; drawPlayhead(); updateFileSpectrum();
+  seekTo((x-m.l)/pw*duration);
+});
+function seekTo(t){ audio.currentTime=Math.max(0,Math.min(1,t/duration))*duration; drawPlayhead(); updateFileSpectrum(); }
+// the same seek from the keyboard: arrows step 1 % of the recording (Shift: 10 %), Home/End jump to the ends
+specCv.addEventListener("keydown", e=>{
+  if(!duration||live.on) return;
+  const st=duration*(e.shiftKey?0.1:0.01), t=audio.currentTime;
+  const to={ArrowRight:t+st,ArrowUp:t+st,PageUp:t+duration*0.1,ArrowLeft:t-st,ArrowDown:t-st,PageDown:t-duration*0.1,Home:0,End:duration}[e.key];
+  if(to===undefined) return;
+  e.preventDefault(); seekTo(to);
 });
 
 $("fftSel").addEventListener("change", ()=>{ qlNote("mode",{level:"N"+$("fftSel").value}); if(live.on){ live.analyser.fftSize=Math.min(32768,Math.max(32,+$("fftSel").value)); } else recompute(); });
