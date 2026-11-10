@@ -22,8 +22,9 @@
  * test for the target), is at least F_PASS. F̄ is linear in r̄, so aiming the mean is the best strategy, and decoherence
  * (runs that jumped) shortens r̄ and caps F̄. The ensemble's average Bloch vector r̄ is the density matrix, ρ = (1 + r̄·σ)/2.
  *
- * Decoherence is T₁ only (energy loss, amplitude damping; no extra dephasing), always on: T₁ sets the difficulty, and
- * opts.T1 = Infinity turns it off, for tests. Each run is the standard photon-counting unravelling of amplitude damping:
+ * Decoherence is T₁ only (energy loss, amplitude damping; no extra dephasing). It is off unless asked for: opts.T1 = Infinity
+ * (what the page passes by default) means an ideal qubit that stays where the drive leaves it; a finite T₁ (the difficulty) turns
+ * decay on, and the missions that teach decay set their own T₁ or switch it on (`decay: true`). Each run is the standard photon-counting unravelling of amplitude damping:
  *   a jump: at the rate P₁/T₁ (P₁ = sin²(θ/2)) the run emits a photon and is left in |0⟩;
  *   between photons: seeing no photon is evidence the run is lower, so tan(θ/2) shrinks as e^(−t/2T₁), i.e.
  *     dθ/dt = −sin θ/(2T₁). |1⟩ and |0⟩ do not move (sin θ = 0): |1⟩ waits and then jumps; superpositions slide down.
@@ -144,18 +145,19 @@
    *   ['q', t, k]            quiz gate QUIZ[k]             ['m', t, want]   measurement gate paying for outcome want (0 or 1)
    *   ['x', t, θ]            X gate token                  ['z', t]         reset every run to |0⟩ (a new shot)
    *   ['u', t, θ]            T₁+ token (a power-up)        ['d', t, θ]      T₁− hazard (dodge it)
-   * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Decay is always
- * on, so a quantum jump can cost a ring: that is luck the stars allow for. */
+   * Stars: 3 for 90 % of the rings (or the mission's `three` share) with no hits, 2 for 70 %, 1 for finishing. Where decay is on,
+ * a quantum jump can cost a ring: that is luck the stars allow for. A mission's T1 is used whatever the menu says (Infinity: never
+ * any decay); `decay: true` takes the menu's T₁, or the normal one if the menu has decay off. */
   const MISSIONS = [
-    { id: 'flight', title: 'Flight school', start: 90, ghosts: 1, T1: 30,
+    { id: 'flight', title: 'Flight school', start: 90, ghosts: 1, T1: Infinity,
       brief: 'One qubit, one run. Hold <b>▲</b> to drive it up toward |1⟩ and <b>▼</b> down toward |0⟩; let go and the drive is off. Fly through every ring.',
-      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing turns it: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame). The qubit did not stay put forever, though: that is the next mission.',
+      learn: 'Each ring was a target state, and you reached it by rotating the Bloch vector with a resonant drive. With the drive off nothing turns it: in the frame rotating with a resonant drive there is no precession (in the lab the qubit still turns at GHz, but so does the frame). Here the qubit had no decay, so it stayed exactly where you left it. A real qubit does not stay put forever: that is the next mission.',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
     { id: 'photon', title: 'One qubit, one photon', start: 0, ghosts: 1, T1: 4, three: 0.6,
       brief: 'Still one run, now with a short T₁ (4 s). Climb to |1⟩ and stay near the top. At a random moment the qubit will give up its energy as a <b>photon</b> (the yellow wave) and <b>jump</b> straight down to |0⟩. That is a quantum jump: not a slow slide but all at once. Climb back and keep flying.',
       learn: 'A qubit in |1⟩ does not decay a little at a time. It stays put and then, at a random moment you cannot predict, emits one photon and is in |0⟩. The rate is fixed, 1/T₁ (times P(1), the chance it is found excited), so a jump in the next second is as likely now as it was a minute ago. T₁ is the average wait. Next: what many runs of this look like together.',
       items: [['r', 2.5, 160], ['r', 5, 170], ['r', 7.5, 160], ['r', 10, 170], ['r', 12.5, 155], ['r', 15, 170], ['r', 17.5, 160], ['r', 20, 170]] },
-    { id: 'ensemble', title: 'Many runs', start: 90,
+    { id: 'ensemble', title: 'Many runs', start: 90, decay: true,
       brief: 'An experiment repeats the same pulses many times, and each run jumps at its own moment. Now you fly 240 runs at once, with one drive for all of them; the faint ghosts are a few of them. The big marker is their mean, the density matrix. Aim the mean through each ring: it counts when the share of runs that would pass a test for the ring\'s state, the fidelity, is at least 70 %.',
       learn: 'Every run felt the same pulse, but each jumped at its own random moment, so the runs drifted apart and the mean shrank. You cannot steer one run at a time, and you cannot see them in a real experiment: what you measure is the average. Aiming the mean is the best a single pulse can do, and it gets the most runs through.',
       items: [['r', 3, 90], ['r', 5, 60], ['r', 7, 40], ['r', 9, 70], ['r', 11, 110], ['r', 13, 140], ['r', 15, 120], ['r', 17, 80], ['r', 19, 45], ['r', 21, 90]] },
@@ -192,7 +194,7 @@
       learn: 'T₁ is not a law of nature: it is set by everywhere the qubit\'s energy can go, and engineers close those exits one by one. Superconducting qubits went from nanoseconds (the first Cooper-pair box, 1999) to hundreds of microseconds today. A longer T₁ lets the runs stay together for longer, so the mean stays long and more experiments succeed.',
       items: [['u', 1.6, 60], ['r', 3, 100], ['u', 4.3, 120], ['z', 5.2], ['u', 6.6, 90], ['r', 8, 130], ['z', 9], ['u', 10.4, 100], ['r', 12, 145],
         ['u', 13.3, 155], ['r', 14.8, 165], ['z', 15.8], ['d', 17, 70], ['r', 18, 150], ['r', 20, 165]] },
-    { id: 'exam', title: 'Final exam', start: 90,
+    { id: 'exam', title: 'Final exam', start: 90, decay: true,
       brief: 'Everything at once: rings, noise, quiz gates, a measurement, a T₁+ chip and X tokens.',
       learn: 'You drove a qubit with real resonant pulses, read probabilities off the Bloch sphere, used a gate, and watched a measurement collapse the state. That is the toolkit behind every single-qubit experiment.',
       items: [['r', 3, 90], ['c', 4.5, 40, 20, 0.5], ['r', 6, 130], ['q', 9, 0], ['r', 11.5, 90], ['m', 14, 1], ['r', 16.5, 90], ['c', 18, 140, 22, 0.5],
@@ -240,7 +242,7 @@
       this.shifts = [0]; this.shiftR = rng(`shift:${tag}`);
       this.ghosts.forEach((gh, i) => { gh.u0 = (perm[i] + gh.jump()) / this.N; gh.k = 0; gh.acc = 0; gh.thr = -Math.log(1 - gh.u0); });
       if (m) {
-        this.mission = m; if (m.T1 && this.T1 < Infinity) this.T1 = m.T1; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
+        this.mission = m; if (m.T1) this.T1 = m.T1; else if (m.decay && !(this.T1 < Infinity)) this.T1 = P.T1.normal; this.hearts = P.HEARTS; this.r = onCircle(Math.max(1e-4, Math.min(Math.PI - 1e-4, m.start * D2R)));
         this.script(m);
       } else if (!this.free) this.generate();
       this.T1start = this.T1;
