@@ -24,6 +24,11 @@
   ul{padding-left:22px} li{margin:3px 0}
   table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0}
   th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top} th{background:var(--panel)}
+  /* phones: one card per row, each cell labelled with its column name */
+  @media (max-width:480px){table,tbody,tr,td{display:block} tr:first-child{display:none}
+    tr{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;overflow:hidden} td{border:0;padding:5px 10px}
+    td:first-child{font-weight:700;background:var(--panel)} td:nth-child(2)::before{content:"Example: ";font-weight:700}
+    td:nth-child(3)::before{content:"What it contains: ";font-weight:700}}
   .muted{color:var(--muted);font-size:13px}
 </style>
 </head>
