@@ -141,6 +141,15 @@
       <input id="mw" type="range" min="0.04" max="0.3" step="0.01" value="0.08" style="width:110px">
       <span class="val" id="mwv" style="min-width:44px">0.08 a</span>
     </div>
+    <div class="row tight" id="strikeAim">
+      <label class="lbl" for="sr">or strike at <span class="mvar">r</span></label>
+      <input id="sr" type="range" min="0" max="0.95" step="0.01" value="0.55" style="width:110px">
+      <span class="val" id="srv" style="min-width:44px">0.55 a</span>
+      <label class="lbl" for="sth">θ</label>
+      <input id="sth" type="range" min="0" max="355" step="5" value="30" style="width:110px">
+      <span class="val" id="sthv" style="min-width:36px">30°</span>
+      <button id="strikeBtn" type="button">Strike here</button>
+    </div>
     <div class="row tight">
       <label class="lbl">Pickup at <span class="mvar">r</span></label>
       <input id="pkr" aria-label="Pickup at r" type="range" min="0" max="0.95" step="0.01" value="0" style="width:110px">
@@ -952,7 +961,7 @@ if (window.QUBLITZ_STANDALONE) {
     }
     $('drumTitle').textContent = hit ? 'Drum head: after a mallet strike' : 'Drum head: your superposition';
     $('tilesTitle').textContent = hit ? 'Normal modes, seen from above: each one\'s share of the strike' : 'Normal modes, seen from above: click to build your superposition';
-    $('strikeRow').style.display = hit ? '' : 'none';
+    $('strikeRow').style.display = $('strikeAim').style.display = hit ? '' : 'none';
     document.querySelectorAll('.srcTag').forEach(t=>{ if(t.id==='raceTag') return;
       t.className='srcTag '+(hit?'hit':'sup'); t.textContent= hit ? 'from the strike' : 'from your superposition'; });
     $('raceTag').textContent = hit ? 'your superposition, not the strike' : 'your superposition';
@@ -961,6 +970,9 @@ if (window.QUBLITZ_STANDALONE) {
   function setSel(list){ sel=list.slice(0,MAXSEL); if(src!=='modes'){ src='modes'; setSeg('srcSeg','src','modes'); } srcUI(); refreshScale(); drawAll(); }
   function doStrike(rho,theta,k,w){
     strikeAt={rho,theta,kind:k,w};
+    // keep the r and θ sliders on the last strike, wherever it came from (a click, the sliders, a reset)
+    const deg=((Math.round(theta*180/Math.PI/5)*5)%360+360)%360;
+    $('sr').value=Math.min(0.95,rho).toFixed(2); $('srv').textContent=(+$('sr').value).toFixed(2)+' a'; $('sth').value=deg; $('sthv').textContent=deg+'°';
     strikeState=D.strike(modes,rho,theta,w,k);
     src='strike'; setSeg('srcSeg','src','strike'); clock=0; srcUI(); refreshScale();
     if(!playing) setPlaying(true); else drawAll();
@@ -985,6 +997,13 @@ if (window.QUBLITZ_STANDALONE) {
   $('pkt').addEventListener('input',e=>setPickup(+$('pkr').value, +e.target.value));
   $('sense').addEventListener('change',e=>{ senseVel=e.target.value==='vel'; if(!playing) drawAll(); });
   $('mw').addEventListener('input',e=>{ malletW=+e.target.value; $('mwv').textContent=malletW.toFixed(2)+' a'; });
+  // strike from the sliders (the keyboard path; also handy for an exact spot): same doStrike as a click on the head
+  const sliderStrike=()=>{ doStrike(+$('sr').value, +$('sth').value*Math.PI/180, kind, malletW);
+    if(Date.now()-qlLastStrike>20000){ qlLastStrike=Date.now(); qlNote('strike',{value:+(+$('sr').value).toFixed(2)}); } };
+  $('sr').addEventListener('input',()=>{ $('srv').textContent=(+$('sr').value).toFixed(2)+' a'; });
+  $('sth').addEventListener('input',()=>{ $('sthv').textContent=$('sth').value+'°'; });
+  ['sr','sth'].forEach(id=>$(id).addEventListener('change',sliderStrike));
+  $('strikeBtn').addEventListener('click',sliderStrike);
   $('mw').addEventListener('change',()=>{ if(strikeAt && src==='strike') doStrike(strikeAt.rho,strikeAt.theta,kind,malletW); });
   $('listen').addEventListener('click',()=>{ playPartials(drumPartials()); qlNote('sound',{level:'drum'}); });
   $('fcut').addEventListener('input',e=>{ fcut=+e.target.value; showFcut(); live.clear(); });
