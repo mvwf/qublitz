@@ -696,6 +696,12 @@ function applyFree(fromQV) {
   // a slow drive needs a longer sweep trace to show a few Rabi cycles (3 cycles, at most 500 ns)
   const needT = Math.min(500, Math.ceil(3e3 / clamp(num('#fRabi', 25), 1, 1000)));
   if (num('#fdT', 25) < needT) $('#fdT').value = needT;
+  // ω_q is known in free play, so shift the sweep window (by under half a step) to put one drive frequency exactly on it:
+  // then the peak trace is on resonance, and the Rabi rate fitted from it is Ω_R itself, not the faster √(Ω_R² + Δ²).
+  { const wq = state.qubit.omegaQ, a = num('#fdStart', 3.5), b = num('#fdStop', 6.5), n = clamp(int('#fdN', 41), 5, 201);
+    const step = (b - a) / (n - 1);
+    if (step > 0 && wq > a - step && wq < b + step) { const k = Math.round((wq - a) / step), a2 = wq - k * step;
+      $('#fdStart').value = +a2.toFixed(6); $('#fdStop').value = +(a2 + (n - 1) * step).toFixed(6); } }
   $('#reveal').checked = true; renderReveal();
   try { const u = new URL(location.href); u.searchParams.delete('qubit'); u.searchParams.delete('assigned'); u.searchParams.set('free', freeParam()); history.replaceState(null, '', u); } catch (e) {}
 }
@@ -1388,9 +1394,9 @@ function qvQubitLoad(r, s, offline) {
   const L = QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us, t2 }), who = `${QVault.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}`;
   const note = $('#qvQubitNote'); note.hidden = false;
   if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? QVault.sourceHTML(s, r.citekey) : ''}`; return; }
-  // On the chip a ~20 ns π pulse is tiny next to T₁ ~ 100 µs. On the 1000× clock that would need a Rabi rate above f₀₁, so
-  // pick the slowest rate (25 MHz up to the lab's 300 MHz) whose π pulse is at most 1% of T₁ here.
-  const rabi = Math.min(300, Math.max(25, Math.ceil(5e4 / L.T1)));
+  // Papers in Q-Vault do not list their drive, so use the typical transmon's: Ω_R/2π = 25 MHz, a 20 ns π pulse. Only a qubit
+  // whose T₁ here is under 200 ns gets a faster drive (up to the lab's 300 MHz), so the π pulse stays within 10% of T₁.
+  const rabi = Math.min(300, Math.max(25, Math.ceil(5e3 / L.T1)));
   $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2; $('#fRabi').value = rabi;
   if (getMode() === 'free') applyFree(true); else { $('#mode [data-v="free"]').click(); }
   // the mode switch above runs applyFree() without the flag, which clears the clock: set it after
@@ -1403,8 +1409,9 @@ function qvQubitLoad(r, s, offline) {
     Its own numbers: f₀₁ = <b>${f(r.f01_GHz)} GHz</b>, T₁ = <b>${f(r.T1_us)} µs</b>${t2 ? `, T₂ (${kind}) = <b>${f(t2)} µs</b>` : ''}.
     ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? `The page now works in the chip's units (see the banner above the experiments): T₁ = ${L.T1} µs and T₂ = ${L.T2} µs${t2 ? '' : ' (Q-Vault lists no T₂, so T₂ = 2T₁)'}.`
       : `Time runs ${g4(+r.T1_us / L.T1 * 1000)}× faster here, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns in the lab's units.`}
-    The drive is Ω<sub>R</sub>/2π = ${rabi} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'kHz' : 'MHz'} (π pulse ${fmtG(500 / rabi)} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'µs' : 'ns'}, ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁): a gentle drive.
-    Real chips drive at ~25 MHz (20 ns π pulses), but this lab computes every GHz oscillation, and a MHz drive over a 100 µs decay would take about 10⁸ steps per shot.${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
+    The paper does not give its drive, so the lab uses ${rabi === 25 ? 'the typical transmon’s' : 'a faster one, because this T₁ is short'}: Ω<sub>R</sub>/2π = ${rabi} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'kHz' : 'MHz'}, so a π pulse, 1/(2·Ω<sub>R</sub>/2π), takes ${fmtG(500 / rabi)} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'µs' : 'ns'} (${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁).
+    Your fitted Rabi rate and π pulse should come out at these numbers.${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? ` That is the real chip's 25 MHz drive and 20 ns π pulse, slowed by the 1000× clock along with everything else
+    except f₀₁ (a 20 ns pulse in chip units would need a drive faster than the qubit itself), so here the π pulse is ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁ instead of the chip's ${fmtG(100 * 0.02 / +r.T1_us, 2)}%.` : ''}${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
     ${offline ? '<br><i>Q-Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + QVault.sourceHTML(s, r.citekey)}`;
   ql('qvault', { level: 'qubit' });
 }
