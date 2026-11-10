@@ -12,12 +12,22 @@ web/
                         (arena.html is copied in from pages/_assets/ at build time)
   shared/pagekit.js     copy-link and guided-mode helpers used by the ENGS 23 pages
   shared/livespec.js    live scrolling spectrogram + FFT of whatever a page plays (drum, string)
-  vendor/               third-party libraries served with the site (Plotly, MIT license)
+  vendor/               third-party libraries served with the site (Plotly bundles, MIT license)
 ```
 
 Pages load their libraries from `vendor/`, not a CDN, so the site keeps working if a CDN
-drops a version and the pages run offline. Plotly comes from the npm package
-`plotly.js-dist-min@2.35.2` (`npm pack`, which checks the registry's integrity hash).
+drops a version and the pages run offline. Plotly comes from the official npm dist packages of
+version 2.35.2 (`npm pack`, which checks the registry's integrity hash), and each page loads the
+smallest one that has every trace type it draws:
+
+| File | npm package | Trace types | Pages |
+|---|---|---|---|
+| `plotly-basic-2.35.2.min.js` (1.1 MB) | `plotly.js-basic-dist-min` | scatter, bar, pie | Fridge Noise, Resonator, ErrorSweeper, Vibrating String |
+| `plotly-cartesian-2.35.2.min.js` (1.4 MB) | `plotly.js-cartesian-dist-min` | basic + heatmap, contour, histogram, box, violin, ... | Sonify, EP/TPD, Readout |
+| `plotly-2.35.2.min.js` (4.6 MB) | `plotly.js-dist-min` | all | Qubit Simulator (heatmap with 3D Bloch sphere), Hydrogen (bar with 3D isosurface) |
+
+A page that draws a trace type its bundle lacks shows an empty chart, so when a page gains a new
+trace type, check the table and move it to a bigger bundle if needed. All three share `plotly-LICENSE.txt`.
 
 ## Adding a demo
 
