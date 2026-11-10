@@ -421,6 +421,51 @@ html.retro .stage{box-shadow:0 8px 30px rgba(0,0,0,.4)} html.retro button.primar
     }
   }
 
+  // ── the math face (every theme, Classic included) ───────────────────────────────────────────────────────────────
+  // Equations name 'Latin Modern Roman' first. Few machines have it installed, so they fell back to Cambria or Georgia
+  // (issue #158). Declare the family here with WOFF2 subsets served from this site, web/vendor/fonts (GUST Font
+  // License; made by scripts/make_math_fonts.py, which prints these ranges), so equations look the same everywhere and
+  // nothing is fetched from a third-party server. Latin Modern Roman has no lowercase Greek, primes, angle brackets or
+  // most math operators; Latin Modern Math subsets fill exactly those characters (lowercase Greek in italic text from a
+  // math italic file, as TeX sets it). unicode-range keeps the browser from downloading a file a page never uses.
+  // A browser only combines faces whose style and weight descriptors are identical, so every face is 400 or 700 and
+  // the math faces are repeated for each. Helvetica is not bundled: where it is missing, Arial (metric-compatible) or
+  // the system sans is used, as the font stacks already say.
+  // Offline copies (scripts/build_standalone.py) carry the files as data in window.QUBLITZ_FONT_DATA.
+  const mathCss = (() => {
+    const fontData = root.QUBLITZ_FONT_DATA || {};
+    const here = doc.currentScript && doc.currentScript.src;
+    const url = f => fontData[f] ? `data:font/woff2;base64,${fontData[f]}`
+      : here ? new URL(`../vendor/fonts/${f}`, here).href : null;
+    const ROMAN = 'U+20-7E,U+A0-FF,U+127,U+131,U+152-153,U+300-304,U+306-30C,U+30F,U+311,U+323,U+326,U+32E-332,U+391-3A1,' +
+      'U+3A3-3A9,U+2010-2011,U+2013-2014,U+2016,U+2018-201A,U+201C-201E,U+2020-2022,U+2026,U+2030-2031,' +
+      'U+2039-203B,U+203D,U+203F-2040,U+2044-2046,U+2052,U+2054,U+20AC,U+2103,U+2116-2117,U+211E,U+2120,U+2122,' +
+      'U+2126-2127,U+212E,U+2190-2193,U+2212,U+2215,U+2217,U+221A,U+221E,U+2222,U+2300,U+2329-232A,U+27E6-27E7';
+    // Latin Modern Math: in italic text MATH_IT comes from the math italic file; MATH_UP is upright in both styles
+    const MATH_IT = 'U+300-30C,U+30F,U+311,U+323,U+326,U+32C-333,U+338,U+33F,U+34D,U+3B1-3C9,U+3D1,U+3D5-3D6,U+3F0-3F1,' +
+      'U+3F4-3F5,U+2000-200D,U+2012,U+2015,U+2017,U+202F,U+2032-2037,U+2057,U+205F-2064,U+2102,U+2107,U+2109,' +
+      'U+210B-2113,U+2115,U+2118-211D,U+2124,U+2128,U+212A-212D,U+2130-2131,U+2133,U+2135-2138,U+213C-2140,' +
+      'U+2145-2149,U+2202';
+    const MATH_UP = 'U+2194-219B,U+219E-21A7,U+21A9-21AE,U+21B0-21B7,U+21BA-21DD,U+21E6-21E9,U+21F3,U+21F5-21F6,U+2200-2201,' +
+      'U+2203-2211,U+2213-2214,U+2216,U+2218-2219,U+221D,U+221F-2221,U+2223-22AF,U+22B2-22D3,U+22D5-22F1,' +
+      'U+2305-2306,U+2308-230B,U+2310,U+2319,U+231C-2323,U+239B-23AD,U+23B2-23B5,U+23B7,U+23D0,U+23DC-23E1,' +
+      'U+27C2,U+27D8-27DE,U+27E0-27E3,U+27E8-27EB,U+27EE-27EF';
+    const face = (file, style, weight, range) => url(file) ? `@font-face{font-family:'Latin Modern Roman';` +
+      `font-style:${style};font-weight:${weight};font-display:swap;src:url(${url(file)}) format('woff2');unicode-range:${range}}` : '';
+    const MATH = `${MATH_IT},${MATH_UP}`;
+    return [face('lmroman10-regular-qbsub.woff2', 'normal', 400, ROMAN),
+      face('latinmodern-math-qbsub.woff2', 'normal', 400, MATH),
+      face('lmroman10-italic-qbsub.woff2', 'italic', 400, ROMAN),        // bold italic: the browser emboldens this
+      face('latinmodern-math-italic-qbsub.woff2', 'italic', 400, MATH_IT),
+      face('latinmodern-math-qbsub.woff2', 'italic', 400, MATH_UP),
+      face('lmroman10-bold-qbsub.woff2', 'normal', 700, ROMAN),
+      face('latinmodern-math-qbsub.woff2', 'normal', 700, MATH)].join('\n');
+  })();
+  if (mathCss) {
+    const mf = doc.createElement('style'); mf.id = 'retro-math-font'; mf.textContent = mathCss;
+    (doc.head || html).appendChild(mf);
+  }
+
   // ── reading type (every theme, Classic included) ────────────────────────────────────────────────────────────────
   // 1. A reading scale: body 16 px, ledes (.sub) 17 px, card text 15 px, hints and notes 14 px. Paragraphs and list
   //    items are at most 75 characters wide: max-width becomes min(75ch, the page's own max-width), so a narrower

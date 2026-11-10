@@ -9,6 +9,7 @@ Usage (from the repo root):
     python scripts/build_standalone.py web/qublitz/qubit-simulator.html out.html
     python scripts/build_standalone.py web/courses/engs23/spectrogram.html out.html
 """
+import base64
 import json
 import os
 import re
@@ -20,6 +21,17 @@ SCRIPT_TAG = re.compile(r'<script src="([^"]+)"></script>')
 REMOTE = re.compile(r'<(?:script|link)\b[^>]*\b(?:src|href)="(?:https?:)?//', re.IGNORECASE)
 # Set before the page's own scripts run, so the page knows it is the downloaded copy.
 MARKER = "<script>window.QUBLITZ_STANDALONE = true;</script>\n"
+# The math face (web/vendor/fonts, issue #158). shared/retro.js declares it; in the download it comes from this data.
+FONTS = os.path.join(ROOT, "web", "vendor", "fonts")
+
+
+def font_data():
+    data = {}
+    for name in sorted(os.listdir(FONTS)):
+        if name.endswith(".woff2"):
+            with open(os.path.join(FONTS, name), "rb") as f:
+                data[name] = base64.b64encode(f.read()).decode("ascii")
+    return f"<script>window.QUBLITZ_FONT_DATA = {json.dumps(data)};</script>\n"
 
 
 def inline(match, base):
@@ -44,6 +56,8 @@ def main(page, out):
     # the page's path on the site (relative to web/), for the "Open the full page" link
     path = os.path.relpath(os.path.abspath(page), os.path.join(ROOT, "web")).replace(os.sep, "/")
     marker = MARKER + f"<script>window.QUBLITZ_PATH = {json.dumps(path)};</script>\n"
+    if re.search(r'<script src="[^"]*shared/retro\.js"', html):
+        marker += font_data()
     html = html[:first.start()] + marker + html[first.start():]
     html = SCRIPT_TAG.sub(lambda m: inline(m, base), html)
     if REMOTE.search(html):
