@@ -211,7 +211,7 @@
     <div class="axis" data-axis="z"><div class="name">Z <small>detune / phase</small></div>
       <button class="hold" data-hold="-1" title="Hold: turn about −z (Shift+Z)">⟲ −Z</button><button class="hold" data-hold="1" title="Hold: turn about +z (key Z)">+Z ⟳</button>
       <button data-pulse="0.5" title="Quarter turn about +z">90°<small>S gate</small></button><button data-pulse="1" title="Half turn about z">180°<small>Z gate</small></button></div>
-    <p class="tips">Keys: hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> (<kbd>Shift</kbd> for −). ⟳ = counterclockwise seen from the + end of the axis.
+    <p class="tips">Keys: hold <kbd>X</kbd> <kbd>Y</kbd> <kbd>Z</kbd> (<kbd>Shift</kbd> for −), or hold <kbd>Space</kbd> or <kbd>Enter</kbd> on a pad button. ⟳ = counterclockwise seen from the + end of the axis.
       In Play you can also hold on the sphere where you want to go.</p>
   </div>
 
@@ -383,6 +383,11 @@ document.querySelectorAll('.pad .axis').forEach(row => {
       const up = () => { padHold[ax] = 0; b.classList.remove('on'); };
       b.addEventListener('pointerdown', e => { if (phase !== 'play' || !allowed(ax)) return; b.setPointerCapture(e.pointerId); padHold[ax] = +b.dataset.hold; b.classList.add('on'); });
       ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => b.addEventListener(t, up));
+      // keyboard: Enter or Space on a focused hold button drives while held, like a press (the X/Y/Z keys do the same)
+      b.addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault(); e.stopPropagation();
+        if (e.repeat || phase !== 'play' || !allowed(ax)) return; padHold[ax] = +b.dataset.hold; b.classList.add('on'); });
+      b.addEventListener('keyup', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); up(); } });
+      b.addEventListener('blur', up);
     } else b.addEventListener('click', () => {
       if (phase !== 'play' || !allowed(ax)) return;
       world.pulse(ax, +b.dataset.pulse * Math.PI);
