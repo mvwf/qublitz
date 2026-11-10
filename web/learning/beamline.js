@@ -16,7 +16,7 @@ if (window.QL) QL.learning({
   howTo: [
     'Open the <b>Levels</b> menu and pick a level (or <b>Sandbox</b> to experiment). Read the brief: it names the idea and the pieces you get.',
     'The gold ring on each qubit\'s Bloch sphere is its target; the bar above the board lists every goal. Grey qubits are spectators that must stay where they are.',
-    'Pick a piece in the <b>Pieces</b> tray (keys <kbd>1</kbd>–<kbd>3</kbd>), then click an empty square to place it. Click a mirror to flip it, click again to pick it up. The dashed line previews the beam.',
+    'Pick a piece in the <b>Pieces</b> tray (keys <kbd>1</kbd>–<kbd>3</kbd>), then click an empty square to place it (keyboard: Tab to the board, move with the arrow keys, press <kbd>Enter</kbd>). Click a mirror to flip it, click again to pick it up. The dashed line previews the beam.',
     'Press <b>Fire</b> (<kbd>F</kbd>) and watch each qubit turn as the pulse passes. The <b>Qubits</b> box shows each state against its target. On levels 4, 8 and 11 Fire first asks you to predict the result (keys <kbd>1</kbd>–<kbd>4</kbd>, or skip with <kbd>Esc</kbd>).',
     'Not solved? Change the beamline and fire again (each fire starts from the start states). <b>Undo</b> (<kbd>U</kbd>), <b>Reset</b> (<kbd>R</kbd>) and <b>Hint</b> (<kbd>H</kbd>) help.',
   ],
