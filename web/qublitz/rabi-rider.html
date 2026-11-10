@@ -126,8 +126,8 @@
 <h1>🌀 Rabi Rider <span>ride a Rabi oscillation</span></h1>
 <p class="sub">Your qubit's height is its polar angle θ on the Bloch sphere, drawn with the ground state |0⟩ at the bottom and the
   excited state |1⟩ at the top, so height is energy, with P(1) = sin²(θ/2) in between. The course scrolls past in time. The drive is
-  exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and only <b>T₁ decay</b>
-  acts, and it always pulls the qubit down to |0⟩, like gravity. You fly an <b>ensemble</b> of 240 runs of the same experiment, all
+  exactly on resonance, so nothing precesses: hold ▲ to turn the qubit toward |1⟩ and ▼ toward |0⟩. Let go and the qubit stays where it is, unless
+  <b>T₁ decay</b> is on (pick a T₁ in the menu; the missions about decay turn it on themselves): then it pulls the qubit down to |0⟩, like gravity. You fly an <b>ensemble</b> of 240 runs of the same experiment, all
   driven by the same pulse; each emits its photon and drops to |0⟩ at its own random moment, and the faint ghosts show 12 of them.
   The big marker is their mean, the density matrix; aim it through the rings, because the share of runs that succeed is the
   ensemble's fidelity with the ring's state. Decay spreads the runs and makes that harder; a green reset starts a fresh shot, and
@@ -149,7 +149,7 @@
         <button class="go" id="free">Free play ▶</button>
         <button class="go" id="endless">Endless run ▶</button>
         <label>T₁ <select id="optT1" aria-label="Difficulty: the qubit's T₁">
-          <option value="easy">12 s · easy</option><option value="normal" selected>6 s · normal</option>
+          <option value="off" selected>off · no decay</option><option value="easy">12 s · easy</option><option value="normal">6 s · normal</option>
           <option value="hard">3 s · hard</option><option value="expert">1.5 s · expert</option></select></label>
         <label>ghosts <select id="optN" aria-label="Fly one run, or an ensemble of 240 runs with this many drawn as ghosts">
           <option value="1">1 run (single shot)</option><option value="6">6 of 240 runs</option><option value="12" selected>12 of 240 runs</option><option value="24">24 of 240 runs</option></select></label>
@@ -208,7 +208,7 @@
         <button id="btnDown">▼<small>toward |0⟩</small></button>
       </div>
       <p class="keys"><kbd>↑</kbd>/<kbd>W</kbd> ▲ · <kbd>↓</kbd>/<kbd>S</kbd> ▼ · <kbd>P</kbd> pause.
-        Let go and the drive is off; T₁ pulls the runs down to |0⟩.</p>
+        Let go and the drive is off; with T₁ on, it pulls the runs down to |0⟩.</p>
     </div>
     <div class="panel">
       <h3>The chip</h3>
@@ -246,12 +246,13 @@
     <b>X tokens</b> apply the X gate, a π turn about x, so θ → 180° − θ. <b>Noise clouds</b> are stray coupling to the environment, which acts as a measurement nobody asked for: touching one collapses the
     state to |1⟩ with probability sin²(θ/2) and to |0⟩ otherwise, exactly like a measurement gate. That is decoherence: the environment
     learns the state, and the superposition is gone.
-    <b>Decoherence here is T₁ alone</b>, energy loss, always on as for a real qubit. Each run follows it the way a photon counter
+    <b>Decoherence here is T₁ alone</b>, energy loss. It is off until you pick a T₁ in the menu, so you can learn the drive on an
+    ideal qubit first; the missions about decay (One qubit, one photon; Many runs; Jumps in the crowd; Build a better qubit; the Final exam) turn it on. Each run follows it the way a photon counter
     would see it: at the rate P(1)/T₁ the run emits a photon (the yellow wave) and is left in |0⟩, a quantum jump, most often from near
     |1⟩. Between photons a superposition slides slowly down toward |0⟩, dθ/dt = −sin θ/(2T₁): watching and seeing no photon is itself
     evidence that the run is lower. |1⟩ itself does not slide; it waits, then jumps. Averaged over runs this is exactly the T₁ master equation:
     P(1) ∝ e<sup>−t/T₁</sup>, and the sideways part of the mean (the coherence) fades half as fast, as e<sup>−t/2T₁</sup>.
-    The difficulty is T₁: 12, 6, 3 or 1.5 s (4 s in One qubit, one photon, 5 s in Jumps in the crowd, 2.5 s in Build a better qubit),
+    The difficulty is T₁: off, 12, 6, 3 or 1.5 s (6 s in Many runs and the Final exam when the menu says off, 4 s in One qubit, one photon, 5 s in Jumps in the crowd, 2.5 s in Build a better qubit),
     only a few π pulses long so you can see it happen; a transmon's T₁ of about 100 µs lasts thousands of 20 ns π pulses. Keeping a
     qubit excited means fighting decay, which is why fast gates matter.</p>
   <p><b>T₁+ chips</b> each make T₁ 35 % longer, up to four times where it started, and each is named for a real fix: a Purcell filter
@@ -293,13 +294,15 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ==
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage off */ } } };
 let challengeSeed = null;
 try { challengeSeed = new URL(location.href).searchParams.get('seed'); } catch (e) { /* no URL */ }
-const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), level: store.get('rider2:t1', 'normal'), N: store.get('rider2:n', E.P.GHOSTS) };
-if (!E.P.T1[S.level]) S.level = 'normal';
+const S = { stars: store.get('rider2:stars', {}), sound: store.get('rider2:sound', true), level: store.get('rider3:t1', 'off'), N: store.get('rider2:n', E.P.GHOSTS) };
+if (S.level !== 'off' && !E.P.T1[S.level]) S.level = 'off';
+// the T₁ the menu asks for: Infinity (no decay) when it is off
+const menuT1 = () => S.level === 'off' ? Infinity : E.P.T1[S.level];
 if (![1, 6, 12, 24].includes(S.N)) S.N = E.P.GHOSTS;
 $('#optSound').checked = S.sound; $('#optT1').value = S.level; $('#optN').value = S.N;
 $('#optN').addEventListener('change', e => { S.N = +e.target.value; store.set('rider2:n', S.N); });
 $('#optSound').addEventListener('change', e => { S.sound = e.target.checked; store.set('rider2:sound', S.sound); });
-$('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider2:t1', S.level); });
+$('#optT1').addEventListener('change', e => { S.level = e.target.value; store.set('rider3:t1', S.level); });
 
 /* ---------------- canvases ---------------- */
 const cv = $('#cv'), g = cv.getContext('2d'), sc = $('#sphere'), sg = sc.getContext('2d');
@@ -426,14 +429,14 @@ const cleared = new Set();   // missions cleared during this visit
 function qlPlay(mode, T1) {
   if (!qlStarted) { qlStarted = true; ql('start'); }
   const key = mode + '|' + S.level;
-  if (key !== qlMode) { qlMode = key; ql('mode', { level: mode + ' ' + S.level, value: E.P.T1[S.level] }); }
+  if (key !== qlMode) { qlMode = key; ql('mode', { level: mode + ' ' + S.level, value: S.level === 'off' ? 0 : E.P.T1[S.level] }); }
 }
 $('#learnBtn').addEventListener('click', () => { const p = $('#learnPanel'); if (p.scrollIntoView) p.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
 function toMenu() { syncMenu(); show('#menu'); if (typeof syncStageButtons === 'function') syncStageButtons(); }
 let freeplay = false;
 // N is the number of ghosts drawn: 1 flies a single run; otherwise the ensemble is E.P.RUNS runs and N of them are drawn
 function newWorld(m, N, extra = {}) {
-  return new E.World({ ...(m ? { mission: m.id } : { seed }), T1: E.P.T1[S.level], ghosts: N === 1 ? 1 : E.P.RUNS, shown: N, ...extra });
+  return new E.World({ ...(m ? { mission: m.id } : { seed }), T1: menuT1(), ghosts: N === 1 ? 1 : E.P.RUNS, shown: N, ...extra });
 }
 function start(m, again) {
   current = m; freeplay = false;
@@ -445,7 +448,7 @@ function start(m, again) {
   if (m) ql('level_start', { level: m.id, value: world.T1 });
   qlPlace();   // after level_start, which sets the level alone
   if (m) note(m.brief, 6);
-  else note(`<b>Endless run</b>, T₁ = ${world.T1} s, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go, but cyan <b>T₁+</b> chips make your qubit last longer.`, 5);
+  else note(`<b>Endless run</b>, ${world.decay ? `T₁ = ${world.T1} s` : 'no decay'}, ${world.N} run${world.N > 1 ? 's' : ''}. A missed ring costs a heart; three in a row win one back. The rings shrink as you go${world.decay ? ', but cyan <b>T₁+</b> chips make your qubit last longer' : '. Pick a T₁ in the menu for decay, photons and T₁+ chips'}.`, 5);
 }
 function pause() { show('#paused'); syncStageButtons(); }
 function resume() { show(null); last = performance.now(); syncStageButtons(); }
@@ -461,13 +464,16 @@ function startFree(N) {
   } else world.r = [0, 0, 1];
   if (prev && prev.T1 < Infinity) { world.T1 = prev.T1; world.T1start = prev.T1start; world.upgrades = prev.upgrades; }
   photons = []; hist = []; pops = []; flash = 0; acc = 0; last = performance.now(); show(null); syncStageButtons(); syncChip();
-  note(N === 1
+  note(!world.decay
+    ? `<b>Free play, ${N === 1 ? 'single shot' : `ensemble of ${world.N}`}</b>, no decay: an ideal qubit stays wherever the drive leaves it, and every run stays together. Hold ▲ and ▼. Pick a T₁ in the menu to see photons, quantum jumps and decay.`
+    : N === 1
     ? '<b>Free play, single shot.</b> One run of the experiment. Hold ▲ and ▼. Sit at |1⟩ and wait for the photon: the qubit jumps to |0⟩ all at once, at a random moment. On the equator, watch it slide down slowly between photons.'
     : `<b>Free play, ensemble of ${world.N}</b> (${world.shown} drawn). The same pulses on every run. Each emits its photon at its own moment, so the mean (the big marker) shrinks: that mean is what an experiment measures. Try <b>T₁+</b>.`, 7);
 }
 function syncStageButtons() {
   $('#menuBtn').hidden = !(phase === 'play' && world && !world.over);
   $('#freeBar').hidden = !(freeplay && phase === 'play');
+  $('#freePower').hidden = $('#freeDrain').hidden = !(world && world.decay);   // T₁± mean nothing without decay
   $('#freeSingle').classList.toggle('on', freeplay && world && world.N === 1);
   $('#freeEnsemble').classList.toggle('on', freeplay && world && world.N > 1);
 }

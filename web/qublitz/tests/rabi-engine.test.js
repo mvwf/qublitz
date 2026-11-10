@@ -309,5 +309,21 @@ function bot(w) {
   check('a spread-out ensemble cannot pass a ring, however well aimed', !mixed.passes({ th: mixed.theta, rad: 20 * D2R }), `|r̄| = ${mixed.purity.toFixed(2)}`);
 }
 
+// ---- decay is opt-in: with the menu's T₁ off (Infinity) a released qubit stays put; decay missions still decay ----
+{
+  const fl = new E.World({ mission: 'flight', T1: E.P.T1.hard }); fl.objects = [];
+  const th0 = fl.theta; for (let i = 0; i < 10 * 120; i++) fl.step({}, DT);
+  check('Flight school has no decay, whatever the menu says, and a released qubit does not drift', !fl.decay && Math.abs(fl.theta - th0) < 1e-9,
+    `θ ${(th0 / D2R).toFixed(2)}° → ${(fl.theta / D2R).toFixed(2)}°`);
+  const off = new E.World({ seed: 'off', T1: Infinity }); off.objects = []; off.generate = () => {}; off.r = E.onCircle(100 * D2R);
+  const t0 = off.theta; for (let i = 0; i < 10 * 120; i++) off.step({}, DT);
+  check('with T₁ off nothing moves the qubit when the drive is off', Math.abs(off.theta - t0) < 1e-9 && off.jumps === 0);
+  const ph = new E.World({ mission: 'photon', T1: Infinity }), en = new E.World({ mission: 'ensemble', T1: Infinity }), ex = new E.World({ mission: 'exam', T1: Infinity });
+  const pi = new E.World({ mission: 'pi', T1: Infinity });
+  check('decay missions keep decay with the menu off (photon 4 s, Many runs and the exam the normal T₁)',
+    ph.T1 === 4 && en.T1 === E.P.T1.normal && ex.T1 === E.P.T1.normal, `${ph.T1}, ${en.T1}, ${ex.T1} s`);
+  check('and the other missions follow the menu', !pi.decay && new E.World({ mission: 'pi', T1: 3 }).T1 === 3);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
