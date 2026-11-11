@@ -115,6 +115,10 @@ jobs:
       - name: Outreach kit test
         run: node web/shared/tests/outreach.test.js
 
+      # Feedback digest: ranking of issues, page votes and script errors (scripts/feedback_digest.js).
+      - name: Feedback digest test
+        run: node web/shared/tests/feedback-digest.test.js
+
       # Q-Vault bridge: CSV parsing, wiring chains and their thermal noise with the fridge model, resonator Q rows.
       - name: Q-Vault bridge test
         run: node web/shared/tests/qvault.test.js
