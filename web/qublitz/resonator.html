@@ -15,7 +15,7 @@
      scripts/build_standalone.py inlines these scripts into a single downloadable file. -->
 <script src="../vendor/plotly-basic-2.35.2.min.js"></script>
 <script src="resonator-engine.js"></script>
-<script src="../shared/qvault.js"></script>
+<script src="../shared/cvault.js"></script>
 <script src="../shared/pagekit.js"></script>
 <style>
   :root{
@@ -74,7 +74,7 @@
   details.card[open]>summary::after{transform:rotate(90deg)}
   details.card[open]>summary{margin-bottom:10px}
 
-  /* ---------- tabs: one sticky bar, like the contents bar on Q-Vault ---------- */
+  /* ---------- tabs: one sticky bar, like the contents bar on Coherence Vault ---------- */
   .tabs{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.95);backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);display:flex;gap:4px;margin:6px -20px 16px;padding:8px 20px 0;overflow-x:auto}
   .tab{border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;background:none;padding:9px 14px 10px;
@@ -233,7 +233,7 @@
     <div class="lbl" style="margin-top:10px">Try</div>
     <div class="presets" id="exPresets"></div>
     <div class="lbl" style="margin-top:10px">Real resonators</div>
-    <button id="qvRes" title="Measured internal quality factors from Q-Vault">📚 Load a measured Qᵢ from Q-Vault</button>
+    <button id="qvRes" title="Measured internal quality factors from Coherence Vault">📚 Load a measured Qᵢ from Coherence Vault</button>
     <div id="qvResOut"></div>
     <div class="note" id="qvFromNote" role="status" hidden style="font-size:13px;margin-top:6px"></div>
     <div style="margin-top:6px"><span data-qv-real="resonator.Qi"></span></div>
@@ -558,7 +558,7 @@
     <li><a href="https://github.com/sebastianprobst/resonator_tools" target="_blank" rel="noopener">resonator_tools</a> (Python) and
       <a href="https://github.com/Boulder-Cryogenic-Quantum-Testbed/scresonators" target="_blank" rel="noopener">scresonators</a> (Python)
       <span class="why">Open fitting packages for when you outgrow this page.</span></li>
-    <li><a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a>
+    <li><a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Coherence Vault</a>
       <span class="why">Our database of published coherence and quality-factor measurements, each traced to its paper, device, fabrication
         and fridge wiring. Compare your Q<sub>i</sub> with the literature.</span></li>
   </ul>
@@ -735,15 +735,15 @@ $('#exPresets').innerHTML = EX_PRESETS.map((p, i) => `<button data-i="${i}" titl
 $('#exPresets').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
   const p = EX_PRESETS[+b.dataset.i]; ex.qi = p.qi; ex.qc = p.qc; ex.phi = 0; syncEx(); });
 
-/* ---------- measured resonators from Q-Vault (web/shared/qvault.js) ---------- */
+/* ---------- measured resonators from Coherence Vault (web/shared/cvault.js) ---------- */
 // Sets Qi to a published value and Qc equal to it, since loss studies measure near critical coupling, where Qi is read most
 // precisely; the frequency too when the paper states one.
 const QVR = { list: null, src: {} };
 $('#qvRes').addEventListener('click', async () => {
-  const QV = window.QVault, out = $('#qvResOut'), b = $('#qvRes'); if (!QV) return;
-  b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+  const QV = window.CVault, out = $('#qvResOut'), b = $('#qvRes'); if (!QV) return;
+  b.disabled = true; b.textContent = 'Loading from Coherence Vault…';
   try {
-    if (!QVR.list) { const [m, s] = await Promise.all([QV.load('qvault_measurements.csv'), QV.load('qvault_sources.csv')]); QVR.list = QV.resonatorQs(m); QVR.src = QV.sourceMap(s); }
+    if (!QVR.list) { const [m, s] = await Promise.all([QV.load('cvault_measurements.csv'), QV.load('cvault_sources.csv')]); QVR.list = QV.resonatorQs(m); QVR.src = QV.sourceMap(s); }
     b.hidden = true;
     out.innerHTML = `<select id="qvResSel" aria-label="A measured resonator" style="max-width:100%;margin-top:4px"><option value="">Pick a measured resonator…</option>${QVR.list.map((r, i) =>
       `<option value="${i}">${QV.cite(QVR.src[r.citekey], r.citekey)} · ${r.metal || '?'} on ${(r.substrate || '?').split(/[,(]/)[0].trim()} · ${QV.QI_NAMES[r.kind]} ${r.qualifier}${r.value.toExponential(1)} (${r.statistic})</option>`).join('')}</select>
@@ -754,10 +754,10 @@ $('#qvRes').addEventListener('click', async () => {
       const s = QVR.src[r.citekey], url = QV.doiURL(s);
       $('#qvResNote').innerHTML = `${QV.cite(s, r.citekey)}: ${QV.QI_NAMES[r.kind]} = ${r.qualifier}${r.value.toExponential(2)} (${r.statistic}), ${r.loc}${r.value > 1e8 ? '; the slider stops at 10⁸' : ''}.
         Q<sub>c</sub> is set equal to Q<sub>i</sub> (critical coupling, where Q<sub>i</sub> is measured best)${r.f ? '' : '; the paper gives no frequency here, so f<sub>r</sub> is unchanged'}.
-        ${url ? `<a href="${url}" target="_blank" rel="noopener">Paper</a> · ` : ''}<a href="${QV.deviceURL(r.citekey, r.device, r.kind)}" target="_blank" rel="noopener">In Q-Vault</a>. ${QV.NOTE}`;
+        ${url ? `<a href="${url}" target="_blank" rel="noopener">Paper</a> · ` : ''}<a href="${QV.deviceURL(r.citekey, r.device, r.kind)}" target="_blank" rel="noopener">In Coherence Vault</a>. ${QV.NOTE}`;
       try { window.QL && QL.event('qvault', { level: 'resonator' }); } catch (err) { /* optional */ }
     });
-  } catch (err) { b.disabled = false; b.textContent = '📚 Load a measured Qᵢ from Q-Vault'; out.innerHTML = '<p class="hint">Could not reach Q-Vault (are you offline?).</p>'; }
+  } catch (err) { b.disabled = false; b.textContent = '📚 Load a measured Qᵢ from Coherence Vault'; out.innerHTML = '<p class="hint">Could not reach Coherence Vault (are you offline?).</p>'; }
 });
 
 $('#geoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ex.g = b.dataset.g; win = null; syncEx(); } });
@@ -1655,18 +1655,18 @@ if (window.QL && QL.challenges && !K.wantsGuided()) QL.challenges([
 ], { done: () => { toast('🏆 All five resonator challenges done!'); setTimeout(() => { if (window.QL && QL.offerQuiz) QL.offerQuiz('🏆 All five done! A 1-minute debrief checks what stuck and helps us improve this page.'); }, 2500); } });
 
 
-// A resonator opened from Q-Vault (?qv=citekey~device~label&f=&qi=&qc=): say whose it is and check the link's numbers
-// against Q-Vault's live table, which wins if they differ. Qc missing from the paper: set equal to Qi (critical coupling).
+// A resonator opened from Coherence Vault (?qv=citekey~device~label&f=&qi=&qc=): say whose it is and check the link's numbers
+// against Coherence Vault's live table, which wins if they differ. Qc missing from the paper: set equal to Qi (critical coupling).
 async function qvFrom() {
   let sp; try { sp = new URL(location.href).searchParams; } catch (e) { return; }
   if (sp.get('qvpick') === '1') { $('#qvRes').click(); $('#qvRes').scrollIntoView({ block: 'center' }); return; }   // the hub's "Fit a real resonator"
-  const QV = window.QVault, qv = QV && QV.parseQV(sp.get('qv')); if (!qv) return;
+  const QV = window.CVault, qv = QV && QV.parseQV(sp.get('qv')); if (!qv) return;
   const note = $('#qvFromNote'); note.hidden = false;
-  note.innerHTML = `📚 Opened from Q-Vault: ${qv.citekey} · ${qv.device}${qv.label ? ' · ' + qv.label : ''}. Checking its numbers…`;
+  note.innerHTML = `📚 Opened from Coherence Vault: ${qv.citekey} · ${qv.device}${qv.label ? ' · ' + qv.label : ''}. Checking its numbers…`;
   try {
-    const [rows, srcs] = await Promise.all([QV.load('qvault_parameters.csv'), QV.load('qvault_sources.csv')]);
+    const [rows, srcs] = await Promise.all([QV.load('cvault_parameters.csv'), QV.load('cvault_sources.csv')]);
     const r = QV.findParam(rows, qv), s = QV.sourceMap(srcs)[qv.citekey];
-    if (!r) { note.innerHTML = `📚 Opened from Q-Vault, but ${qv.citekey} · ${qv.device} is not in its table now, so the numbers are the link's. ${QV.NOTE}`; return; }
+    if (!r) { note.innerHTML = `📚 Opened from Coherence Vault, but ${qv.citekey} · ${qv.device} is not in its table now, so the numbers are the link's. ${QV.NOTE}`; return; }
     const qi = parseFloat(r.Qi_SP_x), qc = parseFloat(r.Qc_x), f = parseFloat(r.f_res_GHz), said = [];
     if (qi > 0) { ex.qi = Math.min(1e10, qi); said.push(`Qᵢ (single photon) = ${QV.fmt(qi)}`); }
     if (qc > 0) { ex.qc = Math.min(1e10, qc); said.push(`Q<sub>c</sub> = ${QV.fmt(qc)}`); } else if (qi > 0) ex.qc = ex.qi;
@@ -1675,7 +1675,7 @@ async function qvFrom() {
     note.innerHTML = `<b>📚 A real resonator: ${QV.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.
       Loaded: ${said.join(', ')}${qc > 0 ? '' : '; the paper gives no Q<sub>c</sub>, so Q<sub>c</sub> = Qᵢ (critical coupling)'}. Now drag Q<sub>c</sub>: how would you couple it to measure its Qᵢ best?<br>${QV.sourceHTML(s, r.citekey)}`;
     try { window.QL && QL.event('qvault', { level: 'resonator-link' }); } catch (e) { /* optional */ }
-  } catch (e) { note.innerHTML = `📚 Opened from Q-Vault (${qv.citekey} · ${qv.device}); it could not be reached to check, so the numbers are the link's. ${QV.NOTE}`; }
+  } catch (e) { note.innerHTML = `📚 Opened from Coherence Vault (${qv.citekey} · ${qv.device}); it could not be reached to check, so the numbers are the link's. ${QV.NOTE}`; }
 }
 
 /* ================================================================== start */
@@ -1684,7 +1684,7 @@ async function qvFrom() {
   const g = q.str('g', Object.keys(E.MODELS)); if (g) ex.g = g;
   const qi = q.num('qi', 10, 1e10); if (qi) ex.qi = qi;
   const qc = q.num('qc', 10, 1e10); if (qc) ex.qc = qc;
-  const fr = q.num('fr', 0.01, 100) || q.num('f', 0.01, 100); if (fr) ex.fr = fr;   // f: Q-Vault's links
+  const fr = q.num('fr', 0.01, 100) || q.num('f', 0.01, 100); if (fr) ex.fr = fr;   // f: Coherence Vault's links
   const ph = q.num('phi', -60, 60); if (ph != null) ex.phi = ph * Math.PI / 180;
   if (q.has('env')) ex.env = true;
   syncEx();

@@ -13,10 +13,10 @@ You can link straight to the site or to any page on it, for example the
 [Rabi Rider](https://mvwf.github.io/qublitz/qublitz/rabi-rider.html). Pages embedded in another site (such as a
 Google Site) show an "Open the full page ↗" button at the top.
 
-**Real numbers from [Q-Vault](https://mvwf.github.io/MARQUIS_Q_VAULT/).** Qublitz is the teaching companion of Q-Vault, the
+**Real numbers from [Coherence Vault](https://mvwf.github.io/MARQUIS_Q_VAULT/).** Qublitz is the teaching companion of Coherence Vault, the
 NSF MARQUIS database of published superconducting-device data. The labs load real qubits, resonators and cryostat wiring
-from it, 📚 lines across the site show the published spread behind a number (computed live from Q-Vault's CSV files), and
-Q-Vault's tables open their rows straight into the matching Qublitz lab. See `web/shared/qvault.js`.
+from it, 📚 lines across the site show the published spread behind a number (computed live from Coherence Vault's CSV files), and
+Coherence Vault's tables open their rows straight into the matching Qublitz lab. See `web/shared/cvault.js`.
 
 ## Contents
 
@@ -68,9 +68,9 @@ Question**. Cards you have opened get an **✓ Explored** badge, a bar counts ho
 me** opens one you have not seen yet. That progress stays in your browser.
 
 Every page shares the QuBlitz Arena's retro look: pixel titles, neon on deep navy, and dark
-charts. The **◐ theme menu** in the top bar (the same switch as Q-Vault's) picks **Arena**, **Synthwave**, **Phosphor**
+charts. The **◐ theme menu** in the top bar (the same switch as Coherence Vault's) picks **Arena**, **Synthwave**, **Phosphor**
 (green CRT), **Classic light** (the original look, good for projectors) or **Classic dark**. The choice is remembered
-in your browser and shared with Q-Vault; add `?theme=dark` (or another name) to a link to pick one.
+in your browser and shared with Coherence Vault; add `?theme=dark` (or another name) to a link to pick one.
 
 ### Virtual Qubit Labs: learn quantum by playing
 

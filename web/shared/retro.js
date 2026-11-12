@@ -12,8 +12,8 @@
  *
  * Themes: arena (default), synthwave, phosphor, classic (the original light Dartmouth look, handy for projectors)
  * and dark (Classic dark: plain neutral dark, no retro fonts). Choose with ?theme=<name> (light is an alias of
- * classic, as in Q-Vault), or with the theme menu in the site bar; the choice is remembered in this browser only and
- * is shared with Q-Vault on the same origin.
+ * classic, as in Coherence Vault), or with the theme menu in the site bar; the choice is remembered in this browser only and
+ * is shared with Coherence Vault on the same origin.
  * Pages can tweak themselves with selectors under html.retro (e.g. html.retro .myThing{...}).
  */
 (function (root) {
@@ -23,12 +23,12 @@
   const LABEL = { arena: 'Arena', synthwave: 'Synthwave', phosphor: 'Phosphor', classic: 'Classic light', dark: 'Classic dark' };
   const BLURB = { arena: 'Neon on deep navy, pixel titles', synthwave: 'Magenta and sunset grid', phosphor: 'Green CRT with scanlines',
     classic: 'The original light look, good for projectors', dark: 'Plain dark, no retro fonts' };
-  const KEY = 'qublitz_theme', QVAULT_KEY = 'qvault-theme';   // Q-Vault (mvwf.github.io/MARQUIS_Q_VAULT) shares the origin
-  const ALIAS = { light: 'classic' };                         // Q-Vault's name for Classic light
+  const KEY = 'qublitz_theme', QVAULT_KEY = 'qvault-theme';   // Coherence Vault (mvwf.github.io/MARQUIS_Q_VAULT) shares the origin
+  const ALIAS = { light: 'classic' };                         // Coherence Vault's name for Classic light
   const pick = v => (THEMES.includes(v) ? v : ALIAS[v] || null);
   const read = k => { try { return root.localStorage.getItem(k); } catch (e) { return null; } };
 
-  // Order of precedence: ?theme= in the link, then this site's saved choice, then a choice made in Q-Vault, then Arena.
+  // Order of precedence: ?theme= in the link, then this site's saved choice, then a choice made in Coherence Vault, then Arena.
   let theme = pick(read(KEY)) || pick(read(QVAULT_KEY)) || 'arena';
   try { const q = pick(new URLSearchParams(root.location.search).get('theme')); if (q) theme = q; } catch (e) { /* no URL */ }
 
@@ -57,7 +57,7 @@
       panel: 'rgba(6,26,12,0.70)', panel2: 'rgba(10,38,18,0.78)', line: 'rgba(57,255,122,0.20)', lineHi: 'rgba(57,255,122,0.48)',
       input: 'rgba(2,10,4,0.82)', title: '#39ff7a', titleGlow: 'rgba(57,255,122,.55)', onAccent: '#021006',
     },
-    // Classic dark: Q-Vault's neutral dark surfaces with the Classic look's green accent; no pixel fonts, glows or stars.
+    // Classic dark: Coherence Vault's neutral dark surfaces with the Classic look's green accent; no pixel fonts, glows or stars.
     dark: {
       plain: true, bg: '#121211', bg2: '#1b1b1a', glowA: '#121211', glowB: '#121211',
       ink: '#f1f0ec', dim: '#bab9af', accent: '#4cc38a', accent2: '#6fd3a2', gold: '#e0b44a', rose: '#e8699b',
@@ -628,7 +628,7 @@ html summary { box-sizing: border-box; }
   root.addEventListener('load', scanSoon);
   root.addEventListener('resize', scanSoon);
 
-  // ── the theme switch: a button in the site bar (as in Q-Vault) that opens a menu of every theme ─────────────────
+  // ── the theme switch: a button in the site bar (as in Coherence Vault) that opens a menu of every theme ─────────────────
   const SW = {   // swatches for the menu: background, accent, title colour
     arena: ['#070a16', '#2fe0d0', '#f5b73c'], synthwave: ['#12051f', '#ff4fd8', '#42d6ff'], phosphor: ['#030a05', '#39ff7a', '#e8ff6a'],
     classic: ['#ffffff', '#00693e', '#d8e2dc'], dark: ['#121211', '#4cc38a', '#5d9cec'] };

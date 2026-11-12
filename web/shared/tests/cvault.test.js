@@ -1,8 +1,8 @@
-// Checks web/shared/qvault.js (the Q-Vault bridge) on a small fixture in Q-Vault's CSV format, so it runs offline.
-// Usage: node web/shared/tests/qvault.test.js
+// Checks web/shared/cvault.js (the Coherence Vault bridge) on a small fixture in Coherence Vault's CSV format, so it runs offline.
+// Usage: node web/shared/tests/cvault.test.js
 'use strict';
 const path = require('path');
-const QV = require('../qvault.js');
+const QV = require('../cvault.js');
 const F = require(path.join(__dirname, '../../qublitz/fridge-engine.js'));
 let fails = 0;
 const check = (name, ok, detail) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  · ' + detail : ''}`); if (!ok) fails++; };
@@ -44,7 +44,7 @@ const R = QV.resonatorQs(QV.parseCSV(MH + 'cro,D1,Qi_SP,15000000,1,best,,Fig. 3,
 check('resonator Qs: current resonator Qi rows only, best first', R.length === 2 && R[0].value === 15e6 && R[1].f === 9.796);
 check('citations drop a stray leading "and"', QV.cite({ first_author: 'and Acharya', year: '2024' }, 'k') === 'Acharya 2024');
 
-// ── links from Q-Vault and the real qubit loader ──
+// ── links from Coherence Vault and the real qubit loader ──
 check('parseQV: citekey~device~label, labels may hold ~', JSON.stringify(QV.parseQV('bal2023systematic~D1~ST1~17')) === JSON.stringify({ citekey: 'bal2023systematic', device: 'D1', label: 'ST1~17' }));
 check('parseQV rejects junk', QV.parseQV('') === null && QV.parseQV('<script>~D1') === null);
 const PH = 'citekey,device_id,label,type,f01_GHz,T1_us,T2R_us,T2E_us,anharmonicity_MHz,Qi_SP_x,f_res_GHz\n';
@@ -74,7 +74,7 @@ check('Λ: surface-code values only, not the repetition code', QV.realValues(ML,
 check('realStats of nothing is null, and the text says so', QV.realStats([]) === null && /No published/.test(QV.realText('qubit.readout', null)));
 check('realText: median and middle half with units', /median 102 µs/.test(QV.realText('transmon.T1', st)) && /3 values from 2 papers/.test(QV.realText('transmon.T1', st)));
 check('fmt: big and small numbers in powers of ten', QV.fmt(3.4e6, '') === '3.4×10⁶' && QV.fmt(2.1e-6, '') === '2.1×10⁻⁶' && QV.fmt(99.5, '%') === '99.5%');
-check('every real quantity names a Q-Vault page', Object.keys(QV.REAL).every(k => QV.realURL(k).startsWith(QV.SITE)));
+check('every real quantity names a Coherence Vault page', Object.keys(QV.REAL).every(k => QV.realURL(k).startsWith(QV.SITE)));
 
 // ── dispersive readout rows (Readout Lab) ──
 const RP = QV.parseCSV('citekey,device_id,label,type,chi_MHz,two_chi_MHz,kappa_MHz,T1_us,f_readout_GHz,P_excited_percent\n' +
@@ -87,7 +87,7 @@ check('readoutRows: unclear χ convention is flagged from the measurement note',
 check('readoutRows: T₁, readout frequency and leftover population carried', RR[2].T1 === 1070 && RR[2].fr === 6.69 && RR[2].pexc === 1.5 && RR[1].pexc === null);
 check('χ chip: two_chi rows count, halved', QV.realValues(RP, QV.REAL['transmon.chi']).map(v => v.v).sort().join() === '0.15,0.5,2.3');
 
-// ── mystery qubits (Virtual Qubit Lab): real transmons from Q-Vault ──
+// ── mystery qubits (Virtual Qubit Lab): real transmons from Coherence Vault ──
 const MP = QV.parseCSV('citekey,device_id,label,type,f01_GHz,T1_us,T2R_us,T2E_us,base_metal\n' +
   'b,D1,Q2,transmon,4.4,49,95,,Al\na,D1,Q1,transmon,5.2,120,,150,Ta\nc,D1,,transmon,7.1,100,,,Nb\nd,D1,,transmon,4.8,10,,,Al\n' +
   'e,D1,,fluxonium,0.4,500,,,Al\nf,D2,Q3,transmon,6.0,400,,,Ta\n');

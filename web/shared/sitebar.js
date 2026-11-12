@@ -1,4 +1,4 @@
-/* sitebar.js: a slim bar at the top of each page with links to the published site, Q-Vault (the MARQUIS database of
+/* sitebar.js: a slim bar at the top of each page with links to the published site, Coherence Vault (the MARQUIS database of
  * real device numbers), the GitHub repository and, when the page is embedded (for example in a Google Site) or is the downloaded
  * offline copy, a button that opens this page full size in its own tab.
  *
@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  const SITE = 'https://mvwf.github.io/qublitz/', REPO = 'https://github.com/mvwf/qublitz', QVAULT = 'https://mvwf.github.io/MARQUIS_Q_VAULT/';
+  const SITE = 'https://mvwf.github.io/qublitz/', REPO = 'https://github.com/mvwf/qublitz', CVAULT = 'https://mvwf.github.io/MARQUIS_Q_VAULT/';
   // Who pays for Qublitz. Keep in step with the funding section of index.html and the README.
   const FUNDING = 'Qublitz is supported by the Unitary Foundation and by the U.S. National Science Foundation through an ' +
     '<a href="https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2540460" target="_blank" rel="noopener">NSF CAREER award (No. 2540460)</a> and the ' +
@@ -51,7 +51,7 @@
   const link = (href, text, cls) => `<a href="${href}"${away}${cls ? ` class="${cls}"` : ''}>${text}</a>`;
   bar.innerHTML =
     link(SITE, 'mvwf.github.io/qublitz') + '<span>·</span>' +
-    `<a href="${QVAULT}" target="_blank" rel="noopener" class="qv" title="Q-Vault: published T₁, T₂, quality factors and wiring of real superconducting devices, each linked to its paper">📚 Real device data: Q-Vault ↗</a>` +
+    `<a href="${CVAULT}" target="_blank" rel="noopener" class="qv" title="Coherence Vault: published T₁, T₂, quality factors and wiring of real superconducting devices, each linked to its paper">📚 Real device data: Coherence Vault ↗</a>` +
     '<span>·</span>' + link(REPO, 'Source on GitHub') + '<span class="sp"></span>' +
     (embedded || offline ? link(SITE + path, 'Open the full page ↗', 'full') : '');
   // Pages without an explicit <body> parse this script inside <head>, where the bar would be invisible: wait for the body.
