@@ -67,7 +67,7 @@
  *
  * DEPTH. One site-wide choice of how deep to go: curious · student (default) · engineer · researcher, picked in the site bar,
  *   by a link (?depth=engineer, remembered) or by QL.setDepth(d). It is stored in this browser only (localStorage
- *   'qublitz_depth', shared with Q-Vault on the same origin) and sent with each event as the one-word label x.depth.
+ *   'qublitz_depth', shared with Coherence Vault on the same origin) and sent with each event as the one-word label x.depth.
  *   Tag any element with data-depth="engineer+" (that depth and deeper), "-student" (up to student), "curious" (only
  *   there) or several tokens separated by spaces; untagged content shows at every depth. Learning-file objectives,
  *   quiz items, challenges, and howTo/goals entries written as { text, depth } take the same tag in a `depth` field.
@@ -277,7 +277,7 @@
     depthSubs.forEach(f => { try { f(d); } catch (e) { /* a page's handler must not break the others */ } });
     if (!quiet) event('depth', { level: d });
   }
-  // another tab (or Q-Vault) changed it
+  // another tab (or Coherence Vault) changed it
   root.addEventListener('storage', e => { if (e.key === DEPTH_KEY && DEPTHS.includes(e.newValue)) setDepth(e.newValue, true); });
   // the picker sits in the site bar, next to the theme switch
   function mountDepthPicker() {

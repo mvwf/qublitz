@@ -119,6 +119,6 @@ jobs:
       - name: Feedback digest test
         run: node web/shared/tests/feedback-digest.test.js
 
-      # Q-Vault bridge: CSV parsing, wiring chains and their thermal noise with the fridge model, resonator Q rows.
-      - name: Q-Vault bridge test
-        run: node web/shared/tests/qvault.test.js
+      # Coherence Vault bridge: CSV parsing, wiring chains and their thermal noise with the fridge model, resonator Q rows.
+      - name: Coherence Vault bridge test
+        run: node web/shared/tests/cvault.test.js

@@ -6,15 +6,15 @@
 <script src="../shared/retro-fonts.js"></script>
 <script src="../shared/retro.js"></script>
 <title>Readout Lab — Qublitz</title>
-<meta name="description" content="Read out a superconducting qubit through its resonator: the dispersive shift, IQ blobs, readout fidelity, and real devices from Q-Vault.">
+<meta name="description" content="Read out a superconducting qubit through its resonator: the dispersive shift, IQ blobs, readout fidelity, and real devices from Coherence Vault.">
 <meta property="og:title" content="Readout Lab — Qublitz">
-<meta property="og:description" content="Read out a superconducting qubit through its resonator: the dispersive shift, IQ blobs, readout fidelity, and real devices from Q-Vault.">
+<meta property="og:description" content="Read out a superconducting qubit through its resonator: the dispersive shift, IQ blobs, readout fidelity, and real devices from Coherence Vault.">
 <meta property="og:type" content="website">
 <link rel="icon" href="../shared/favicon.svg" type="image/svg+xml">
 <!-- Everything this page needs ships with it (no CDN), so it also works offline. -->
 <script src="../vendor/plotly-cartesian-2.35.2.min.js"></script>
 <script src="readout-engine.js"></script>
-<script src="../shared/qvault.js"></script>
+<script src="../shared/cvault.js"></script>
 <script src="../shared/pagekit.js"></script>
 <style>
   :root{color-scheme:light;--green:#00693e;--green2:#12855a;--ink:#1b2a24;--muted:#5a6b63;--line:#d8e2dc;--panel:#f5f9f6;--gold:#d9a521;
@@ -35,7 +35,7 @@
   details.card[open]>summary{margin-bottom:10px}
   .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start}
   @media(max-width:980px){.layout{grid-template-columns:minmax(0,1fr)}
-    /* one column: the controls, then the results, then the extras and Q-Vault */
+    /* one column: the controls, then the results, then the extras and Coherence Vault */
     .layout>aside{display:contents} .layout>aside>.card{order:3} .layout>aside>.card:first-child{order:1} .layout>div{order:2}}
   .sl{margin:4px 0 12px}
   .sl label{display:flex;justify-content:space-between;gap:8px;font-size:13.5px}
@@ -87,7 +87,7 @@
   <b>−χ</b> when it is in |0⟩ and <b>+χ</b> in |1⟩ (this lab draws χ as a positive number; for the usual transmon sitting below
   its resonator χ is negative, so on a real chip |1⟩ is the <i>lower</i> peak and the two sides swap). Send in a tone, listen to what comes back, and decide: 0 or 1? Each
   measurement lands as a dot in the IQ plane; the two clouds of dots must not overlap. <span data-depth="engineer+">Real units throughout:
-  MHz, µs and photons, so a published qubit from Q-Vault loads exactly.</span></p>
+  MHz, µs and photons, so a published qubit from Coherence Vault loads exactly.</span></p>
 
 <div class="layout">
 <aside>
@@ -136,7 +136,7 @@
 
   <div class="card qvq">
     <h2>Real qubits</h2>
-    <button id="qvBtn" title="Published dispersive shifts, linewidths and T₁ from Q-Vault">📚 Load a real qubit's readout from Q-Vault</button>
+    <button id="qvBtn" title="Published dispersive shifts, linewidths and T₁ from Coherence Vault">📚 Load a real qubit's readout from Coherence Vault</button>
     <select id="qvPick" hidden aria-label="Published qubit"></select>
     <div class="note" id="qvNote" role="status" hidden></div>
     <div style="margin-top:6px;display:flex;flex-direction:column;gap:2px" data-depth="student+">
@@ -220,7 +220,7 @@
 <script>
 (function () {
   'use strict';
-  const E = window.ReadoutEngine, QV = window.QVault, K = window.PageKit;
+  const E = window.ReadoutEngine, QV = window.CVault, K = window.PageKit;
   const $ = s => document.querySelector(s);
   const p = Object.assign({}, E.DEFAULTS);
   let seed = 1, qvDev = null, circ = Object.assign({}, E.CIRCUIT);
@@ -401,23 +401,23 @@
     const d = p.delta / p.chi; p.chi = Math.min(10, Math.max(0.02, +Math.abs(t.chi).toPrecision(4))); p.delta = d * p.chi; p.ncrit = t.ncrit; toSliders(); draw();
   });
 
-  // ── Q-Vault: published χ, κ and T₁ ──
+  // ── Coherence Vault: published χ, κ and T₁ ──
   let qvRows = null, qvSrc = {};
   async function qvLoad() {
     if (qvRows) return qvRows;
-    const [params, meas, srcs] = await Promise.all([QV.load('qvault_parameters.csv'), QV.load('qvault_measurements.csv'), QV.load('qvault_sources.csv')]);
+    const [params, meas, srcs] = await Promise.all([QV.load('cvault_parameters.csv'), QV.load('cvault_measurements.csv'), QV.load('cvault_sources.csv')]);
     qvSrc = QV.sourceMap(srcs); qvRows = QV.readoutRows(params, meas); qvRows.params = params;
     return qvRows;
   }
   const devName = r => `${QV.cite(qvSrc[r.citekey], r.citekey)} · ${r.label || r.device}`;
   $('#qvBtn').addEventListener('click', async () => {
-    const b = $('#qvBtn'); b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+    const b = $('#qvBtn'); b.disabled = true; b.textContent = 'Loading from Coherence Vault…';
     try {
       const rows = await qvLoad(), sel = $('#qvPick');
       sel.innerHTML = `<option value="">Choose one of ${rows.length} published qubits…</option>` + rows.map((r, i) =>
         `<option value="${i}">${devName(r)} (${r.type}): χ/2π ${fFmt(r.chi)}, κ/2π ${fFmt(r.kappa)}${r.T1 ? `, T₁ ${g3(r.T1)} µs` : ''}</option>`).join('');
       sel.hidden = false; b.hidden = true; sel.focus();
-    } catch (e) { b.disabled = false; b.textContent = '📚 Load a real qubit\'s readout from Q-Vault'; note(`Q-Vault could not be reached (are you offline?). <a href="${QV.paramsURL('kappa_MHz', 'chi_MHz', 'qubits')}" target="_blank" rel="noopener">Open it in a new tab ↗</a>`); }
+    } catch (e) { b.disabled = false; b.textContent = '📚 Load a real qubit\'s readout from Coherence Vault'; note(`Coherence Vault could not be reached (are you offline?). <a href="${QV.paramsURL('kappa_MHz', 'chi_MHz', 'qubits')}" target="_blank" rel="noopener">Open it in a new tab ↗</a>`); }
   });
   $('#qvPick').addEventListener('change', e => { if (e.target.value !== '') useDevice(qvRows[+e.target.value], 'pick'); });
   function note(html) { const n = $('#qvNote'); n.hidden = false; n.innerHTML = html; }
@@ -436,22 +436,22 @@
       ${clipped ? 'One value is outside the sliders\' range, so it is set to the nearest end. ' : ''}κ/2χ = ${g3(ratio)}${Math.abs(Math.log(ratio)) < 0.35 ? ', close to the optimum' : ratio > 1 ? ': the resonator leaks faster than the shift, so the states sound alike unless you listen with more photons' : ': the resonator is slow to ring up, so short readouts suffer'}.
       With ${g3(p.nbar)} photons and τ = ${tFmt(p.tau)} this page predicts F = ${pct(A.F)}. Can you find the photon number and listening time a lab would choose?
       ${r.unsure ? '<br>⚠ The paper does not say whether its χ is half the shift or the full shift; this page assumes half (±χ). If it is the full shift, halve χ.' : ''}
-      The paper's critical photon number is not in Q-Vault, so there is no n<sub>crit</sub> warning for it.<br>${QV.sourceHTML(qvSrc[r.citekey], r.citekey)}`);
+      The paper's critical photon number is not in Coherence Vault, so there is no n<sub>crit</sub> warning for it.<br>${QV.sourceHTML(qvSrc[r.citekey], r.citekey)}`);
     try { window.QL && QL.event('qvault', { level: how === 'link' ? 'readout-link' : 'readout' }); } catch (e) { /* optional */ }
     try { window.QL && QL.challengeDone && QL.challengeDone('real'); } catch (e) { /* optional */ }
   }
-  // Arrival from Q-Vault (?qv=citekey~device~label) or the hub (?qvpick=1). Values are read live by id, never from the link.
+  // Arrival from Coherence Vault (?qv=citekey~device~label) or the hub (?qvpick=1). Values are read live by id, never from the link.
   async function qvFrom(sp) {
     if (sp.get('qvpick') === '1') { $('#qvBtn').click(); $('#qvBtn').closest('.card').scrollIntoView({ block: 'center' }); return; }
     const id = QV.parseQV(sp.get('qv')); if (!id) return;
-    note(`📚 Opened from Q-Vault: ${id.citekey} · ${id.device}${id.label ? ' · ' + id.label : ''}. Reading its numbers…`);
+    note(`📚 Opened from Coherence Vault: ${id.citekey} · ${id.device}${id.label ? ' · ' + id.label : ''}. Reading its numbers…`);
     try {
       const rows = await qvLoad(), row = QV.findParam(rows.params, id);
       const r = row && rows.find(x => x.citekey === row.citekey && x.device === row.device_id && x.label === (row.label || ''));
       if (r) useDevice(r, 'link');
-      else note(row ? `📚 ${devName({ citekey: row.citekey, device: row.device_id, label: row.label })} is in Q-Vault, but without both a dispersive shift χ and a linewidth κ, so it cannot be read out here. <a href="${QV.paperURL(row.citekey)}" target="_blank" rel="noopener">See it in Q-Vault ↗</a>`
-        : `📚 ${id.citekey} · ${id.device} is not in Q-Vault's table now. ${QV.NOTE}`);
-    } catch (e) { note(`📚 Opened from Q-Vault (${id.citekey}), but Q-Vault could not be reached to read its numbers.`); }
+      else note(row ? `📚 ${devName({ citekey: row.citekey, device: row.device_id, label: row.label })} is in Coherence Vault, but without both a dispersive shift χ and a linewidth κ, so it cannot be read out here. <a href="${QV.paperURL(row.citekey)}" target="_blank" rel="noopener">See it in Coherence Vault ↗</a>`
+        : `📚 ${id.citekey} · ${id.device} is not in Coherence Vault's table now. ${QV.NOTE}`);
+    } catch (e) { note(`📚 Opened from Coherence Vault (${id.citekey}), but Coherence Vault could not be reached to read its numbers.`); }
   }
 
   // ── challenges (QL.challenges, web/shared/outreach.js). The page starts at F ≈ 88%, κ = 2χ, midpoint drive. ──
@@ -472,8 +472,8 @@
     { id: 'drive', depth: 'engineer+', text: 'Move the drive onto the |1⟩ resonance (f<sub>d</sub> − f<sub>r</sub> = +χ). Do the clouds get closer or farther apart?',
       hint: 'Slide the drive frequency to +1χ. |1⟩ now fills with photons, but |0⟩ barely responds, and the separation shrinks compared with the midpoint.',
       check: () => Math.abs(p.delta / p.chi - 1) < 0.06 },
-    { id: 'real', text: '📚 Load a <b>real qubit</b> from Q-Vault. How close does it get to 99% with its own χ, κ and T₁?',
-      hint: 'Press "Load a real qubit\'s readout from Q-Vault" and choose any device, then adjust the photons and listening time.' },
+    { id: 'real', text: '📚 Load a <b>real qubit</b> from Coherence Vault. How close does it get to 99% with its own χ, κ and T₁?',
+      hint: 'Press "Load a real qubit\'s readout from Coherence Vault" and choose any device, then adjust the photons and listening time.' },
   ], { done: () => { if (window.QL && QL.offerQuiz) setTimeout(() => QL.offerQuiz('🏆 All done! A 1-minute debrief checks what stuck and helps us improve this page.'), 1500); } });
 
   // ── start: settings from the link ──

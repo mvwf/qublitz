@@ -2,7 +2,7 @@
  *
  * Model (Blais et al., Rev. Mod. Phys. 93, 025005 (2021), §V; Gambetta et al., PRA 77, 012112 (2008)):
  *   The qubit pulls the resonator to f_r − χ/2π in |0⟩ and f_r + χ/2π in |1⟩ (a full shift of 2χ; papers differ on
- *   whether they quote χ or 2χ, and Q-Vault stores the two separately). The resonator is driven at f_r + δ with a fixed
+ *   whether they quote χ or 2χ, and Coherence Vault stores the two separately). The resonator is driven at f_r + δ with a fixed
  *   amplitude ε, and its field α obeys
  *       dα/dt = −(κ/2 + iΔ_s) α − iε,   Δ_s = ω_s − ω_d  (ω_0 = −χ, ω_1 = +χ, ω_d = 2πδ, all relative to f_r)
  *   so α relaxes to the pointer state α_s = −iε/(κ/2 + iΔ_s) at rate κ/2. ε is set by n̄, the photon number a drive at

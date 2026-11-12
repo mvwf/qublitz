@@ -65,7 +65,7 @@
 <script src="shared/outreach-config.js"></script>
 <script src="learning/manifest.js"></script>
 <script src="shared/outreach.js"></script>
-<script src="shared/qvault.js"></script>
+<script src="shared/cvault.js"></script>
 <div class="wrap" role="main">
 <a class="back" href="index.html">← All demos</a>
 <h1>🧭 Quantum Engineering Crash Course</h1>
@@ -84,8 +84,8 @@
 <div class="mods" id="mods"></div>
 
 <div class="foot">
-  <p><b>Real data from Q-Vault.</b> Steps marked <span class="tag qv" style="border:1px solid #7a5cff;color:#7a5cff;border-radius:999px;padding:1px 8px;font-size:11.5px">Q-Vault</span>
-  open <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/">Q-Vault</a>, the MARQUIS database of published coherence data for superconducting
+  <p><b>Real data from Coherence Vault.</b> Steps marked <span class="tag qv" style="border:1px solid #7a5cff;color:#7a5cff;border-radius:999px;padding:1px 8px;font-size:11.5px">Coherence Vault</span>
+  open <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/">Coherence Vault</a>, the MARQUIS database of published coherence data for superconducting
   qubits and resonators, where every number links to the page of the paper it came from. The 📚 lines under a module (Student depth and
   deeper) are computed live from it: the typical published value and its spread.</p>
   <p>Your progress (✓) comes from this browser only: which pages you have opened and which challenges you have finished. Nothing about
@@ -108,7 +108,7 @@
     engineer: ['🔧 Engineer', 'Real units, noise and calibration: measure, fit and design.'],
     researcher: ['🔬 Researcher', 'Open questions, real data and what the models leave out.'],
   };
-  // step: [depth tag, title, note, href, page id (for progress) or 'qv' for Q-Vault]
+  // step: [depth tag, title, note, href, page id (for progress) or 'qv' for Coherence Vault]
   const MODS = [
     { t: 'Waves and modes', idea: 'Everything quantum is built on modes: standing waves with set frequencies.', steps: [
       ['-student', 'The Vibrating String', 'Pluck it and see its harmonics', 'courses/engs23/vibrating-string.html', 'string'],
@@ -147,7 +147,7 @@
       ['student', 'Readout Lab: χ, κ and the IQ plane', 'Why SNR grows like √(n̄τ), and why κ = 2χ is best', 'qublitz/readout.html', 'readout'],
       ['engineer+', 'Readout Lab: a real readout budget', 'Amplifier efficiency, T₁, heat and the best listening time', 'qublitz/readout.html', 'readout'],
       ['engineer+', 'Real χ and κ', 'Readout parameters of published qubits', QV + '#/parameters?x=kappa_MHz&y=chi_MHz&kind=qubits', 'qv'],
-      ['researcher', 'Read out a published qubit', 'Load its χ, κ and T₁ from Q-Vault, then design the readout', 'qublitz/readout.html?qvpick=1', 'readout'],
+      ['researcher', 'Read out a published qubit', 'Load its χ, κ and T₁ from Coherence Vault, then design the readout', 'qublitz/readout.html?qvpick=1', 'readout'],
     ] },
     { t: 'Two qubits and entanglement', soon: true, idea: 'Two coupled qubits can share a state that neither has alone; a tuned interaction makes a two-qubit gate.', steps: [],
       later: 'Coming next: Bell states, a CZ gate from a tuned coupling, and an entanglement meter.' },
@@ -179,7 +179,7 @@
         if (!ext) { total++; if (ok) done++; }
         const ch = p && p.total ? ` · challenges ${p.done}/${p.total}` : '';
         return `<li class="${ok ? 'done' : ''}"><a href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}><span class="ck" aria-hidden="true">${ok ? '✓' : ''}</span>
-          <span class="t">${esc(t)}<small>${esc(note)}${ch}</small></span>${qv ? '<span class="tag qv">Q-Vault</span>' : ext ? '<span class="tag">reading</span>' : ''}${showAll ? `<span class="tag">${esc(tag)}</span>` : ''}</a></li>`;
+          <span class="t">${esc(t)}<small>${esc(note)}${ch}</small></span>${qv ? '<span class="tag qv">Coherence Vault</span>' : ext ? '<span class="tag">reading</span>' : ''}${showAll ? `<span class="tag">${esc(tag)}</span>` : ''}</a></li>`;
       }).join('');
       return `<section class="mod ${m.soon ? 'soon' : ''}"><header><span class="n">${i + 1}</span><h3>${esc(m.t)}</h3></header>
         <p class="idea">${esc(m.idea)}</p>${m.real && QL.atDepth('student+') ? `<div class="real">${m.real.map(k => `<span data-qv-real="${k}"></span>`).join('')}</div>` : ''}${items ? `<ol>${items}</ol>` : `<p class="none">Nothing at this depth yet.</p>`}${m.later ? `<p class="later">⏳ ${esc(m.later)}</p>` : ''}</section>`;

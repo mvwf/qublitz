@@ -8,7 +8,7 @@ if (window.QL) QL.learning({
   id: 'readout',
   title: 'Readout Lab',
   tagline: 'A qubit is read out by the resonator next to it: the qubit shifts the resonator’s pitch by ±χ, and the light that comes back says 0 or 1.',
-  fun: 'every measurement lands as a dot in the IQ plane, and you can watch the two clouds of dots pull apart as you add photons or listen longer, then load real qubits from Q-Vault.',
+  fun: 'every measurement lands as a dot in the IQ plane, and you can watch the two clouds of dots pull apart as you add photons or listen longer, then load real qubits from Coherence Vault.',
   objectives: [
     { id: 'shift', text: 'Explain dispersive readout: the qubit state shifts the resonator frequency by ±χ, so the reflected tone differs for |0⟩ and |1⟩.' },
     { id: 'snr', text: 'Relate readout fidelity to the separation of the IQ clouds over their width, and know that SNR grows like √(n̄ τ).' },
@@ -20,7 +20,7 @@ if (window.QL) QL.learning({
     'Drag the <b>Decision line</b> slider above the plots: the two error rates in the headline trade against each other, and the ★ marks the line that gives the best fidelity (not the midpoint once T₁ decay matters).',
     { text: 'Change <b>χ</b> and <b>κ</b>: the lower left plot shows the two resonances the qubit chooses between.', depth: 'student+' },
     { text: 'Open <b>Real-world extras</b> for amplifier efficiency, T₁, leftover heat and the drive frequency; the lower right plot finds the best listening time.', depth: 'engineer+' },
-    'Press <b>📚 Load a real qubit’s readout</b> to try a published device from Q-Vault.',
+    'Press <b>📚 Load a real qubit’s readout</b> to try a published device from Coherence Vault.',
     'The 🎯 <b>Challenges</b> card (bottom left) walks you through it.',
   ],
   goals: [
@@ -33,7 +33,7 @@ if (window.QL) QL.learning({
       q: 'A qubit has χ/2π = 1 MHz (the resonator moves by −χ for |0⟩ and +χ for |1⟩). How far apart are the two resonance frequencies?',
       choices: ['2 MHz', '1 MHz', '0.5 MHz', 'They are the same frequency; only the phase changes'],
       answer: 0,
-      explain: 'From f<sub>r</sub> − χ/2π to f<sub>r</sub> + χ/2π is 2χ/2π = 2 MHz. Papers differ on whether they quote χ or this full 2χ, so always check the convention (Q-Vault stores the two separately).' },
+      explain: 'From f<sub>r</sub> − χ/2π to f<sub>r</sub> + χ/2π is 2χ/2π = 2 MHz. Papers differ on whether they quote χ or this full 2χ, so always check the convention (Coherence Vault stores the two separately).' },
     { id: 'sqrt', objective: 'snr',
       q: 'Your readout has an SNR of 3. To reach an SNR of 6 by listening longer (in steady state), the listening time must be…',
       choices: ['4 times longer', '2 times longer', '√2 times longer', '6 times longer'],

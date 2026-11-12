@@ -118,7 +118,7 @@
 <script src="../learning/manifest.js"></script>
 <script src="../shared/outreach.js"></script>
 <script src="../learning/qubit-lab.js"></script>
-<script src="../shared/qvault.js"></script>
+<script src="../shared/cvault.js"></script>
 <a class="back" id="back" href="../index.html#labs">&larr; All demos</a>
 <h1>⚛ Qublitz <span style="font-weight:400;color:var(--muted);font-size:17px">Virtual Qubit Lab</span></h1>
 <p class="sub">Characterize a qubit the way a lab does. Sweep the drive frequency to find the resonance, fit the Rabi
@@ -149,7 +149,7 @@
   <p class="hint" id="offlineHint"><a id="dlOffline" href="qubit-simulator-offline.html" download="qublitz-qubit-simulator.html">Download this simulator</a>
     as a single HTML file that runs offline in any browser, with nothing to install.</p>
   <p class="hint" id="mqNote" role="status"></p>
-  <p class="hint">Every code is a <b>real transmon</b> from a published paper in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Q-Vault</a>, run in the chip's
+  <p class="hint">Every code is a <b>real transmon</b> from a published paper in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Coherence Vault</a>, run in the chip's
     own units. Its frequency, Rabi rate, T₁ and T₂ are hidden. The same code always gives the same qubit, and <b>Reveal parameters</b>
     on the Ramsey tab lets you check your answers and see which paper it came from. Loading a new qubit clears your results and pulses.</p>
   </div>
@@ -168,7 +168,7 @@
     <p class="hint">Ω<sub>R</sub>/2π = 25 MHz gives a 20 ns π pulse (π = 1/(2Ω<sub>R</sub>)), typical of a real transmon. T₂ = 2T₁ means no pure dephasing; lower T₂ adds dephasing at rate 1/T₂ − 1/(2T₁).</p>
     <p class="hint" id="freeDeph" aria-live="polite" style="font-size:13px"></p>
     <div class="qvq">
-      <button id="qvQubitBtn" title="Published transmons from Q-Vault, the MARQUIS database">📚 Load a real qubit from Q-Vault</button>
+      <button id="qvQubitBtn" title="Published transmons from Coherence Vault, the MARQUIS database">📚 Load a real qubit from Coherence Vault</button>
       <div id="qvQubitPick"></div>
       <div class="note" id="qvQubitNote" role="status" hidden></div>
       <div class="qvchips"><span data-qv-real="transmon.f01"></span><span data-qv-real="transmon.T1"></span><span data-qv-real="transmon.T2R"></span></div>
@@ -178,8 +178,8 @@
   <div id="modeInstructor" hidden>
     <p class="hint">Give every student their own qubit. Paste your roster (one student per line, e.g. an ID or a name) and choose a
       class seed. Each code is derived from the seed and the roster line, so the same seed and roster always rebuild the same key.
-      Each student gets a real published transmon from Q-Vault (f₀₁ 3.5–6.5 GHz, T₁ 30–600 µs, the paper's T₂, or 2T₁ when it gives none),
-      with a drive Ω<sub>R</sub>/2π of 100–300 kHz, in real-chip units. The links name the device, so the key stays right as Q-Vault grows.
+      Each student gets a real published transmon from Coherence Vault (f₀₁ 3.5–6.5 GHz, T₁ 30–600 µs, the paper's T₂, or 2T₁ when it gives none),
+      with a drive Ω<sub>R</sub>/2π of 100–300 kHz, in real-chip units. The links name the device, so the key stays right as Coherence Vault grows.
       Links made before real qubits (no device in the link) still open the old practice qubits, so earlier answer keys still match.</p>
     <div class="row" style="align-items:flex-start">
       <div class="field" style="flex:1;min-width:240px"><label for="roster">Roster</label>
@@ -219,15 +219,15 @@
 <div class="card depthCard" data-depth="engineer+">
   <h2>🔧 Teaching numbers and real numbers</h2>
   <p>This lab's <b>practice</b> qubits are built to be quick to simulate, so a few numbers are far from a real transmon. Know which, before you compare.
-    A mystery or assigned code loads a real transmon from Q-Vault instead, in chip units and with the paper's own T₂, so this table does not apply to it:</p>
+    A mystery or assigned code loads a real transmon from Coherence Vault instead, in chip units and with the paper's own T₂, so this table does not apply to it:</p>
   <table class="realT">
-    <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons (live from Q-Vault)</th><th>why the lab differs</th></tr>
+    <tr><th></th><th>this lab (ENGS 53 band)</th><th>real transmons (live from Coherence Vault)</th><th>why the lab differs</th></tr>
     <tr><td>frequency ω<sub>q</sub>/2π</td><td>4–6 GHz</td><td>a few GHz<br><span data-qv-real="transmon.f01"></span></td><td>the same: the lab's band is chosen to match</td></tr>
     <tr><td>T₁</td><td>100–200 ns</td><td>tens to hundreds of µs<br><span data-qv-real="transmon.T1"></span></td><td>the lab solves every GHz oscillation (no rotating-wave approximation), so a 100 µs decay would take millions of time steps</td></tr>
     <tr><td>Rabi rate Ω<sub>R</sub>/2π</td><td>200–500 MHz</td><td>roughly 10–100 MHz<br><span data-qv-real="transmon.alpha"></span></td><td>a real transmon is not a two-level system: drive it faster than its anharmonicity (about −200 to −300 MHz) and it leaks into |2⟩</td></tr>
     <tr><td>T₂</td><td>2T₁ (no pure dephasing)</td><td>often well below 2T₁<br><span data-qv-real="transmon.T2R"></span><br><span data-qv-real="transmon.T2E"></span></td><td>flux and charge noise dephase real qubits; free play lets you lower T₂</td></tr>
   </table>
-  <p class="hint">Each 📚 line is computed live from <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/parameters?kind=qubits" target="_blank" rel="noopener">Q-Vault</a>,
+  <p class="hint">Each 📚 line is computed live from <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/parameters?kind=qubits" target="_blank" rel="noopener">Coherence Vault</a>,
     the MARQUIS database where every T₁, T₂ and quality factor links to the page it came from. To run one of those qubits here, use
     <b>Free play → Load a real qubit</b>.</p>
 </div>
@@ -241,7 +241,7 @@
     <li><b>T₂* or T₂?</b> The model has no slow noise, so a Ramsey envelope gives T₂ itself. Which experiment would separate T₂* from T₂
       on a real qubit, and what would its envelope look like with 1/f flux noise?</li>
     <li><b>What a two-level model hides.</b> No |2⟩ level, so no leakage and no need for DRAG pulses. Look up a real transmon's
-      E<sub>J</sub>/E<sub>C</sub> and anharmonicity in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/levels" target="_blank" rel="noopener">Q-Vault Levels</a>
+      E<sub>J</sub>/E<sub>C</sub> and anharmonicity in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/levels" target="_blank" rel="noopener">Coherence Vault Levels</a>
       and estimate the shortest safe π pulse.</li>
     <li><b>Your own fits.</b> Download the CSVs and fit them yourself in Python: do your error bars agree with the page's?</li>
   </ul>
@@ -605,14 +605,14 @@ if (STANDALONE) {
 }
 
 /* ---------------- qubit selection ---------------- */
-// A code is a real transmon from Q-Vault (QVault.mysteryPool / mysteryPick / mysteryQubit), or, for links made before
-// real qubits (assigned without a device token, or ?classic=1) and when Q-Vault cannot be reached, the original practice
-// qubit from Q.qubitFromCode (lab units, T₂ = 2T₁). The practice qubit is also the placeholder while Q-Vault loads; the real
+// A code is a real transmon from Coherence Vault (CVault.mysteryPool / mysteryPick / mysteryQubit), or, for links made before
+// real qubits (assigned without a device token, or ?classic=1) and when Coherence Vault cannot be reached, the original practice
+// qubit from Q.qubitFromCode (lab units, T₂ = 2T₁). The practice qubit is also the placeholder while Coherence Vault loads; the real
 // one replaces it only if the page is still in mystery mode with the same code, keeping any pulses already placed.
 const MQ = { p: null, pool: null, src: {}, seq: 0 };
 function mqPool() {
-  if (!MQ.p) MQ.p = Promise.all([QVault.load('qvault_parameters.csv'), QVault.load('qvault_sources.csv')])
-    .then(([rows, srcs]) => { MQ.pool = QVault.mysteryPool(rows); MQ.src = QVault.sourceMap(srcs); if (!MQ.pool.length) throw new Error('empty pool'); return MQ.pool; })
+  if (!MQ.p) MQ.p = Promise.all([CVault.load('cvault_parameters.csv'), CVault.load('cvault_sources.csv')])
+    .then(([rows, srcs]) => { MQ.pool = CVault.mysteryPool(rows); MQ.src = CVault.sourceMap(srcs); if (!MQ.pool.length) throw new Error('empty pool'); return MQ.pool; })
     .catch(e => { MQ.p = null; throw e; });
   return MQ.p;
 }
@@ -626,20 +626,20 @@ function setQubit(code, { keepUrl = false, token = null, classic = false } = {})
   $('#qcode').textContent = norm;
   useQubit({ ...classicQubit(norm), placeholder: !classic });
   if (classic) { $('#mqNote').innerHTML = 'A practice qubit from before real qubits (lab units: ns and MHz), so earlier answer keys still match.'; if (!keepUrl) setQuery(norm); return; }
-  $('#mqNote').textContent = '📚 Fetching a real qubit from Q-Vault…';
+  $('#mqNote').textContent = '📚 Fetching a real qubit from Coherence Vault…';
   if (!keepUrl) setQuery(norm);
   mqPool().then(pool => {
     if (seq !== MQ.seq || getMode() !== 'mystery') return;
-    const fromTok = token ? QVault.mysteryFromToken(pool, token, norm) : null;
-    const row = fromTok || QVault.mysteryPick(pool, norm), q = row && QVault.mysteryQubit(row, norm);
+    const fromTok = token ? CVault.mysteryFromToken(pool, token, norm) : null;
+    const row = fromTok || CVault.mysteryPick(pool, norm), q = row && CVault.mysteryQubit(row, norm);
     if (!q) throw new Error('no qubit');
     adoptReal(q);
-    $('#mqNote').innerHTML = `📚 A real transmon from Q-Vault, in real-chip units (µs, kHz).${token && !fromTok ? ' <b>The device in this link is no longer in Q-Vault</b>, so the code picked another.' : ''} Which paper it is from stays hidden until you reveal the parameters.`;
-    if (!keepUrl) setQuery(norm, QVault.mysteryToken(row, norm));
+    $('#mqNote').innerHTML = `📚 A real transmon from Coherence Vault, in real-chip units (µs, kHz).${token && !fromTok ? ' <b>The device in this link is no longer in Coherence Vault</b>, so the code picked another.' : ''} Which paper it is from stays hidden until you reveal the parameters.`;
+    if (!keepUrl) setQuery(norm, CVault.mysteryToken(row, norm));
   }).catch(() => {
     if (seq !== MQ.seq || getMode() !== 'mystery') return;
     state.qubit.placeholder = false;
-    $('#mqNote').innerHTML = 'Q-Vault could not be reached (are you offline?), so this is a practice qubit in lab units (ns, MHz). Reload when online for a real one.';
+    $('#mqNote').innerHTML = 'Coherence Vault could not be reached (are you offline?), so this is a practice qubit in lab units (ns, MHz). Reload when online for a real one.';
   });
 }
 // Swap the placeholder for the real qubit: keep any pulses already placed (a link may have set them), drop results.
@@ -665,7 +665,7 @@ $('#useCode').onclick = () => { const v = $('#codeIn').value.trim(); if (v) { se
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#useCode').click(); });
 $('#copyLink').onclick = async () => {
   const u = pageUrl(); u.searchParams.set('qubit', state.qubit.code); u.searchParams.delete('from'); u.hash = '';
-  const rr = state.qubit.real; if (rr && MQ.pool) { const row = MQ.pool.find(x => x.citekey === rr.citekey && x.device_id === rr.device && (x.label || '') === rr.label); if (row) u.searchParams.set('d', QVault.mysteryToken(row, state.qubit.code)); }
+  const rr = state.qubit.real; if (rr && MQ.pool) { const row = MQ.pool.find(x => x.citekey === rr.citekey && x.device_id === rr.device && (x.label || '') === rr.label); if (row) u.searchParams.set('d', CVault.mysteryToken(row, state.qubit.code)); }
   try { await navigator.clipboard.writeText(u.href); $('#copyLink').textContent = 'Copied ✓'; }
   catch (e) { prompt('Copy this link:', u.href); }
   setTimeout(() => ($('#copyLink').textContent = 'Copy link'), 1500);
@@ -727,14 +727,14 @@ $('#genKey').onclick = async () => {
   $('#genKey').disabled = false;
   const link = (code, token) => { const u = pageUrl(); u.search = ''; u.hash = ''; u.searchParams.set('qubit', code); if (token) u.searchParams.set('d', token); u.searchParams.set('assigned', '1'); return u.href; };
   key = students.map(st => {
-    const code = Q.codeFor(seed, st), row = pool && QVault.mysteryPick(pool, code), q = row && QVault.mysteryQubit(row, code);
-    if (q) return { st, code, q, real: true, dev: `${QVault.cite(MQ.src[row.citekey], row.citekey)} · ${row.device_id}${row.label ? ' · ' + row.label : ''}`, link: link(code, QVault.mysteryToken(row, code)) };
+    const code = Q.codeFor(seed, st), row = pool && CVault.mysteryPick(pool, code), q = row && CVault.mysteryQubit(row, code);
+    if (q) return { st, code, q, real: true, dev: `${CVault.cite(MQ.src[row.citekey], row.citekey)} · ${row.device_id}${row.label ? ' · ' + row.label : ''}`, link: link(code, CVault.mysteryToken(row, code)) };
     return { st, code, q: classicQubit(code), real: false, dev: 'practice qubit (lab units)', link: link(code, null) };
   });
   const allReal = key.every(k => k.real);
   $('#keyOut').hidden = !key.length;
   $('#keyNote').innerHTML = !key.length ? '' : allReal ? 'Real qubits: frequencies in GHz, Rabi rates in kHz and times in µs, as the students will see them.'
-    : '<b>Q-Vault could not be reached</b>, so these are practice qubits in lab units (MHz, ns). Generate again when online for real qubits.';
+    : '<b>Coherence Vault could not be reached</b>, so these are practice qubits in lab units (MHz, ns). Generate again when online for real qubits.';
   const fu = allReal ? 'kHz' : 'MHz', tu = allReal ? 'µs' : 'ns';
   $('#keyTable').innerHTML = `<tr><th>Student</th><th>Code</th><th>Device</th><th>ω<sub>q</sub>/2π [GHz]</th><th>Ω<sub>R</sub>/2π [${fu}]</th><th>T₁ [${tu}]</th><th>T₂ [${tu}]</th></tr>`
     + key.map(k => `<tr><td>${esc(k.st)}</td><td><a href="${esc(k.link)}" target="_blank" rel="noopener">${k.code}</a></td><td>${esc(k.dev)}</td><td>${k.q.omegaQ.toFixed(4)}</td>`
@@ -1273,9 +1273,9 @@ function renderReveal() {
     + metric('T₁', q.T1.toFixed(1) + ' ' + UT()) + metric('T₂', q.T2.toFixed(1) + ' ' + UT());
   // Same deep link the Streamlit page offers: the Arena reads ?t1= and rescales it into game turns.
   const rr = q.real;
-  $('#revealSrc').innerHTML = rr ? `<b>📚 Your qubit: ${QVault.cite(MQ.src[rr.citekey], rr.citekey)} · ${esc(rr.device)}${rr.label ? ' · ' + esc(rr.label) : ''}</b>${rr.metal ? ` (${esc(rr.metal)}${rr.substrate ? ' on ' + esc(rr.substrate) : ''})` : ''}.
+  $('#revealSrc').innerHTML = rr ? `<b>📚 Your qubit: ${CVault.cite(MQ.src[rr.citekey], rr.citekey)} · ${esc(rr.device)}${rr.label ? ' · ' + esc(rr.label) : ''}</b>${rr.metal ? ` (${esc(rr.metal)}${rr.substrate ? ' on ' + esc(rr.substrate) : ''})` : ''}.
     The paper: T₁ = ${g4(rr.t1)} µs${rr.t2 ? `, T₂ (${rr.kind}) = ${g4(rr.t2)} µs` : ', no T₂ (so T₂ = 2T₁ here)'}. The drive (Ω<sub>R</sub>) is this lab's choice: papers do not list it.
-    ${QVault.sourceHTML(MQ.src[rr.citekey], rr.citekey)}` : '';
+    ${CVault.sourceHTML(MQ.src[rr.citekey], rr.citekey)}` : '';
   $('#battle').href = arenaUrl(q.T1.toFixed(1));
   $('#battle').textContent = `⚔️ Battle with this qubit → (T₁ = ${q.T1.toFixed(1)} ns, imported live)`;
 }
@@ -1326,11 +1326,11 @@ if (assigned && initial) {
 }
 syncQuickPulses();
 
-/* ---------------- real qubits from Q-Vault (web/shared/qvault.js) ---------------- */
+/* ---------------- real qubits from Coherence Vault (web/shared/cvault.js) ---------------- */
 // Real-chip units. In the drive's rotating frame the master equation this lab solves (Bloch equations with T₁ and T₂)
 // depends only on the detuning Δ, the Rabi rate Ω_R and the rates 1/T₁, 1/T₂; dividing all of them by s and multiplying
 // every time by s leaves it unchanged. So a run with T₁ = 49 ns, Ω_R/2π = 300 MHz and Δ in MHz is the same calculation as
-// a chip with T₁ = 49 µs, Ω_R/2π = 300 kHz and Δ in kHz, and for a real qubit (QVault.labQubit, s = 1000) the page shows
+// a chip with T₁ = 49 µs, Ω_R/2π = 300 kHz and Δ in kHz, and for a real qubit (CVault.labQubit, s = 1000) the page shows
 // chip units: the numbers stay, ns → µs and MHz → kHz for times, rates and frequency offsets. f₀₁ itself is exact; the
 // lab keeps the counter-rotating terms, which shift the resonance by ≈ Ω_R²/(4f₀₁) (the Bloch–Siegert shift) where the
 // chip's shift is 10⁶ times smaller, and a sweep measures whichever is there. Absolute frequencies are converted with
@@ -1375,28 +1375,28 @@ function tsDraw() {
     ? `<b class="big">⏱ Real qubit, in real-chip units.</b> Times are in <b>µs</b>; Rabi rates, detunings and fringe frequencies are in <b>kHz</b>, read straight off the plots:
       a T₁ you fit here compares directly with the paper's (${QVS.who}). f₀₁ = ${QVS.f01} GHz is exact. The frequency-sweep axis stays in the lab's GHz:
       there, an offset of 1 MHz from f₀₁ stands for 1 kHz on the chip. ${why}`
-    : `<b class="big">⏱ Real qubit, clock running ${g4(QVS.k * 1000)}× faster</b> (not ${QVault.TIME_SCALE}×, because its T₁ is beyond the lab's 10 µs limit at ${QVault.TIME_SCALE}×).
+    : `<b class="big">⏱ Real qubit, clock running ${g4(QVS.k * 1000)}× faster</b> (not ${CVault.TIME_SCALE}×, because its T₁ is beyond the lab's 10 µs limit at ${CVault.TIME_SCALE}×).
       Times here are lab ns; fitted T₁ and T₂ are converted to the chip's µs under each fit. ${why}`;
   $('#tsWhy').onclick = e => { e.preventDefault(); $('#tsWhyTxt').hidden = !$('#tsWhyTxt').hidden; };
 }
 // A published transmon runs here with its own frequency and its own T₂/T₁, on a clock 1000× faster than the real chip
-// (QVault.labQubit). Q-Vault's "Qublitz" links (?qv=citekey~device~label&f01=&t1=&t2=) land here too: the numbers are
-// re-read from Q-Vault's live table by id; the link's own numbers are used only when Q-Vault cannot be reached.
+// (CVault.labQubit). Coherence Vault's "Qublitz" links (?qv=citekey~device~label&f01=&t1=&t2=) land here too: the numbers are
+// re-read from Coherence Vault's live table by id; the link's own numbers are used only when Coherence Vault cannot be reached.
 const QVQ = { rows: null, src: {}, list: null };
 async function qvQubitData() {
   if (!QVQ.rows) {
-    const [p, s] = await Promise.all([QVault.load('qvault_parameters.csv'), QVault.load('qvault_sources.csv')]);
-    QVQ.rows = p; QVQ.src = QVault.sourceMap(s);
-    QVQ.list = p.filter(r => r.type === 'transmon' && QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us }).ok)
+    const [p, s] = await Promise.all([CVault.load('cvault_parameters.csv'), CVault.load('cvault_sources.csv')]);
+    QVQ.rows = p; QVQ.src = CVault.sourceMap(s);
+    QVQ.list = p.filter(r => r.type === 'transmon' && CVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us }).ok)
       .sort((a, b) => (a.citekey < b.citekey ? -1 : a.citekey > b.citekey ? 1 : +b.T1_us - +a.T1_us));
   }
 }
 function qvQubitLoad(r, s, offline) {
   const t2r = parseFloat(r.T2R_us), t2e = parseFloat(r.T2E_us), t2 = t2r > 0 ? t2r : t2e > 0 ? t2e : null, kind = t2r > 0 ? 'Ramsey' : 'echo';
-  const L = QVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us, t2 }), who = `${QVault.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}`;
+  const L = CVault.labQubit({ f01: r.f01_GHz, t1: r.T1_us, t2 }), who = `${CVault.cite(s, r.citekey)} · ${r.device_id}${r.label ? ' · ' + r.label : ''}`;
   const note = $('#qvQubitNote'); note.hidden = false;
-  if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? QVault.sourceHTML(s, r.citekey) : ''}`; return; }
-  // Papers in Q-Vault do not list their drive, so use the typical transmon's: Ω_R/2π = 25 MHz, a 20 ns π pulse. Only a qubit
+  if (!L.ok) { note.innerHTML = `<b>${who}</b> can't run in this lab: ${L.why}. ${s ? CVault.sourceHTML(s, r.citekey) : ''}`; return; }
+  // Papers in Coherence Vault do not list their drive, so use the typical transmon's: Ω_R/2π = 25 MHz, a 20 ns π pulse. Only a qubit
   // whose T₁ here is under 200 ns gets a faster drive (up to the lab's 300 MHz), so the π pulse stays within 10% of T₁.
   const rabi = Math.min(300, Math.max(25, Math.ceil(5e3 / L.T1)));
   $('#fWq').value = L.omegaQ; $('#fT1').value = L.T1; $('#fT2').value = L.T2; $('#fRabi').value = rabi;
@@ -1409,32 +1409,32 @@ function qvQubitLoad(r, s, offline) {
   const f = v => +(+v).toPrecision(4);
   note.innerHTML = `<b>📚 A real qubit: ${who}</b>${r.base_metal ? ` (${r.base_metal}${r.substrate ? ' on ' + r.substrate : ''})` : ''}.<br>
     Its own numbers: f₀₁ = <b>${f(r.f01_GHz)} GHz</b>, T₁ = <b>${f(r.T1_us)} µs</b>${t2 ? `, T₂ (${kind}) = <b>${f(t2)} µs</b>` : ''}.
-    ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? `The page now works in the chip's units (see the banner above the experiments): T₁ = ${L.T1} µs and T₂ = ${L.T2} µs${t2 ? '' : ' (Q-Vault lists no T₂, so T₂ = 2T₁)'}.`
+    ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? `The page now works in the chip's units (see the banner above the experiments): T₁ = ${L.T1} µs and T₂ = ${L.T2} µs${t2 ? '' : ' (Coherence Vault lists no T₂, so T₂ = 2T₁)'}.`
       : `Time runs ${g4(+r.T1_us / L.T1 * 1000)}× faster here, so T₁ = ${L.T1} ns and T₂ = ${L.T2} ns in the lab's units.`}
     The paper does not give its drive, so the lab uses ${rabi === 25 ? 'the typical transmon’s' : 'a faster one, because this T₁ is short'}: Ω<sub>R</sub>/2π = ${rabi} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'kHz' : 'MHz'}, so a π pulse, 1/(2·Ω<sub>R</sub>/2π), takes ${fmtG(500 / rabi)} ${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? 'µs' : 'ns'} (${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁).
     Your fitted Rabi rate and π pulse should come out at these numbers.${Math.abs(+r.T1_us / L.T1 - 1) < 1e-3 ? ` That is the real chip's 25 MHz drive and 20 ns π pulse, slowed by the 1000× clock along with everything else
     except f₀₁ (a 20 ns pulse in chip units would need a drive faster than the qubit itself), so here the π pulse is ${fmtG(100 * 500 / rabi / L.T1, 2)}% of T₁ instead of the chip's ${fmtG(100 * 0.02 / +r.T1_us, 2)}%.` : ''}${L.notes.length ? ' Also: ' + L.notes.join('; ') + '.' : ''}
-    ${offline ? '<br><i>Q-Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + QVault.sourceHTML(s, r.citekey)}`;
+    ${offline ? '<br><i>Coherence Vault could not be reached, so these are the numbers in the link you followed.</i>' : '<br>' + CVault.sourceHTML(s, r.citekey)}`;
   ql('qvault', { level: 'qubit' });
 }
 $('#qvQubitBtn').addEventListener('click', async () => {
-  const b = $('#qvQubitBtn'); b.disabled = true; b.textContent = 'Loading from Q-Vault…';
+  const b = $('#qvQubitBtn'); b.disabled = true; b.textContent = 'Loading from Coherence Vault…';
   try {
     await qvQubitData(); b.hidden = true;
     $('#qvQubitPick').innerHTML = `<select id="qvQubitSel" aria-label="A published transmon"><option value="">Pick one of ${QVQ.list.length} published transmons…</option>${QVQ.list.map((r, i) =>
-      `<option value="${i}">${QVault.cite(QVQ.src[r.citekey], r.citekey)} · ${r.label || r.device_id} · ${r.base_metal || '?'} · ${(+r.f01_GHz).toFixed(2)} GHz · T₁ ${+(+r.T1_us).toPrecision(3)} µs</option>`).join('')}</select>`;
+      `<option value="${i}">${CVault.cite(QVQ.src[r.citekey], r.citekey)} · ${r.label || r.device_id} · ${r.base_metal || '?'} · ${(+r.f01_GHz).toFixed(2)} GHz · T₁ ${+(+r.T1_us).toPrecision(3)} µs</option>`).join('')}</select>`;
     $('#qvQubitSel').addEventListener('change', e => { const r = QVQ.list[+e.target.value]; if (r) qvQubitLoad(r, QVQ.src[r.citekey]); });
-  } catch (err) { b.disabled = false; b.textContent = '📚 Load a real qubit from Q-Vault'; $('#qvQubitPick').innerHTML = '<p class="hint">Could not reach Q-Vault (are you offline?).</p>'; }
+  } catch (err) { b.disabled = false; b.textContent = '📚 Load a real qubit from Coherence Vault'; $('#qvQubitPick').innerHTML = '<p class="hint">Could not reach Coherence Vault (are you offline?).</p>'; }
 });
-(async function fromQVault() {
+(async function fromCVault() {
   let sp; try { sp = new URL(location.href).searchParams; } catch (e) { return; }
   // ?qvpick=1 (the hub's "Run a real transmon"): open free play with the list of published qubits showing
   if (sp.get('qvpick') === '1' && !assigned) { $('#mode [data-v="free"]').click(); $('#qvQubitBtn').click(); $('#qvQubitBtn').closest('.qvq').scrollIntoView({ block: 'center' }); return; }
-  const qv = QVault.parseQV(sp.get('qv'));
+  const qv = CVault.parseQV(sp.get('qv'));
   if (!qv || !sp.get('f01') || assigned) return;
   try {
     await qvQubitData();
-    const r = QVault.findParam(QVQ.rows, qv);
+    const r = CVault.findParam(QVQ.rows, qv);
     if (r) return qvQubitLoad(r, QVQ.src[r.citekey]);
   } catch (e) { /* offline: fall back to the link's numbers */ }
   const t2 = sp.get('t2');

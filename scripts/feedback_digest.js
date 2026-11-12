@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Weekly feedback digest for Qublitz: what people told us and what the anonymous counts show, ranked by what to fix
- * first. The same loop as Q-Vault's scripts/feedback_digest.py (docs/FEEDBACK_LOOP.md).
+ * first. The same loop as Coherence Vault's scripts/feedback_digest.py (docs/FEEDBACK_LOOP.md).
  *
  * Reads, all public or in the repository:
  *   1. the outreach collector's summary (web/shared/outreach-config.js endpoint, GET ?summary=1&days=N),
