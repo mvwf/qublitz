@@ -1,6 +1,6 @@
 # The feedback loop: from what players say to a merged change, and back
 
-Qublitz and [Coherence Vault](https://github.com/mvwf/MARQUIS_Q_VAULT/blob/main/docs/FEEDBACK_LOOP.md) share one feedback
+Qublitz and [Coherence Vault](https://github.com/mvwf/CoherenceVault/blob/main/docs/FEEDBACK_LOOP.md) share one feedback
 loop, so one weekly routine covers both sites. Feedback is collected on the page where it happens, ranked once a week,
 turned into small pull requests, and checked afterwards against the numbers that prompted it.
 

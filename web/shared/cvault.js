@@ -1,4 +1,4 @@
-/* cvault.js: reads Coherence Vault (https://mvwf.github.io/MARQUIS_Q_VAULT/), the MARQUIS database of published coherence data for
+/* cvault.js: reads Coherence Vault (https://mvwf.github.io/CoherenceVault/), the MARQUIS database of published coherence data for
  * superconducting qubits and resonators, so Qublitz pages can set up real devices and wiring. Coherence Vault publishes its tables
  * as CSV with open cross-origin access; nothing is copied into this repository, and a page fetches them only when the
  * visitor asks (a button), so pages stay fast and work offline without it.
@@ -10,7 +10,7 @@
  */
 (function (root) {
   'use strict';
-  const SITE = 'https://mvwf.github.io/MARQUIS_Q_VAULT/', CSV = SITE + 'data/csv/';
+  const SITE = 'https://mvwf.github.io/CoherenceVault/', CSV = SITE + 'data/csv/';
   const NOTE = 'Transcribed from the paper by Coherence Vault and not yet checked by a curator: follow the link to check it.';
 
   // RFC 4180 CSV: quoted fields may hold commas, quotes ("") and line breaks

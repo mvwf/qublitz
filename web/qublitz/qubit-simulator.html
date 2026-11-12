@@ -149,7 +149,7 @@
   <p class="hint" id="offlineHint"><a id="dlOffline" href="qubit-simulator-offline.html" download="qublitz-qubit-simulator.html">Download this simulator</a>
     as a single HTML file that runs offline in any browser, with nothing to install.</p>
   <p class="hint" id="mqNote" role="status"></p>
-  <p class="hint">Every code is a <b>real transmon</b> from a published paper in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/" target="_blank" rel="noopener">Coherence Vault</a>, run in the chip's
+  <p class="hint">Every code is a <b>real transmon</b> from a published paper in <a href="https://mvwf.github.io/CoherenceVault/" target="_blank" rel="noopener">Coherence Vault</a>, run in the chip's
     own units. Its frequency, Rabi rate, T₁ and T₂ are hidden. The same code always gives the same qubit, and <b>Reveal parameters</b>
     on the Ramsey tab lets you check your answers and see which paper it came from. Loading a new qubit clears your results and pulses.</p>
   </div>
@@ -227,7 +227,7 @@
     <tr><td>Rabi rate Ω<sub>R</sub>/2π</td><td>200–500 MHz</td><td>roughly 10–100 MHz<br><span data-qv-real="transmon.alpha"></span></td><td>a real transmon is not a two-level system: drive it faster than its anharmonicity (about −200 to −300 MHz) and it leaks into |2⟩</td></tr>
     <tr><td>T₂</td><td>2T₁ (no pure dephasing)</td><td>often well below 2T₁<br><span data-qv-real="transmon.T2R"></span><br><span data-qv-real="transmon.T2E"></span></td><td>flux and charge noise dephase real qubits; free play lets you lower T₂</td></tr>
   </table>
-  <p class="hint">Each 📚 line is computed live from <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/parameters?kind=qubits" target="_blank" rel="noopener">Coherence Vault</a>,
+  <p class="hint">Each 📚 line is computed live from <a href="https://mvwf.github.io/CoherenceVault/#/parameters?kind=qubits" target="_blank" rel="noopener">Coherence Vault</a>,
     the MARQUIS database where every T₁, T₂ and quality factor links to the page it came from. To run one of those qubits here, use
     <b>Free play → Load a real qubit</b>.</p>
 </div>
@@ -241,7 +241,7 @@
     <li><b>T₂* or T₂?</b> The model has no slow noise, so a Ramsey envelope gives T₂ itself. Which experiment would separate T₂* from T₂
       on a real qubit, and what would its envelope look like with 1/f flux noise?</li>
     <li><b>What a two-level model hides.</b> No |2⟩ level, so no leakage and no need for DRAG pulses. Look up a real transmon's
-      E<sub>J</sub>/E<sub>C</sub> and anharmonicity in <a href="https://mvwf.github.io/MARQUIS_Q_VAULT/#/levels" target="_blank" rel="noopener">Coherence Vault Levels</a>
+      E<sub>J</sub>/E<sub>C</sub> and anharmonicity in <a href="https://mvwf.github.io/CoherenceVault/#/levels" target="_blank" rel="noopener">Coherence Vault Levels</a>
       and estimate the shortest safe π pulse.</li>
     <li><b>Your own fits.</b> Download the CSVs and fit them yourself in Python: do your error bars agree with the page's?</li>
   </ul>
