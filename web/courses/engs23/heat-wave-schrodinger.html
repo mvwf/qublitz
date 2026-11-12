@@ -142,7 +142,7 @@ fundamental has turned its phase once. With that fixed, the contrast between the
     <button id="clearDraw">Clear</button>
     <span class="note" style="margin:0">Drag on the strip to sketch the shared starting shape. Ends pin to the walls.</span>
   </div>
-  <canvas id="draw" role="img" aria-label="Draw u(x,0): the shared starting shape. Without a mouse, pick a shape from the Initial shape menu above or edit the Fourier bars below." data-retro-ink style="height:104px"></canvas>
+  <canvas id="draw" role="img" aria-label="Draw u(x,0): the shared starting shape. Without a mouse, pick a shape from the Initial shape menu above or edit the Fourier bars below." data-retro-ink style="height:260px"></canvas>
 </div>
 
 <div class="card">
@@ -366,7 +366,7 @@ function projectFromDrawn(){ drawnShape[0]=0; drawnShape[NX-1]=0; clearC(); cons
   for(let n=1;n<=Nmax;n++){ let s=0,ph=PHI[n]; for(let j=0;j<NX;j++){ const w=(j===0||j===NX-1)?0.5:1; s+=w*ph[j]*drawnShape[j]; } cRe[n]=s*dx; } }
 let drawGeo=null;
 function drawEditor(){
-  const cv=$("draw"); const {ctx,W,H}=fit(cv,104); ctx.clearRect(0,0,W,H);
+  const cv=$("draw"); const {ctx,W,H}=fit(cv,260); ctx.clearRect(0,0,W,H);
   const m={l:12,r:12,t:12,b:10}, pw=W-m.l-m.r, ph=H-m.t-m.b, yMid=m.t+ph/2;
   let amax=1e-6; for(let j=0;j<NX;j++) amax=Math.max(amax,Math.abs(drawnShape[j]));
   const scale=(ph*0.42)/amax; drawGeo={m,pw,yMid,scale};
