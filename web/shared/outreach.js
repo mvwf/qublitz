@@ -397,6 +397,9 @@
 .ql-offer .ql-row{margin-top:8px}
 .ql-privacy{font:12px/1.5 Helvetica,Arial,sans-serif;color:#5a6b63;text-align:center;margin:24px 12px 10px}.qfund .ql-privacy{margin:6px 0 0}
 .ql-privacy button{font:inherit;color:#00693e;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+.ql-fb{font:13px/1.5 Helvetica,Arial,sans-serif;color:#5a6b63;text-align:center;margin:20px 12px 4px;display:flex;flex-wrap:wrap;gap:6px 8px;justify-content:center;align-items:center}.qfund .ql-fb{margin:8px 0 0}
+.ql-fb button{font:600 13px Helvetica,Arial,sans-serif;min-height:32px;min-width:44px;padding:4px 12px;border:1px solid #00693e;background:#fff;color:#00693e;border-radius:6px;cursor:pointer}.ql-fb button:focus-visible{outline:3px solid #ffd166;outline-offset:2px}
+.ql-fb a{color:#00693e}.ql-fb b{color:#1b2a24}
 .ql-ch{position:fixed;left:14px;bottom:14px;z-index:99990;max-width:min(340px,calc(100vw - 28px));background:#fff;color:#1b2a24;border:1px solid #00693e;border-radius:10px;box-shadow:0 6px 22px rgba(0,0,0,.18);font:13.5px/1.45 Helvetica,"Helvetica Neue",Arial,sans-serif}
 .ql-ch>button.ql-ch-head{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:center;width:100%;padding:8px 12px;cursor:pointer;font-weight:700;color:#00693e}
 .ql-ch>button.ql-ch-head:focus-visible{outline:3px solid #ffd166;outline-offset:2px;border-radius:9px}
@@ -603,6 +606,44 @@
   }
   function optOut(on) { store.set('ql_optout', on ? '1' : '0'); if (on) queue = []; }
 
+  // ── Feedback where it happens ─────────────────────────────────────────────────────────────────────────────
+  // "Was this page useful?" at the end of every page. Yes / No is an anonymous event of this page (helpful_yes,
+  // helpful_no), counted like any other while collection is on. "Suggest a change" opens the public Feedback issue
+  // form with this page's link and version filled in, so a report says what the visitor saw; email is offered too.
+  // Nothing typed is ever sent from here. scripts/feedback_digest.js ranks these with the open issues each week.
+  const FEEDBACK_REPO = 'https://github.com/mvwf/qublitz', FEEDBACK_EMAIL = 'mattias.w.fitzpatrick@dartmouth.edu';
+  function feedbackURL(extra) {
+    const what = [`Page: ${location.href}`, gv() ? `Page version: ${gv()}` : '', `Screen: ${root.innerWidth}×${root.innerHeight}`, '',
+      extra ? extra + '\n' : '', 'What I tried, what happened, and what would have helped:', ''].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
+    const title = `Feedback (${game || pagePath || 'site'}): `;
+    return `${FEEDBACK_REPO}/issues/new?template=feedback.yml&title=${encodeURIComponent(title)}&what=${encodeURIComponent(what)}`;
+  }
+  let fbVoted = '';
+  function pageFeedback() {
+    if (doc.querySelector('.ql-fb') || /(^|\/)(privacy|outreach\/)/.test(pagePath)) return;
+    const box = el('div', { class: 'ql-fb', role: 'region', 'aria-label': 'Feedback on this page' });
+    const mail = () => el('a', { href: `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Qublitz feedback: ' + (game || pagePath || 'site'))}&body=${encodeURIComponent('Page: ' + location.href + '\n\n')}` }, 'email');
+    const link = text => el('a', { href: feedbackURL(), target: '_blank', rel: 'noopener' }, text);
+    const draw = () => {
+      box.replaceChildren();
+      if (!fbVoted) {
+        box.append(el('span', {}, 'Was this page useful?'),
+          el('button', { type: 'button', onclick: () => vote('yes') }, 'Yes'), el('button', { type: 'button', onclick: () => vote('no') }, 'No'),
+          el('span', {}, '· ', link('Suggest a change'), ' (GitHub) or ', mail()));
+        return;
+      }
+      box.append(el('span', { role: 'status' }, el('b', {}, 'Thank you. '),
+        fbVoted === 'no' ? 'What was missing or confusing? One line helps: ' : 'Anything you would change? ', link(fbVoted === 'no' ? 'tell us on GitHub' : 'Suggest it'), ' or by ', mail(), '.'));
+    };
+    const vote = v => { fbVoted = v; event('helpful_' + v); draw(); };
+    draw();
+    const foot = doc.querySelector('footer.qfund') || Array.from(doc.querySelectorAll('body > footer')).pop();
+    if (foot) foot.prepend(box); else doc.body.append(el('footer', {}, box));
+  }
+  // A script error counts once per page load as js_error. The message never leaves the browser.
+  let jsErrorSent = false;
+  root.addEventListener('error', () => { if (!jsErrorSent) { jsErrorSent = true; event('js_error'); } });
+
   // ── Challenges: live goals that tick off from the page's own state ───────────────────────────────────
   let chAll = [], chList = [], chBox = null, chDone = new Set(), chEarly = new Set(), chTimer = 0, chOpts = {}, chSince = 0, chCur = null, chStarted = new Set();
   const chKey = () => `ql_ch:${game || 'page'}`;
@@ -721,6 +762,7 @@
 
   // after the site bar has added its footer (it does so on DOMContentLoaded, or on a 0 ms timer)
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', privacyNote); else setTimeout(privacyNote, 0);
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', pageFeedback); else setTimeout(pageFeedback, 0);
   // Counted once per page load, after the page's own learning file has had a chance to set the id.
   // Arrivals from another activity (?from=beamline) are counted by source, so the dashboard can show which
   // activities send people on to the Virtual Qubit Lab.

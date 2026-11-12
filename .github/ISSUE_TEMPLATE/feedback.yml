@@ -1,0 +1,28 @@
+name: Feedback
+description: Something in a Qublitz game, lab or lesson that is confusing, broken, missing or could teach better.
+title: "Feedback: "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Qublitz. This issue is public. Private feedback can go by email to mattias.w.fitzpatrick@dartmouth.edu.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is it about?
+      options:
+        - Something is confusing or hard to follow
+        - Something is broken or looks wrong
+        - The physics or a number looks wrong
+        - An idea for something new
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Your feedback
+      description: What you tried, what happened, and what would have helped. The "Suggest a change" link at the bottom of each page fills in the page link for you.
+    validations:
+      required: true

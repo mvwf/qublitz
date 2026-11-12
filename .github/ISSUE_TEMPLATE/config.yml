@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Private feedback by email
+    url: mailto:mattias.w.fitzpatrick@dartmouth.edu
+    about: For feedback you would rather not post in public.
