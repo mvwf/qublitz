@@ -9,7 +9,7 @@
  */
 (function () {
   'use strict';
-  const SITE = 'https://mvwf.github.io/qublitz/', REPO = 'https://github.com/mvwf/qublitz', CVAULT = 'https://mvwf.github.io/MARQUIS_Q_VAULT/';
+  const SITE = 'https://mvwf.github.io/qublitz/', REPO = 'https://github.com/mvwf/qublitz', CVAULT = 'https://mvwf.github.io/CoherenceVault/';
   // Who pays for Qublitz. Keep in step with the funding section of index.html and the README.
   const FUNDING = 'Qublitz is supported by the Unitary Foundation and by the U.S. National Science Foundation through an ' +
     '<a href="https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2540460" target="_blank" rel="noopener">NSF CAREER award (No. 2540460)</a> and the ' +

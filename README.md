@@ -13,7 +13,7 @@ You can link straight to the site or to any page on it, for example the
 [Rabi Rider](https://mvwf.github.io/qublitz/qublitz/rabi-rider.html). Pages embedded in another site (such as a
 Google Site) show an "Open the full page ↗" button at the top.
 
-**Real numbers from [Coherence Vault](https://mvwf.github.io/MARQUIS_Q_VAULT/).** Qublitz is the teaching companion of Coherence Vault, the
+**Real numbers from [Coherence Vault](https://mvwf.github.io/CoherenceVault/).** Qublitz is the teaching companion of Coherence Vault, the
 NSF MARQUIS database of published superconducting-device data. The labs load real qubits, resonators and cryostat wiring
 from it, 📚 lines across the site show the published spread behind a number (computed live from Coherence Vault's CSV files), and
 Coherence Vault's tables open their rows straight into the matching Qublitz lab. See `web/shared/cvault.js`.

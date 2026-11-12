@@ -23,7 +23,7 @@
   const LABEL = { arena: 'Arena', synthwave: 'Synthwave', phosphor: 'Phosphor', classic: 'Classic light', dark: 'Classic dark' };
   const BLURB = { arena: 'Neon on deep navy, pixel titles', synthwave: 'Magenta and sunset grid', phosphor: 'Green CRT with scanlines',
     classic: 'The original light look, good for projectors', dark: 'Plain dark, no retro fonts' };
-  const KEY = 'qublitz_theme', QVAULT_KEY = 'qvault-theme';   // Coherence Vault (mvwf.github.io/MARQUIS_Q_VAULT) shares the origin
+  const KEY = 'qublitz_theme', QVAULT_KEY = 'qvault-theme';   // Coherence Vault (mvwf.github.io/CoherenceVault) shares the origin
   const ALIAS = { light: 'classic' };                         // Coherence Vault's name for Classic light
   const pick = v => (THEMES.includes(v) ? v : ALIAS[v] || null);
   const read = k => { try { return root.localStorage.getItem(k); } catch (e) { return null; } };
