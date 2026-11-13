@@ -393,6 +393,52 @@ function sizeCanvas(){
   return {W:specCv.width,H:specCv.height,dpr};
 }
 
+/* ---------- weighted-average frequency (spectral centroid) ---------- */
+// Mean frequency of one FFT frame, each bin weighted by its linear magnitude. Only bins between
+// fmin and fmax and above the displayed floor (lo dB) count, so the line follows what is on screen
+// and disappears (NaN) when the frame is silent.
+function weightedMeanFreq(db, nBins, sr, fmin, fmax, lo){
+  const fftSize=nBins*2;
+  const b0=Math.max(1, Math.ceil(fmin*fftSize/sr)), b1=Math.min(nBins-1, Math.floor(fmax*fftSize/sr));
+  let sw=0, sfw=0;
+  for(let b=b0;b<=b1;b++){
+    const d=db[b]; if(!(d>lo)) continue;
+    const w=Math.pow(10, d/20);
+    sw+=w; sfw+=w*(b*sr/fftSize);
+  }
+  return sw>0 ? sfw/sw : NaN;
+}
+function freqToY(f, m, ph, logMode, fmin, fmax){
+  const frac = logMode ? Math.log(f/fmin)/Math.log(fmax/fmin) : f/fmax;
+  return m.t+(1-Math.min(1,Math.max(0,frac)))*(ph-1);
+}
+// Dashed white polyline through ys[i] at x0+i (NaN entries break the line).
+function strokeCentroid(ctx, x0, ys, dpr, dashOffset){
+  ctx.save();
+  ctx.beginPath();
+  let pen=false;
+  for(let i=0;i<ys.length;i++){
+    const y=ys[i];
+    if(!isFinite(y)){ pen=false; continue; }
+    if(pen) ctx.lineTo(x0+i,y); else { ctx.moveTo(x0+i,y); pen=true; }
+  }
+  ctx.setLineDash([6*dpr,4*dpr]); ctx.lineDashOffset=dashOffset||0;
+  ctx.lineJoin="round"; ctx.lineCap="butt";
+  ctx.strokeStyle="rgba(0,0,0,0.55)"; ctx.lineWidth=3.5*dpr; ctx.stroke();   // dark halo for contrast on bright areas
+  ctx.strokeStyle="#fff"; ctx.lineWidth=1.6*dpr; ctx.stroke();
+  ctx.restore();
+}
+function labelCentroid(ctx, x, y, f, dpr){
+  if(!isFinite(f)) return;
+  ctx.save();
+  ctx.font=(11*dpr)+"px Helvetica, Arial, sans-serif";
+  ctx.textAlign="right"; ctx.textBaseline="bottom";
+  const txt="avg "+fmtHz2(f);
+  ctx.lineWidth=3*dpr; ctx.strokeStyle="rgba(0,0,0,0.7)"; ctx.strokeText(txt,x,y-4*dpr);
+  ctx.fillStyle="#fff"; ctx.fillText(txt,x,y-4*dpr);
+  ctx.restore();
+}
+
 function draw(){
   const {W,H,dpr}=sizeCanvas();
   sctx.setTransform(1,0,0,1,0,0);
@@ -435,6 +481,19 @@ function draw(){
     }
   }
   sctx.putImageData(img, m.l, m.t);
+
+  // weighted-average frequency of each displayed frame
+  const cy=new Float32Array(pw|0);
+  let lastFrame=-1, lastY=NaN;
+  for(let ox=0;ox<cy.length;ox++){
+    const frame=Math.min(nFrames-1, Math.floor(ox/pw*nFrames));
+    if(frame!==lastFrame){
+      const f=weightedMeanFreq(data.subarray(frame*nBins,(frame+1)*nBins), nBins, sampleRate, fmin, fmax, lo);
+      lastY=isFinite(f)?freqToY(f,m,ph,logMode,fmin,fmax):NaN; lastFrame=frame;
+    }
+    cy[ox]=lastY;
+  }
+  strokeCentroid(sctx, m.l, cy, dpr);
 
   drawAxes(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range);
   drawPlayhead();
@@ -571,6 +630,15 @@ function drawSpectrumLine(mags,nBins,sr,hi,lo){
   lctx.strokeStyle="#00693e"; lctx.lineWidth=1.6*dpr; lctx.lineJoin="round"; lctx.stroke();
   lctx.lineTo(m.l+pw,m.t+ph); lctx.lineTo(m.l,m.t+ph); lctx.closePath();
   lctx.fillStyle="rgba(0,105,62,0.10)"; lctx.fill();
+  // weighted-average frequency marker (same quantity as the dashed line on the spectrogram)
+  const cf=weightedMeanFreq(mags,nBins,sr,fmin,fmax,lo);
+  if(isFinite(cf)){
+    const x=fx(cf);
+    lctx.save(); lctx.setLineDash([5*dpr,4*dpr]); lctx.strokeStyle="#3a4a43"; lctx.lineWidth=1.2*dpr;
+    lctx.beginPath(); lctx.moveTo(x,m.t); lctx.lineTo(x,m.t+ph); lctx.stroke(); lctx.restore();
+    lctx.fillStyle="#3a4a43"; lctx.textAlign=x>m.l+pw*0.7?"right":"left"; lctx.textBaseline="bottom";
+    lctx.fillText("avg "+fmtHz2(cf), x+(x>m.l+pw*0.7?-5*dpr:5*dpr), m.t+ph-3*dpr);   // bottom, clear of the peak label
+  }
   // peak marker
   let pk=-Infinity,pf=0;
   for(let b=1;b<nBins;b++){ const freq=b*sr/fftSize; if(freq<fmin||freq>fmax)continue; if(mags[b]>pk){pk=mags[b];pf=freq;} }
@@ -655,7 +723,7 @@ async function startLive(){
     const g=liveGeom();
     const off=document.createElement("canvas"); off.width=g.pw; off.height=g.ph;
     const offctx=off.getContext("2d"); offctx.fillStyle="#000"; offctx.fillRect(0,0,g.pw,g.ph);
-    live={on:true, stream, analyser:an, src:srcNode, raf:0, off, offctx, hi:-20, geom:g};
+    live={on:true, stream, analyser:an, src:srcNode, raf:0, off, offctx, hi:-20, geom:g, cent:new Float32Array(g.pw).fill(NaN), n:0};
     $("btnLive").textContent="■ Stop mic"; $("btnLive").className="sound";
     $("btnPlay").disabled=true;
     status("Live microphone — speak, whistle, or play a tone. Newest sound enters on the right.");
@@ -709,11 +777,19 @@ function liveLoop(){
     col.data[oy*4]=c[0];col.data[oy*4+1]=c[1];col.data[oy*4+2]=c[2];col.data[oy*4+3]=255;
   }
   octx.putImageData(col, pw-1, 0);
+  // weighted-average frequency history scrolls with the image (stored in Hz so scale changes re-map it)
+  const cent=live.cent;
+  cent.copyWithin(0,1); cent[pw-1]=weightedMeanFreq(buf, nBins, sr, fmin, fmax, lo);
+  live.n++;
   // composite to the visible canvas with axes
   sctx.setTransform(1,0,0,1,0,0);
   sctx.fillStyle="#000"; sctx.fillRect(0,0,g.W,g.H);
   sctx.imageSmoothingEnabled=false;
   sctx.drawImage(live.off, m.l, m.t);
+  const cy=new Float32Array(pw);
+  for(let i=0;i<pw;i++){ const f=cent[i]; cy[i]=(isFinite(f)&&f<=fmax&&f>=(logMode?fmin:0))?freqToY(f,m,ph,logMode,fmin,fmax):NaN; }
+  strokeCentroid(sctx, m.l, cy, dpr, live.n);
+  labelCentroid(sctx, m.l+pw-4*dpr, cy[pw-1], cent[pw-1], dpr);
   drawFreqGridAndBar(m,pw,ph,dpr,fmax,logMode,fmin,hi,lo,range);
   sctx.fillStyle="#9aa3cf"; sctx.textAlign="center"; sctx.textBaseline="top";
   sctx.font=(12*dpr)+"px Helvetica, Arial, sans-serif";
@@ -789,7 +865,7 @@ $("fftSel").addEventListener("change", ()=>{ qlNote("mode",{level:"N"+$("fftSel"
 $("fmax").addEventListener("input",()=>$("fmaxLbl").textContent=(+$("fmax").value)+" Hz");
 $("drange").addEventListener("input",()=>$("drangeLbl").textContent=(+$("drange").value)+" dB");
 window.addEventListener("resize",()=>{
-  if(live.on){ const g=liveGeom(); const off=document.createElement("canvas"); off.width=g.pw; off.height=g.ph; const c=off.getContext("2d"); c.fillStyle="#000"; c.fillRect(0,0,g.pw,g.ph); live.off=off; live.offctx=c; live.geom=g; }
+  if(live.on){ const g=liveGeom(); const off=document.createElement("canvas"); off.width=g.pw; off.height=g.ph; const c=off.getContext("2d"); c.fillStyle="#000"; c.fillRect(0,0,g.pw,g.ph); live.off=off; live.offctx=c; live.geom=g; live.cent=new Float32Array(g.pw).fill(NaN); }
   else if(spec){ draw(); updateFileSpectrum(); } else { sizeCanvas(); sizeLine(); }
 });
 
